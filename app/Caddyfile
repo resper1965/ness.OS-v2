@@ -1,0 +1,15 @@
+hub.ness.com.br {
+    reverse_proxy frontend:3000
+}
+
+n8n.ness.com.br {
+    reverse_proxy n8n:5678
+}
+
+api.ness.com.br {
+    reverse_proxy api:8000
+}
+
+waba.ness.com.br {
+    reverse_proxy evolution-api:8080
+}
