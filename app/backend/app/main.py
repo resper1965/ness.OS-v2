@@ -6,8 +6,16 @@ from __future__ import annotations
 import logging
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+import sys
+from pathlib import Path
+project_root = Path(__file__).resolve().parent.parent.parent.parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
 
 from app.api.webhooks import router as webhooks_router
+from app.api.routers.contabo import router as contabo_router
 from app.config import get_settings
 
 settings = get_settings()
@@ -25,8 +33,17 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # For dev purposes
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # --- Routers ---
 app.include_router(webhooks_router)
+app.include_router(contabo_router, prefix="/api/contabo", tags=["contabo"])
 
 
 @app.get("/", tags=["root"])

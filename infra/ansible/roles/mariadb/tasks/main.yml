@@ -101,6 +101,8 @@
     name: root
     password: "{{ mariadb_root_password }}"
     host: localhost
+    login_user: root
+    login_password: "{{ mariadb_root_password }}"
     login_unix_socket: /var/run/mysqld/mysqld.sock
     state: present
     check_implicit_admin: true
@@ -116,6 +118,8 @@
   community.mysql.mysql_user:
     name: ""
     host_all: true
+    login_user: root
+    login_password: "{{ mariadb_root_password }}"
     login_unix_socket: /var/run/mysqld/mysqld.sock
     state: absent
   tags:
@@ -128,6 +132,8 @@
 - name: Remover banco de dados 'test'
   community.mysql.mysql_db:
     name: test
+    login_user: root
+    login_password: "{{ mariadb_root_password }}"
     login_unix_socket: /var/run/mysqld/mysqld.sock
     state: absent
   tags:
@@ -143,6 +149,8 @@
     name: "{{ zabbix_db_name }}"
     encoding: utf8mb4
     collation: utf8mb4_bin
+    login_user: root
+    login_password: "{{ mariadb_root_password }}"
     login_unix_socket: /var/run/mysqld/mysqld.sock
     state: present
   tags:
@@ -158,6 +166,8 @@
     password: "{{ zabbix_db_password }}"
     host: localhost
     priv: "{{ zabbix_db_name }}.*:ALL"
+    login_user: root
+    login_password: "{{ mariadb_root_password }}"
     login_unix_socket: /var/run/mysqld/mysqld.sock
     state: present
   no_log: true
@@ -174,6 +184,8 @@
   community.mysql.mysql_variables:
     variable: log_bin_trust_function_creators
     value: "1"
+    login_user: root
+    login_password: "{{ mariadb_root_password }}"
     login_unix_socket: /var/run/mysqld/mysqld.sock
   tags:
     - mariadb

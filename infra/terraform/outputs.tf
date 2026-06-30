@@ -50,6 +50,11 @@ output "vps_default_user" {
   value       = contabo_instance.zabbix_server.default_user
 }
 
+output "hub_ip_v4" {
+  description = "Endereço IPv4 público do AIOps Hub"
+  value       = contabo_instance.aiops_hub.ip_config[0].v4[0].ip
+}
+
 # ---------------------------------------------------------------------------
 # Outputs do Object Storage
 # ---------------------------------------------------------------------------
@@ -100,11 +105,13 @@ output "ssh_secret_name" {
 output "connection_summary" {
   description = "Resumo das informações de conexão"
   value = {
-    ssh_command    = "ssh ${contabo_instance.zabbix_server.default_user}@${contabo_instance.zabbix_server.ip_config[0].v4[0].ip}"
-    s3_endpoint    = contabo_object_storage.data_storage.s3_url
-    s3_tenant_id   = contabo_object_storage.data_storage.s3_tenant_id
-    vps_ip         = contabo_instance.zabbix_server.ip_config[0].v4[0].ip
-    instance_id    = contabo_instance.zabbix_server.id
-    environment    = var.environment
+    ssh_command_zabbix = "ssh ${contabo_instance.zabbix_server.default_user}@${contabo_instance.zabbix_server.ip_config[0].v4[0].ip}"
+    ssh_command_hub    = "ssh ${contabo_instance.aiops_hub.default_user}@${contabo_instance.aiops_hub.ip_config[0].v4[0].ip}"
+    s3_endpoint        = contabo_object_storage.data_storage.s3_url
+    s3_tenant_id       = contabo_object_storage.data_storage.s3_tenant_id
+    vps_ip             = contabo_instance.zabbix_server.ip_config[0].v4[0].ip
+    hub_ip             = contabo_instance.aiops_hub.ip_config[0].v4[0].ip
+    instance_id        = contabo_instance.zabbix_server.id
+    environment        = var.environment
   }
 }

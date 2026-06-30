@@ -36,5 +36,5 @@
   ansible.builtin.import_playbook: zabbix-app.yml
 
 # Etapa 4: Configuração do backup automatizado
-- name: "Etapa 4/4 - Backup automatizado (rclone + S3)"
-  ansible.builtin.import_playbook: backup.yml
+# - name: "Etapa 4/4 - Backup automatizado (rclone + S3)"
+#   ansible.builtin.import_playbook: backup.yml

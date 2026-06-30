@@ -89,3 +89,24 @@ resource "contabo_object_storage" "data_storage" {
     size_limit_tb = var.object_storage_auto_scaling_limit_tb
   }
 }
+
+# ---------------------------------------------------------------------------
+# Instância Cloud VPS - AIOps Hub (Orquestração NOC + SOC)
+# ---------------------------------------------------------------------------
+# Provisiona a VPS dedicada para PostgreSQL, Redis, n8n, Evolution API.
+# V2 = 6 vCPU, 16 GB RAM, 400 GB NVMe (Ideal para o AIOps Hub)
+# ---------------------------------------------------------------------------
+resource "contabo_instance" "aiops_hub" {
+  display_name = var.hub_display_name
+  product_id   = var.hub_product_id
+  image_id     = var.vps_image_id
+  region       = var.vps_region
+  period       = var.vps_period
+  default_user = var.vps_default_user
+
+  ssh_keys = [contabo_secret.ssh_key.id]
+
+  lifecycle {
+    prevent_destroy = false
+  }
+}

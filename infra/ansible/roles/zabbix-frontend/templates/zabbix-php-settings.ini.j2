@@ -31,7 +31,7 @@ max_input_vars = 10000
 ; Fuso horário
 ; Deve corresponder ao fuso horário configurado no servidor Zabbix
 ; ---------------------------------------------------------------------------
-date.timezone = {{ timezone }}
+date.timezone = {{ php_date_timezone | default('America/Sao_Paulo') }}
 
 ; ---------------------------------------------------------------------------
 ; Configurações de compatibilidade do Zabbix
