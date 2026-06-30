@@ -24,7 +24,7 @@ numpy==2.2.*
 httpx==0.28.*
 
 # --- Network Devices (SSH) ---
-netmiko==4.4.*
+netmiko==4.7.*
 
 # --- Utilities ---
 python-multipart==0.0.*
