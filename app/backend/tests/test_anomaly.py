@@ -19,18 +19,18 @@ def test_robust_zscore_basic():
 
 
 def test_robust_zscore_with_outlier():
-    # Histórico normal em torno de 10, com um outlier gigante de 100
-    data = np.array([10.0, 10.2, 9.8, 10.1, 9.9, 100.0], dtype=np.float64)
+    # Histórico normal em torno de 10, com um outlier gigante de 100 (número ímpar de elementos para mediana exata)
+    data = np.array([10.0, 10.2, 9.8, 10.1, 9.9, 10.0, 100.0], dtype=np.float64)
     result = robust_zscore(data)
 
     # Mediana deve resistir ao outlier
     assert result.median == pytest.approx(10.0)
     assert result.mad == pytest.approx(0.1)
 
-    # O outlier (índice 5) deve ter um Z-Score enorme
-    assert result.z_scores[5] > 30.0
+    # O outlier (índice 6) deve ter um Z-Score enorme
+    assert result.z_scores[6] > 30.0
     # O resto dos dados deve ter Z-Score normal
-    assert np.all(np.abs(result.z_scores[:5]) < 2.0)
+    assert np.all(np.abs(result.z_scores[:6]) < 2.0)
 
 
 def test_detect_anomalies():

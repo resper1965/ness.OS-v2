@@ -26,7 +26,7 @@ _PATTERNS: Final[list[tuple[re.Pattern[str], str]]] = [
     (
         re.compile(
             r"(mysql|postgres(?:ql)?|redis|mongodb|amqp|mariadb)"
-            r"://[^\s\"'<>]+",
+            r"(?:\+[a-zA-Z0-9_]+)?://[^\s\"'<>]+",
             re.IGNORECASE,
         ),
         "[CONN_STRING_REDACTED]",
@@ -81,17 +81,29 @@ def sanitize(text: str) -> str:
 
 
 def sanitize_dict(data: dict) -> dict:
-    """Sanitiza recursivamente todos os valores string de um dict."""
+    """Sanitiza recursivamente todos os valores string de um dict, redigindo chaves sensíveis."""
+    sensitive_keys = {"password", "passwd", "pwd", "secret", "api_key", "token", "private_key"}
     result: dict = {}
     for key, value in data.items():
+        is_sensitive = any(sk in key.lower() for sk in sensitive_keys)
+
         if isinstance(value, str):
-            result[key] = sanitize(value)
+            if is_sensitive:
+                result[key] = "[REDACTED]"
+            else:
+                result[key] = sanitize(value)
         elif isinstance(value, dict):
             result[key] = sanitize_dict(value)
         elif isinstance(value, list):
-            result[key] = [
-                sanitize(v) if isinstance(v, str) else v for v in value
-            ]
+            if is_sensitive:
+                result[key] = ["[REDACTED]" if isinstance(v, str) else v for v in value]
+            else:
+                result[key] = [
+                    sanitize(v) if isinstance(v, str) else v for v in value
+                ]
         else:
-            result[key] = value
+            if is_sensitive and value is not None:
+                result[key] = "[REDACTED]"
+            else:
+                result[key] = value
     return result
