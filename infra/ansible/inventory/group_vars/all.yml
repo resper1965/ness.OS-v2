@@ -23,6 +23,7 @@ ssh_port: 2222
 
 # Usuário administrador do sistema
 admin_user: "ness_admin"
+admin_ssh_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILy+Bn+pSy9Zkx3UQLnD/d53nP7Lg1Yx0mVMEnPter1Q cursor-agent-stackvps"
 
 # Localidade do sistema
 system_locale: "pt_BR.UTF-8"
@@ -38,10 +39,10 @@ zabbix_version: "7.0"
 zabbix_server_name: "Zabbix Server - ness."
 
 # Domínio do frontend web (substituir pelo domínio real)
-zabbix_frontend_domain: "SUBSTITUIR_PELO_DOMINIO"
+zabbix_frontend_domain: "zabbix.ness.com.br"
 
 # E-mail para certificado Let's Encrypt (substituir pelo e-mail real)
-letsencrypt_email: "SUBSTITUIR_PELO_EMAIL"
+letsencrypt_email: "support@ness.com.br"
 
 # ---------------------------------------------------------------------------
 # Credenciais do Banco de Dados
@@ -54,15 +55,9 @@ zabbix_db_name: "dbzabbix"
 # Usuário do banco de dados do Zabbix
 zabbix_db_user: "usrzabbix"
 
-# Senha do usuário do banco de dados (CRIPTOGRAFAR COM VAULT)
-zabbix_db_password: !vault |
-  $ANSIBLE_VAULT;1.1;AES256
-  SUBSTITUIR_PELA_SENHA_CRIPTOGRAFADA_COM_ANSIBLE_VAULT
-
-# Senha root do MariaDB (CRIPTOGRAFAR COM VAULT)
-mariadb_root_password: !vault |
-  $ANSIBLE_VAULT;1.1;AES256
-  SUBSTITUIR_PELA_SENHA_CRIPTOGRAFADA_COM_ANSIBLE_VAULT
+# Senha do usuário do banco de dados
+zabbix_db_password: "zabbix_db_pass_N3ss2026!"
+mariadb_root_password: "mariadb_root_pass_2026"
 
 # Host do banco de dados (localhost para instalação all-in-one)
 zabbix_db_host: "localhost"
@@ -310,7 +305,7 @@ zabbix_agent_listen_port: 10050
 backup_rclone_remote: "contabo-s3"
 
 # Nome do bucket S3 para backups
-backup_s3_bucket: "zabbix-backups"
+backup_s3_bucket: "zabbix-storage"
 
 # Diretório local temporário para geração dos dumps
 backup_local_dir: "/var/backups/zabbix"
@@ -332,14 +327,10 @@ backup_retention_monthly: 3
 # --- Credenciais Contabo S3 (CRIPTOGRAFAR COM VAULT) ---
 
 # Access Key do Contabo Object Storage
-backup_s3_access_key: !vault |
-  $ANSIBLE_VAULT;1.1;AES256
-  SUBSTITUIR_PELA_CHAVE_CRIPTOGRAFADA_COM_ANSIBLE_VAULT
+backup_s3_access_key: "b02ae5cec2f0ebdc9865fbe0cf359ec8"
 
 # Secret Key do Contabo Object Storage
-backup_s3_secret_key: !vault |
-  $ANSIBLE_VAULT;1.1;AES256
-  SUBSTITUIR_PELA_CHAVE_CRIPTOGRAFADA_COM_ANSIBLE_VAULT
+backup_s3_secret_key: "00858ea107188f07317426c649116ee8"
 
 # Endpoint S3 do Contabo
 backup_s3_endpoint: "https://eu2.contabostorage.com"

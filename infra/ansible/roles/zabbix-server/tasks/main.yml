@@ -111,6 +111,7 @@
     cmd: >-
       mysql
       --user=root
+      --password={{ mariadb_root_password }}
       --host=localhost
       --socket=/var/run/mysqld/mysqld.sock
       --execute="SET GLOBAL log_bin_trust_function_creators = 0;"
@@ -133,7 +134,6 @@
     group: zabbix
     mode: "0640"
     backup: true
-    validate: "zabbix_server -c %s -R config_cache_reload 2>/dev/null || true"
   notify:
     - Reiniciar Zabbix Server
   tags:

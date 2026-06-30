@@ -15,7 +15,8 @@ O **n.infraops** é uma plataforma de AIOps open-source corporativa projetada pa
 ## 2. Stack Tecnológica
 Nenhuma alteração na stack principal pode ser feita sem aprovação do comitê técnico:
 
-*   **Backend API & Workers:** Python 3.12+ (FastAPI + Celery + Redis 7).
+*   **Backend API & Workers:** Python 3.12+ (FastAPI + Celery + Redis 7). Atua como ponte para a API da Contabo e inteligência de alertas.
+*   **Frontend (Central Admin App):** React (via Vite) + TailwindCSS, tipografia Montserrat e Design System Dark Mode estrito ("ness." branding). Esta aplicação é a central única de administração do ecossistema (Cloud, Zabbix AIOps, Tenants).
 *   **Banco de Dados:** PostgreSQL 16 estendido com:
     *   **TimescaleDB:** Para séries temporais e armazenamento de métricas.
     *   **pgvector:** Para armazenamento e busca semântica de embeddings de incidentes e runbooks (dimensão 768).
@@ -25,6 +26,9 @@ Nenhuma alteração na stack principal pode ser feita sem aprovação do comitê
     *   Evolution API (Gateway de WhatsApp para alertas).
     *   Gemini API (Modelo `gemini-2.5-flash` para análise RAG e pós-incidente).
 *   **Automação / Remediação:** Drivers RMM (Datto, Atera) e SSH via Netmiko para ativos de rede sem agente.
+*   **Infraestrutura Core (Zabbix NOC):** Servidor dedicado na Contabo (Storage VPS 40: 8 vCPU, 30GB RAM, 1.2TB SSD) rodando Debian 12. **[STATUS: ONLINE / PRODUÇÃO]**
+*   **Provisionamento (IaC):** Ansible estrito para configuração e deploy bare-metal do Zabbix 7.0, MariaDB (Tuning) e política de backups locais. (Deploy Concluído).
+*   **Cloud Management:** CLI próprio em Python e interface integrada no App web para gerenciar VPS, Storages e Tags da nuvem Contabo via API OAuth2.
 
 ---
 

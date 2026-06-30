@@ -23,17 +23,17 @@
 # ---------------------------------------------------------------------------
 # 2. Instalação dos módulos PHP necessários para o Zabbix
 # ---------------------------------------------------------------------------
-- name: Instalar módulos PHP 8.1 necessários
+- name: Instalar módulos PHP 8.2 necessários
   ansible.builtin.apt:
     name:
-      - php8.1
-      - php8.1-mysql
-      - php8.1-gd
-      - php8.1-bcmath
-      - php8.1-xml
-      - php8.1-mbstring
-      - php8.1-ldap
-      - php8.1-curl
+      - php8.2
+      - php8.2-mysql
+      - php8.2-gd
+      - php8.2-bcmath
+      - php8.2-xml
+      - php8.2-mbstring
+      - php8.2-ldap
+      - php8.2-curl
     state: present
   tags:
     - zabbix-frontend
@@ -46,7 +46,7 @@
 - name: Copiar configurações PHP do Zabbix
   ansible.builtin.template:
     src: zabbix-php-settings.ini.j2
-    dest: /etc/php/8.1/apache2/conf.d/99-zabbix.ini
+    dest: /etc/php/8.2/apache2/conf.d/99-zabbix.ini
     owner: root
     group: root
     mode: "0644"
@@ -175,6 +175,7 @@
   args:
     creates: "/etc/letsencrypt/live/{{ zabbix_frontend_domain }}/fullchain.pem"
   notify: Reiniciar Apache
+  ignore_errors: true
   tags:
     - zabbix-frontend
     - ssl

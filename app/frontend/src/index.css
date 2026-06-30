@@ -1,0 +1,48 @@
+@import "tailwindcss";
+
+@theme {
+  /* Colors based on ness. branding */
+  --color-brand-base: #0A0A0F;
+  --color-brand-surface: #14141B;
+  --color-brand-primary: #00ADE8; /* Ciano do ponto final */
+  --color-brand-secondary: #334155;
+  --color-brand-text: #F8FAFC;
+  --color-brand-muted: #94A3B8;
+  --color-brand-success: #10B981;
+  --color-brand-danger: #EF4444;
+
+  /* Fonts */
+  --font-sans: 'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-logo: 'Montserrat', system-ui, sans-serif;
+}
+
+@layer base {
+  body {
+    background-color: var(--color-brand-base);
+    color: var(--color-brand-text);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* Base resets or globals */
+* {
+  box-sizing: border-box;
+}
+
+/* Minimal scrollbar for dark mode */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-brand-secondary);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-brand-primary);
+}

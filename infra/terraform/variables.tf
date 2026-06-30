@@ -67,6 +67,20 @@ variable "vps_product_id" {
   default     = "V3"
 }
 
+variable "hub_display_name" {
+  description = "Nome de exibição da instância AIOps Hub no painel Contabo"
+  type        = string
+  default     = "aiops-hub-server"
+}
+
+variable "hub_product_id" {
+  description = <<-EOT
+    ID do produto VPS na Contabo para o Hub AIOps.
+    Recomendado: "V2" = Cloud VPS 2 (6 vCPU, 16 GB RAM, 400 GB SSD)
+  EOT
+  type        = string
+  default     = "V2"
+}
 variable "vps_image_id" {
   description = <<-EOT
     ID da imagem do sistema operacional para instalação na VPS.
