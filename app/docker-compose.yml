@@ -146,10 +146,57 @@ services:
         limits:
           memory: 1G
 
+  # --- Evolution API (WhatsApp Gateway) ---
+  evolution-api:
+    image: atendai/evolution-api:latest
+    container_name: ninf-evolution
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - SERVER_URL=http://localhost:8080
+      - AUTHENTICATION_API_KEY=${NINF_EVOLUTION_API_KEY:-changeme}
+      - DATABASE_PROVIDER=postgresql
+      - DATABASE_CONNECTION_URI=postgresql://nessops:${NINF_DB_PASSWORD:-changeme}@postgres:5432/nessops
+      - DATABASE_CONNECTION_CLIENT_NAME=evolution_api
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - evolution-instances:/evolution/instances
+      - evolution-store:/evolution/store
+    networks:
+      - ninf-net
+    deploy:
+      resources:
+        limits:
+          memory: 1.5G
+
+  # --- Frontend (Next.js/React App) ---
+  frontend:
+    build:
+      context: ./frontend
+    container_name: ninf-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000" # Exposing on 3000 for local/direct access
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    depends_on:
+      - api
+    networks:
+      - ninf-net
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
 volumes:
   pg-data:
   redis-data:
   n8n-data:
+  evolution-instances:
+  evolution-store:
 
 networks:
   ninf-net:
