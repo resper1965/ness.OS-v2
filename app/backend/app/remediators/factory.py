@@ -143,15 +143,64 @@ class RMMFactory:
         )
 
     @classmethod
+    async def _async_get_db_credentials(
+        cls, customer_id: str, provider: str
+    ) -> dict[str, str]:
+        """Busca credenciais no banco de dados utilizando SQLAlchemy Async."""
+        from sqlalchemy import select
+        from app.database import SessionLocal
+        from app.models import CustomerCredentials
+
+        try:
+            async with SessionLocal() as session:
+                # Primeiro tenta com o customer_id específico
+                stmt = select(CustomerCredentials).where(
+                    CustomerCredentials.customer_id == customer_id,
+                    CustomerCredentials.provider == provider,
+                )
+                result = await session.execute(stmt)
+                db_creds = result.scalar_one_or_none()
+
+                # Se não encontrar, tenta o default
+                if not db_creds:
+                    stmt = select(CustomerCredentials).where(
+                        CustomerCredentials.customer_id == "default",
+                        CustomerCredentials.provider == provider,
+                    )
+                    result = await session.execute(stmt)
+                    db_creds = result.scalar_one_or_none()
+
+                if db_creds:
+                    return {
+                        "api_key": db_creds.api_key,
+                        "api_secret": db_creds.api_secret or "",
+                        "api_url": db_creds.api_url or "",
+                    }
+        except Exception as e:
+            logger.warning("Falha ao buscar credenciais no banco de dados: %s", e)
+        return {}
+
+    @classmethod
     def _get_credentials(
         cls, customer_id: str, provider: str
     ) -> dict[str, str]:
-        """Busca credenciais do registry. Fallback para 'default'."""
-        key = f"{customer_id}:{provider}"
-        creds = cls._credential_store.get(key)
+        """Busca credenciais do registry ou banco. Fallback para 'default'."""
+        import asyncio
+
+        # Tenta buscar no banco de dados (async)
+        try:
+            creds = asyncio.run(cls._async_get_db_credentials(customer_id, provider))
+        except Exception as e:
+            logger.warning("Erro ao executar busca assíncrona de credenciais: %s", e)
+            creds = {}
+
+        # Fallback para o registry em memória (útil para testes/mocks)
+        if not creds:
+            key = f"{customer_id}:{provider}"
+            creds = cls._credential_store.get(key)
 
         if not creds:
-            # Fallback para credenciais globais
+            # Fallback para credenciais globais em memória
             default_key = f"default:{provider}"
             creds = cls._credential_store.get(default_key, {})
 
@@ -162,6 +211,7 @@ class RMMFactory:
             )
 
         return creds
+
 
 
 def _resolve_netmiko_type(os_family: str) -> str:

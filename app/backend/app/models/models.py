@@ -239,3 +239,23 @@ class Metric(Base):
     item_id: Mapped[str] = mapped_column(String(64), primary_key=True, nullable=False)
     item_key: Mapped[str] = mapped_column(String(255), nullable=False)
     value: Mapped[float] = mapped_column(nullable=False)
+
+
+class CustomerCredentials(Base):
+    """Credenciais de RMM de cada cliente (multi-tenant)."""
+
+    __tablename__ = "n_infraops_customer_credentials"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    customer_id: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
+    provider: Mapped[str] = mapped_column(String(64), nullable=False)  # 'datto', 'atera'
+    api_key: Mapped[str] = mapped_column(String(255), nullable=False)
+    api_secret: Mapped[str | None] = mapped_column(String(255))
+    api_url: Mapped[str | None] = mapped_column(String(512))
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
+    )

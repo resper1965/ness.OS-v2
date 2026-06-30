@@ -227,3 +227,24 @@ BEGIN
 END $$;
 
 CREATE INDEX idx_metrics_host_key_ts ON n_infraops_metrics (host_id, item_key, ts DESC);
+
+-- ---------------------------------------------------------
+-- Tabela de credenciais de clientes (Multi-tenant)
+-- ---------------------------------------------------------
+CREATE TABLE n_infraops_customer_credentials (
+    id              BIGSERIAL       PRIMARY KEY,
+    customer_id     VARCHAR(128)    NOT NULL,
+    provider        VARCHAR(64)     NOT NULL, -- 'datto', 'atera'
+    api_key         VARCHAR(255)    NOT NULL,
+    api_secret      VARCHAR(255),             -- Opcional (ex: Datto usa secret, Atera não)
+    api_url         VARCHAR(512),
+    created_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
+    CONSTRAINT uq_customer_provider UNIQUE (customer_id, provider)
+);
+
+CREATE INDEX idx_credentials_customer ON n_infraops_customer_credentials (customer_id);
+
+CREATE TRIGGER trg_credentials_updated_at
+    BEFORE UPDATE ON n_infraops_customer_credentials
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at();

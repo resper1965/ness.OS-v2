@@ -1,0 +1,19 @@
+{
+  "version": "0.12.2.dev0",
+  "integration_state_schema": 1,
+  "installed_integrations": [
+    "generic"
+  ],
+  "integration_settings": {
+    "generic": {
+      "script": "ps",
+      "raw_options": "--commands-dir .specify/scripts",
+      "parsed_options": {
+        "commands_dir": ".specify/scripts"
+      },
+      "invoke_separator": "."
+    }
+  },
+  "integration": "generic",
+  "default_integration": "generic"
+}

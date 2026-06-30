@@ -8,6 +8,7 @@ from app.models.models import (
     RmmProvider,
     AssetStatus,
     Metric,
+    CustomerCredentials,
 )
 
 __all__ = [
@@ -19,4 +20,5 @@ __all__ = [
     "RmmProvider",
     "AssetStatus",
     "Metric",
+    "CustomerCredentials",
 ]

@@ -1,0 +1,32 @@
+{
+  "run_id": "d48dddd7",
+  "workflow_id": "speckit",
+  "status": "failed",
+  "current_step_index": 0,
+  "current_step_id": "specify",
+  "step_results": {
+    "specify": {
+      "type": "command",
+      "integration": "generic",
+      "model": null,
+      "options": {},
+      "input": {
+        "args": ".spec-kit/specs/001-aiops-platform.md"
+      },
+      "output": {
+        "command": "speckit.specify",
+        "integration": "generic",
+        "model": null,
+        "options": {},
+        "input": {
+          "args": ".spec-kit/specs/001-aiops-platform.md"
+        },
+        "exit_code": 1,
+        "dispatched": false
+      },
+      "status": "failed"
+    }
+  },
+  "created_at": "2026-06-30T14:17:15.246892+00:00",
+  "updated_at": "2026-06-30T14:17:15.370245+00:00"
+}
