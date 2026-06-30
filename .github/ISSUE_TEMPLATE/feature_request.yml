@@ -1,0 +1,45 @@
+name: Feature Request
+description: Sugira uma ideia, melhoria ou nova integração (ex: RMM, ITSM).
+title: "[FEATURE] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Tem uma ideia para tornar o **n.infraops** mais poderoso? Preencha os campos abaixo!
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Qual é o problema que esta feature resolve?
+      description: Explique por que essa nova funcionalidade é necessária.
+      placeholder: Atualmente é difícil fazer X porque...
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Solução Proposta
+      description: Como você imagina que essa feature funcionará?
+      placeholder: Eu gostaria que a plataforma pudesse...
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternativas consideradas
+      description: Descreva soluções alternativas ou workarounds que você considerou.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Área Principal Afetada
+      options:
+        - Integração (Webhook/API)
+        - AI / LLM (Gemini)
+        - Frontend / UX
+        - Zabbix / NOC
+    validations:
+      required: true

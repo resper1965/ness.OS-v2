@@ -1,6 +1,52 @@
-# zabbix.ness
+# 🛡️ zabbix.ness — AIOps Platform
 
-**Monorepo da ness.** — Infraestrutura Zabbix + Plataforma AIOps (n.infraops).
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/release/python-3120/)
+[![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)](https://reactjs.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.110.0-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![Ansible](https://img.shields.io/badge/Ansible-Automated-EE0000?logo=ansible&logoColor=white)](https://www.ansible.com/)
+[![Terraform](https://img.shields.io/badge/Terraform-IaC-7B42BC?logo=terraform&logoColor=white)](https://www.terraform.io/)
+
+**Monorepo Enterprise da ness.** — Infraestrutura Zabbix (NOC) + Plataforma AIOps Multi-Tenant (n.infraops).
+
+---
+
+## 📖 Table of Contents
+- [Arquitetura AIOps](#-arquitetura-aiops)
+- [Estrutura do Projeto](#-estrutura)
+- [Quick Start](#-quick-start)
+- [Componentes & Módulos](#-componentes)
+- [Ambiente e Custos](#-ambiente)
+- [Atualizações e Contribuição](#-atualizações-e-contribuição)
+
+---
+
+## 🏛️ Arquitetura AIOps
+
+O diagrama abaixo ilustra o fluxo de dados desde a detecção de anomalias até a orquestração e notificação.
+
+```mermaid
+graph TD
+    %% Nós do Zabbix (NOC)
+    Z[Zabbix Server / NOC] -->|Webhook JSON| API[FastAPI AIOps Backend]
+    W[Wazuh / SOC Futuro] -.->|Webhook JSON| API
+
+    %% Processamento AIOps
+    subgraph AIOps Hub [AIOps Orchestration Hub]
+        API -->|Deduplicação / Lock| R[(Redis)]
+        API -->|Vetorização / Logs| PG[(PostgreSQL + pgvector)]
+        API -->|RCA e IA| LLM{Gemini 2.5 Flash}
+        LLM --> API
+        API -->|Trigger Event| N8N[n8n Automation]
+        API <--> FRONT[React Web App]
+    end
+
+    %% Saídas e Ações
+    N8N -->|Open Ticket| TICKET[DeskManager API]
+    N8N -->|Run Playbook| RMM[Datto / Atera / SSH]
+    N8N -->|Notificação Segura| EVO[Evolution API]
+    EVO --> WAPP((WhatsApp Team))
+```
 
 ---
 
@@ -119,6 +165,17 @@ curl http://localhost:8000/docs  # Swagger UI
 
 ---
 
-## Licença
+## 🔄 Atualizações e Contribuição
 
-MIT — ness. 2026
+Este projeto segue diretrizes rigorosas de código e segurança. Para garantir que seu ambiente esteja sempre atualizado com as melhores práticas:
+
+- **[UPGRADING.md](UPGRADING.md):** Guia detalhado de como aplicar patches de segurança, atualizar dependências Node/Python e gerenciar migrações de banco de dados.
+- **[CONTRIBUTING.md](CONTRIBUTING.md):** Padrões de commits (Conventional Commits), arquitetura do código e guias de Pull Requests.
+- **[SECURITY.md](SECURITY.md):** Política de segurança, SLAs de correção e como reportar vulnerabilidades sem expô-las publicamente.
+- **[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md):** Nosso compromisso em manter um ambiente colaborativo e profissional.
+
+---
+
+## 📜 Licença
+
+MIT — **ness.** 2026. Feito com rigor técnico para operações ininterruptas.

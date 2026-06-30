@@ -1,0 +1,59 @@
+name: Bug Report
+description: Report a bug or issue in the n.infraops platform.
+title: "[BUG] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Obrigado por reportar um bug! Ajude-nos a resolver isso mais rápido fornecendo o máximo de detalhes possível.
+        **Lembre-se:** Não inclua credenciais, IPs reais de produção ou senhas neste ticket!
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Descrição do Bug
+      description: O que aconteceu e qual era o comportamento esperado?
+      placeholder: Exemplo - Ao clicar no botão de restart, o modal não apareceu.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Passos para Reproduzir
+      description: Como podemos reproduzir este bug localmente?
+      value: |
+        1. Vá para '...'
+        2. Clique em '....'
+        3. Veja o erro
+    validations:
+      required: true
+
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Ambiente
+      description: Onde este bug ocorreu?
+      options:
+        - Frontend (React)
+        - Backend (FastAPI)
+        - Zabbix / Ansible
+        - Terraform (Cloud)
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / Stack Trace
+      description: Cole os logs relevantes aqui (se aplicável).
+      render: shell
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Confirmação
+      options:
+        - label: Certifiquei-me de que não há dados sensíveis nos logs acima.
+          required: true
