@@ -1,0 +1,16 @@
+---
+# ============================================================================
+# Handlers: mariadb
+# Descrição: Handlers para o serviço MariaDB
+# ============================================================================
+
+# --------------------------------------------------------------------------
+# Reiniciar o serviço MariaDB quando houver alteração na configuração
+# Utiliza systemd para garantir um restart limpo e controlado
+# --------------------------------------------------------------------------
+- name: Reiniciar MariaDB
+  ansible.builtin.systemd:
+    name: mariadb
+    state: restarted
+    daemon_reload: true
+  listen: Reiniciar MariaDB

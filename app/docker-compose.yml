@@ -1,0 +1,156 @@
+# ================================================
+# n.infraops — Docker Compose (Stack Completa)
+# ================================================
+# Uso: docker compose up -d
+# Requer: .env (copiar de .env.example)
+
+services:
+
+  # --- API Backend (FastAPI) ---
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ninf-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file: .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - ninf-net
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # --- Celery Worker (Alertas) ---
+  worker-alerts:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ninf-worker-alerts
+    restart: unless-stopped
+    command: >
+      celery -A app.workers.celery_app worker
+      --queues=alerts.primary,alerts.deferred
+      --concurrency=4
+      --loglevel=info
+      --hostname=alerts@%h
+    env_file: .env
+    depends_on:
+      - api
+    networks:
+      - ninf-net
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # --- Celery Worker (ML + Post-mortem) ---
+  worker-ml:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ninf-worker-ml
+    restart: unless-stopped
+    command: >
+      celery -A app.workers.celery_app worker
+      --queues=ml
+      --concurrency=2
+      --loglevel=info
+      --hostname=ml@%h
+    env_file: .env
+    depends_on:
+      - api
+    networks:
+      - ninf-net
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  # --- PostgreSQL 16 (TimescaleDB + pgvector) ---
+  postgres:
+    image: timescale/timescaledb:latest-pg16
+    container_name: ninf-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: nessops
+      POSTGRES_USER: nessops
+      POSTGRES_PASSWORD: ${NINF_DB_PASSWORD:-changeme}
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+      - ./backend/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+      - ./backend/sql:/docker-entrypoint-initdb.d:ro
+    command: postgres -c config_file=/etc/postgresql/postgresql.conf
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nessops"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ninf-net
+    deploy:
+      resources:
+        limits:
+          memory: 3G
+    shm_size: 256m
+
+  # --- Redis 7 (Cache + Celery Broker + Locks) ---
+  redis:
+    image: redis:7-alpine
+    container_name: ninf-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ninf-net
+    deploy:
+      resources:
+        limits:
+          memory: 300M
+
+  # --- n8n (Orquestração de borda) ---
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:latest
+    container_name: ninf-n8n
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      N8N_BASIC_AUTH_ACTIVE: "true"
+      N8N_BASIC_AUTH_USER: admin
+      N8N_BASIC_AUTH_PASSWORD: ${NINF_N8N_PASSWORD:-changeme}
+      WEBHOOK_URL: http://n8n:5678
+    volumes:
+      - n8n-data:/home/node/.n8n
+    networks:
+      - ninf-net
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+volumes:
+  pg-data:
+  redis-data:
+  n8n-data:
+
+networks:
+  ninf-net:
+    driver: bridge

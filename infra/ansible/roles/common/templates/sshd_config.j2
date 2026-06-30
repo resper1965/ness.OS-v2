@@ -1,0 +1,61 @@
+# ============================================================================
+# Configuração hardened do OpenSSH Server
+# Gerado pelo Ansible - NÃO EDITAR MANUALMENTE
+# Alvo: Debian 12 (Bookworm)
+# ============================================================================
+
+# --- Configurações de rede e porta ---
+Port {{ ssh_port }}
+
+# --- Autenticação ---
+# Proibir login direto como root
+PermitRootLogin no
+
+# Desabilitar autenticação por senha (somente chave pública)
+PasswordAuthentication no
+
+# Habilitar autenticação por chave pública
+PubkeyAuthentication yes
+
+# Desabilitar autenticação challenge-response
+ChallengeResponseAuthentication no
+
+# Manter PAM habilitado para gerenciamento de sessão
+UsePAM yes
+
+# Número máximo de tentativas de autenticação por conexão
+MaxAuthTries 3
+
+# Tempo máximo de espera para autenticação (em segundos)
+LoginGraceTime 30
+
+# --- Controle de acesso ---
+# Permitir acesso SSH somente para o usuário administrador
+AllowUsers {{ admin_user }}
+
+# --- Protocolo e segurança ---
+# Forçar uso do protocolo SSH versão 2
+Protocol 2
+
+# Nível de log detalhado para auditoria
+LogLevel VERBOSE
+
+# --- Sessão e keep-alive ---
+# Intervalo de verificação de conexão ativa (em segundos)
+ClientAliveInterval 300
+
+# Número máximo de verificações sem resposta antes de desconectar
+ClientAliveCountMax 2
+
+# --- Funcionalidades desabilitadas ---
+# Desabilitar encaminhamento X11 (não necessário em servidores)
+X11Forwarding no
+
+# Não exibir mensagem do dia no login
+PrintMotd no
+
+# --- Variáveis de ambiente permitidas ---
+AcceptEnv LANG LC_*
+
+# --- Subsistema SFTP ---
+Subsystem sftp /usr/lib/openssh/sftp-server

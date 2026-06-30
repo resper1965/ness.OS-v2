@@ -1,0 +1,178 @@
+---
+# =============================================================================
+# Role: zabbix-server
+# Descrição: Instalação e configuração do Zabbix Server 7.0 LTS
+# Sistema Operacional: Debian 12 (Bookworm)
+# Banco de Dados: MySQL/MariaDB
+#
+# Este playbook realiza as seguintes operações:
+#   - Instalação do repositório oficial Zabbix 7.0 LTS
+#   - Instalação dos pacotes do Zabbix Server
+#   - Importação do schema inicial do banco de dados (apenas na primeira execução)
+#   - Configuração do Zabbix Server via template
+#   - Criação de diretórios necessários
+#   - Habilitação e inicialização do serviço
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# 1. Repositório Zabbix
+# ---------------------------------------------------------------------------
+
+- name: "Repositório | Baixar pacote do repositório Zabbix 7.0 LTS para Debian 12"
+  ansible.builtin.get_url:
+    url: "https://repo.zabbix.com/zabbix/7.0/debian/pool/main/z/zabbix-release/zabbix-release_latest_7.0+debian12_all.deb"
+    dest: "/tmp/zabbix-release_latest_7.0+debian12_all.deb"
+    mode: "0644"
+    timeout: 30
+  register: zabbix_repo_download
+  retries: 3
+  delay: 5
+  until: zabbix_repo_download is succeeded
+  tags:
+    - zabbix
+    - zabbix-repo
+
+- name: "Repositório | Instalar pacote do repositório Zabbix"
+  ansible.builtin.apt:
+    deb: "/tmp/zabbix-release_latest_7.0+debian12_all.deb"
+    state: present
+  register: zabbix_repo_install
+  tags:
+    - zabbix
+    - zabbix-repo
+
+# ---------------------------------------------------------------------------
+# 2. Instalação de Pacotes
+# ---------------------------------------------------------------------------
+
+- name: "Pacotes | Atualizar cache do APT após adicionar repositório Zabbix"
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 0
+  when: zabbix_repo_install.changed  # noqa: no-handler
+  tags:
+    - zabbix
+    - zabbix-packages
+
+- name: "Pacotes | Instalar pacotes do Zabbix Server e scripts SQL"
+  ansible.builtin.apt:
+    name:
+      - zabbix-server-mysql
+      - zabbix-sql-scripts
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+  tags:
+    - zabbix
+    - zabbix-packages
+
+# ---------------------------------------------------------------------------
+# 3. Importação do Schema do Banco de Dados
+# ---------------------------------------------------------------------------
+
+- name: "Banco de Dados | Verificar se o schema do Zabbix já foi importado"
+  ansible.builtin.command:
+    cmd: >-
+      mysql
+      --user={{ zabbix_db_user }}
+      --password={{ zabbix_db_password }}
+      --host=localhost
+      --socket=/var/run/mysqld/mysqld.sock
+      --batch
+      --skip-column-names
+      --execute="SELECT COUNT(*) FROM information_schema.tables
+      WHERE table_schema='{{ zabbix_db_name }}' AND table_name='hosts';"
+  register: zabbix_schema_check
+  changed_when: false
+  failed_when: zabbix_schema_check.rc != 0
+  no_log: true
+  tags:
+    - zabbix
+    - zabbix-schema
+
+- name: "Banco de Dados | Importar schema inicial do Zabbix (primeira execução)"
+  ansible.builtin.shell:
+    cmd: >-
+      zcat /usr/share/zabbix-sql-scripts/mysql/server.sql.gz |
+      mysql
+      --user={{ zabbix_db_user }}
+      --password={{ zabbix_db_password }}
+      --host=localhost
+      --socket=/var/run/mysqld/mysqld.sock
+      {{ zabbix_db_name }}
+  when: zabbix_schema_check.stdout | trim == "0"
+  no_log: true
+  tags:
+    - zabbix
+    - zabbix-schema
+
+- name: "Banco de Dados | Desabilitar log_bin_trust_function_creators após importação"
+  ansible.builtin.command:
+    cmd: >-
+      mysql
+      --user=root
+      --host=localhost
+      --socket=/var/run/mysqld/mysqld.sock
+      --execute="SET GLOBAL log_bin_trust_function_creators = 0;"
+  when: zabbix_schema_check.stdout | trim == "0"
+  changed_when: true
+  no_log: true
+  tags:
+    - zabbix
+    - zabbix-schema
+
+# ---------------------------------------------------------------------------
+# 4. Configuração do Zabbix Server
+# ---------------------------------------------------------------------------
+
+- name: "Configuração | Copiar arquivo de configuração do Zabbix Server"
+  ansible.builtin.template:
+    src: "zabbix_server.conf.j2"
+    dest: "/etc/zabbix/zabbix_server.conf"
+    owner: root
+    group: zabbix
+    mode: "0640"
+    backup: true
+    validate: "zabbix_server -c %s -R config_cache_reload 2>/dev/null || true"
+  notify:
+    - Reiniciar Zabbix Server
+  tags:
+    - zabbix
+    - zabbix-config
+
+# ---------------------------------------------------------------------------
+# 5. Diretórios e Dependências
+# ---------------------------------------------------------------------------
+
+- name: "Diretórios | Criar diretório para logs de SNMP trap"
+  ansible.builtin.file:
+    path: "/var/log/snmptrap"
+    state: directory
+    owner: zabbix
+    group: zabbix
+    mode: "0755"
+  tags:
+    - zabbix
+    - zabbix-dirs
+
+- name: "Dependências | Instalar fping para verificações ICMP"
+  ansible.builtin.apt:
+    name: fping
+    state: present
+  tags:
+    - zabbix
+    - zabbix-packages
+
+# ---------------------------------------------------------------------------
+# 6. Serviço
+# ---------------------------------------------------------------------------
+
+- name: "Serviço | Iniciar e habilitar o serviço zabbix-server"
+  ansible.builtin.systemd:
+    name: zabbix-server
+    state: started
+    enabled: true
+    daemon_reload: true
+  tags:
+    - zabbix
+    - zabbix-service

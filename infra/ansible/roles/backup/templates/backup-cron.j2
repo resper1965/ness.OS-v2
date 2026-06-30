@@ -1,0 +1,10 @@
+# ============================================================================
+# Backup diário do Zabbix - ness.
+# Gerado automaticamente pelo Ansible - NÃO editar manualmente.
+# Execução: todos os dias às 02:00
+# ============================================================================
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# Minuto | Hora | Dia do Mês | Mês | Dia da Semana | Usuário | Comando
+0 2 * * * root /opt/backup/backup-zabbix-db.sh >> /var/log/backup/zabbix-backup.log 2>&1

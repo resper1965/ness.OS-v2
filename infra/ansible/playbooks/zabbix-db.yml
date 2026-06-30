@@ -1,0 +1,41 @@
+---
+# =============================================================================
+# Playbook: Banco de Dados MariaDB 10.11
+# =============================================================================
+# Descrição: Instalação, configuração e tuning do MariaDB 10.11 para
+#            suportar o banco de dados do Zabbix 7.0 LTS.
+#
+# Responsabilidades da role 'mariadb':
+#   - Instalação do MariaDB 10.11 via repositório oficial
+#   - Configuração de segurança (mysql_secure_installation equivalente)
+#   - Aplicação de tuning otimizado para a carga de trabalho
+#     (374 hosts, 59K itens, 452 GB de dados)
+#   - Criação do banco de dados e usuário do Zabbix
+#   - Configuração de permissões e autenticação
+#   - Ativação de log de queries lentas
+#   - Configuração de rotação de logs
+#
+# Dependências:
+#   - Role 'common' deve ter sido executada previamente
+# =============================================================================
+
+- name: "Instalação e configuração do MariaDB 10.11"
+  hosts: zabbix_servers
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: "Verificar memória RAM disponível para tuning do MariaDB"
+      ansible.builtin.assert:
+        that:
+          - ansible_memtotal_mb >= 28000
+        fail_msg: >
+          Memória RAM insuficiente: {{ ansible_memtotal_mb }} MB.
+          O tuning do MariaDB requer no mínimo 28 GB de RAM.
+          Ajuste as variáveis de tuning em group_vars/all.yml.
+        success_msg: "Memória RAM validada: {{ ansible_memtotal_mb }} MB"
+      tags: [always]
+
+  roles:
+    - role: mariadb
+      tags: [mariadb, database, banco]

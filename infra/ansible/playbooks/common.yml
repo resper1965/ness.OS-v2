@@ -1,0 +1,38 @@
+---
+# =============================================================================
+# Playbook: Preparação Base do Sistema (Common)
+# =============================================================================
+# Descrição: Configurações fundamentais do sistema operacional Debian 12
+#            que devem ser aplicadas antes de qualquer serviço.
+#
+# Responsabilidades da role 'common':
+#   - Atualização de pacotes do sistema
+#   - Configuração de fuso horário e localidade
+#   - Hardening SSH (porta 2222, desabilitar root login)
+#   - Configuração do firewall (UFW/iptables)
+#   - Instalação de pacotes essenciais (curl, wget, gnupg, etc.)
+#   - Configuração de NTP/chrony para sincronização de tempo
+#   - Configuração de limites do sistema (ulimits, sysctl)
+#   - Configuração de swap e parâmetros de kernel
+# =============================================================================
+
+- name: "Preparação base do sistema operacional"
+  hosts: zabbix_servers
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: "Validar sistema operacional suportado"
+      ansible.builtin.assert:
+        that:
+          - ansible_distribution == "Debian"
+          - ansible_distribution_major_version == "12"
+        fail_msg: >
+          Sistema operacional não suportado: {{ ansible_distribution }} {{ ansible_distribution_version }}.
+          Este playbook requer Debian 12 (Bookworm).
+        success_msg: "Sistema operacional validado: Debian 12 (Bookworm)"
+      tags: [always]
+
+  roles:
+    - role: common
+      tags: [common, base, sistema]

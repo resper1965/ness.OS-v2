@@ -1,0 +1,199 @@
+---
+# =============================================================================
+# Role: zabbix-frontend
+# Descrição: Instalação e configuração do Zabbix Frontend com Apache + SSL
+# Alvo: Debian 12 (Bookworm) | Zabbix 7.0 LTS | PHP 8.1
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# 1. Instalação dos pacotes do frontend Zabbix
+# ---------------------------------------------------------------------------
+- name: Instalar pacotes do Zabbix Frontend
+  ansible.builtin.apt:
+    name:
+      - zabbix-frontend-php
+      - zabbix-apache-conf
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+  tags:
+    - zabbix-frontend
+    - packages
+
+# ---------------------------------------------------------------------------
+# 2. Instalação dos módulos PHP necessários para o Zabbix
+# ---------------------------------------------------------------------------
+- name: Instalar módulos PHP 8.1 necessários
+  ansible.builtin.apt:
+    name:
+      - php8.1
+      - php8.1-mysql
+      - php8.1-gd
+      - php8.1-bcmath
+      - php8.1-xml
+      - php8.1-mbstring
+      - php8.1-ldap
+      - php8.1-curl
+    state: present
+  tags:
+    - zabbix-frontend
+    - php
+
+# ---------------------------------------------------------------------------
+# 3. Configurações PHP otimizadas para o Zabbix
+# Aplica limites de memória, upload e timezone conforme variáveis do role
+# ---------------------------------------------------------------------------
+- name: Copiar configurações PHP do Zabbix
+  ansible.builtin.template:
+    src: zabbix-php-settings.ini.j2
+    dest: /etc/php/8.1/apache2/conf.d/99-zabbix.ini
+    owner: root
+    group: root
+    mode: "0644"
+    backup: true
+  notify: Reiniciar Apache
+  tags:
+    - zabbix-frontend
+    - php
+    - config
+
+# ---------------------------------------------------------------------------
+# 4. Instalação do Certbot para certificados Let's Encrypt
+# ---------------------------------------------------------------------------
+- name: Instalar Certbot e plugin Apache
+  ansible.builtin.apt:
+    name:
+      - certbot
+      - python3-certbot-apache
+    state: present
+  tags:
+    - zabbix-frontend
+    - ssl
+    - certbot
+
+# ---------------------------------------------------------------------------
+# 5. Habilitação dos módulos Apache necessários para SSL e segurança
+# ---------------------------------------------------------------------------
+- name: Habilitar módulo Apache SSL
+  community.general.apache2_module:
+    name: ssl
+    state: present
+  notify: Reiniciar Apache
+  tags:
+    - zabbix-frontend
+    - apache
+    - ssl
+
+- name: Habilitar módulo Apache Rewrite
+  community.general.apache2_module:
+    name: rewrite
+    state: present
+  notify: Reiniciar Apache
+  tags:
+    - zabbix-frontend
+    - apache
+
+- name: Habilitar módulo Apache Headers
+  community.general.apache2_module:
+    name: headers
+    state: present
+  notify: Reiniciar Apache
+  tags:
+    - zabbix-frontend
+    - apache
+    - ssl
+
+# ---------------------------------------------------------------------------
+# 6. Configuração do VirtualHost Apache com SSL
+# O template inclui redirecionamento HTTP→HTTPS e headers de segurança
+# ---------------------------------------------------------------------------
+- name: Copiar template do VirtualHost SSL do Zabbix
+  ansible.builtin.template:
+    src: apache-zabbix-ssl.conf.j2
+    dest: /etc/apache2/sites-available/zabbix-ssl.conf
+    owner: root
+    group: root
+    mode: "0644"
+    backup: true
+  notify: Reiniciar Apache
+  tags:
+    - zabbix-frontend
+    - apache
+    - ssl
+    - config
+
+# ---------------------------------------------------------------------------
+# 7. Ativação do site SSL e desativação do site padrão
+# Usa command pois o módulo apache2_site não existe nativamente
+# ---------------------------------------------------------------------------
+- name: Habilitar site zabbix-ssl
+  ansible.builtin.command:
+    cmd: a2ensite zabbix-ssl.conf
+  args:
+    creates: /etc/apache2/sites-enabled/zabbix-ssl.conf
+  notify: Reiniciar Apache
+  tags:
+    - zabbix-frontend
+    - apache
+
+- name: Desabilitar site padrão do Apache
+  ansible.builtin.command:
+    cmd: a2dissite 000-default.conf
+  args:
+    removes: /etc/apache2/sites-enabled/000-default.conf
+  notify: Reiniciar Apache
+  tags:
+    - zabbix-frontend
+    - apache
+
+# ---------------------------------------------------------------------------
+# 8. Garantir que o Apache está iniciado e habilitado no boot
+# ---------------------------------------------------------------------------
+- name: Iniciar e habilitar serviço Apache
+  ansible.builtin.systemd:
+    name: apache2
+    state: started
+    enabled: true
+    daemon_reload: true
+  tags:
+    - zabbix-frontend
+    - apache
+
+# ---------------------------------------------------------------------------
+# 9. Obtenção do certificado SSL via Let's Encrypt
+# Usa 'creates' para garantir idempotência — não executa se já existir
+# ---------------------------------------------------------------------------
+- name: Obter certificado Let's Encrypt
+  ansible.builtin.command:
+    cmd: >
+      certbot certonly
+      --apache
+      -d {{ zabbix_frontend_domain }}
+      --email {{ letsencrypt_email }}
+      --agree-tos
+      --non-interactive
+  args:
+    creates: "/etc/letsencrypt/live/{{ zabbix_frontend_domain }}/fullchain.pem"
+  notify: Reiniciar Apache
+  tags:
+    - zabbix-frontend
+    - ssl
+    - certbot
+
+# ---------------------------------------------------------------------------
+# 10. Cron job para renovação automática do certificado
+# Executa duas vezes por dia conforme recomendação do Let's Encrypt
+# ---------------------------------------------------------------------------
+- name: Configurar renovação automática do certificado Let's Encrypt
+  ansible.builtin.cron:
+    name: "Renovação automática do certificado Let's Encrypt"
+    minute: "30"
+    hour: "2,14"
+    job: "certbot renew --quiet --deploy-hook 'systemctl reload apache2'"
+    user: root
+    state: present
+  tags:
+    - zabbix-frontend
+    - ssl
+    - certbot
+    - cron

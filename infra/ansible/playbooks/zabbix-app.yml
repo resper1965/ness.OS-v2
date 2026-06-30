@@ -1,0 +1,70 @@
+---
+# =============================================================================
+# Playbook: Aplicação Zabbix (Server + Frontend + Agent 2)
+# =============================================================================
+# Descrição: Instalação e configuração dos componentes de aplicação do Zabbix
+#            7.0 LTS em modo all-in-one (todos os serviços no mesmo servidor).
+#
+# Roles executadas (em ordem):
+#   1. zabbix-server   - Daemon principal do Zabbix Server
+#   2. zabbix-frontend - Interface web (Apache + PHP 8.1)
+#   3. zabbix-agent    - Zabbix Agent 2 para monitoramento do próprio servidor
+#
+# Responsabilidades por role:
+#
+#   zabbix-server:
+#     - Adição do repositório oficial Zabbix 7.0
+#     - Instalação do pacote zabbix-server-mysql
+#     - Importação do schema inicial do banco (se necessário)
+#     - Configuração do zabbix_server.conf com tuning otimizado
+#     - Gerenciamento do serviço zabbix-server
+#
+#   zabbix-frontend:
+#     - Instalação do Apache 2 e módulos PHP 8.1 necessários
+#     - Instalação do pacote zabbix-frontend-php
+#     - Configuração do VirtualHost Apache com HTTPS (Let's Encrypt)
+#     - Ajuste de parâmetros PHP para o Zabbix
+#     - Configuração do zabbix.conf.php (conexão com o banco)
+#
+#   zabbix-agent:
+#     - Instalação do Zabbix Agent 2
+#     - Configuração para monitoramento local (127.0.0.1)
+#     - Ativação de plugins nativos do Agent 2
+#     - Gerenciamento do serviço zabbix-agent2
+#
+# Dependências:
+#   - Role 'common' deve ter sido executada previamente
+#   - Role 'mariadb' deve ter sido executada previamente
+#   - Banco de dados 'dbzabbix' deve existir e estar acessível
+# =============================================================================
+
+- name: "Instalação dos componentes Zabbix (Server + Frontend + Agent)"
+  hosts: zabbix_servers
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: "Verificar se o MariaDB está em execução"
+      ansible.builtin.service_facts:
+      tags: [always]
+
+    - name: "Validar que o serviço MariaDB está ativo"
+      ansible.builtin.assert:
+        that:
+          - "'mariadb.service' in ansible_facts.services"
+          - "ansible_facts.services['mariadb.service'].state == 'running'"
+        fail_msg: >
+          O serviço MariaDB não está em execução.
+          Execute primeiro o playbook zabbix-db.yml para instalar e iniciar o banco.
+        success_msg: "MariaDB está em execução - prosseguindo com instalação do Zabbix"
+      tags: [always]
+
+  roles:
+    - role: zabbix-server
+      tags: [zabbix, zabbix-server, servidor]
+
+    - role: zabbix-frontend
+      tags: [zabbix, zabbix-frontend, frontend, apache, php]
+
+    - role: zabbix-agent
+      tags: [zabbix, zabbix-agent, agente]

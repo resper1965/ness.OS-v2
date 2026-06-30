@@ -1,0 +1,173 @@
+# =============================================================================
+# Arquivo de Configuração do Zabbix Server
+# =============================================================================
+#
+# Gerenciado pelo Ansible - NÃO EDITAR MANUALMENTE
+#
+# Descrição: Configuração do Zabbix Server 7.0 LTS para ambiente de produção.
+#            Este arquivo é gerado automaticamente pelo Ansible a partir do
+#            template zabbix_server.conf.j2.
+#
+# Parâmetros configuráveis via variáveis do Ansible:
+#   - zabbix_db_name              : Nome do banco de dados
+#   - zabbix_db_user              : Usuário do banco de dados
+#   - zabbix_db_password          : Senha do banco de dados
+#   - zabbix_cache_size           : Tamanho do cache de configuração
+#   - zabbix_history_index_cache_size : Tamanho do cache de índice do histórico
+#   - zabbix_value_cache_size     : Tamanho do cache de valores
+#   - zabbix_log_slow_queries     : Limite em ms para log de queries lentas
+#   - zabbix_housekeeping_frequency : Frequência do housekeeping (horas)
+#   - zabbix_max_housekeeper_delete : Máximo de registros removidos por ciclo
+#   - zabbix_timeout              : Timeout geral em segundos
+#
+# Última geração: {{ ansible_date_time.iso8601 | default('N/A') }}
+# Host gerenciado: {{ inventory_hostname | default('N/A') }}
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# Configurações de Log
+# ---------------------------------------------------------------------------
+
+# Caminho do arquivo de log do Zabbix Server
+LogFile=/var/log/zabbix/zabbix_server.log
+
+# Tamanho máximo do arquivo de log em MB (0 = sem rotação automática)
+LogFileSize=100
+
+# ---------------------------------------------------------------------------
+# Configurações do Processo
+# ---------------------------------------------------------------------------
+
+# Caminho do arquivo PID do processo principal
+PidFile=/run/zabbix/zabbix_server.pid
+
+# Diretório para sockets IPC internos do Zabbix
+SocketDir=/run/zabbix
+
+# ---------------------------------------------------------------------------
+# Configurações do Banco de Dados
+# ---------------------------------------------------------------------------
+
+# Endereço do servidor de banco de dados
+DBHost=localhost
+
+# Nome do banco de dados do Zabbix
+DBName={{ zabbix_db_name }}
+
+# Usuário para conexão com o banco de dados
+DBUser={{ zabbix_db_user }}
+
+# Senha para conexão com o banco de dados
+DBPassword={{ zabbix_db_password }}
+
+# Socket Unix para conexão local com o MySQL/MariaDB
+DBSocket=/var/run/mysqld/mysqld.sock
+
+# ---------------------------------------------------------------------------
+# Processos de Coleta e Monitoramento
+# ---------------------------------------------------------------------------
+
+# Número de pollers padrão para coleta ativa de dados
+StartPollers=10
+
+# Número de pollers dedicados a hosts inalcançáveis
+StartPollersUnreachable=5
+
+# Número de processos para verificações ICMP (ping)
+StartPingers=5
+
+# Número de processos trappers para recebimento de dados
+StartTrappers=5
+
+# Número de processos de descoberta automática de rede
+StartDiscoverers=3
+
+# Número de processos para monitoramento HTTP
+StartHTTPPollers=3
+
+# Número de processos de temporização (manutenção, supressão)
+StartTimers=3
+
+# Número de processos de escalonamento de ações
+StartEscalators=3
+
+# Número de processos de envio de alertas (e-mail, SMS, etc.)
+StartAlerters=5
+
+# ---------------------------------------------------------------------------
+# Processos de Pré-processamento e LLD
+# ---------------------------------------------------------------------------
+
+# Número de processos de pré-processamento de dados
+StartPreprocessors=10
+
+# Número de processos de Low-Level Discovery (LLD)
+StartLLDProcessors=5
+
+# Número de pollers dedicados ao processamento de histórico
+StartHistoryPollers=10
+
+# ---------------------------------------------------------------------------
+# Configurações de Cache e Memória
+# ---------------------------------------------------------------------------
+
+# Tamanho do cache de configuração (hosts, itens, triggers, etc.)
+CacheSize={{ zabbix_cache_size | default('2G') }}
+
+# Tamanho do cache de índice do histórico
+HistoryIndexCacheSize={{ zabbix_history_index_cache_size | default('512M') }}
+
+# Tamanho do cache de valores para triggers e funções calculadas
+ValueCacheSize={{ zabbix_value_cache_size | default('400M') }}
+
+# Tamanho do cache de escrita do histórico
+HistoryCacheSize=256M
+
+# Tamanho do cache de tendências (trends)
+TrendCacheSize=128M
+
+# Tamanho do cache de funções de tendências
+TrendFunctionCacheSize=128M
+
+# ---------------------------------------------------------------------------
+# Performance e Manutenção
+# ---------------------------------------------------------------------------
+
+# Registrar queries mais lentas que o valor especificado (em milissegundos)
+LogSlowQueries={{ zabbix_log_slow_queries | default('3000') }}
+
+# Frequência de execução do housekeeping em horas (0 = desabilitado)
+HousekeepingFrequency={{ zabbix_housekeeping_frequency | default('1') }}
+
+# Número máximo de registros removidos pelo housekeeper por ciclo
+MaxHousekeeperDelete={{ zabbix_max_housekeeper_delete | default('500000') }}
+
+# Timeout geral para processamento de itens, em segundos
+Timeout={{ zabbix_timeout | default('30') }}
+
+# ---------------------------------------------------------------------------
+# SNMP Trapper
+# ---------------------------------------------------------------------------
+
+# Arquivo de log para recebimento de traps SNMP
+SNMPTrapperFile=/var/log/snmptrap/snmptrap.log
+
+# ---------------------------------------------------------------------------
+# Utilitários de Rede
+# ---------------------------------------------------------------------------
+
+# Caminho do binário fping para verificações ICMP (IPv4)
+FpingLocation=/usr/bin/fping
+
+# Caminho do binário fping6 para verificações ICMP (IPv6)
+Fping6Location=/usr/bin/fping6
+
+# ---------------------------------------------------------------------------
+# Segurança e Compatibilidade
+# ---------------------------------------------------------------------------
+
+# Não permitir versões de banco de dados não suportadas (0 = bloquear)
+AllowUnsupportedDBVersions=0
+
+# Endereços IP autorizados a consultar estatísticas internas do Zabbix
+StatsAllowedIP=127.0.0.1

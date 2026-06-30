@@ -1,0 +1,44 @@
+; =============================================================================
+; Template: zabbix-php-settings.ini.j2
+; Descrição: Configurações PHP otimizadas para o Zabbix Frontend
+; Gerenciado pelo Ansible — NÃO editar manualmente
+; =============================================================================
+
+; ---------------------------------------------------------------------------
+; Limites de memória e execução
+; Valores ajustados para ambientes de produção do Zabbix
+; ---------------------------------------------------------------------------
+
+; Limite máximo de memória por script PHP
+memory_limit = {{ php_memory_limit | default('256M') }}
+
+; Tamanho máximo de dados enviados via POST
+post_max_size = {{ php_post_max_size | default('32M') }}
+
+; Tamanho máximo de arquivo para upload
+upload_max_filesize = {{ php_upload_max_filesize | default('16M') }}
+
+; Tempo máximo de execução de um script em segundos
+max_execution_time = {{ php_max_execution_time | default('600') }}
+
+; Tempo máximo para análise dos dados de entrada (POST/GET)
+max_input_time = {{ php_max_input_time | default('600') }}
+
+; Número máximo de variáveis de entrada (necessário para formulários grandes do Zabbix)
+max_input_vars = 10000
+
+; ---------------------------------------------------------------------------
+; Fuso horário
+; Deve corresponder ao fuso horário configurado no servidor Zabbix
+; ---------------------------------------------------------------------------
+date.timezone = {{ timezone }}
+
+; ---------------------------------------------------------------------------
+; Configurações de compatibilidade do Zabbix
+; ---------------------------------------------------------------------------
+
+; Desabilita sobrecarga de funções mbstring (obrigatório para o Zabbix)
+mbstring.func_overload = 0
+
+; Desabilita início automático de sessão (o Zabbix gerencia suas próprias sessões)
+session.auto_start = 0

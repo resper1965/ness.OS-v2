@@ -1,0 +1,55 @@
+---
+# =============================================================================
+# Playbook: Backup Automatizado (rclone + Contabo S3)
+# =============================================================================
+# Descrição: Configuração do sistema de backup automatizado do banco de dados
+#            Zabbix para Contabo Object Storage (compatível com S3).
+#
+# Responsabilidades da role 'backup':
+#   - Instalação e configuração do rclone
+#   - Configuração do remote S3 (Contabo Object Storage)
+#   - Criação do script de backup com mysqldump
+#   - Implementação de compressão com gzip
+#   - Upload automático para bucket S3
+#   - Política de retenção (7 diários, 4 semanais, 3 mensais)
+#   - Agendamento via cron (02:00 AM diariamente)
+#   - Rotação e limpeza de backups antigos
+#   - Monitoramento de saúde do backup (integração com Zabbix)
+#   - Logs de execução para auditoria
+#
+# Política de Retenção:
+#   - Diário:  últimos 7 dias (todos os dias)
+#   - Semanal: últimas 4 semanas (backup de domingo)
+#   - Mensal:  últimos 3 meses (backup do dia 1)
+#
+# Dependências:
+#   - Role 'common' deve ter sido executada previamente
+#   - Role 'mariadb' deve ter sido executada previamente
+#   - Credenciais S3 configuradas em group_vars/all.yml (vault)
+# =============================================================================
+
+- name: "Configuração do backup automatizado"
+  hosts: zabbix_servers
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: "Validar credenciais S3 configuradas"
+      ansible.builtin.assert:
+        that:
+          - backup_s3_access_key is defined
+          - backup_s3_access_key | length > 0
+          - backup_s3_secret_key is defined
+          - backup_s3_secret_key | length > 0
+          - backup_s3_endpoint is defined
+          - backup_s3_endpoint | length > 0
+        fail_msg: >
+          Credenciais S3 não configuradas ou vazias.
+          Configure backup_s3_access_key, backup_s3_secret_key e
+          backup_s3_endpoint em group_vars/all.yml usando ansible-vault.
+        success_msg: "Credenciais S3 validadas com sucesso"
+      tags: [always]
+
+  roles:
+    - role: backup
+      tags: [backup, rclone, s3]

@@ -1,0 +1,40 @@
+---
+# =============================================================================
+# Playbook Principal (Orquestrador) - Zabbix All-in-One
+# =============================================================================
+# Descrição: Playbook mestre que orquestra a execução de todos os playbooks
+#            na ordem correta de dependência para implantação completa.
+#
+# Ordem de execução:
+#   1. common.yml      - Preparação base do sistema (pacotes, firewall, SSH, NTP)
+#   2. zabbix-db.yml   - Instalação e configuração do MariaDB 10.11
+#   3. zabbix-app.yml  - Zabbix Server, Frontend (Apache+PHP) e Agent 2
+#   4. backup.yml      - Configuração de backup automatizado via rclone/S3
+#
+# Uso:
+#   Execução completa:  ansible-playbook playbooks/site.yml
+#   Apenas banco:       ansible-playbook playbooks/zabbix-db.yml
+#   Apenas aplicação:   ansible-playbook playbooks/zabbix-app.yml
+#   Apenas backup:      ansible-playbook playbooks/backup.yml
+#
+# Pré-requisitos:
+#   - Variáveis vault configuradas em group_vars/all.yml
+#   - Chave SSH do usuário ness_admin configurada no servidor
+#   - Conectividade SSH na porta 2222
+# =============================================================================
+
+# Etapa 1: Preparação base do sistema operacional
+- name: "Etapa 1/4 - Preparação base do sistema"
+  ansible.builtin.import_playbook: common.yml
+
+# Etapa 2: Instalação e configuração do MariaDB
+- name: "Etapa 2/4 - Banco de dados MariaDB"
+  ansible.builtin.import_playbook: zabbix-db.yml
+
+# Etapa 3: Instalação do Zabbix Server, Frontend e Agent
+- name: "Etapa 3/4 - Aplicação Zabbix (Server + Frontend + Agent)"
+  ansible.builtin.import_playbook: zabbix-app.yml
+
+# Etapa 4: Configuração do backup automatizado
+- name: "Etapa 4/4 - Backup automatizado (rclone + S3)"
+  ansible.builtin.import_playbook: backup.yml

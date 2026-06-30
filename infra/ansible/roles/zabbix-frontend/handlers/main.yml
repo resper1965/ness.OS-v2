@@ -1,0 +1,12 @@
+---
+# =============================================================================
+# Handlers: zabbix-frontend
+# Descrição: Handlers para o role do Zabbix Frontend
+# =============================================================================
+
+# Handler para reiniciar o Apache após alterações de configuração
+- name: Reiniciar Apache
+  ansible.builtin.systemd:
+    name: apache2
+    state: restarted
+    daemon_reload: true

@@ -1,0 +1,70 @@
+# =============================================================================
+# Template: zabbix_agent2.conf.j2
+# Descrição: Configuração do Zabbix Agent 2
+# Gerenciado pelo Ansible — NÃO editar manualmente
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# Arquivo PID e Logs
+# ---------------------------------------------------------------------------
+
+# Caminho do arquivo PID do processo
+PidFile=/run/zabbix/zabbix_agent2.pid
+
+# Caminho do arquivo de log do agente
+LogFile=/var/log/zabbix/zabbix_agent2.log
+
+# Tamanho máximo do arquivo de log em MB (rotação automática)
+LogFileSize=100
+
+# ---------------------------------------------------------------------------
+# Conexão com o Servidor Zabbix
+# ---------------------------------------------------------------------------
+
+# Endereço(s) do servidor Zabbix para verificações passivas
+# Separar múltiplos servidores por vírgula
+Server=127.0.0.1
+
+# Endereço(s) do servidor Zabbix para verificações ativas
+# Separar múltiplos servidores por vírgula
+ServerActive=127.0.0.1
+
+# Nome do host conforme cadastrado no frontend do Zabbix
+# Deve coincidir exatamente com o nome configurado no servidor
+Hostname={{ zabbix_server_name | default(ansible_hostname) }}
+
+# ---------------------------------------------------------------------------
+# Verificações Ativas
+# ---------------------------------------------------------------------------
+
+# Intervalo em segundos para atualizar a lista de verificações ativas
+RefreshActiveChecks=60
+
+# ---------------------------------------------------------------------------
+# Buffer de Dados
+# ---------------------------------------------------------------------------
+
+# Intervalo em segundos para envio dos dados do buffer ao servidor
+BufferSend=5
+
+# Número máximo de valores armazenados no buffer local
+BufferSize=200
+
+# ---------------------------------------------------------------------------
+# Timeout
+# ---------------------------------------------------------------------------
+
+# Tempo máximo em segundos para processamento de uma verificação
+Timeout=30
+
+# ---------------------------------------------------------------------------
+# Inclusão de Configurações Adicionais
+# Permite modularizar a configuração com arquivos separados por plugin
+# ---------------------------------------------------------------------------
+Include=/etc/zabbix/zabbix_agent2.d/*.conf
+
+# ---------------------------------------------------------------------------
+# Socket de Controle
+# Usado para comunicação entre processos do Agent 2
+# ---------------------------------------------------------------------------
+ControlSocket=/tmp/agent.sock

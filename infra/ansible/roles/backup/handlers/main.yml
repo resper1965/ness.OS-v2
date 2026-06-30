@@ -1,0 +1,7 @@
+---
+# ============================================================================
+# Role: backup
+# Handlers: Nenhum handler necessário no momento.
+#            Adicione handlers aqui conforme necessidade futura
+#            (ex.: reiniciar serviços após alteração de configuração).
+# ============================================================================

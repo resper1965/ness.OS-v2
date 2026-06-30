@@ -1,0 +1,100 @@
+---
+# ============================================================================
+# Role: backup
+# Descrição: Configura backup automatizado do banco de dados Zabbix (MariaDB)
+#            com upload para Contabo Object Storage (S3) via rclone.
+# Alvo: Debian 12 (Bookworm)
+# ============================================================================
+
+# --- Instalação de dependências ---
+
+- name: Instalar rclone para upload ao Object Storage
+  ansible.builtin.apt:
+    name: rclone
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+  tags:
+    - backup
+    - packages
+
+# --- Criação de diretórios ---
+
+- name: Criar diretório de configuração do rclone
+  ansible.builtin.file:
+    path: /root/.config/rclone
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  tags:
+    - backup
+    - rclone
+
+- name: Criar diretório de backup local
+  ansible.builtin.file:
+    path: /opt/backup/zabbix
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+  tags:
+    - backup
+
+- name: Criar diretório de logs de backup
+  ansible.builtin.file:
+    path: /var/log/backup
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+  tags:
+    - backup
+
+# --- Deploy de templates ---
+
+- name: Copiar configuração do rclone para Contabo Object Storage
+  ansible.builtin.template:
+    src: rclone.conf.j2
+    dest: /root/.config/rclone/rclone.conf
+    owner: root
+    group: root
+    mode: "0600"
+  tags:
+    - backup
+    - rclone
+
+- name: Copiar script de backup do banco de dados Zabbix
+  ansible.builtin.template:
+    src: backup-zabbix-db.sh.j2
+    dest: /opt/backup/backup-zabbix-db.sh
+    owner: root
+    group: root
+    mode: "0750"
+  tags:
+    - backup
+
+- name: Copiar cron job de backup diário do Zabbix
+  ansible.builtin.template:
+    src: backup-cron.j2
+    dest: /etc/cron.d/zabbix-backup
+    owner: root
+    group: root
+    mode: "0644"
+  tags:
+    - backup
+    - cron
+
+# --- Monitoramento ---
+
+- name: Criar arquivo de status para monitoramento do Zabbix
+  ansible.builtin.copy:
+    content: "2"
+    dest: /opt/backup/last_backup_status
+    owner: root
+    group: root
+    mode: "0644"
+    force: false
+  tags:
+    - backup
+    - monitoring

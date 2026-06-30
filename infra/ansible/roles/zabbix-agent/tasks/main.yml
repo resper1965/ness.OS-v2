@@ -1,0 +1,52 @@
+---
+# =============================================================================
+# Role: zabbix-agent
+# Descrição: Instalação e configuração do Zabbix Agent 2
+# Alvo: Debian 12 (Bookworm) | Zabbix 7.0 LTS
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# 1. Instalação do Zabbix Agent 2 e seus plugins
+# O wildcard instala todos os plugins disponíveis (MongoDB, PostgreSQL, etc.)
+# ---------------------------------------------------------------------------
+- name: Instalar Zabbix Agent 2 e plugins
+  ansible.builtin.apt:
+    name:
+      - zabbix-agent2
+      - "zabbix-agent2-plugin-*"
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+  tags:
+    - zabbix-agent
+    - packages
+
+# ---------------------------------------------------------------------------
+# 2. Configuração do Zabbix Agent 2
+# O template define servidor, hostname, buffers e caminhos de log
+# ---------------------------------------------------------------------------
+- name: Copiar configuração do Zabbix Agent 2
+  ansible.builtin.template:
+    src: zabbix_agent2.conf.j2
+    dest: /etc/zabbix/zabbix_agent2.conf
+    owner: root
+    group: zabbix
+    mode: "0640"
+    backup: true
+  notify: Reiniciar Zabbix Agent 2
+  tags:
+    - zabbix-agent
+    - config
+
+# ---------------------------------------------------------------------------
+# 3. Garantir que o serviço está iniciado e habilitado no boot
+# ---------------------------------------------------------------------------
+- name: Iniciar e habilitar serviço Zabbix Agent 2
+  ansible.builtin.systemd:
+    name: zabbix-agent2
+    state: started
+    enabled: true
+    daemon_reload: true
+  tags:
+    - zabbix-agent
+    - service

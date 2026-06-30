@@ -1,0 +1,317 @@
+---
+# ============================================================================
+# Role: common - Hardening e configuração base do servidor
+# Alvo: Debian 12 (Bookworm)
+# Descrição: Tarefas de provisionamento inicial, segurança e performance
+# ============================================================================
+
+# --------------------------------------------------------------------------
+# 1. Atualizar cache APT e fazer upgrade do sistema
+# --------------------------------------------------------------------------
+- name: Atualizar cache do APT
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+  tags:
+    - apt
+    - upgrade
+
+- name: Fazer upgrade completo do sistema
+  ansible.builtin.apt:
+    upgrade: dist
+    autoremove: true
+    autoclean: true
+  tags:
+    - apt
+    - upgrade
+
+# --------------------------------------------------------------------------
+# 2. Definir timezone do servidor
+# --------------------------------------------------------------------------
+- name: Definir timezone para {{ timezone }}
+  community.general.timezone:
+    name: "{{ timezone }}"
+  tags:
+    - timezone
+
+# --------------------------------------------------------------------------
+# 3. Configurar locales do sistema (pt_BR.UTF-8 e en_US.UTF-8)
+# --------------------------------------------------------------------------
+- name: Garantir que o pacote locales está instalado
+  ansible.builtin.apt:
+    name: locales
+    state: present
+  tags:
+    - locales
+
+- name: Gerar locale pt_BR.UTF-8
+  community.general.locale_gen:
+    name: pt_BR.UTF-8
+    state: present
+  tags:
+    - locales
+
+- name: Gerar locale en_US.UTF-8
+  community.general.locale_gen:
+    name: en_US.UTF-8
+    state: present
+  tags:
+    - locales
+
+# --------------------------------------------------------------------------
+# 4. Definir hostname do servidor
+# --------------------------------------------------------------------------
+- name: Definir hostname do servidor
+  ansible.builtin.hostname:
+    name: "{{ inventory_hostname }}"
+  tags:
+    - hostname
+
+- name: Garantir entrada do hostname em /etc/hosts
+  ansible.builtin.lineinfile:
+    path: /etc/hosts
+    regexp: '^127\.0\.1\.1'
+    line: "127.0.1.1 {{ inventory_hostname }}"
+    state: present
+  tags:
+    - hostname
+
+# --------------------------------------------------------------------------
+# 5. Criar usuário administrador com sudo
+# --------------------------------------------------------------------------
+- name: Criar usuário administrador {{ admin_user }}
+  ansible.builtin.user:
+    name: "{{ admin_user }}"
+    shell: /bin/bash
+    create_home: true
+    groups: sudo
+    append: true
+    state: present
+  tags:
+    - usuario
+    - seguranca
+
+# --------------------------------------------------------------------------
+# 6. Configurar chave SSH autorizada para o usuário admin
+# --------------------------------------------------------------------------
+- name: Configurar chave SSH autorizada para {{ admin_user }}
+  ansible.posix.authorized_key:
+    user: "{{ admin_user }}"
+    key: "{{ admin_ssh_key }}"
+    state: present
+    exclusive: false
+  tags:
+    - ssh
+    - seguranca
+
+# --------------------------------------------------------------------------
+# 7. Instalar pacotes básicos de administração e utilitários
+# --------------------------------------------------------------------------
+- name: Instalar pacotes básicos do sistema
+  ansible.builtin.apt:
+    name:
+      - htop
+      - iotop
+      - curl
+      - wget
+      - pigz
+      - rsync
+      - unzip
+      - vim
+      - tmux
+      - git
+      - net-tools
+      - dnsutils
+      - software-properties-common
+      - apt-transport-https
+      - gnupg2
+      - lsb-release
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+  tags:
+    - pacotes
+
+# --------------------------------------------------------------------------
+# 8. Configurar SSH com template hardened
+# --------------------------------------------------------------------------
+- name: Copiar configuração hardened do SSH
+  ansible.builtin.template:
+    src: sshd_config.j2
+    dest: /etc/ssh/sshd_config
+    owner: root
+    group: root
+    mode: "0600"
+    validate: "sshd -t -f %s"
+    backup: true
+  notify: Reiniciar SSH
+  tags:
+    - ssh
+    - seguranca
+
+# --------------------------------------------------------------------------
+# 9. Instalar e configurar UFW (Uncomplicated Firewall)
+# --------------------------------------------------------------------------
+- name: Instalar UFW
+  ansible.builtin.apt:
+    name: ufw
+    state: present
+  tags:
+    - firewall
+    - seguranca
+
+- name: Configurar política padrão - negar tráfego de entrada
+  community.general.ufw:
+    direction: incoming
+    policy: deny
+  notify: Recarregar UFW
+  tags:
+    - firewall
+    - seguranca
+
+- name: Configurar política padrão - permitir tráfego de saída
+  community.general.ufw:
+    direction: outgoing
+    policy: allow
+  notify: Recarregar UFW
+  tags:
+    - firewall
+    - seguranca
+
+- name: "Permitir porta SSH ({{ ssh_port }}/tcp)"
+  community.general.ufw:
+    rule: allow
+    port: "{{ ssh_port }}"
+    proto: tcp
+    comment: "SSH - porta customizada"
+  notify: Recarregar UFW
+  tags:
+    - firewall
+    - seguranca
+
+- name: Permitir porta HTTP (80/tcp)
+  community.general.ufw:
+    rule: allow
+    port: "80"
+    proto: tcp
+    comment: "HTTP"
+  notify: Recarregar UFW
+  tags:
+    - firewall
+    - seguranca
+
+- name: Permitir porta HTTPS (443/tcp)
+  community.general.ufw:
+    rule: allow
+    port: "443"
+    proto: tcp
+    comment: "HTTPS"
+  notify: Recarregar UFW
+  tags:
+    - firewall
+    - seguranca
+
+- name: Permitir porta Zabbix Trapper (10051/tcp)
+  community.general.ufw:
+    rule: allow
+    port: "10051"
+    proto: tcp
+    comment: "Zabbix Trapper"
+  notify: Recarregar UFW
+  tags:
+    - firewall
+    - seguranca
+
+- name: Ativar UFW
+  community.general.ufw:
+    state: enabled
+  tags:
+    - firewall
+    - seguranca
+
+# --------------------------------------------------------------------------
+# 10. Instalar e configurar Fail2ban
+# --------------------------------------------------------------------------
+- name: Instalar fail2ban
+  ansible.builtin.apt:
+    name: fail2ban
+    state: present
+  tags:
+    - fail2ban
+    - seguranca
+
+- name: Copiar configuração do fail2ban via template
+  ansible.builtin.template:
+    src: fail2ban-jail.local.j2
+    dest: /etc/fail2ban/jail.local
+    owner: root
+    group: root
+    mode: "0644"
+    backup: true
+  notify: Reiniciar Fail2ban
+  tags:
+    - fail2ban
+    - seguranca
+
+- name: Habilitar e iniciar serviço fail2ban
+  ansible.builtin.systemd:
+    name: fail2ban
+    enabled: true
+    state: started
+  tags:
+    - fail2ban
+    - seguranca
+
+# --------------------------------------------------------------------------
+# 11. Configurar NTP via systemd-timesyncd
+# --------------------------------------------------------------------------
+- name: Instalar systemd-timesyncd
+  ansible.builtin.apt:
+    name: systemd-timesyncd
+    state: present
+  tags:
+    - ntp
+
+- name: Habilitar e iniciar serviço de sincronização de tempo
+  ansible.builtin.systemd:
+    name: systemd-timesyncd
+    enabled: true
+    state: started
+  tags:
+    - ntp
+
+# --------------------------------------------------------------------------
+# 12. Configurar parâmetros sysctl para performance
+# --------------------------------------------------------------------------
+- name: "Ajustar sysctl - net.core.somaxconn (fila máxima de conexões)"
+  ansible.posix.sysctl:
+    name: net.core.somaxconn
+    value: "65535"
+    sysctl_set: true
+    state: present
+    reload: true
+  tags:
+    - sysctl
+    - performance
+
+- name: "Ajustar sysctl - vm.swappiness (reduzir uso de swap)"
+  ansible.posix.sysctl:
+    name: vm.swappiness
+    value: "10"
+    sysctl_set: true
+    state: present
+    reload: true
+  tags:
+    - sysctl
+    - performance
+
+- name: "Ajustar sysctl - net.ipv4.tcp_max_syn_backlog (fila SYN do TCP)"
+  ansible.posix.sysctl:
+    name: net.ipv4.tcp_max_syn_backlog
+    value: "65535"
+    sysctl_set: true
+    state: present
+    reload: true
+  tags:
+    - sysctl
+    - performance

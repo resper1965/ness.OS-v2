@@ -1,0 +1,365 @@
+---
+# =============================================================================
+# Variáveis Globais - Projeto Zabbix All-in-One
+# =============================================================================
+# Descrição: Todas as variáveis de configuração para o ambiente Zabbix 7.0 LTS
+# Infraestrutura: Storage VPS 40 (8 vCPU, 30 GB RAM, 1.2 TB SSD)
+# Carga atual: 374 hosts | 59K itens | 25K triggers | 452 GB database
+# =============================================================================
+# IMPORTANTE: Variáveis marcadas com "!vault" devem ser criptografadas com
+#             ansible-vault antes do uso em produção.
+#             Comando: ansible-vault encrypt_string 'VALOR_SECRETO' --name 'nome_variavel'
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# Configurações Gerais do Sistema
+# ---------------------------------------------------------------------------
+
+# Fuso horário do servidor (São Paulo/Brasília)
+system_timezone: "America/Sao_Paulo"
+
+# Porta SSH customizada para segurança
+ssh_port: 2222
+
+# Usuário administrador do sistema
+admin_user: "ness_admin"
+
+# Localidade do sistema
+system_locale: "pt_BR.UTF-8"
+
+# ---------------------------------------------------------------------------
+# Configurações do Zabbix Server
+# ---------------------------------------------------------------------------
+
+# Versão LTS do Zabbix
+zabbix_version: "7.0"
+
+# Nome de exibição do servidor Zabbix (aparece no frontend)
+zabbix_server_name: "Zabbix Server - ness."
+
+# Domínio do frontend web (substituir pelo domínio real)
+zabbix_frontend_domain: "SUBSTITUIR_PELO_DOMINIO"
+
+# E-mail para certificado Let's Encrypt (substituir pelo e-mail real)
+letsencrypt_email: "SUBSTITUIR_PELO_EMAIL"
+
+# ---------------------------------------------------------------------------
+# Credenciais do Banco de Dados
+# ---------------------------------------------------------------------------
+# ATENÇÃO: Criptografar com ansible-vault antes de usar em produção!
+
+# Nome do banco de dados do Zabbix
+zabbix_db_name: "dbzabbix"
+
+# Usuário do banco de dados do Zabbix
+zabbix_db_user: "usrzabbix"
+
+# Senha do usuário do banco de dados (CRIPTOGRAFAR COM VAULT)
+zabbix_db_password: !vault |
+  $ANSIBLE_VAULT;1.1;AES256
+  SUBSTITUIR_PELA_SENHA_CRIPTOGRAFADA_COM_ANSIBLE_VAULT
+
+# Senha root do MariaDB (CRIPTOGRAFAR COM VAULT)
+mariadb_root_password: !vault |
+  $ANSIBLE_VAULT;1.1;AES256
+  SUBSTITUIR_PELA_SENHA_CRIPTOGRAFADA_COM_ANSIBLE_VAULT
+
+# Host do banco de dados (localhost para instalação all-in-one)
+zabbix_db_host: "localhost"
+
+# Socket do MariaDB (caminho padrão Debian 12)
+mariadb_socket: "/run/mysqld/mysqld.sock"
+
+# ---------------------------------------------------------------------------
+# Tuning do MariaDB 10.11
+# ---------------------------------------------------------------------------
+# Otimizado para: 30 GB RAM, 1.2 TB SSD, 452 GB de banco de dados
+# Regra geral: ~70-80% da RAM para InnoDB buffer pool
+
+mariadb_version: "10.11"
+
+# --- Motor InnoDB ---
+
+# Buffer pool: ~20 GB (67% de 30 GB RAM, deixando memória para Zabbix/OS)
+mariadb_innodb_buffer_pool_size: "20G"
+
+# Número de instâncias do buffer pool (1 por GB, máximo 8 para 8 vCPUs)
+mariadb_innodb_buffer_pool_instances: 8
+
+# Tamanho do arquivo de log InnoDB (tamanho grande para workload de escrita intensiva)
+mariadb_innodb_log_file_size: "2G"
+
+# Buffer de log InnoDB
+mariadb_innodb_log_buffer_size: "64M"
+
+# Flush method otimizado para SSD
+mariadb_innodb_flush_method: "O_DIRECT"
+
+# Flush de log por segundo (melhor performance, risco mínimo de perda de 1s)
+mariadb_innodb_flush_log_at_trx_commit: 2
+
+# Threads de I/O para leitura e escrita (ajustado para SSD)
+mariadb_innodb_read_io_threads: 8
+mariadb_innodb_write_io_threads: 8
+
+# Capacidade de I/O por segundo (SSD moderno)
+mariadb_innodb_io_capacity: 2000
+mariadb_innodb_io_capacity_max: 4000
+
+# Tamanho da página InnoDB (padrão otimizado)
+mariadb_innodb_page_size: "16k"
+
+# Compressão de tabelas InnoDB (economia de espaço para dados históricos)
+mariadb_innodb_file_per_table: "ON"
+
+# Strict mode para integridade de dados
+mariadb_innodb_strict_mode: "ON"
+
+# --- Buffers e Cache ---
+
+# Cache de tabelas abertas
+mariadb_table_open_cache: 4096
+
+# Definição de cache de tabelas abertas por instância
+mariadb_table_definition_cache: 2048
+
+# Buffer de ordenação por conexão
+mariadb_sort_buffer_size: "4M"
+
+# Buffer de leitura por conexão
+mariadb_read_buffer_size: "2M"
+
+# Buffer de leitura aleatória por conexão
+mariadb_read_rnd_buffer_size: "8M"
+
+# Buffer de junção (join) por conexão
+mariadb_join_buffer_size: "4M"
+
+# Tabelas temporárias em memória
+mariadb_tmp_table_size: "256M"
+mariadb_max_heap_table_size: "256M"
+
+# --- Conexões ---
+
+# Máximo de conexões simultâneas
+mariadb_max_connections: 300
+
+# Tempo limite de espera para conexões inativas (segundos)
+mariadb_wait_timeout: 600
+mariadb_interactive_timeout: 600
+
+# --- Logs ---
+
+# Log de queries lentas (threshold em segundos)
+mariadb_slow_query_log: "ON"
+mariadb_long_query_time: 2
+
+# Log binário desabilitado (servidor único sem replicação)
+mariadb_skip_log_bin: true
+
+# --- Performance Schema ---
+
+# Desabilitado para economizar memória em servidor de monitoramento
+mariadb_performance_schema: "OFF"
+
+# ---------------------------------------------------------------------------
+# Tuning do Zabbix Server
+# ---------------------------------------------------------------------------
+# Otimizado para: 374 hosts, 59K itens, 25K triggers
+
+# Cache de configuração (armazena hosts, itens, triggers em memória)
+# 59K itens + 25K triggers = necessita cache generoso
+zabbix_cache_size: "512M"
+
+# Cache de índice do histórico
+zabbix_history_index_cache_size: "128M"
+
+# Cache de valores (acelera consultas de valores recentes)
+zabbix_value_cache_size: "512M"
+
+# Cache de tendências (trend data)
+zabbix_trend_cache_size: "64M"
+
+# Cache de funções de trigger
+zabbix_trend_function_cache_size: "32M"
+
+# Tamanho do buffer de histórico (fila de escrita no banco)
+zabbix_history_cache_size: "256M"
+
+# --- Processos Internos (Workers) ---
+
+# Pollers: coletores de dados via polling ativo
+zabbix_start_pollers: 20
+
+# Pollers IPMI
+zabbix_start_ipmi_pollers: 0
+
+# Preprocessors: processamento de dados coletados
+zabbix_start_preprocessors: 10
+
+# Pollers de pré-processamento não disponíveis (unreachable)
+zabbix_start_pollers_unreachable: 5
+
+# Trappers: receptores de dados via trapping passivo
+zabbix_start_trappers: 10
+
+# Pingers: verificações ICMP
+zabbix_start_pingers: 5
+
+# Discoverers: descoberta de rede
+zabbix_start_discoverers: 5
+
+# HTTP Pollers: monitoramento web
+zabbix_start_http_pollers: 5
+
+# Alerters: envio de notificações
+zabbix_start_alerters: 5
+
+# Timers: processamento de funções baseadas em tempo
+zabbix_start_timers: 2
+
+# Escalators: processamento de escalonamento de alertas
+zabbix_start_escalators: 2
+
+# History Syncers: gravação de histórico no banco
+zabbix_start_db_syncers: 8
+
+# LLD Workers: processamento de descoberta de baixo nível
+zabbix_start_lld_processors: 4
+
+# --- Timeouts ---
+
+# Tempo limite para coleta de dados (segundos)
+zabbix_timeout: 10
+
+# Intervalo de manutenção do housekeeping (segundos)
+zabbix_housekeeping_frequency: 1
+
+# --- Retenção de Dados (dias) ---
+
+# Período de retenção do histórico interno
+zabbix_max_housekeeper_delete: 10000
+
+# Log level (0=nenhum a 5=debug)
+zabbix_debug_level: 3
+
+# ---------------------------------------------------------------------------
+# Configurações do PHP 8.1 (Frontend Zabbix)
+# ---------------------------------------------------------------------------
+
+php_version: "8.1"
+
+# Limite de memória por processo PHP
+php_memory_limit: "256M"
+
+# Tamanho máximo de dados POST
+php_post_max_size: "32M"
+
+# Tamanho máximo de upload de arquivo
+php_upload_max_filesize: "16M"
+
+# Tempo máximo de execução de script (segundos)
+php_max_execution_time: 600
+
+# Tempo máximo de análise de dados de entrada (segundos)
+php_max_input_time: 600
+
+# Número máximo de variáveis de entrada
+php_max_input_vars: 10000
+
+# Fuso horário do PHP (deve coincidir com o sistema)
+php_date_timezone: "America/Sao_Paulo"
+
+# ---------------------------------------------------------------------------
+# Configurações do Apache
+# ---------------------------------------------------------------------------
+
+# Porta HTTP padrão
+apache_http_port: 80
+
+# Porta HTTPS padrão
+apache_https_port: 443
+
+# ServerTokens para segurança (ocultar versão)
+apache_server_tokens: "Prod"
+
+# ServerSignature desabilitado para segurança
+apache_server_signature: "Off"
+
+# ---------------------------------------------------------------------------
+# Configurações do Zabbix Agent 2
+# ---------------------------------------------------------------------------
+
+# Endereço do servidor Zabbix (localhost para all-in-one)
+zabbix_agent_server: "127.0.0.1"
+
+# Endereço para verificações ativas
+zabbix_agent_server_active: "127.0.0.1"
+
+# Hostname do agente (deve coincidir com o cadastro no Zabbix)
+zabbix_agent_hostname: "zabbix-srv01"
+
+# Porta de escuta do agente
+zabbix_agent_listen_port: 10050
+
+# ---------------------------------------------------------------------------
+# Configurações de Backup - Contabo Object Storage (S3)
+# ---------------------------------------------------------------------------
+
+# Nome do remote configurado no rclone
+backup_rclone_remote: "contabo-s3"
+
+# Nome do bucket S3 para backups
+backup_s3_bucket: "zabbix-backups"
+
+# Diretório local temporário para geração dos dumps
+backup_local_dir: "/var/backups/zabbix"
+
+# Diretório de logs do backup
+backup_log_dir: "/var/log/zabbix-backup"
+
+# --- Política de Retenção ---
+
+# Backups diários mantidos
+backup_retention_daily: 7
+
+# Backups semanais mantidos (domingos)
+backup_retention_weekly: 4
+
+# Backups mensais mantidos (dia 1)
+backup_retention_monthly: 3
+
+# --- Credenciais Contabo S3 (CRIPTOGRAFAR COM VAULT) ---
+
+# Access Key do Contabo Object Storage
+backup_s3_access_key: !vault |
+  $ANSIBLE_VAULT;1.1;AES256
+  SUBSTITUIR_PELA_CHAVE_CRIPTOGRAFADA_COM_ANSIBLE_VAULT
+
+# Secret Key do Contabo Object Storage
+backup_s3_secret_key: !vault |
+  $ANSIBLE_VAULT;1.1;AES256
+  SUBSTITUIR_PELA_CHAVE_CRIPTOGRAFADA_COM_ANSIBLE_VAULT
+
+# Endpoint S3 do Contabo
+backup_s3_endpoint: "https://eu2.contabostorage.com"
+
+# Região S3 do Contabo
+backup_s3_region: "eu2"
+
+# --- Agendamento do Backup (cron) ---
+
+# Horário do backup diário (02:00 AM horário local)
+backup_cron_hour: "2"
+backup_cron_minute: "0"
+
+# --- Opções do mysqldump ---
+
+# Usar single-transaction para dumps consistentes sem lock
+backup_mysqldump_single_transaction: true
+
+# Compressão do dump (gzip)
+backup_compress: true
+
+# Nível de compressão (1-9, onde 9 = máxima compressão)
+backup_compress_level: 6

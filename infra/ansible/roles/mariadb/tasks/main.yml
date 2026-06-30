@@ -1,0 +1,180 @@
+---
+# ============================================================================
+# Role: mariadb
+# Descrição: Instala e configura o MariaDB 10.11 otimizado para Zabbix
+# Alvo: Debian 12 (Bookworm)
+# ============================================================================
+
+# --------------------------------------------------------------------------
+# 1. Instalar dependências necessárias para os módulos Ansible do MySQL
+# --------------------------------------------------------------------------
+- name: Instalar dependências do Python para módulos MySQL/MariaDB
+  ansible.builtin.apt:
+    name:
+      - python3-pymysql
+      - python3-mysqldb
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+  tags:
+    - mariadb
+    - mariadb-deps
+
+# --------------------------------------------------------------------------
+# 2. Adicionar chave GPG do repositório oficial MariaDB
+# --------------------------------------------------------------------------
+- name: Adicionar chave GPG do repositório MariaDB
+  ansible.builtin.apt_key:
+    url: "https://mariadb.org/mariadb_release_signing_key.pgp"
+    state: present
+    keyring: /usr/share/keyrings/mariadb-archive-keyring.gpg
+  tags:
+    - mariadb
+    - mariadb-repo
+
+# --------------------------------------------------------------------------
+# 3. Adicionar repositório oficial MariaDB 10.11 para Debian 12 (Bookworm)
+# --------------------------------------------------------------------------
+- name: Adicionar repositório MariaDB 10.11 para Debian Bookworm
+  ansible.builtin.apt_repository:
+    repo: >-
+      deb [signed-by=/usr/share/keyrings/mariadb-archive-keyring.gpg]
+      https://dlm.mariadb.com/repo/mariadb-server/10.11/repo/debian
+      bookworm main
+    filename: mariadb
+    state: present
+    update_cache: true
+  tags:
+    - mariadb
+    - mariadb-repo
+
+# --------------------------------------------------------------------------
+# 4. Instalar pacotes do MariaDB (servidor e cliente)
+# --------------------------------------------------------------------------
+- name: Instalar mariadb-server e mariadb-client
+  ansible.builtin.apt:
+    name:
+      - mariadb-server
+      - mariadb-client
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+  tags:
+    - mariadb
+    - mariadb-install
+
+# --------------------------------------------------------------------------
+# 5. Copiar template de configuração otimizada para Zabbix
+# --------------------------------------------------------------------------
+- name: Copiar template de tuning do MariaDB para Zabbix
+  ansible.builtin.template:
+    src: 99-zabbix-tuning.cnf.j2
+    dest: /etc/mysql/mariadb.conf.d/99-zabbix-tuning.cnf
+    owner: root
+    group: root
+    mode: "0644"
+    backup: true
+  notify: Reiniciar MariaDB
+  tags:
+    - mariadb
+    - mariadb-config
+
+# --------------------------------------------------------------------------
+# 6. Garantir que o serviço MariaDB esteja iniciado e habilitado no boot
+# --------------------------------------------------------------------------
+- name: Iniciar e habilitar o serviço MariaDB
+  ansible.builtin.systemd:
+    name: mariadb
+    state: started
+    enabled: true
+    daemon_reload: true
+  tags:
+    - mariadb
+    - mariadb-service
+
+# --------------------------------------------------------------------------
+# 7. Definir senha do usuário root do MariaDB
+#    Utiliza socket Unix para autenticação inicial (padrão no Debian)
+# --------------------------------------------------------------------------
+- name: Definir senha root do MariaDB
+  community.mysql.mysql_user:
+    name: root
+    password: "{{ mariadb_root_password }}"
+    host: localhost
+    login_unix_socket: /var/run/mysqld/mysqld.sock
+    state: present
+    check_implicit_admin: true
+  no_log: true
+  tags:
+    - mariadb
+    - mariadb-secure
+
+# --------------------------------------------------------------------------
+# 8. Remover usuários anônimos (hardening de segurança)
+# --------------------------------------------------------------------------
+- name: Remover usuários anônimos do MariaDB
+  community.mysql.mysql_user:
+    name: ""
+    host_all: true
+    login_unix_socket: /var/run/mysqld/mysqld.sock
+    state: absent
+  tags:
+    - mariadb
+    - mariadb-secure
+
+# --------------------------------------------------------------------------
+# 9. Remover banco de dados de teste (hardening de segurança)
+# --------------------------------------------------------------------------
+- name: Remover banco de dados 'test'
+  community.mysql.mysql_db:
+    name: test
+    login_unix_socket: /var/run/mysqld/mysqld.sock
+    state: absent
+  tags:
+    - mariadb
+    - mariadb-secure
+
+# --------------------------------------------------------------------------
+# 10. Criar banco de dados para o Zabbix com charset e collation corretos
+#     Charset: utf8mb4 | Collation: utf8mb4_bin (exigido pelo Zabbix 7.x)
+# --------------------------------------------------------------------------
+- name: "Criar banco de dados '{{ zabbix_db_name }}'"
+  community.mysql.mysql_db:
+    name: "{{ zabbix_db_name }}"
+    encoding: utf8mb4
+    collation: utf8mb4_bin
+    login_unix_socket: /var/run/mysqld/mysqld.sock
+    state: present
+  tags:
+    - mariadb
+    - mariadb-zabbix
+
+# --------------------------------------------------------------------------
+# 11. Criar usuário do Zabbix com permissões totais no banco dedicado
+# --------------------------------------------------------------------------
+- name: "Criar usuário '{{ zabbix_db_user }}' com permissões no banco '{{ zabbix_db_name }}'"
+  community.mysql.mysql_user:
+    name: "{{ zabbix_db_user }}"
+    password: "{{ zabbix_db_password }}"
+    host: localhost
+    priv: "{{ zabbix_db_name }}.*:ALL"
+    login_unix_socket: /var/run/mysqld/mysqld.sock
+    state: present
+  no_log: true
+  tags:
+    - mariadb
+    - mariadb-zabbix
+
+# --------------------------------------------------------------------------
+# 12. Habilitar log_bin_trust_function_creators
+#     Necessário para importação do schema do Zabbix que contém triggers
+#     e stored procedures. Pode ser desabilitado após a importação inicial.
+# --------------------------------------------------------------------------
+- name: Configurar log_bin_trust_function_creators = 1 (necessário para schema Zabbix)
+  community.mysql.mysql_variables:
+    variable: log_bin_trust_function_creators
+    value: "1"
+    login_unix_socket: /var/run/mysqld/mysqld.sock
+  tags:
+    - mariadb
+    - mariadb-zabbix

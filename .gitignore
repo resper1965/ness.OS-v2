@@ -1,0 +1,64 @@
+# ================================================
+# zabbix.ness — Monorepo .gitignore
+# ================================================
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+.venv/
+venv/
+env/
+
+# --- Node.js (frontend + n8n) ---
+node_modules/
+.next/
+out/
+
+# --- Terraform ---
+infra/terraform/.terraform/
+infra/terraform/*.tfstate
+infra/terraform/*.tfstate.backup
+infra/terraform/*.tfplan
+infra/terraform/.terraform.lock.hcl
+
+# --- Ansible ---
+infra/ansible/*.retry
+
+# --- Environment & Secrets ---
+.env
+.env.local
+.env.production
+*.pem
+*.key
+*.ppk
+**/secrets/
+
+# --- IDE ---
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Logs ---
+*.log
+/var/log/
+
+# --- Docker ---
+docker-compose.override.yml
+
+# --- Database dumps ---
+*.sql.gz
+*.dump
+
+# --- Agent Customizations ---
+.agents/

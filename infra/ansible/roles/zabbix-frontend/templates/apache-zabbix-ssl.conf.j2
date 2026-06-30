@@ -1,0 +1,100 @@
+# =============================================================================
+# Template: apache-zabbix-ssl.conf.j2
+# Descrição: VirtualHost Apache com SSL para o Zabbix Frontend
+# Gerenciado pelo Ansible — NÃO editar manualmente
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# Porta HTTPS
+# ---------------------------------------------------------------------------
+Listen 443
+
+# ---------------------------------------------------------------------------
+# VirtualHost HTTP (porta 80) — Redirecionamento permanente para HTTPS
+# Garante que todo acesso seja feito via conexão segura
+# ---------------------------------------------------------------------------
+<VirtualHost *:80>
+    ServerName {{ zabbix_frontend_domain }}
+
+    # Redireciona todas as requisições HTTP para HTTPS
+    RewriteEngine On
+    RewriteCond %{HTTPS} off
+    RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+</VirtualHost>
+
+# ---------------------------------------------------------------------------
+# VirtualHost HTTPS (porta 443) — Configuração principal do Zabbix Frontend
+# ---------------------------------------------------------------------------
+<VirtualHost *:443>
+    ServerName {{ zabbix_frontend_domain }}
+    DocumentRoot /usr/share/zabbix
+
+    # -----------------------------------------------------------------------
+    # Configuração SSL com certificados Let's Encrypt
+    # -----------------------------------------------------------------------
+    SSLEngine on
+    SSLCertificateFile /etc/letsencrypt/live/{{ zabbix_frontend_domain }}/fullchain.pem
+    SSLCertificateKeyFile /etc/letsencrypt/live/{{ zabbix_frontend_domain }}/privkey.pem
+
+    # Protocolos e cifras seguras — desabilita protocolos obsoletos
+    SSLProtocol All -SSLv2 -SSLv3 -TLSv1 -TLSv1.1
+    SSLHonorCipherOrder On
+    SSLCipherSuite ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384
+
+    # -----------------------------------------------------------------------
+    # Headers de segurança HTTP
+    # Protegem contra clickjacking, XSS, MIME sniffing e outros ataques
+    # -----------------------------------------------------------------------
+
+    # Impede que o site seja carregado em iframes (proteção contra clickjacking)
+    Header always set X-Frame-Options "SAMEORIGIN"
+
+    # Impede que o navegador faça MIME type sniffing
+    Header always set X-Content-Type-Options "nosniff"
+
+    # Proteção contra ataques XSS (Cross-Site Scripting)
+    Header always set X-XSS-Protection "1; mode=block"
+
+    # HSTS — Força uso de HTTPS por 1 ano, incluindo subdomínios
+    Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+
+    # Controla informações enviadas no cabeçalho Referer
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+
+    # Política de segurança de conteúdo básica
+    Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self';"
+
+    # -----------------------------------------------------------------------
+    # Configuração do diretório do Zabbix Frontend
+    # -----------------------------------------------------------------------
+    <Directory /usr/share/zabbix>
+        AllowOverride All
+        Require all granted
+
+        # Desabilita listagem de diretórios por segurança
+        Options -Indexes +FollowSymLinks
+    </Directory>
+
+    # Protege diretórios sensíveis do Zabbix
+    <Directory /usr/share/zabbix/conf>
+        Require all denied
+    </Directory>
+
+    <Directory /usr/share/zabbix/app>
+        Require all denied
+    </Directory>
+
+    <Directory /usr/share/zabbix/include>
+        Require all denied
+    </Directory>
+
+    <Directory /usr/share/zabbix/local>
+        Require all denied
+    </Directory>
+
+    # -----------------------------------------------------------------------
+    # Logs personalizados para o Zabbix Frontend
+    # -----------------------------------------------------------------------
+    ErrorLog ${APACHE_LOG_DIR}/zabbix-ssl-error.log
+    CustomLog ${APACHE_LOG_DIR}/zabbix-ssl-access.log combined
+</VirtualHost>

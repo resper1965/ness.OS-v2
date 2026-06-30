@@ -1,0 +1,34 @@
+# ============================================================================
+# Configuração do Fail2ban - Proteção contra força bruta
+# Gerado pelo Ansible - NÃO EDITAR MANUALMENTE
+# Alvo: Debian 12 (Bookworm)
+# ============================================================================
+
+[DEFAULT]
+# Tempo de banimento em segundos (1 hora)
+bantime = 3600
+
+# Janela de tempo para contagem de tentativas (10 minutos)
+findtime = 600
+
+# Número máximo de tentativas antes do banimento
+maxretry = 3
+
+# Backend para leitura de logs (systemd para Debian 12)
+backend = systemd
+
+[sshd]
+# Habilitar proteção para o serviço SSH
+enabled = true
+
+# Porta SSH customizada (deve coincidir com sshd_config)
+port = {{ ssh_port }}
+
+# Caminho do log do SSH (variável padrão do fail2ban)
+logpath = %(sshd_log)s
+
+# Tentativas máximas específicas para SSH
+maxretry = 3
+
+# Tempo de banimento específico para SSH (1 hora)
+bantime = 3600

@@ -1,0 +1,67 @@
+# =============================================================================
+# .gitignore - Terraform / zabbix.ness
+# =============================================================================
+# Protege arquivos sensíveis e artefatos temporários do versionamento.
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# Diretórios e cache do Terraform
+# ---------------------------------------------------------------------------
+.terraform/
+.terraform.lock.hcl
+
+# ---------------------------------------------------------------------------
+# Arquivos de estado (contêm dados sensíveis em texto plano!)
+# ---------------------------------------------------------------------------
+*.tfstate
+*.tfstate.*
+terraform.tfstate.backup
+
+# ---------------------------------------------------------------------------
+# Arquivos de variáveis com credenciais
+# ---------------------------------------------------------------------------
+# NUNCA versione arquivos que contenham senhas ou chaves de API!
+*.auto.tfvars
+secrets.tfvars
+secrets.auto.tfvars
+
+# O arquivo prod.tfvars contém PLACEHOLDERS - é seguro versionar.
+# Porém, se você preencher com valores reais, descomente a linha abaixo:
+# environments/prod.tfvars
+
+# ---------------------------------------------------------------------------
+# Planos de execução salvos (podem conter dados sensíveis)
+# ---------------------------------------------------------------------------
+*.tfplan
+*.tfplan.*
+plan.out
+
+# ---------------------------------------------------------------------------
+# Logs de crash do Terraform
+# ---------------------------------------------------------------------------
+crash.log
+crash.*.log
+
+# ---------------------------------------------------------------------------
+# Arquivos do sistema operacional
+# ---------------------------------------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---------------------------------------------------------------------------
+# Arquivos de override (usados para debug local)
+# ---------------------------------------------------------------------------
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# ---------------------------------------------------------------------------
+# Arquivos de backup do editor
+# ---------------------------------------------------------------------------
+*.swp
+*.swo
+*~
+.vscode/
+.idea/

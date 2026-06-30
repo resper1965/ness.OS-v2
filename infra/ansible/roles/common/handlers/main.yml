@@ -1,0 +1,28 @@
+---
+# ============================================================================
+# Handlers da role common
+# Descrição: Handlers para reinício/recarga de serviços após alterações
+# ============================================================================
+
+# Handler para reiniciar o serviço SSH após alterações no sshd_config
+- name: Reiniciar SSH
+  ansible.builtin.systemd:
+    name: sshd
+    state: restarted
+    daemon_reload: true
+  listen: Reiniciar SSH
+
+# Handler para recarregar regras do UFW após alterações no firewall
+- name: Recarregar UFW
+  ansible.builtin.command:
+    cmd: ufw reload
+  listen: Recarregar UFW
+  changed_when: true
+
+# Handler para reiniciar o fail2ban após alterações na configuração
+- name: Reiniciar Fail2ban
+  ansible.builtin.systemd:
+    name: fail2ban
+    state: restarted
+    daemon_reload: true
+  listen: Reiniciar Fail2ban

@@ -1,0 +1,19 @@
+---
+# =============================================================================
+# Role: zabbix-server
+# Handlers: Manipuladores de eventos para o Zabbix Server
+#
+# Descrição: Define os handlers que são acionados por notificações (notify)
+#            das tasks da role. Garantem que o serviço seja reiniciado de forma
+#            controlada apenas quando houver alterações na configuração.
+# =============================================================================
+
+# Handler para reiniciar o serviço do Zabbix Server.
+# Acionado quando o arquivo de configuração é alterado.
+# Utiliza systemd para garantir um restart limpo do serviço.
+- name: "Reiniciar Zabbix Server"
+  ansible.builtin.systemd:
+    name: zabbix-server
+    state: restarted
+    daemon_reload: true
+  listen: "Reiniciar Zabbix Server"

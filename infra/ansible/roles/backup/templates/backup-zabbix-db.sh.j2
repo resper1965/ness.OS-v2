@@ -1,0 +1,168 @@
+#!/bin/bash
+# ============================================================================
+# Script de Backup do Banco de Dados Zabbix (MariaDB)
+# Descrição: Realiza dump do banco, compacta com pigz e envia para
+#            Contabo Object Storage (S3) via rclone.
+# Gerado automaticamente pelo Ansible - NÃO editar manualmente.
+# ============================================================================
+set -euo pipefail
+
+# --- Variáveis de configuração ---
+BACKUP_DIR="/opt/backup/zabbix"
+LOG_FILE="/var/log/backup/zabbix-backup.log"
+STATUS_FILE="/opt/backup/last_backup_status"
+DATE=$(date +%Y%m%d_%H%M%S)
+DAY_OF_WEEK=$(date +%u)
+DAY_OF_MONTH=$(date +%d)
+DB_NAME="{{ zabbix_db_name }}"
+DB_USER="{{ zabbix_db_user }}"
+DB_PASS="{{ zabbix_db_password }}"
+RCLONE_REMOTE="contabo"
+BUCKET="{{ backup_bucket }}"
+
+# --- Código de saída padrão (falha até que o backup conclua com sucesso) ---
+EXIT_CODE=1
+
+# --- Função de log com timestamp ---
+log_msg() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"
+}
+
+# --- Tratamento de erros e limpeza em caso de falha ---
+cleanup_on_exit() {
+    # Registra o código de saída no arquivo de status para monitoramento do Zabbix
+    # 0 = sucesso, 1 = falha
+    echo "${EXIT_CODE}" > "${STATUS_FILE}"
+
+    if [[ "${EXIT_CODE}" -ne 0 ]]; then
+        log_msg "ERRO: Backup finalizado com falha (código de saída: ${EXIT_CODE})"
+
+        # Remove arquivo de backup incompleto, se existir
+        if [[ -n "${BACKUP_FILE:-}" && -f "${BACKUP_DIR}/${BACKUP_FILE}" ]]; then
+            log_msg "Removendo arquivo de backup incompleto: ${BACKUP_FILE}"
+            rm -f "${BACKUP_DIR}/${BACKUP_FILE}"
+        fi
+    fi
+}
+trap cleanup_on_exit EXIT
+
+# --- Função de limpeza de backups antigos por tipo ---
+cleanup_old_backups() {
+    local backup_type="$1"
+    local retention="$2"
+
+    log_msg "Iniciando limpeza de backups antigos do tipo '${backup_type}' (retenção: ${retention})"
+
+    # Lista arquivos no bucket remoto ordenados por data (mais antigos primeiro)
+    local file_list
+    file_list=$(rclone lsf "${RCLONE_REMOTE}:${BUCKET}/${backup_type}/" --files-only 2>/dev/null | sort)
+
+    local file_count
+    file_count=$(echo "${file_list}" | grep -c . || true)
+
+    if [[ "${file_count}" -le "${retention}" ]]; then
+        log_msg "Nenhum backup antigo para remover (${file_count}/${retention} existentes)"
+        return 0
+    fi
+
+    # Calcula quantos arquivos devem ser removidos
+    local remove_count=$((file_count - retention))
+    log_msg "Removendo ${remove_count} backup(s) antigo(s) do tipo '${backup_type}'"
+
+    # Remove os backups mais antigos (primeiros da lista ordenada)
+    echo "${file_list}" | head -n "${remove_count}" | while IFS= read -r old_file; do
+        if [[ -n "${old_file}" ]]; then
+            log_msg "Removendo backup remoto: ${RCLONE_REMOTE}:${BUCKET}/${backup_type}/${old_file}"
+            rclone deletefile "${RCLONE_REMOTE}:${BUCKET}/${backup_type}/${old_file}" 2>/dev/null || \
+                log_msg "AVISO: Falha ao remover ${old_file}"
+        fi
+    done
+}
+
+# ============================================================================
+# Fluxo principal do backup
+# ============================================================================
+
+log_msg "=========================================="
+log_msg "Início do backup do banco de dados Zabbix"
+log_msg "=========================================="
+
+# --- Determinar o tipo de backup ---
+if [[ "${DAY_OF_MONTH}" == "01" ]]; then
+    TYPE="monthly"
+    log_msg "Tipo de backup: MENSAL (dia ${DAY_OF_MONTH} do mês)"
+elif [[ "${DAY_OF_WEEK}" == "7" ]]; then
+    TYPE="weekly"
+    log_msg "Tipo de backup: SEMANAL (domingo)"
+else
+    TYPE="daily"
+    log_msg "Tipo de backup: DIÁRIO"
+fi
+
+# --- Definir nome do arquivo de backup ---
+BACKUP_FILE="${TYPE}_${DB_NAME}_${DATE}.sql.gz"
+log_msg "Arquivo de backup: ${BACKUP_FILE}"
+
+# --- Executar mysqldump com compressão via pigz ---
+log_msg "Iniciando dump do banco '${DB_NAME}' com compressão pigz..."
+
+mysqldump \
+    --single-transaction \
+    --routines \
+    --triggers \
+    --events \
+    --quick \
+    "${DB_NAME}" \
+    -u "${DB_USER}" \
+    -p"${DB_PASS}" \
+    2>/dev/null | pigz -p 4 > "${BACKUP_DIR}/${BACKUP_FILE}"
+
+# --- Verificar se o arquivo de backup foi criado e tem tamanho válido ---
+if [[ ! -f "${BACKUP_DIR}/${BACKUP_FILE}" ]]; then
+    log_msg "ERRO: Arquivo de backup não foi criado"
+    exit 1
+fi
+
+BACKUP_SIZE=$(stat -c%s "${BACKUP_DIR}/${BACKUP_FILE}" 2>/dev/null || echo "0")
+
+if [[ "${BACKUP_SIZE}" -eq 0 ]]; then
+    log_msg "ERRO: Arquivo de backup está vazio (0 bytes)"
+    exit 1
+fi
+
+# --- Exibir tamanho do backup ---
+BACKUP_SIZE_MB=$(awk "BEGIN {printf \"%.2f\", ${BACKUP_SIZE}/1024/1024}")
+log_msg "Backup criado com sucesso: ${BACKUP_SIZE_MB} MB (${BACKUP_SIZE} bytes)"
+
+# --- Upload para Object Storage via rclone ---
+log_msg "Enviando backup para ${RCLONE_REMOTE}:${BUCKET}/${TYPE}/..."
+
+rclone copy \
+    "${BACKUP_DIR}/${BACKUP_FILE}" \
+    "${RCLONE_REMOTE}:${BUCKET}/${TYPE}/" \
+    --log-level INFO \
+    --stats 0
+
+# --- Verificar se o upload foi bem-sucedido ---
+if ! rclone lsf "${RCLONE_REMOTE}:${BUCKET}/${TYPE}/${BACKUP_FILE}" &>/dev/null; then
+    log_msg "ERRO: Falha na verificação do upload - arquivo não encontrado no storage remoto"
+    exit 1
+fi
+
+log_msg "Upload concluído com sucesso para ${RCLONE_REMOTE}:${BUCKET}/${TYPE}/"
+
+# --- Remover arquivo local (mantém apenas no storage remoto) ---
+log_msg "Removendo cópia local do backup: ${BACKUP_DIR}/${BACKUP_FILE}"
+rm -f "${BACKUP_DIR}/${BACKUP_FILE}"
+
+# --- Executar limpeza de backups antigos por tipo ---
+log_msg "Iniciando rotação de backups antigos..."
+cleanup_old_backups "daily"   "{{ backup_retention_daily | default(7) }}"
+cleanup_old_backups "weekly"  "{{ backup_retention_weekly | default(4) }}"
+cleanup_old_backups "monthly" "{{ backup_retention_monthly | default(3) }}"
+
+# --- Finalização com sucesso ---
+EXIT_CODE=0
+log_msg "=========================================="
+log_msg "Backup concluído com sucesso!"
+log_msg "=========================================="

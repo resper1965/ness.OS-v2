@@ -1,0 +1,12 @@
+---
+# =============================================================================
+# Handlers: zabbix-agent
+# Descrição: Handlers para o role do Zabbix Agent 2
+# =============================================================================
+
+# Handler para reiniciar o Zabbix Agent 2 após alterações de configuração
+- name: Reiniciar Zabbix Agent 2
+  ansible.builtin.systemd:
+    name: zabbix-agent2
+    state: restarted
+    daemon_reload: true
