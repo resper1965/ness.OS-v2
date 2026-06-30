@@ -30,6 +30,6 @@ Status e progresso da implementação da plataforma n.infraops.
 *   [x] Criar testes de integração da API FastAPI mockando dependências do Redis.
 
 ## 🚀 Fase 5: Implantação e Execução de Testes
-*   [/] Criar ambiente virtual local (.venv) e instalar as dependências.
-*   [ ] Executar `pytest tests/` no backend para validação das regras implementadas.
-*   [ ] Realizar push do monorepo completo para o GitHub remoto `https://github.com/resper1965/n-infraops.git`.
+*   [x] Criar ambiente virtual local (.venv) e instalar as dependências.
+*   [x] Executar `pytest tests/` no backend para validação das regras implementadas.
+*   [x] Realizar push do monorepo completo para o GitHub remoto `https://github.com/resper1965/n-infraops.git`.
