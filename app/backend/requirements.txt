@@ -9,7 +9,7 @@ pydantic-settings==2.9.*
 
 # --- Async ---
 celery[redis]==5.4.*
-redis[hiredis]==5.3.*
+redis[hiredis]==8.0.*
 
 # --- Database ---
 sqlalchemy[asyncio]==2.0.*
