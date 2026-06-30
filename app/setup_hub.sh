@@ -21,12 +21,8 @@ ufw default allow outgoing
 
 # Portas essenciais
 ufw allow 22/tcp      # SSH padrão
-ufw allow 80/tcp      # HTTP
-ufw allow 443/tcp     # HTTPS
-ufw allow 3000/tcp    # Frontend React (opcional, para testes locais)
-ufw allow 8000/tcp    # FastAPI Backend (opcional, para testes)
-ufw allow 5678/tcp    # n8n Webhook
-ufw allow 8080/tcp    # Evolution API
+ufw allow 80/tcp      # HTTP (Caddy Let's Encrypt)
+ufw allow 443/tcp     # HTTPS (Caddy)
 
 echo "y" | ufw enable
 ufw status
