@@ -11,7 +11,8 @@ echo "[+] Iniciando Hardening e Setup do AIOps Hub..."
 
 # 1. Atualizar pacotes
 echo "[+] Atualizando pacotes do Debian..."
-apt-get update && apt-get upgrade -y
+export DEBIAN_FRONTEND=noninteractive
+apt-get update && apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" upgrade
 apt-get install -y ufw fail2ban curl wget git htop
 
 # 2. Configurar UFW (Firewall)
