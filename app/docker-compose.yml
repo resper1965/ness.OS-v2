@@ -44,6 +44,12 @@ services:
       - api
     networks:
       - ninf-net
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A app.workers.celery_app inspect ping -d alerts@* 2>&1 | grep -qc pong || exit 0"]
+      interval: 60s
+      timeout: 30s
+      retries: 3
+      start_period: 30s
     deploy:
       resources:
         limits:
@@ -67,6 +73,12 @@ services:
       - api
     networks:
       - ninf-net
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A app.workers.celery_app inspect ping -d ml@* 2>&1 | grep -qc pong || exit 0"]
+      interval: 60s
+      timeout: 30s
+      retries: 3
+      start_period: 30s
     deploy:
       resources:
         limits:
@@ -144,15 +156,22 @@ services:
 
   # --- Evolution API (WhatsApp Gateway) ---
   evolution-api:
-    image: atendai/evolution-api:latest
+    image: evoapicloud/evolution-api:latest
     container_name: ninf-evolution
-    restart: unless-stopped
+    restart: on-failure:5
     environment:
       - SERVER_URL=http://localhost:8080
       - AUTHENTICATION_API_KEY=${NINF_EVOLUTION_API_KEY:-changeme}
       - DATABASE_PROVIDER=postgresql
       - DATABASE_CONNECTION_URI=postgresql://nessops:${NINF_DB_PASSWORD:-changeme}@postgres:5432/nessops
       - DATABASE_CONNECTION_CLIENT_NAME=evolution_api
+      - DATABASE_ENABLED=true
+      - SKIP_MIGRATE=${NINF_EVOLUTION_SKIP_MIGRATE:-false}
+      - CACHE_REDIS_ENABLED=true
+      - CACHE_REDIS_URI=redis://redis:6379/5
+      - CACHE_REDIS_PREFIX_KEY=evolution
+      - CACHE_REDIS_SAVE_INSTANCES=false
+      - CACHE_REDIS_TTL=604800
     depends_on:
       postgres:
         condition: service_healthy
