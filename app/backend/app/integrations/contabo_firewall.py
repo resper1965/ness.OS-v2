@@ -3,12 +3,13 @@ n.infraops — Contabo API Integration
 Firewall + Instance Management
 Auth: OAuth2 Bearer Token (4 credentials required)
 
-CRITICAL API NOTES (from official docs):
-- x-request-id UUID v4 is MANDATORY on every request
-- Firewall rules: PUT /rules does FULL REPLACEMENT (send complete ruleset)
-- Firewall only supports 'accept' action (deny-by-omission strategy)
-- Field names: ipRange (not sourceIp), port (not destinationPort)
-- Instance assignment: instanceId in request BODY (not URL)
+CRITICAL API NOTES (descobertas via reverse-engineering da API real):
+- x-request-id UUID v4 é OBRIGATÓRIO em cada request
+- Firewall rules: usa PATCH /firewalls/{id} com campo 'inboundRules'
+- Schema real de regra: {protocol, destPorts[], srcCidr:{ipv4[], ipv6[]}, action, displayName}
+- NÃO existe endpoint PUT /rules — documentação de terceiros estava errada
+- status='inactive' = firewall associado mas NÃO aplicado (ativar via painel)
+- Instances já vêm pré-associadas no objeto do firewall
 """
 import httpx
 import uuid
