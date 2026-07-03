@@ -1,15 +1,27 @@
 hub.ness.com.br {
+    basicauth {
+        admin $2a$14$x5SLnrgQ85c8bgaqtjWt8e/FQSc.2KViOcMkkYijHTJumPUwsMz7G
+    }
     reverse_proxy frontend:3000
 }
 
 n8n.ness.com.br {
+    basicauth {
+        admin $2a$14$x5SLnrgQ85c8bgaqtjWt8e/FQSc.2KViOcMkkYijHTJumPUwsMz7G
+    }
     reverse_proxy n8n:5678
 }
 
 api.ness.com.br {
+    basicauth {
+        admin $2a$14$x5SLnrgQ85c8bgaqtjWt8e/FQSc.2KViOcMkkYijHTJumPUwsMz7G
+    }
     reverse_proxy api:8000
 }
 
 waba.ness.com.br {
+    basicauth {
+        admin $2a$14$x5SLnrgQ85c8bgaqtjWt8e/FQSc.2KViOcMkkYijHTJumPUwsMz7G
+    }
     reverse_proxy evolution-api:8080
 }
