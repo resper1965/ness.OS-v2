@@ -77,16 +77,16 @@ function BrandLogo() {
   return (
     <div className="flex flex-col items-start px-1">
       <div
-        style={{ fontFamily: "'Montserrat', system-ui", fontWeight: 600 }}
-        className="text-[22px] tracking-tight text-white leading-none select-none"
+        style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 500 }}
+        className="text-[24px] tracking-tight text-white leading-none select-none"
       >
-        ness<span style={{ color: '#00ADE8', textShadow: '0 0 12px rgba(0,173,232,0.6)' }}>.</span>
+        ness<span className="text-[#00ADE8] drop-shadow-[0_0_8px_rgba(0,173,232,0.8)]">.</span>
       </div>
       <div
-        style={{ fontFamily: "'Montserrat', system-ui", fontWeight: 500 }}
-        className="text-[8px] tracking-[0.35em] uppercase leading-none mt-1.5 text-[#00ADE8] opacity-80 select-none"
+        style={{ fontFamily: "'Fira Code', monospace", fontWeight: 500 }}
+        className="text-[10px] tracking-[0.1em] lowercase leading-none mt-1 text-[#00ADE8] opacity-90 select-none"
       >
-        AIOPS
+        n.infraops
       </div>
     </div>
   );
@@ -126,8 +126,8 @@ function SidebarItem({
           style={{ background: '#00ADE8', boxShadow: '0 0 8px rgba(0,173,232,0.7)' }}
         />
       )}
-      <Icon size={16} className={active ? 'text-[#00ADE8]' : ''} />
-      <span className="font-medium text-sm">{label}</span>
+      <Icon size={18} className={active ? 'text-[#00ADE8]' : ''} />
+      <span className={`font-medium text-sm ${active ? 'text-white' : 'text-slate-400'}`}>{label}</span>
       {disabled && (
         <span className="ml-auto text-[9px] font-medium px-1.5 py-0.5 rounded bg-white/[0.04] text-white/20 leading-none">
           breve

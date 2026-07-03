@@ -1,0 +1,23 @@
+{
+    email resper1965@gmail.com
+}
+
+# Frontend - O Dashboard n.infraops
+hub.ness.com.br {
+    reverse_proxy frontend:3000
+}
+
+# API Backend & IA Proxy
+api.ness.com.br {
+    reverse_proxy api:8000
+}
+
+# Keep AIOps Dashboard
+events.hub.ness.com.br {
+    reverse_proxy keep-frontend:3000
+}
+
+# Evolution API (WhatsApp Center)
+waba.ness.com.br {
+    reverse_proxy evolution-api:8080
+}

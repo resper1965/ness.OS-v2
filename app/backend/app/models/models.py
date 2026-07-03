@@ -252,10 +252,30 @@ class CustomerCredentials(Base):
     api_key: Mapped[str] = mapped_column(String(255), nullable=False)
     api_secret: Mapped[str | None] = mapped_column(String(255))
     api_url: Mapped[str | None] = mapped_column(String(512))
+    
+    # ID deste cliente dentro do RMM (ex: CustomerID no Atera)
+    rmm_customer_id: Mapped[str | None] = mapped_column(String(128), index=True)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
+    )
+
+
+class TenantMapping(Base):
+    """Mapeamento explícito de IDs de plataformas externas para Clientes internos."""
+
+    __tablename__ = "n_infraops_tenant_mappings"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    internal_customer_id: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
+    
+    external_platform: Mapped[str] = mapped_column(String(64), nullable=False) # 'atera', 'datto', 'zabbix'
+    external_customer_id: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
+    external_customer_name: Mapped[str | None] = mapped_column(String(255))
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
     )
