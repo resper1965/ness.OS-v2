@@ -29,6 +29,10 @@ netmiko==4.4.*
 # --- Utilities ---
 python-multipart==0.0.*
 
+# --- Authentication (FASE 4.1) ---
+python-jose[cryptography]==3.3.*
+passlib[bcrypt]==1.7.*
+
 # --- Testing ---
 pytest==8.3.*
 pytest-asyncio==0.24.*

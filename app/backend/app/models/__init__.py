@@ -10,6 +10,7 @@ from app.models.models import (
     Metric,
     CustomerCredentials,
 )
+from app.models.users import User, UserRole
 
 __all__ = [
     "Asset",
@@ -21,4 +22,6 @@ __all__ = [
     "AssetStatus",
     "Metric",
     "CustomerCredentials",
+    "User",
+    "UserRole",
 ]

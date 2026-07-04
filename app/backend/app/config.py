@@ -62,6 +62,10 @@ class Settings(BaseSettings):
     # --- Dashboard ---
     dashboard_base_url: str = "https://infraops.ness.com.br"
 
+    # --- JWT Authentication (FASE 4.1) ---
+    jwt_secret: str = ""          # NINF_JWT_SECRET — deixe vazio para fallback automático
+    jwt_expire_hours: int = 8     # NINF_JWT_EXPIRE_HOURS
+
     # --- Anomaly Detection ---
     anomaly_zscore_threshold: float = 3.0
     anomaly_min_datapoints: int = 30
