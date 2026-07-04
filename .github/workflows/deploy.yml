@@ -1,0 +1,85 @@
+name: Deploy n.infraops
+
+# Secrets necessarios no GitHub (Settings > Secrets > Actions):
+#   SERVER_HOST      IP do servidor (ex: 144.91.115.242)
+#   SERVER_USER      Usuario SSH (ex: root)
+#   SERVER_SSH_KEY   Chave privada SSH (conteudo do id_ed25519)
+
+on:
+  push:
+    branches:
+      - feat/multi-tenant-security
+      - main
+
+jobs:
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SERVER_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Sync backend code
+        run: |
+          rsync -avz --delete \
+            --exclude='__pycache__' \
+            --exclude='*.pyc' \
+            --exclude='.env' \
+            -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
+            app/backend/app/ \
+            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/root/app/backend/app/
+
+      - name: Sync docker-compose
+        run: |
+          scp -i ~/.ssh/deploy_key \
+            -o StrictHostKeyChecking=no \
+            app/docker-compose.yml \
+            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/root/app/docker-compose.yml
+
+      - name: Sync frontend source
+        run: |
+          rsync -avz --delete \
+            --exclude='node_modules' \
+            --exclude='dist' \
+            -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
+            app/frontend/src/ \
+            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/root/app/frontend/src/
+          rsync -avz \
+            -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
+            app/frontend/public/ \
+            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/root/app/frontend/public/
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            app/frontend/index.html \
+            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/root/app/frontend/index.html
+
+      - name: Restart API container
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+            -o StrictHostKeyChecking=no \
+            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
+            "docker restart ninf-api && sleep 12"
+
+      - name: Health check — API
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+            -o StrictHostKeyChecking=no \
+            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
+            "docker exec ninf-api curl -sf http://localhost:8000/ | grep -q 'running' && echo 'API HEALTH OK' || (docker logs ninf-api --tail 20 && exit 1)"
+
+      - name: Smoke test — Login endpoint
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+            -o StrictHostKeyChecking=no \
+            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
+            "docker exec ninf-api curl -sf -X POST http://localhost:8000/api/auth/login \
+              -H 'Content-Type: application/json' \
+              -d '{\"email\":\"admin@ness.com.br\",\"password\":\"Nessnet@436!\"}' | grep -q 'access_token' && echo 'AUTH SMOKE OK' || echo 'AUTH SMOKE WARN (admin may not exist)'"

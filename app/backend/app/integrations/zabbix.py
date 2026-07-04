@@ -18,6 +18,7 @@ class ZabbixClient:
         self.url = url or settings.zabbix_url
         self.token = token or settings.zabbix_api_token
         self.timeout = httpx.Timeout(10.0, read=30.0)
+        self.verify_ssl = False  # Azure usa cert autoassinado
 
     async def _call(self, method: str, params: dict[str, Any]) -> Any:
         """Executa uma chamada JSON-RPC para a API do Zabbix."""
@@ -28,13 +29,13 @@ class ZabbixClient:
             "id": 1,
         }
 
-        # Zabbix 7.0 suporta autenticação via Bearer token no payload ou header
-        if self.token:
-            payload["auth"] = self.token
-
+        # Zabbix 7.0+: API tokens (criados na UI) devem usar Bearer header.
+        # O campo "auth" no payload era para session tokens (user.login) — deprecado em 7.0.
         headers = {"Content-Type": "application/json-rpc"}
+        if self.token:
+            headers["Authorization"] = f"Bearer {self.token}"
 
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
+        async with httpx.AsyncClient(timeout=self.timeout, verify=self.verify_ssl) as client:
             try:
                 response = await client.post(self.url, json=payload, headers=headers)
                 response.raise_for_status()

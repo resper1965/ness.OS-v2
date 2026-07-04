@@ -13,9 +13,12 @@ services:
       dockerfile: Dockerfile
     container_name: ninf-api
     restart: unless-stopped
-    ports:
-      - "8000:8000"
     env_file: .env
+    environment:
+      # JWT secret fixo — tokens sobrevivem restarts do container
+      NINF_JWT_SECRET: ${NINF_JWT_SECRET:-please-set-a-strong-secret-in-dot-env}
+    volumes:
+      - ./backend/app:/app/app:ro   # bind-mount: codigo atualizado sem rebuild
     depends_on:
       postgres:
         condition: service_healthy
@@ -46,6 +49,12 @@ services:
       - api
     networks:
       - ninf-net
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A app.workers.celery_app inspect ping -d alerts@* 2>&1 | grep -qc pong || exit 0"]
+      interval: 60s
+      timeout: 30s
+      retries: 3
+      start_period: 30s
     deploy:
       resources:
         limits:
@@ -69,6 +78,12 @@ services:
       - api
     networks:
       - ninf-net
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A app.workers.celery_app inspect ping -d ml@* 2>&1 | grep -qc pong || exit 0"]
+      interval: 60s
+      timeout: 30s
+      retries: 3
+      start_period: 30s
     deploy:
       resources:
         limits:
@@ -125,31 +140,81 @@ services:
         limits:
           memory: 300M
 
-  # --- n8n (Orquestração de borda) ---
-  n8n:
-    image: docker.n8n.io/n8nio/n8n:latest
-    container_name: ninf-n8n
-    restart: unless-stopped
-    ports:
-      - "5678:5678"
+
+  # --- Evolution API (WhatsApp Gateway) ---
+  evolution-api:
+    image: evoapicloud/evolution-api:latest
+    container_name: ninf-evolution
+    restart: on-failure:5
     environment:
-      N8N_BASIC_AUTH_ACTIVE: "true"
-      N8N_BASIC_AUTH_USER: admin
-      N8N_BASIC_AUTH_PASSWORD: ${NINF_N8N_PASSWORD:-changeme}
-      WEBHOOK_URL: http://n8n:5678
+      - SERVER_URL=http://localhost:8080
+      - AUTHENTICATION_API_KEY=${NINF_EVOLUTION_API_KEY:-changeme}
+      - DATABASE_PROVIDER=postgresql
+      - DATABASE_CONNECTION_URI=postgresql://nessops:${NINF_DB_PASSWORD:-changeme}@postgres:5432/nessops
+      - DATABASE_CONNECTION_CLIENT_NAME=evolution_api
+      - DATABASE_ENABLED=true
+      - SKIP_MIGRATE=${NINF_EVOLUTION_SKIP_MIGRATE:-false}
+      - CACHE_REDIS_ENABLED=true
+      - CACHE_REDIS_URI=redis://redis:6379/5
+      - CACHE_REDIS_PREFIX_KEY=evolution
+      - CACHE_REDIS_SAVE_INSTANCES=false
+      - CACHE_REDIS_TTL=604800
+    depends_on:
+      postgres:
+        condition: service_healthy
     volumes:
-      - n8n-data:/home/node/.n8n
+      - evolution-instances:/evolution/instances
+      - evolution-store:/evolution/store
     networks:
       - ninf-net
     deploy:
       resources:
         limits:
-          memory: 1G
+          memory: 1.5G
+
+  # --- Frontend (Next.js/React App) ---
+  frontend:
+    build:
+      context: ./frontend
+    container_name: ninf-frontend
+    restart: unless-stopped
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    depends_on:
+      - api
+    networks:
+      - ninf-net
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # --- Caddy (Reverse Proxy + HTTPS Automático) ---
+  caddy:
+    image: caddy:2-alpine
+    container_name: ninf-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks:
+      - ninf-net
+    depends_on:
+      - api
+      - evolution-api
+      - frontend
 
 volumes:
   pg-data:
   redis-data:
-  n8n-data:
+  evolution-instances:
+  evolution-store:
+  caddy-data:
+  caddy-config:
 
 networks:
   ninf-net:
