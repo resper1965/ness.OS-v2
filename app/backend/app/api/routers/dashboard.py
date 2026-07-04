@@ -4,8 +4,9 @@
 from __future__ import annotations
 import asyncio
 import logging
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from app.config import get_settings
+from app.core.dependencies import require_noc
 from app.integrations.zabbix import ZabbixClient
 from app.integrations.atera import AteraClient
 from app.integrations.rocketcyber import RocketCyberClient
@@ -61,8 +62,8 @@ async def _rocketcyber_summary() -> dict:
 
 
 @router.get("/api/dashboard/summary", tags=["dashboard"])
-async def get_dashboard_summary():
-    """Retorna métricas reais do Zabbix para o dashboard (compatibilidade)."""
+async def get_dashboard_summary(_=Depends(require_noc)):
+    """Retorna metricas reais do Zabbix para o dashboard. Requer role noc ou admin."""
     result = await _zabbix_summary()
     if result.get("degraded"):
         raise HTTPException(status_code=502, detail=f"Zabbix API error: {result.get('error')}")
@@ -70,11 +71,11 @@ async def get_dashboard_summary():
 
 
 @router.get("/api/dashboard/unified", tags=["dashboard"])
-async def get_unified_summary():
+async def get_unified_summary(_=Depends(require_noc)):
     """
     Resumo unificado: Zabbix + Atera RMM + RocketCyber SOC.
     Cada fonte roda em paralelo com timeout de 8s.
-    Degrada individualmente — nunca bloqueia o todo.
+    Degrada individualmente. Requer role noc ou admin.
     """
     SOURCE_TIMEOUT = 8.0
 
