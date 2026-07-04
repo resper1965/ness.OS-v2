@@ -1,15 +1,16 @@
 import { Activity, ShieldAlert, Users, Server, Settings, Cloud, RefreshCw,
          Wifi, WifiOff, Monitor, AlertTriangle, CheckCircle, BarChart3,
-         Layers, Cpu } from 'lucide-react';
+         Layers, Cpu, LogOut } from 'lucide-react';
 import React, { useState, useEffect, useCallback } from 'react';
 import CloudManagement from './components/CloudManagement';
 import PipelineStrip from './components/PipelineStrip';
 import IncidentsPage from './components/IncidentsPage';
 import TenantSelector from './components/TenantSelector';
 import SecurityAlerts from './components/SecurityAlerts';
+import LoginPage from './components/LoginPage';
+import { useAuth } from './hooks/useAuth';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
-const AUTH = { Authorization: 'Basic ' + btoa('admin:Nessnet@436!') };
 
 const PAGE_TITLES: Record<string, string> = {
   dashboard: 'Dashboard',
@@ -257,8 +258,12 @@ function SectionCard({ title, count, children, loading }: {
   );
 }
 
-// ─── App ─────────────────────────────────────────────────────────────────────
-function App() {
+// ─── App Shell Body ──────────────────────────────────────────────────────────
+function AppShellBody({ AUTH, logout, user }: {
+  AUTH: Record<string, string>;
+  logout: () => void;
+  user: import('./hooks/useAuth').User | null;
+}) {
   const [currentView, setCurrentView] = useState<View>('dashboard');
   const [selectedTenant, setSelectedTenant] = useState<string | null>(null);
   const [summary, setSummary] = useState<Summary | null>(null);
@@ -480,4 +485,37 @@ function App() {
   );
 }
 
-export default App;
+export default function App() {
+  const { isAuthenticated, loading: authLoading, authHeader, logout, user } = useAuth();
+
+  // Enquanto valida token salvo, mostrar loading minimal
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-[#08111f] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-2 border-[#00ADE8]/30 border-t-[#00ADE8] rounded-full animate-spin" />
+          <span className="text-white/30 text-sm">n.infraops</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Não autenticado → tela de login
+  if (!isAuthenticated) return <LoginPage />;
+
+  // Autenticado → app completo
+  return <AppShell authHeader={authHeader} logout={logout} user={user} />;
+}
+
+function AppShell({
+  authHeader,
+  logout,
+  user,
+}: {
+  authHeader: () => Record<string, string>;
+  logout: () => void;
+  user: import('./hooks/useAuth').User | null;
+}) {
+  const AUTH = authHeader();
+  return <AppShellBody AUTH={AUTH} logout={logout} user={user} />;
+}
