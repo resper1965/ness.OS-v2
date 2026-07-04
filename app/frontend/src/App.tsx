@@ -360,19 +360,54 @@ function AppShellBody({ AUTH, logout, user }: {
           <SidebarItem icon={Settings} label="Configurações" disabled />
         </nav>
 
-        {/* Status de conexão */}
-        <div className="px-2" role="status" aria-live="polite">
-          <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs
-            ${error ? 'bg-red-500/10 text-red-400' : 'bg-white/[0.03] text-[var(--color-brand-muted)]'}`}
-          >
-            {error
-              ? <><WifiOff size={11} /> Sem conexão</>
-              : <><div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  {lastUpdate
-                    ? `Sincronizado ${lastUpdate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
-                    : 'Conectando à API...'}</>
-            }
+        {/* ── User card + Logout ── */}
+        <div className="px-2 space-y-2">
+          {/* Status de conexão */}
+          <div role="status" aria-live="polite">
+            <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs
+              ${error ? 'bg-red-500/10 text-red-400' : 'bg-white/[0.03] text-[var(--color-brand-muted)]'}`}
+            >
+              {error
+                ? <><WifiOff size={11} /> Sem conexão</>
+                : <><div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    {lastUpdate
+                      ? `Sincronizado ${lastUpdate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
+                      : 'Conectando à API...'}</>
+              }
+            </div>
           </div>
+
+          {/* User info + logout */}
+          {user && (
+            <div className="flex items-center gap-2 px-2 py-2 rounded-xl bg-white/[0.04] border border-white/[0.06]">
+              {/* Avatar */}
+              <div className="w-7 h-7 rounded-full bg-[#00ADE8]/20 border border-[#00ADE8]/30 flex items-center justify-center shrink-0">
+                <span className="text-[10px] font-bold text-[#00ADE8] uppercase">
+                  {user.full_name?.charAt(0) ?? user.email.charAt(0)}
+                </span>
+              </div>
+              {/* Info */}
+              <div className="flex-1 min-w-0">
+                <p className="text-[11px] font-medium text-white/80 truncate">
+                  {user.full_name ?? user.email}
+                </p>
+                <span className={`text-[9px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-full ${
+                  user.role === 'admin' ? 'bg-[#00ADE8]/15 text-[#00ADE8]'
+                  : user.role === 'noc' ? 'bg-emerald-500/15 text-emerald-400'
+                  : 'bg-white/10 text-white/40'
+                }`}>{user.role}</span>
+              </div>
+              {/* Logout */}
+              <button
+                onClick={logout}
+                title="Sair"
+                aria-label="Sair da conta"
+                className="p-1.5 rounded-lg text-white/30 hover:text-red-400 hover:bg-red-500/10 transition-all duration-200 shrink-0"
+              >
+                <LogOut size={13} />
+              </button>
+            </div>
+          )}
         </div>
       </aside>
 
