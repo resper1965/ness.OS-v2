@@ -15,7 +15,12 @@ if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
 from app.api.webhooks import router as webhooks_router
-from app.api.routers.contabo import router as contabo_router
+try:
+    from app.api.routers.contabo import router as contabo_router
+    _has_contabo = True
+except ImportError:
+    contabo_router = None  # type: ignore
+    _has_contabo = False
 from app.api.routers.dashboard import router as dashboard_router
 from app.api.routers.pipeline import router as pipeline_router
 from app.api.routers.incidents import router as incidents_router
@@ -51,7 +56,8 @@ app.add_middleware(
 
 # --- Routers ---
 app.include_router(webhooks_router)
-app.include_router(contabo_router, prefix="/api/contabo", tags=["contabo"])
+if _has_contabo and contabo_router is not None:
+    app.include_router(contabo_router, prefix="/api/contabo", tags=["contabo"])
 app.include_router(dashboard_router, tags=["dashboard"])
 app.include_router(pipeline_router, tags=["dashboard"])
 app.include_router(incidents_router, tags=["incidents"])
