@@ -55,6 +55,10 @@ class Settings(BaseSettings):
     atera_api_key: str = ""
     atera_api_url: str = "https://app.atera.com/api/v3"
 
+    # --- SOC / Security (RocketCyber) ---
+    rocketcyber_api_key: str = ""
+    rocketcyber_api_url: str = "https://api-us.rocketcyber.com"
+
     # --- Dashboard ---
     dashboard_base_url: str = "https://infraops.ness.com.br"
 

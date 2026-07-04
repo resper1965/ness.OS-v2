@@ -21,6 +21,8 @@ from app.api.routers.pipeline import router as pipeline_router
 from app.api.routers.incidents import router as incidents_router
 from app.api.routers.tenants import router as tenants_router
 from app.api.routers.assets import router as assets_router
+from app.api.routers.atera import router as atera_router
+from app.api.routers.secops import router as secops_router
 from app.config import get_settings
 
 settings = get_settings()
@@ -54,6 +56,8 @@ app.include_router(pipeline_router, tags=["dashboard"])
 app.include_router(incidents_router, tags=["incidents"])
 app.include_router(tenants_router, prefix="/api/tenants", tags=["tenants"])
 app.include_router(assets_router, prefix="/api/assets", tags=["assets"])
+app.include_router(atera_router)   # prefix defined in router: /api/rmm/atera
+app.include_router(secops_router)  # prefix defined in router: /api/secops
 
 
 @app.get("/", tags=["root"])
