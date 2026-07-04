@@ -1,14 +1,15 @@
 """
-Router: /api/assets — Assets unificados (Atera + futuro: Datto, Zabbix)
+Router: /api/assets -- Assets unificados (Atera + futuro: Datto, Zabbix)
 """
 from __future__ import annotations
 
 import logging
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.config import get_settings
+from app.core.dependencies import require_noc
 from app.integrations.atera import AteraClient
 
 logger = logging.getLogger(__name__)
@@ -20,7 +21,7 @@ def _atera() -> AteraClient | None:
     return AteraClient(api_key=key) if key else None
 
 
-@router.get("/summary")
+@router.get("/summary", dependencies=[Depends(require_noc)])
 async def get_assets_summary() -> dict[str, Any]:
     """Resumo consolidado de ativos — Atera + Datto (futuro)."""
     client = _atera()
@@ -41,7 +42,7 @@ async def get_assets_summary() -> dict[str, Any]:
         raise HTTPException(502, str(e))
 
 
-@router.get("")
+@router.get("", dependencies=[Depends(require_noc)])
 async def list_assets(
     customer_id: int | None = Query(None, description="Filtrar por cliente Atera"),
     source: str = Query("atera", description="atera | all"),
@@ -88,7 +89,7 @@ async def list_assets(
         raise HTTPException(502, str(e))
 
 
-@router.get("/count")
+@router.get("/count", dependencies=[Depends(require_noc)])
 async def count_assets() -> dict[str, Any]:
     """Contagem rápida de ativos por fonte — usa apenas 1 request por fonte."""
     client = _atera()
