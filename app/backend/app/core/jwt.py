@@ -15,13 +15,15 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_HOURS = 8
 
 
+# Fallback secret gerado UMA VEZ no startup (nao sobrevive restart).
+# Em producao, defina NINF_JWT_SECRET no .env ou docker-compose.
+_FALLBACK_SECRET: str = secrets.token_hex(32)
+
+
 def _secret() -> str:
-    """Retorna o JWT secret configurado ou gera um fallback seguro."""
+    """Retorna o JWT secret configurado ou o fallback gerado no startup."""
     settings = get_settings()
-    if settings.jwt_secret:
-        return settings.jwt_secret
-    # Fallback: gera um secret aleatório (só válido enquanto o processo estiver rodando)
-    return secrets.token_hex(32)
+    return settings.jwt_secret if settings.jwt_secret else _FALLBACK_SECRET
 
 
 def create_access_token(
