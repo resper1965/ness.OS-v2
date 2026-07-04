@@ -2,9 +2,21 @@
     email resper1965@gmail.com
 }
 
-# Frontend - O Dashboard n.infraops
+# Frontend - O Dashboard n.infraops + ness.OS Solution Page
 hub.ness.com.br {
-    reverse_proxy frontend:3000
+    # ness.OS Solution Page — /platform
+    handle /platform* {
+        root * /srv/public
+        rewrite * /index.html
+        file_server
+        encode gzip
+        header Cache-Control "public, max-age=3600"
+    }
+
+    # React App — tudo o resto
+    handle {
+        reverse_proxy frontend:3000
+    }
 }
 
 # API Backend & IA Proxy
