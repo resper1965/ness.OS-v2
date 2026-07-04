@@ -2,16 +2,22 @@
 n.infraops — Atera RMM API v3 Integration
 Base URL: https://app.atera.com/api/v3
 Auth: Static API Key via X-API-KEY header (permanente, sem refresh)
-Rate Limit: 700 req/min
-Pagination: page + itemsInPage (max 50 por pagina)
+Rate Limit: 700 req/min (~11.6/s). Retry automático em 429.
+Pagination: page + itemsInPage (max 50 por página)
 """
-import httpx
+import asyncio
 import logging
+import time
 from typing import Any
+
+import httpx
 
 logger = logging.getLogger(__name__)
 
 ATERA_BASE_URL = "https://app.atera.com/api/v3"
+_REQUEST_DELAY = 0.15   # ~6 req/s — bem abaixo do limite de 700/min
+_RETRY_DELAY   = 2.0    # segundos de espera em 429
+_MAX_RETRIES   = 3
 
 
 class AteraClient:
@@ -25,19 +31,40 @@ class AteraClient:
             "Content-Type": "application/json",
         }
 
-    async def _paginate(self, endpoint: str, data_key: str, params: dict | None = None) -> list[dict[str, Any]]:
-        """Busca todas as páginas de um endpoint paginado."""
+    async def _get(self, url: str, params: dict | None = None) -> dict[str, Any]:
+        """GET com retry automático em 429 e delay entre requests."""
+        for attempt in range(_MAX_RETRIES):
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                r = await client.get(url, headers=self._headers(), params=params or {})
+                if r.status_code == 429:
+                    retry_after = float(r.headers.get("Retry-After", _RETRY_DELAY))
+                    logger.warning(f"Atera 429 rate limit — waiting {retry_after}s (attempt {attempt+1})")
+                    await asyncio.sleep(retry_after)
+                    continue
+                r.raise_for_status()
+                await asyncio.sleep(_REQUEST_DELAY)  # throttle pós-request
+                return r.json()
+        raise Exception("Atera API rate limit exceeded after max retries")
+
+    async def _get_page_one(self, endpoint: str, page_size: int = 1) -> dict[str, Any]:
+        """Busca apenas a primeira página — usado para obter totais eficientemente."""
+        return await self._get(
+            f"{ATERA_BASE_URL}{endpoint}",
+            params={"page": 1, "itemsInPage": page_size},
+        )
+
+    async def _paginate(
+        self, endpoint: str, data_key: str, params: dict | None = None, max_pages: int = 100
+    ) -> list[dict[str, Any]]:
+        """Busca todas as páginas com throttling. Respeita max_pages."""
         results = []
         page = 1
-        while True:
+        while page <= max_pages:
             p = {"page": page, "itemsInPage": 50, **(params or {})}
-            async with httpx.AsyncClient() as client:
-                r = await client.get(f"{ATERA_BASE_URL}{endpoint}", headers=self._headers(), params=p)
-                r.raise_for_status()
-                body = r.json()
+            body = await self._get(f"{ATERA_BASE_URL}{endpoint}", params=p)
             items = body.get(data_key, body.get("items", []))
             results.extend(items)
-            if not body.get("nextLink"):
+            if not body.get("nextLink") or not items:
                 break
             page += 1
         return results
@@ -50,10 +77,7 @@ class AteraClient:
         return await self._paginate("/customers", "items")
 
     async def get_customer(self, customer_id: int) -> dict[str, Any]:
-        async with httpx.AsyncClient() as client:
-            r = await client.get(f"{ATERA_BASE_URL}/customers/{customer_id}", headers=self._headers())
-            r.raise_for_status()
-            return r.json()
+        return await self._get(f"{ATERA_BASE_URL}/customers/{customer_id}")
 
     # -------------------------------------------------------
     # AGENTS (Workstations & Servers com agente instalado)
@@ -67,10 +91,7 @@ class AteraClient:
         return await self._paginate(f"/agents/customer/{customer_id}", "items")
 
     async def get_agent(self, agent_id: int) -> dict[str, Any]:
-        async with httpx.AsyncClient() as client:
-            r = await client.get(f"{ATERA_BASE_URL}/agents/{agent_id}", headers=self._headers())
-            r.raise_for_status()
-            return r.json()
+        return await self._get(f"{ATERA_BASE_URL}/agents/{agent_id}")
 
     # -------------------------------------------------------
     # ALERTS
@@ -82,10 +103,12 @@ class AteraClient:
     async def dismiss_alert(self, alert_id: int, approved_by: str) -> dict[str, Any]:
         """[HITL] Remove/fecha um alerta do Atera."""
         logger.info(f"[HITL] Dismissing Atera alert={alert_id} by={approved_by}")
-        async with httpx.AsyncClient() as client:
-            r = await client.delete(f"{ATERA_BASE_URL}/alerts/{alert_id}", headers=self._headers())
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            r = await client.delete(
+                f"{ATERA_BASE_URL}/alerts/{alert_id}", headers=self._headers()
+            )
             r.raise_for_status()
-            return {"status": "dismissed", "alert_id": alert_id, "approved_by": approved_by}
+        return {"status": "dismissed", "alert_id": alert_id, "approved_by": approved_by}
 
     # -------------------------------------------------------
     # TICKETS
@@ -94,8 +117,10 @@ class AteraClient:
         """Lista todos os tickets do Atera."""
         return await self._paginate("/tickets", "items")
 
-    async def create_ticket(self, title: str, customer_id: int, description: str = "", priority: str = "Low") -> dict[str, Any]:
-        """Cria um ticket no Atera (ex: disparado por alerta do Zabbix/Keep)."""
+    async def create_ticket(
+        self, title: str, customer_id: int, description: str = "", priority: str = "Low"
+    ) -> dict[str, Any]:
+        """Cria um ticket no Atera (ex: disparado por alerta do Zabbix)."""
         payload = {
             "TicketTitle": title,
             "TicketPriority": priority,
@@ -103,29 +128,45 @@ class AteraClient:
             "CustomerID": customer_id,
             "TicketNotes": description,
         }
-        async with httpx.AsyncClient() as client:
-            r = await client.post(f"{ATERA_BASE_URL}/tickets", headers=self._headers(), json=payload)
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            r = await client.post(
+                f"{ATERA_BASE_URL}/tickets", headers=self._headers(), json=payload
+            )
             r.raise_for_status()
-            return r.json()
+        return r.json()
 
     # -------------------------------------------------------
-    # SUMMARY para o Dashboard n.infraops
+    # SUMMARY EFICIENTE para o Dashboard n.infraops
+    # Usa apenas a 1ª página de cada recurso para obter totais
+    # sem paginar 1.637+ agentes completos.
     # -------------------------------------------------------
     async def get_dashboard_summary(self) -> dict[str, Any]:
-        """Retorna um resumo consolidado para o painel."""
+        """
+        Resumo consolidado para o painel.
+        Faz apenas 3 requests (1 por recurso, página 1 com 1 item)
+        e usa o campo 'totalItemCount' da resposta para o total real.
+        """
+        t0 = time.monotonic()
         try:
-            customers = await self.list_customers()
-            agents = await self.list_agents()
-            alerts = await self.list_alerts()
-            online = sum(1 for a in agents if a.get("OnlineStatus") == "Online")
+            # Buscar apenas 1 item por recurso — a API retorna totalItemCount no corpo
+            customers_r, agents_r, alerts_r = await asyncio.gather(
+                self._get_page_one("/customers", page_size=1),
+                self._get_page_one("/agents", page_size=1),
+                self._get_page_one("/alerts", page_size=1),
+            )
+
+            total_customers = customers_r.get("totalItemCount", len(customers_r.get("items", [])))
+            total_agents    = agents_r.get("totalItemCount", len(agents_r.get("items", [])))
+            total_alerts    = alerts_r.get("totalItemCount", len(alerts_r.get("items", [])))
+
+            elapsed_ms = int((time.monotonic() - t0) * 1000)
             return {
                 "source": "atera",
-                "total_customers": len(customers),
-                "total_agents": len(agents),
-                "agents_online": online,
-                "agents_offline": len(agents) - online,
-                "active_alerts": len(alerts),
+                "customers_total": total_customers,
+                "agents_total": total_agents,
+                "alerts_total": total_alerts,
+                "response_time_ms": elapsed_ms,
             }
         except Exception as e:
             logger.error(f"Atera summary error: {e}")
-            return {"source": "atera", "error": str(e)}
+            return {"source": "atera", "error": str(e), "degraded": True}
