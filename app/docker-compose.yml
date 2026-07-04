@@ -14,8 +14,11 @@ services:
     container_name: ninf-api
     restart: unless-stopped
     env_file: .env
+    environment:
+      # JWT secret fixo — tokens sobrevivem restarts do container
+      NINF_JWT_SECRET: ${NINF_JWT_SECRET:-please-set-a-strong-secret-in-dot-env}
     volumes:
-      - ./backend/app:/app/app:ro   # bind-mount: código atualizado sem rebuild
+      - ./backend/app:/app/app:ro   # bind-mount: codigo atualizado sem rebuild
     depends_on:
       postgres:
         condition: service_healthy

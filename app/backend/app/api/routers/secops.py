@@ -1,15 +1,16 @@
 """
-Router: /api/secops — RocketCyber SOC Integration
-Expõe incidentes de segurança e resumo SOC para o dashboard.
+Router: /api/secops -- RocketCyber SOC Integration
+Expoe incidentes de seguranca e resumo SOC para o dashboard.
 """
 from __future__ import annotations
 
 import logging
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.config import get_settings
+from app.core.dependencies import require_noc
 from app.integrations.rocketcyber import RocketCyberClient
 
 logger = logging.getLogger(__name__)
@@ -24,7 +25,7 @@ def _client() -> RocketCyberClient:
     return RocketCyberClient(api_key=key)
 
 
-@router.get("/incidents")
+@router.get("/incidents", dependencies=[Depends(require_noc)])
 async def list_incidents(
     account_id: int | None = Query(None, description="Account ID do cliente"),
     status: str = Query("open", description="open|resolved|all"),
@@ -55,7 +56,7 @@ async def list_incidents(
         raise HTTPException(502, str(e))
 
 
-@router.get("/incidents/{incident_id}")
+@router.get("/incidents/{incident_id}", dependencies=[Depends(require_noc)])
 async def get_incident(incident_id: int, account_id: int = Query(...)) -> dict[str, Any]:
     """Detalhe de um incidente específico."""
     try:
@@ -71,7 +72,7 @@ async def get_incident(incident_id: int, account_id: int = Query(...)) -> dict[s
         raise HTTPException(502, str(e))
 
 
-@router.get("/agents")
+@router.get("/agents", dependencies=[Depends(require_noc)])
 async def list_agents(account_id: int = Query(...)) -> dict[str, Any]:
     """Lista agentes RocketCyber de um cliente."""
     try:
@@ -85,7 +86,7 @@ async def list_agents(account_id: int = Query(...)) -> dict[str, Any]:
         raise HTTPException(502, str(e))
 
 
-@router.get("/summary")
+@router.get("/summary", dependencies=[Depends(require_noc)])
 async def secops_summary() -> dict[str, Any]:
     """Resumo SOC consolidado para o dashboard (todos os accounts)."""
     try:

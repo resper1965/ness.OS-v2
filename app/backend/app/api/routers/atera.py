@@ -1,15 +1,16 @@
 """
-Router: /api/rmm/atera — Atera RMM v3
-Expõe clientes, agentes e alertas Atera para o dashboard.
+Router: /api/rmm/atera -- Atera RMM v3
+Expoe clientes, agentes e alertas Atera para o dashboard.
 """
 from __future__ import annotations
 
 import logging
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.config import get_settings
+from app.core.dependencies import require_noc
 from app.integrations.atera import AteraClient
 
 logger = logging.getLogger(__name__)
@@ -24,7 +25,7 @@ def _client() -> AteraClient:
     return AteraClient(api_key=key)
 
 
-@router.get("/customers")
+@router.get("/customers", dependencies=[Depends(require_noc)])
 async def list_customers() -> dict[str, Any]:
     """Lista todos os clientes Atera (21 clientes)."""
     try:
@@ -38,7 +39,7 @@ async def list_customers() -> dict[str, Any]:
         raise HTTPException(502, str(e))
 
 
-@router.get("/agents")
+@router.get("/agents", dependencies=[Depends(require_noc)])
 async def list_agents(
     customer_id: int | None = Query(None, description="Filtrar por CustomerID Atera"),
 ) -> dict[str, Any]:
@@ -57,7 +58,7 @@ async def list_agents(
         raise HTTPException(502, str(e))
 
 
-@router.get("/alerts")
+@router.get("/alerts", dependencies=[Depends(require_noc)])
 async def list_alerts(
     severity: str | None = Query(None, description="Information|Warning|Critical"),
 ) -> dict[str, Any]:
@@ -80,7 +81,7 @@ async def list_alerts(
         raise HTTPException(502, str(e))
 
 
-@router.get("/summary")
+@router.get("/summary", dependencies=[Depends(require_noc)])
 async def atera_summary() -> dict[str, Any]:
     """Resumo consolidado Atera para o dashboard."""
     try:
