@@ -1,5 +1,6 @@
 # -------------------------------------------------------
-# NessOps — FastAPI Application Entry Point
+# ness.OS — Plataforma Unificada de Operacoes Gerenciadas
+# Modulos: n.infraops | n.secops | core
 # -------------------------------------------------------
 from __future__ import annotations
 
@@ -21,6 +22,7 @@ try:
 except ImportError:
     contabo_router = None  # type: ignore
     _has_contabo = False
+from app.api.routers.core import router as core_router
 from app.api.routers.dashboard import router as dashboard_router
 from app.api.routers.pipeline import router as pipeline_router
 from app.api.routers.incidents import router as incidents_router
@@ -39,9 +41,12 @@ logging.basicConfig(
 )
 
 app = FastAPI(
-    title=settings.app_name,
-    description="Plataforma AIOps — Correlação e remediação inteligente de alertas Zabbix",
-    version="0.1.0",
+    title="ness.OS",
+    description=(
+        "ness.OS — Sistema Operacional da ness. | "
+        "Modulos: n.infraops (NOC/Infra) · n.secops (SOC/Seguranca) · core (Gestao)"
+    ),
+    version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
 )
@@ -54,20 +59,32 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- Routers ---
+# --- ness.OS Core ---
+app.include_router(core_router)          # prefix: /api/core
+
+# --- n.infraops ---
 app.include_router(webhooks_router)
 if _has_contabo and contabo_router is not None:
     app.include_router(contabo_router, prefix="/api/contabo", tags=["contabo"])
-app.include_router(dashboard_router, tags=["dashboard"])
-app.include_router(pipeline_router, tags=["dashboard"])
-app.include_router(incidents_router, tags=["incidents"])
-app.include_router(tenants_router, prefix="/api/tenants", tags=["tenants"])
-app.include_router(assets_router, prefix="/api/assets", tags=["assets"])
-app.include_router(atera_router)   # prefix defined in router: /api/rmm/atera
-app.include_router(secops_router)  # prefix defined in router: /api/secops
-app.include_router(auth_router)    # prefix defined in router: /api/auth
+app.include_router(dashboard_router, tags=["infraops-dashboard"])
+app.include_router(pipeline_router, tags=["infraops-pipeline"])
+app.include_router(incidents_router, tags=["infraops-incidents"])
+app.include_router(tenants_router, prefix="/api/tenants", tags=["infraops-tenants"])
+app.include_router(assets_router, prefix="/api/assets", tags=["infraops-assets"])
+app.include_router(atera_router)         # prefix: /api/rmm/atera
+
+# --- n.secops ---
+app.include_router(secops_router)        # prefix: /api/secops
+
+# --- Auth (compartilhado) ---
+app.include_router(auth_router)          # prefix: /api/auth
 
 
 @app.get("/", tags=["root"])
-async def root() -> dict[str, str]:
-    return {"service": settings.app_name, "status": "running"}
+async def root() -> dict:
+    return {
+        "platform": "ness.OS",
+        "version": "1.0.0",
+        "status": "running",
+        "modules": ["n.infraops", "n.secops", "core"],
+    }

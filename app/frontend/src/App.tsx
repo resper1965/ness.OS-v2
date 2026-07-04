@@ -1,6 +1,6 @@
 import { Activity, ShieldAlert, Users, Server, Settings, Cloud, RefreshCw,
          Wifi, WifiOff, Monitor, AlertTriangle, CheckCircle, BarChart3,
-         Layers, Cpu, LogOut } from 'lucide-react';
+         Layers, Cpu, LogOut, Globe, Shield } from 'lucide-react';
 import React, { useState, useEffect, useCallback } from 'react';
 import CloudManagement from './components/CloudManagement';
 import PipelineStrip from './components/PipelineStrip';
@@ -8,6 +8,8 @@ import IncidentsPage from './components/IncidentsPage';
 import TenantSelector from './components/TenantSelector';
 import SecurityAlerts from './components/SecurityAlerts';
 import LoginPage from './components/LoginPage';
+import ModuleSwitcher, { type NessModule } from './components/ModuleSwitcher';
+import CoreDashboard from './components/CoreDashboard';
 import { useAuth } from './hooks/useAuth';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
@@ -73,21 +75,32 @@ function formatNumber(n: number): string {
   return String(n);
 }
 
-// ─── Brand Logo ─────────────────────────────────────────────────────────────
-function BrandLogo() {
+// ── Brand Logo ───────────────────────────────────────────────────────────────────────
+function BrandLogo({ activeModule }: { activeModule: NessModule }) {
+  const MODULE_COLOR: Record<NessModule, string> = {
+    core: '#6366F1',
+    infraops: '#3B82F6',
+    secops: '#EF4444',
+  };
+  const MODULE_SUB: Record<NessModule, string> = {
+    core: 'core',
+    infraops: 'n.infraops',
+    secops: 'n.secops',
+  };
+  const color = MODULE_COLOR[activeModule];
   return (
     <div className="flex flex-col items-start px-1">
       <div
         style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 500 }}
         className="text-[24px] tracking-tight text-white leading-none select-none"
       >
-        ness<span className="text-[#00ADE8] drop-shadow-[0_0_8px_rgba(0,173,232,0.8)]">.</span>
+        ness<span style={{ color, textShadow: `0 0 12px ${color}99` }}>.</span>OS
       </div>
       <div
-        style={{ fontFamily: "'Fira Code', monospace", fontWeight: 500 }}
-        className="text-[10px] tracking-[0.1em] lowercase leading-none mt-1 text-[#00ADE8] opacity-90 select-none"
+        style={{ fontFamily: "'Fira Code', monospace", fontWeight: 500, color }}
+        className="text-[10px] tracking-[0.1em] lowercase leading-none mt-1 opacity-90 select-none transition-colors duration-300"
       >
-        n.infraops
+        {MODULE_SUB[activeModule]}
       </div>
     </div>
   );
@@ -264,6 +277,7 @@ function AppShellBody({ AUTH, logout, user }: {
   logout: () => void;
   user: import('./hooks/useAuth').User | null;
 }) {
+  const [activeModule, setActiveModule] = useState<NessModule>('core');
   const [currentView, setCurrentView] = useState<View>('dashboard');
   const [selectedTenant, setSelectedTenant] = useState<string | null>(null);
   const [summary, setSummary] = useState<Summary | null>(null);
@@ -333,7 +347,7 @@ function AppShellBody({ AUTH, logout, user }: {
         <div className="absolute top-0 left-0 right-0 h-40 bg-[var(--color-brand-primary)] opacity-[0.03] blur-3xl pointer-events-none" />
 
         <div className="px-2 py-1">
-          <BrandLogo />
+          <BrandLogo activeModule={activeModule} />
         </div>
 
         <div className="px-2">
@@ -413,16 +427,20 @@ function AppShellBody({ AUTH, logout, user }: {
 
       {/* ══ Main ══ */}
       <main className="flex-1 flex flex-col h-screen overflow-hidden relative">
-        {/* Background glow */}
+        {/* Background glow — muda por módulo */}
         <div className="absolute top-0 inset-x-0 h-64 pointer-events-none"
-          style={{ background: 'radial-gradient(ellipse at 50% -20%, rgba(0,173,232,0.05) 0%, transparent 70%)' }} />
+          style={{ background: `radial-gradient(ellipse at 50% -20%, ${
+            activeModule === 'core'     ? 'rgba(99,102,241,0.07)' :
+            activeModule === 'infraops' ? 'rgba(59,130,246,0.06)' :
+                                          'rgba(239,68,68,0.06)'
+          } 0%, transparent 70%)` }} />
 
         {/* ── Header ── */}
         <header className="h-14 border-b border-white/[0.05] flex items-center justify-between px-8 z-10 shrink-0"
           style={{ background: 'rgba(8,8,16,0.7)', backdropFilter: 'blur(12px)' }}>
-          <div className="flex items-center gap-2">
-            <p className="text-[15px] font-semibold text-white/90">{PAGE_TITLES[currentView]}</p>
-            {hasCritical && currentView === 'dashboard' && (
+          <div className="flex items-center gap-3">
+            <ModuleSwitcher active={activeModule} onChange={setActiveModule} />
+            {activeModule !== 'core' && hasCritical && activeModule === 'infraops' && (
               <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-red-500/15 border border-red-500/30 text-red-400">
                 <AlertTriangle size={9} /> {summary!.problems_critical} {summary!.problems_critical === 1 ? 'alerta crítico' : 'alertas críticos'}
               </span>
@@ -440,8 +458,19 @@ function AppShellBody({ AUTH, logout, user }: {
         </header>
 
         {/* ── Content ── */}
-        <div className="flex-1 overflow-auto p-8 z-10">
-          <div className="max-w-6xl space-y-5 animate-fade-in">
+        <div className="flex-1 overflow-auto z-10">
+
+          {/* ── ness.OS Core ── */}
+          {activeModule === 'core' && (
+            <CoreDashboard
+              authHeader={AUTH}
+              onModuleSwitch={(mod) => setActiveModule(mod)}
+            />
+          )}
+
+          {/* ── n.infraops ── */}
+          {activeModule === 'infraops' && (
+          <div className="p-8 max-w-6xl space-y-5 animate-fade-in">
 
             {currentView === 'dashboard' && (
               <>
@@ -514,6 +543,25 @@ function AppShellBody({ AUTH, logout, user }: {
             {currentView === 'cloud' && <CloudManagement selectedTenant={selectedTenant} />}
 
           </div>
+          )} {/* /infraops */}
+
+          {/* ── n.secops ── */}
+          {activeModule === 'secops' && (
+            <div className="p-8 flex items-center justify-center h-full">
+              <div className="text-center space-y-3">
+                <div className="w-16 h-16 rounded-2xl mx-auto flex items-center justify-center"
+                  style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)' }}>
+                  <Shield size={28} style={{ color: '#EF4444' }} />
+                </div>
+                <p className="text-white font-semibold text-lg">n.secops</p>
+                <p className="text-white/40 text-sm max-w-xs">
+                  Integração Wazuh + RocketCyber em desenvolvimento.
+                  <br />Disponível na Fase 3 do ness.OS.
+                </p>
+              </div>
+            </div>
+          )}
+
         </div>
       </main>
     </div>
@@ -529,7 +577,7 @@ export default function App() {
       <div className="min-h-screen bg-[#08111f] flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-2 border-[#00ADE8]/30 border-t-[#00ADE8] rounded-full animate-spin" />
-          <span className="text-white/30 text-sm">n.infraops</span>
+          <span className="text-white/30 text-sm">ness.OS</span>
         </div>
       </div>
     );
