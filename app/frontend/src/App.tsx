@@ -1,6 +1,6 @@
 import { Activity, ShieldAlert, Users, Server, Settings, Cloud, RefreshCw,
          Wifi, WifiOff, Monitor, AlertTriangle, CheckCircle, BarChart3,
-         Layers, Cpu, LogOut, Globe, Shield } from 'lucide-react';
+         Layers, Cpu, LogOut, Globe, Shield, BookOpen } from 'lucide-react';
 import React, { useState, useEffect, useCallback } from 'react';
 import CloudManagement from './components/CloudManagement';
 import PipelineStrip from './components/PipelineStrip';
@@ -371,6 +371,17 @@ function AppShellBody({ AUTH, logout, user }: {
           <p className="px-3 mb-1 text-[9px] font-semibold uppercase tracking-[0.15em] text-white/20 select-none">
             Sistema
           </p>
+          <a
+            href="/platform"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium text-white/40 hover:text-white/80 hover:bg-white/[0.04] transition-all duration-150 select-none"
+            title="Documentação da plataforma ness.OS"
+          >
+            <BookOpen size={14} className="shrink-0" />
+            <span>Plataforma</span>
+            <span className="ml-auto text-[9px] text-white/20">↗</span>
+          </a>
           <SidebarItem icon={Settings} label="Configurações" disabled />
         </nav>
 
