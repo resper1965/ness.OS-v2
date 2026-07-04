@@ -73,13 +73,25 @@ async def get_dashboard_summary():
 async def get_unified_summary():
     """
     Resumo unificado: Zabbix + Atera RMM + RocketCyber SOC.
-    Cada fonte roda em paralelo e degrada individualmente sem quebrar o todo.
+    Cada fonte roda em paralelo com timeout de 8s.
+    Degrada individualmente — nunca bloqueia o todo.
     """
+    SOURCE_TIMEOUT = 8.0
+
+    async def _safe(coro, name: str) -> dict:
+        try:
+            return await asyncio.wait_for(coro, timeout=SOURCE_TIMEOUT)
+        except asyncio.TimeoutError:
+            logger.warning(f"{name} timed out after {SOURCE_TIMEOUT}s")
+            return {"degraded": True, "error": "timeout"}
+        except Exception as e:
+            logger.error(f"{name} error: {e}")
+            return {"degraded": True, "error": str(e)}
+
     zabbix_data, atera_data, rocket_data = await asyncio.gather(
-        _zabbix_summary(),
-        _atera_summary(),
-        _rocketcyber_summary(),
-        return_exceptions=False,
+        _safe(_zabbix_summary(), "zabbix"),
+        _safe(_atera_summary(), "atera"),
+        _safe(_rocketcyber_summary(), "rocketcyber"),
     )
     return {
         "zabbix": zabbix_data,

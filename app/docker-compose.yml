@@ -137,24 +137,6 @@ services:
         limits:
           memory: 300M
 
-  # --- n8n (Orquestração de borda) ---
-  n8n:
-    image: docker.n8n.io/n8nio/n8n:latest
-    container_name: ninf-n8n
-    restart: unless-stopped
-    environment:
-      N8N_BASIC_AUTH_ACTIVE: "true"
-      N8N_BASIC_AUTH_USER: admin
-      N8N_BASIC_AUTH_PASSWORD: ${NINF_N8N_PASSWORD:-changeme}
-      WEBHOOK_URL: http://n8n:5678
-    volumes:
-      - n8n-data:/home/node/.n8n
-    networks:
-      - ninf-net
-    deploy:
-      resources:
-        limits:
-          memory: 1G
 
   # --- Evolution API (WhatsApp Gateway) ---
   evolution-api:
@@ -220,14 +202,12 @@ services:
       - ninf-net
     depends_on:
       - api
-      - n8n
       - evolution-api
       - frontend
 
 volumes:
   pg-data:
   redis-data:
-  n8n-data:
   evolution-instances:
   evolution-store:
   caddy-data:
