@@ -1,0 +1,49 @@
+# ================================================
+# n.infraops — Keep (AIOps Hub)
+# ================================================
+# Para rodar junto com o app principal:
+# docker compose -f docker-compose.yml -f docker-compose.keep.yml up -d
+
+services:
+  keep-backend:
+    image: keephq/keep-api:latest
+    container_name: ninf-keep-backend
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      # Keep usa o banco de dados PostgreSQL existente
+      - DATABASE_CONNECTION_STRING=postgresql://nessops:${NINF_DB_PASSWORD:-changeme}@postgres:5432/nessops
+      # Autenticação
+      - KEEP_JWT_SECRET=${NINF_JWT_SECRET:-please-set-a-strong-secret-in-dot-env}
+      - KEEP_UI_URL=http://localhost:3000
+    depends_on:
+      - postgres
+    networks:
+      - ninf-net
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  keep-frontend:
+    image: keephq/keep-ui:latest
+    container_name: ninf-keep-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - API_URL=http://localhost:8080
+    depends_on:
+      - keep-backend
+    networks:
+      - ninf-net
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+# Usa a rede definida no docker-compose.yml principal
+networks:
+  ninf-net:
+    external: true

@@ -1,0 +1,50 @@
+# ==========================================
+# Keep Workflow: escalate-incident
+# ==========================================
+# Invocado pelo zabbix-correlation após deduplicação e limpeza.
+# Dispara as ações para n8n e FastAPI (Gemini).
+
+workflow:
+  id: escalate-incident
+  description: "Escalona incidentes validados para n8n (ticket) e FastAPI (RCA)"
+
+  # Este workflow é acionado via chamada manual (sub-workflow)
+  triggers:
+    - type: manual
+
+  actions:
+    # 1. Acionar n8n para abertura de Ticket e WhatsApp
+    - id: notify_n8n
+      name: "Acionar Webhook do n8n"
+      provider:
+        type: http
+      with:
+        url: "${NINF_N8N_BASE_URL}/webhook/incident-created"
+        method: "POST"
+        headers:
+          "Content-Type": "application/json"
+          "Authorization": "Bearer ${NINF_N8N_PASSWORD}"
+        body: >
+          {
+            "fingerprint": "{{ trigger.payload.fingerprint }}",
+            "host_name": "{{ trigger.payload.host.name }}",
+            "severity": "{{ trigger.payload.severity }}",
+            "event_name": "{{ trigger.payload.event.name }}",
+            "clean_payload": {{ trigger.payload | tojson }}
+          }
+
+    # 2. Acionar FastAPI para análise de Causa Raiz (RCA com Gemini)
+    - id: trigger_rca
+      name: "Acionar FastAPI RCA"
+      provider:
+        type: http
+      with:
+        url: "http://api:8000/api/incident/analyze"
+        method: "POST"
+        headers:
+          "Content-Type": "application/json"
+        body: >
+          {
+            "incident_data": {{ trigger.payload | tojson }},
+            "ticket_id": "{{ steps.notify_n8n.results.ticket_id }}"
+          }
