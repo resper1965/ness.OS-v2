@@ -1,0 +1,41 @@
+---
+# =============================================================================
+# Role: zabbix-proxy | handlers/main.yml
+# =============================================================================
+# Descrição: Handlers da role zabbix-proxy.
+#            São executados no final do play, apenas se notificados.
+#
+# Handlers disponíveis:
+#   - restart zabbix-proxy  → reinicia o serviço após mudança de config
+#   - reload zabbix-proxy   → recarrega config sem reiniciar (Zabbix 7.0+)
+#   - stop zabbix-proxy     → para o serviço (uso manual)
+# =============================================================================
+
+# Handler principal: reinicia o serviço zabbix-proxy
+# Chamado automaticamente quando o arquivo de configuração é alterado pelo template.
+- name: restart zabbix-proxy
+  ansible.builtin.systemd:
+    name: zabbix-proxy
+    state: restarted
+    daemon_reload: true
+  become: true
+  # Aguarda 5 segundos e verifica se o serviço está ativo após o restart
+  listen: "restart zabbix-proxy"
+
+# Handler alternativo: recarrega a configuração sem reiniciar o processo
+# Mais suave que o restart, mantém conexões abertas com os agentes.
+# Disponível no Zabbix 7.0+ via runtime control.
+- name: reload zabbix-proxy
+  ansible.builtin.command:
+    cmd: zabbix_proxy --runtime-control config_cache_reload
+  become: true
+  changed_when: true
+  listen: "reload zabbix-proxy"
+
+# Handler para parar o serviço (uso em situações de manutenção)
+- name: stop zabbix-proxy
+  ansible.builtin.systemd:
+    name: zabbix-proxy
+    state: stopped
+  become: true
+  listen: "stop zabbix-proxy"

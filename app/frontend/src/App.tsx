@@ -8,6 +8,7 @@ import IncidentsPage from './components/IncidentsPage';
 import TenantSelector from './components/TenantSelector';
 import SecurityAlerts from './components/SecurityAlerts';
 import LoginPage from './components/LoginPage';
+import SecopsModule from './components/SecopsModule';
 import ModuleSwitcher, { type NessModule } from './components/ModuleSwitcher';
 import CoreDashboard from './components/CoreDashboard';
 import { useAuth } from './hooks/useAuth';
@@ -558,19 +559,7 @@ function AppShellBody({ AUTH, logout, user }: {
 
           {/* ── n.secops ── */}
           {activeModule === 'secops' && (
-            <div className="p-8 flex items-center justify-center h-full">
-              <div className="text-center space-y-3">
-                <div className="w-16 h-16 rounded-2xl mx-auto flex items-center justify-center"
-                  style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)' }}>
-                  <Shield size={28} style={{ color: '#EF4444' }} />
-                </div>
-                <p className="text-white font-semibold text-lg">n.secops</p>
-                <p className="text-white/40 text-sm max-w-xs">
-                  Integração Wazuh + RocketCyber em desenvolvimento.
-                  <br />Disponível na Fase 3 do ness.OS.
-                </p>
-              </div>
-            </div>
+            <SecopsModule />
           )}
 
         </div>

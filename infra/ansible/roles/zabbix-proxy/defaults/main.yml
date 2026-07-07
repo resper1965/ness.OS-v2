@@ -1,0 +1,171 @@
+---
+# =============================================================================
+# Role: zabbix-proxy | defaults/main.yml
+# =============================================================================
+# Descrição: Variáveis padrão da role zabbix-proxy.
+#            Estas variáveis possuem a menor prioridade no Ansible e podem
+#            ser sobrescritas em group_vars, host_vars ou via -e na linha de comando.
+#
+# Referência: https://www.zabbix.com/documentation/7.0/en/manual/appendix/config/zabbix_proxy
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Versão do Zabbix
+# -----------------------------------------------------------------------------
+# Versão LTS instalada nos proxies. Utilizada para selecionar o repositório correto.
+zabbix_version: "7.0"
+
+# Arquitetura do pacote (ex: amd64, arm64)
+zabbix_proxy_arch: "amd64"
+
+# Distribuição alvo para o repositório Zabbix (ex: ubuntu2404, debian12)
+# Sobrescreva por host se os proxies tiverem OSes diferentes
+zabbix_proxy_os_codename: "ubuntu2404"
+
+# -----------------------------------------------------------------------------
+# Conectividade com o Zabbix Server
+# -----------------------------------------------------------------------------
+# Endereço do Zabbix Server ao qual o proxy reporta.
+# Por padrão usa a variável global do domínio de monitoramento (definida em group_vars/all.yml).
+zabbix_proxy_server: "{{ zabbix_monitoring_domain | default('zabbix.ness.com.br') }}"
+
+# Porta de comunicação do Zabbix Server (padrão: 10051)
+zabbix_proxy_server_port: 10051
+
+# Porta em que o próprio proxy escuta (padrão: 10051)
+zabbix_proxy_listen_port: 10051
+
+# IP em que o proxy escuta conexões (vazio = todas as interfaces)
+zabbix_proxy_listen_ip: ""
+
+# -----------------------------------------------------------------------------
+# Modo de operação do proxy
+# -----------------------------------------------------------------------------
+# 0 = Proxy Ativo  (active)  → proxy inicia conexão com o Server — RECOMENDADO
+# 1 = Proxy Passivo (passive) → Server inicia conexão com o proxy
+zabbix_proxy_mode: 0
+
+# -----------------------------------------------------------------------------
+# Identificação do proxy
+# -----------------------------------------------------------------------------
+# Nome do proxy no Zabbix Server. Se não definido, usa inventory_hostname.
+# Sobrescreva em host_vars ou no inventário (zabbix_proxy_name).
+# zabbix_proxy_name: ""   # Descomente e defina se necessário
+
+# -----------------------------------------------------------------------------
+# Banco de dados SQLite (padrão para proxies)
+# -----------------------------------------------------------------------------
+# Para proxies, o banco local SQLite é o mais simples e recomendado.
+# Altere para mysql/pgsql apenas se necessário para grandes volumes de dados.
+zabbix_proxy_db_type: "SQLite3"
+zabbix_proxy_db_name: "/var/lib/zabbix/zabbix_proxy.db"
+
+# Configurações para banco MySQL/PostgreSQL (somente se zabbix_proxy_db_type != SQLite3)
+zabbix_proxy_db_host: "localhost"
+zabbix_proxy_db_port: 3306
+zabbix_proxy_db_user: "zabbix"
+zabbix_proxy_db_password: "zabbix_proxy_pass"  # <<< Alterar em produção via vault
+
+# -----------------------------------------------------------------------------
+# Arquivos de log e PID
+# -----------------------------------------------------------------------------
+zabbix_proxy_log_type: "file"
+zabbix_proxy_log_file: "/var/log/zabbix/zabbix_proxy.log"
+zabbix_proxy_log_file_size: 100       # Tamanho máximo em MB antes de rotacionar (0 = sem limite)
+zabbix_proxy_pid_file: "/run/zabbix/zabbix_proxy.pid"
+
+# Nível de log: 0=panic, 1=crit, 2=error, 3=warning, 4=debug, 5=trace
+zabbix_proxy_debug_level: 3
+
+# -----------------------------------------------------------------------------
+# Frequências de comunicação com o Server (em segundos)
+# -----------------------------------------------------------------------------
+# Frequência de heartbeat (sinal de vida) enviado ao Server
+zabbix_proxy_heartbeat_frequency: 60
+
+# Frequência de sincronização de configuração do Server para o proxy
+# (quantas vezes por hora o proxy atualiza sua lista de hosts/itens)
+zabbix_proxy_config_frequency: 3600
+
+# Frequência de envio de dados coletados para o Server
+zabbix_proxy_data_sender_frequency: 1
+
+# -----------------------------------------------------------------------------
+# Processos internos do proxy (tunning de performance)
+# -----------------------------------------------------------------------------
+# Número de processos poller (coleta de dados via agentes)
+zabbix_proxy_start_pollers: 10
+
+# Número de processos unreachable poller (hosts não alcançáveis)
+zabbix_proxy_start_unreachable_pollers: 2
+
+# Número de processos trapper (recebimento de dados enviados ativamente)
+zabbix_proxy_start_trappers: 5
+
+# Número de processos HTTP poller (monitoramento web/HTTP)
+zabbix_proxy_start_http_pollers: 3
+
+# Número de processos SNMP trapper (1 = ativado)
+zabbix_proxy_start_snmp_trapper: 1
+
+# Número de processos IPMI poller (monitoramento de hardware)
+zabbix_proxy_start_ipmi_pollers: 0
+
+# Número de processos Java poller (JMX monitoring)
+zabbix_proxy_start_java_pollers: 0
+
+# Número de processos VMware collector
+zabbix_proxy_start_vmware_collectors: 0
+
+# Número de processos de pré-processamento de dados
+zabbix_proxy_start_preprocessors: 3
+
+# -----------------------------------------------------------------------------
+# Cache e memória
+# -----------------------------------------------------------------------------
+# Tamanho do cache de configuração do proxy
+zabbix_proxy_cache_size: "32M"
+
+# Tamanho do cache de histórico (buffer antes de enviar ao Server)
+zabbix_proxy_history_cache_size: "16M"
+
+# Tamanho do buffer de índice de histórico
+zabbix_proxy_history_index_cache_size: "4M"
+
+# -----------------------------------------------------------------------------
+# Timeouts (em segundos)
+# -----------------------------------------------------------------------------
+# Timeout geral para coletas (agente, SNMP, ICMP, etc.)
+zabbix_proxy_timeout: 10
+
+# Timeout para conexões externas (scripts externos, SSH, Telnet)
+zabbix_proxy_timeout_script: 30
+
+# Timeout para itens SNMP
+zabbix_proxy_timeout_snmp_agent: 10
+
+# -----------------------------------------------------------------------------
+# Configurações de SNMP Trap
+# -----------------------------------------------------------------------------
+zabbix_proxy_snmp_trap_file: "/tmp/zabbix_traps.tmp"
+
+# -----------------------------------------------------------------------------
+# Diretórios de scripts externos e alertscripts
+# -----------------------------------------------------------------------------
+zabbix_proxy_external_scripts: "/usr/lib/zabbix/externalscripts"
+zabbix_proxy_alert_scripts_path: "/usr/lib/zabbix/alertscripts"
+
+# -----------------------------------------------------------------------------
+# Configurações TLS (criptografia proxy ↔ server)
+# -----------------------------------------------------------------------------
+# Tipo de conexão sainte (para o Server): noencryption, psk, cert
+zabbix_proxy_tls_connect: "noencryption"
+
+# Tipo de conexão aceitada (do agente): noencryption, psk, cert (separado por vírgula)
+zabbix_proxy_tls_accept: "noencryption"
+
+# Descomente abaixo para habilitar PSK:
+# zabbix_proxy_tls_connect: "psk"
+# zabbix_proxy_tls_accept: "psk"
+# zabbix_proxy_tls_psk_identity: "ProxyPSK"
+# zabbix_proxy_tls_psk_file: "/etc/zabbix/zabbix_proxy.psk"

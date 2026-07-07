@@ -11,6 +11,7 @@
 # ---------------------------------------------------------------------------
 <VirtualHost *:80>
     ServerName {{ zabbix_frontend_domain }}
+    ServerAlias {{ zabbix_monitoring_domain }}
 
     # Redireciona todas as requisições HTTP para HTTPS
     RewriteEngine On
@@ -23,6 +24,7 @@
 # ---------------------------------------------------------------------------
 <VirtualHost *:443>
     ServerName {{ zabbix_frontend_domain }}
+    ServerAlias {{ zabbix_monitoring_domain }}
     DocumentRoot /usr/share/zabbix
 
     # -----------------------------------------------------------------------
@@ -58,7 +60,8 @@
     Header always set Referrer-Policy "strict-origin-when-cross-origin"
 
     # Política de segurança de conteúdo básica
-    Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self';"
+    # img-src inclui tiles do OpenStreetMap para o widget Geomap do Zabbix
+    Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.tile.openstreetmap.org https://*.openstreetmap.org; font-src 'self' data:; connect-src 'self' https://*.tile.openstreetmap.org https://*.openstreetmap.org; worker-src blob:;"
 
     # -----------------------------------------------------------------------
     # Configuração do diretório do Zabbix Frontend
