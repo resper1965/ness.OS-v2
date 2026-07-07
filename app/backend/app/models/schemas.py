@@ -181,3 +181,17 @@ class WhatsAppAlertMessage(BaseModel):
     group_id: str = Field(description="ID do grupo WhatsApp do NOC")
     message: str = Field(description="Mensagem formatada pronta para envio")
 
+
+# --- Payload de Entrada do Keep (RCA) ---
+class IncidentAnalyzeRequest(BaseModel):
+    """Payload recebido do Keep AIOps para gerar PostMortem."""
+    
+    incident_data: dict[str, Any] = Field(
+        description="Dados sanitizados do incidente, agrupados pelo Keep"
+    )
+    ticket_id: str | None = Field(
+        default=None,
+        description="ID do ticket no DeskManager (se já criado pelo n8n)"
+    )
+
+

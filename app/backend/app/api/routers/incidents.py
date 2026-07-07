@@ -4,10 +4,11 @@
 # -------------------------------------------------------
 from __future__ import annotations
 import logging
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, BackgroundTasks
 from sqlalchemy import select, desc
 from app.database import SessionLocal
 from app.models import Incident
+from app.models.schemas import IncidentAnalyzeRequest
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -62,3 +63,64 @@ async def list_incidents(
             ],
             "total": len(incidents),
         }
+
+
+async def _run_incident_analysis(request: IncidentAnalyzeRequest):
+    """Executa a análise de causa raiz via Gemini em background e aciona o n8n."""
+    from app.config import get_settings
+    from app.integrations.gemini import generate_postmortem
+    import httpx
+    
+    settings = get_settings()
+    
+    try:
+        # 1. Obter dados brutos do incidente enviado pelo Keep
+        incident_data = request.incident_data
+        
+        # TODO: Buscar métricas reais no TimescaleDB e logs reais
+        # Mocking para v1.0
+        metrics_mock = [{"metric": "cpu_load", "value": 95.5, "timestamp": "2026-07-06T12:00:00Z"}]
+        logs_mock = ["ERROR: connection timeout to database", "WARN: high memory usage detected"]
+        
+        # 2. Chamar o Gemini para gerar o PostMortem
+        logger.info(f"Iniciando análise Gemini para incidente {incident_data.get('fingerprint', 'unknown')}")
+        postmortem = generate_postmortem(
+            incident=incident_data,
+            metrics=metrics_mock,
+            related_logs=logs_mock
+        )
+        
+        # 3. Disparar webhook para o n8n (/webhook/postmortem-ready)
+        n8n_url = f"{settings.n8n_base_url.rstrip('/')}{settings.n8n_webhook_postmortem}"
+        payload = {
+            "ticket_id": request.ticket_id,
+            "incident_fingerprint": postmortem.incident_fingerprint,
+            "summary": postmortem.summary,
+            "root_cause": postmortem.root_cause,
+            "markdown_report": postmortem.markdown_report,
+            "blast_radius": postmortem.blast_radius,
+            "corrective_actions": postmortem.corrective_actions
+        }
+        
+        logger.info(f"Enviando PostMortem para o n8n: {n8n_url}")
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(n8n_url, json=payload, timeout=10.0)
+            resp.raise_for_status()
+            logger.info("PostMortem enviado ao n8n com sucesso.")
+            
+    except Exception as exc:
+        logger.error(f"Falha na análise de incidente em background: {exc}")
+
+
+@router.post("/api/incident/analyze", tags=["incidents"], status_code=202)
+async def analyze_incident(
+    request: IncidentAnalyzeRequest,
+    background_tasks: BackgroundTasks
+):
+    """
+    Recebe um alerta correlacionado (ex: via Keep AIOps), 
+    adiciona tarefa em background para gerar RCA no Gemini 
+    e retorna 202 Accepted.
+    """
+    background_tasks.add_task(_run_incident_analysis, request)
+    return {"status": "accepted", "message": "Análise de causa raiz iniciada em background."}

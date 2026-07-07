@@ -38,8 +38,13 @@ zabbix_version: "7.0"
 # Nome de exibição do servidor Zabbix (aparece no frontend)
 zabbix_server_name: "Zabbix Server - ness."
 
-# Domínio do frontend web (substituir pelo domínio real)
+# Domínio do frontend web (UI do Zabbix)
 zabbix_frontend_domain: "zabbix.ness.com.br"
+
+# Domínio para conexão de agentes e proxies (porta 10051)
+# Aponta para o mesmo IP do Contabo (144.91.72.202)
+# Também funciona como alias da UI web
+zabbix_monitoring_domain: "monitoramento.ness.com.br"
 
 # E-mail para certificado Let's Encrypt (substituir pelo e-mail real)
 letsencrypt_email: "support@ness.com.br"

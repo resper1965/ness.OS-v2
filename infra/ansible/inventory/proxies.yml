@@ -1,0 +1,245 @@
+---
+# =============================================================================
+# Inventário Ansible - Proxies Zabbix
+# =============================================================================
+# Descrição: Inventário dos 15 proxies Zabbix distribuídos nos clientes/sites.
+#            Preencha os campos marcados com PLACEHOLDER_IP com os IPs reais.
+#
+# Grupos disponíveis:
+#   zabbix_proxies         → todos os 15 proxies (grupo pai)
+#   proxies_alupar         → proxies do cliente Alupar
+#   proxies_cavan          → proxies do cliente Cavan
+#   proxies_tne            → proxies do cliente TNE
+#   proxies_nova_energia   → proxies do cliente Nova Energia SP
+#   proxies_target         → proxies do cliente Target
+#   proxies_bichara        → proxies do cliente Bichara
+#
+# Variáveis obrigatórias por host:
+#   ansible_host           → IP real do proxy (substituir PLACEHOLDER_IP)
+#   zabbix_proxyid         → ID do proxy no Zabbix Server (obter via API/UI)
+#
+# Uso:
+#   ansible-playbook playbooks/reconnect-proxies.yml -i inventory/proxies.yml
+#   ansible -i inventory/proxies.yml zabbix_proxies -m ping
+# =============================================================================
+
+all:
+  children:
+
+    # =========================================================================
+    # Grupo pai: todos os proxies Zabbix
+    # =========================================================================
+    zabbix_proxies:
+      children:
+        proxies_alupar:
+        proxies_cavan:
+        proxies_tne:
+        proxies_nova_energia:
+        proxies_target:
+        proxies_bichara:
+
+    # =========================================================================
+    # Cliente: Alupar
+    # Subgrupos por localidade/país
+    # =========================================================================
+    proxies_alupar:
+      children:
+        proxies_alupar_colombia:
+        proxies_alupar_peru:
+        proxies_alupar_brasil:
+
+      # Variáveis comuns a todos os proxies Alupar
+      vars:
+        ansible_user: root
+        ansible_ssh_private_key_file: /root/.ssh/id_ed25519
+        ansible_python_interpreter: /usr/bin/python3
+        ansible_port: 22
+
+    # -----------------------------------------------------------------------
+    # Alupar - Colombia
+    # -----------------------------------------------------------------------
+    proxies_alupar_colombia:
+      hosts:
+
+        # Proxy: Alupar Colombia (Bogotá geral)
+        alpcolprx:
+          ansible_host: PLACEHOLDER_IP   # <<< Preencher com IP real
+          zabbix_proxy_name: "alp-col"
+          zabbix_proxyid: 0              # <<< Preencher com ProxyID do Zabbix Server
+          ansible_port: 22
+
+        # Proxy: Alupar Colombia Bogotá (site específico)
+        alpcogzbxprx:
+          ansible_host: PLACEHOLDER_IP   # <<< Preencher com IP real
+          zabbix_proxy_name: "alp-cog"
+          zabbix_proxyid: 0              # <<< Preencher com ProxyID do Zabbix Server
+          ansible_port: 22
+
+    # -----------------------------------------------------------------------
+    # Alupar - Peru
+    # -----------------------------------------------------------------------
+    proxies_alupar_peru:
+      hosts:
+
+        # Proxy: Alupar Peru - Lima
+        alppeliprx:
+          ansible_host: PLACEHOLDER_IP   # <<< Preencher com IP real
+          zabbix_proxy_name: "alp-pe-li"
+          zabbix_proxyid: 0              # <<< Preencher com ProxyID do Zabbix Server
+          ansible_port: 22
+
+    # -----------------------------------------------------------------------
+    # Alupar - Brasil (diversas localidades)
+    # -----------------------------------------------------------------------
+    proxies_alupar_brasil:
+      hosts:
+
+        # Proxy: Alupar Ijuí / Rio Grande do Sul
+        alpijuprx:
+          ansible_host: PLACEHOLDER_IP   # <<< Preencher com IP real
+          zabbix_proxy_name: "alp-iju"
+          zabbix_proxyid: 0              # <<< Preencher com ProxyID do Zabbix Server
+          ansible_port: 22
+
+        # Proxy: Alupar Cruzeiro do Sul
+        alprclprx:
+          ansible_host: PLACEHOLDER_IP   # <<< Preencher com IP real
+          zabbix_proxy_name: "alp-rcl"
+          zabbix_proxyid: 0              # <<< Preencher com ProxyID do Zabbix Server
+          ansible_port: 22
+
+        # Proxy: Alupar EAP Jandaíra
+        alpeapprx:
+          ansible_host: PLACEHOLDER_IP   # <<< Preencher com IP real
+          zabbix_proxy_name: "alp-eap"
+          zabbix_proxyid: 0              # <<< Preencher com ProxyID do Zabbix Server
+          ansible_port: 22
+
+        # Proxy: Alupar EDV
+        alpedvprx:
+          ansible_host: PLACEHOLDER_IP   # <<< Preencher com IP real
+          zabbix_proxy_name: "alp-edv"
+          zabbix_proxyid: 0              # <<< Preencher com ProxyID do Zabbix Server
+          ansible_port: 22
+
+        # Proxy: Alupar principal (zbx1)
+        alpzbxprx1:
+          ansible_host: PLACEHOLDER_IP   # <<< Preencher com IP real
+          zabbix_proxy_name: "alp-zbx1"
+          zabbix_proxyid: 0              # <<< Preencher com ProxyID do Zabbix Server
+          ansible_port: 22
+
+    # =========================================================================
+    # Cliente: Cavan
+    # =========================================================================
+    proxies_cavan:
+      hosts:
+
+        # Proxy: Cavan - São Paulo
+        spcavprx:
+          ansible_host: PLACEHOLDER_IP   # <<< Preencher com IP real
+          zabbix_proxy_name: "sp-cav"
+          zabbix_proxyid: 0              # <<< Preencher com ProxyID do Zabbix Server
+          ansible_port: 22
+
+        # Proxy: Cavan - Santa Lucia
+        stacavprx:
+          ansible_host: PLACEHOLDER_IP   # <<< Preencher com IP real
+          zabbix_proxy_name: "sta-cav"
+          zabbix_proxyid: 0              # <<< Preencher com ProxyID do Zabbix Server
+          ansible_port: 22
+
+      # Variáveis comuns ao cliente Cavan
+      vars:
+        ansible_user: root
+        ansible_ssh_private_key_file: /root/.ssh/id_ed25519
+        ansible_python_interpreter: /usr/bin/python3
+        ansible_port: 22
+
+    # =========================================================================
+    # Cliente: TNE (Transmissão Norte Energia)
+    # =========================================================================
+    proxies_tne:
+      hosts:
+
+        # Proxy: TNE
+        tnezbxprx:
+          ansible_host: PLACEHOLDER_IP   # <<< Preencher com IP real
+          zabbix_proxy_name: "tne"
+          zabbix_proxyid: 0              # <<< Preencher com ProxyID do Zabbix Server
+          ansible_port: 22
+
+      # Variáveis comuns ao cliente TNE
+      vars:
+        ansible_user: root
+        ansible_ssh_private_key_file: /root/.ssh/id_ed25519
+        ansible_python_interpreter: /usr/bin/python3
+        ansible_port: 22
+
+    # =========================================================================
+    # Cliente: Nova Energia SP
+    # =========================================================================
+    proxies_nova_energia:
+      hosts:
+
+        # Proxy: Nova Energia - São Paulo
+        noespzbxprx:
+          ansible_host: PLACEHOLDER_IP   # <<< Preencher com IP real
+          zabbix_proxy_name: "noe-sp"
+          zabbix_proxyid: 0              # <<< Preencher com ProxyID do Zabbix Server
+          ansible_port: 22
+
+      # Variáveis comuns ao cliente Nova Energia
+      vars:
+        ansible_user: root
+        ansible_ssh_private_key_file: /root/.ssh/id_ed25519
+        ansible_python_interpreter: /usr/bin/python3
+        ansible_port: 22
+
+    # =========================================================================
+    # Cliente: Target
+    # =========================================================================
+    proxies_target:
+      hosts:
+
+        # Proxy: Target - São Paulo
+        tgtspprx:
+          ansible_host: PLACEHOLDER_IP   # <<< Preencher com IP real
+          zabbix_proxy_name: "tgt-sp"
+          zabbix_proxyid: 0              # <<< Preencher com ProxyID do Zabbix Server
+          ansible_port: 22
+
+        # Proxy: Target - Vitória (ES)
+        tgtvixprx:
+          ansible_host: PLACEHOLDER_IP   # <<< Preencher com IP real
+          zabbix_proxy_name: "tgt-vix"
+          zabbix_proxyid: 0              # <<< Preencher com ProxyID do Zabbix Server
+          ansible_port: 22
+
+      # Variáveis comuns ao cliente Target
+      vars:
+        ansible_user: root
+        ansible_ssh_private_key_file: /root/.ssh/id_ed25519
+        ansible_python_interpreter: /usr/bin/python3
+        ansible_port: 22
+
+    # =========================================================================
+    # Cliente: Bichara
+    # Atenção: hostname com maiúsculas/hífens — usar quotes no SSH se necessário
+    # =========================================================================
+    proxies_bichara:
+      hosts:
+
+        # Proxy: Bichara
+        BICHARA-ZBX:
+          ansible_host: PLACEHOLDER_IP   # <<< Preencher com IP real
+          zabbix_proxy_name: "bichara"
+          zabbix_proxyid: 0              # <<< Preencher com ProxyID do Zabbix Server
+          # Porta alternativa 2222 caso o SSH padrão não esteja disponível na 22
+          ansible_port: 22              # Trocar para 2222 se necessário
+
+      # Variáveis comuns ao cliente Bichara
+      vars:
+        ansible_user: root
+        ansible_ssh_private_key_file: /root/.ssh/id_ed25519
+        ansible_python_interpreter: /usr/bin/python3
