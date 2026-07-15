@@ -9,8 +9,10 @@ from app.models.models import (
     AssetStatus,
     Metric,
     CustomerCredentials,
+    SocDecision,
 )
 from app.models.users import User, UserRole
+from app.models.push import PushSubscription
 
 __all__ = [
     "Asset",
@@ -22,6 +24,8 @@ __all__ = [
     "AssetStatus",
     "Metric",
     "CustomerCredentials",
+    "SocDecision",
     "User",
     "UserRole",
+    "PushSubscription",
 ]

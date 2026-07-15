@@ -110,6 +110,28 @@ class ZabbixClient:
         }
         return await self._call("event.acknowledge", params)
 
+    async def acknowledge_trigger(self, trigger_id: str, message: str) -> bool:
+        """Encontra o problema ativo para a trigger_id e o reconhece/fecha (action=7)."""
+        problems = await self._call("problem.get", {
+            "output": ["eventid"],
+            "objectids": [trigger_id],
+            "recent": False,
+        })
+        
+        if not problems:
+            logger.info("Nenhum problema ativo encontrado no Zabbix para a trigger_id=%s", trigger_id)
+            return False
+            
+        event_id = problems[0]["eventid"]
+        
+        # Action 7 = Close problem (1) + Acknowledge event (2) + Add message (4)
+        await self.acknowledge_problem(
+            event_id=event_id,
+            message=message,
+            action=7,
+        )
+        return True
+
     async def execute_script(self, script_id: str, host_id: str) -> dict[str, Any]:
         """Executa um script do Zabbix (comando remoto no Agent/Server)."""
         params = {

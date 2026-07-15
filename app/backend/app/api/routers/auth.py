@@ -13,11 +13,13 @@ from jose import JWTError
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+import secrets
 
 from app.config import get_settings
 from app.core.jwt import create_access_token, verify_token
 from app.database import get_db
 from app.models.users import User, UserRole
+from app.core.oidc import exchange_oidc_code, verify_oidc_token
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -200,3 +202,131 @@ async def seed_admin(
     logger.info("Seed: usuário admin criado (id=%s)", admin.id)
 
     return SeedResponse(detail=f"Usuário admin criado com id={admin.id}")
+
+
+# --- Authentik OIDC BFF Callback (Task 3) ---
+
+class OidcCallbackRequest(BaseModel):
+    code: str
+    redirect_uri: str
+
+
+@router.post("/oidc/callback", response_model=TokenResponse, summary="Callback OIDC para troca de tokens com Authentik (BFF)")
+async def oidc_callback(
+    request: OidcCallbackRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    settings = get_settings()
+    if not settings.oidc_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Autenticação OIDC desabilitada no servidor.",
+        )
+
+    # 1. Trocar código OIDC no Authentik
+    try:
+        token_payload = await exchange_oidc_code(request.code, request.redirect_uri)
+    except Exception as e:
+        logger.error(f"Erro na troca do código OIDC: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Falha ao autenticar com o Authentik SSO (troca de código falhou).",
+        )
+
+    id_token = token_payload.get("id_token")
+    if not id_token:
+        id_token = token_payload.get("access_token")
+
+    if not id_token:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Authentik não retornou um token de identidade válido.",
+        )
+
+    # 2. Validar token
+    try:
+        claims = await verify_oidc_token(id_token)
+    except Exception as e:
+        logger.error(f"Token OIDC inválido: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token OIDC fornecido pelo Authentik é inválido ou expirou.",
+        )
+
+    email = claims.get("email")
+    if not email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Token OIDC do Authentik não possui a claim obrigatória 'email'.",
+        )
+
+    # Mapear grupos Authentik → role local (prioridade: admin > noc > soc > helpdesk > gestao > cliente)
+    groups = claims.get("groups", [])
+    if isinstance(groups, str):
+        groups = [groups]
+
+    GROUPS_PRIORITY = [
+        ("admin", UserRole.admin),
+        ("noc", UserRole.noc),
+        ("soc", UserRole.soc),
+        ("helpdesk", UserRole.helpdesk),
+        ("gestao", UserRole.gestao),
+        ("usuarios", UserRole.cliente),
+    ]
+
+    user_role = UserRole.cliente  # default
+    for group_name, role in GROUPS_PRIORITY:
+        if group_name in groups:
+            user_role = role
+            break
+
+    # Fallback: tentar claim 'role' direta (compatibilidade)
+    if not groups:
+        raw_role = claims.get("role", "cliente")
+        try:
+            user_role = UserRole(raw_role.lower())
+        except ValueError:
+            user_role = UserRole.cliente
+
+    tenant_id = claims.get("tenant_id", "")
+    full_name = claims.get("name") or claims.get("given_name")
+
+    # 3. Just-In-Time Provisioning
+    result = await db.execute(select(User).where(User.email == email))
+    user = result.scalar_one_or_none()
+
+    if not user:
+        logger.info(f"OIDC JIT: Criando novo usuário local para o e-mail: {email}")
+        random_pwd = secrets.token_urlsafe(32)
+        user = User(
+            email=email,
+            hashed_password=_hash_password(random_pwd),
+            full_name=full_name,
+            role=user_role,
+            tenant_id=tenant_id,
+            is_active=True,
+        )
+        db.add(user)
+    else:
+        logger.info(f"OIDC JIT: Atualizando usuário local existente: {email}")
+        user.role = user_role
+        user.tenant_id = tenant_id
+        if full_name:
+            user.full_name = full_name
+
+    await db.commit()
+    await db.refresh(user)
+
+    # 4. Emitir JWT de sessão local compatível com o n.infraops
+    local_token = create_access_token(
+        user_id=user.id,
+        role=user.role.value,
+        extra_claims={"tenant_id": user.tenant_id}
+    )
+
+    return TokenResponse(
+        access_token=local_token,
+        role=user.role.value,
+        full_name=user.full_name,
+    )
+

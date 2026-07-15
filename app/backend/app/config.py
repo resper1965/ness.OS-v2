@@ -2,6 +2,7 @@
 # n.infraops — Configuração centralizada via Pydantic Settings
 # -------------------------------------------------------
 from pydantic_settings import BaseSettings
+from pydantic import model_validator
 from functools import lru_cache
 
 
@@ -36,11 +37,21 @@ class Settings(BaseSettings):
     n8n_base_url: str = "http://localhost:5678"
     n8n_webhook_incident: str = "/webhook/incident-created"
     n8n_webhook_postmortem: str = "/webhook/postmortem-ready"
+    n8n_webhook_soc: str = "/webhook/soc-triage"
+
+
+    # --- Webhooks ---
+    webhook_api_key: str = ""
 
     # --- DeskManager (Ticketing) ---
     deskmanager_api_url: str = "https://api.deskmanager.com.br/v2"
     deskmanager_api_token: str = ""
     deskmanager_operator_id: str = ""
+
+    # --- GLPI (Ticketing) ---
+    glpi_url: str = "http://ninf-glpi/apirest.php"
+    glpi_app_token: str = ""
+    glpi_user_token: str = ""
 
     # --- Evolution API (WhatsApp — Read-Only) ---
     evolution_api_url: str = "http://localhost:8080"
@@ -55,12 +66,22 @@ class Settings(BaseSettings):
     atera_api_key: str = ""
     atera_api_url: str = "https://app.atera.com/api/v3"
 
-    # --- SOC / Security (RocketCyber) ---
+    # --- SOC / Security (RocketCyber, VirusTotal, AbuseIPDB) ---
     rocketcyber_api_key: str = ""
     rocketcyber_api_url: str = "https://api-us.rocketcyber.com"
+    virustotal_api_key: str = ""
+    abuseipdb_api_key: str = ""
+
 
     # --- Dashboard ---
     dashboard_base_url: str = "https://infraops.ness.com.br"
+
+    # --- Keep AIOps ---
+    keep_url: str = "http://keep-backend:8080"
+    keep_api_key: str = ""
+
+    # --- Grafana Loki (SIEM) ---
+    loki_url: str = ""
 
     # --- JWT Authentication (FASE 4.1) ---
     jwt_secret: str = ""          # NINF_JWT_SECRET — deixe vazio para fallback automático
@@ -69,6 +90,33 @@ class Settings(BaseSettings):
     # --- Anomaly Detection ---
     anomaly_zscore_threshold: float = 3.0
     anomaly_min_datapoints: int = 30
+
+    # --- Web Push Notifications (PWA VAPID) ---
+    vapid_public_key: str = ""
+    vapid_private_key: str = ""
+    vapid_claims_email: str = "ops@ness.com.br"
+
+    # --- Authentik OIDC (SSO) ---
+    oidc_enabled: bool = True
+    oidc_jwks_url: str = "https://sso.ness.com.br/application/o/nessops/jwks/"
+    oidc_token_url: str = "https://sso.ness.com.br/application/o/token/"
+    oidc_client_id: str = "nessops-client-id"
+    oidc_client_secret: str = "nessops_secret_key_12345"
+    oidc_issuer: str = "https://sso.ness.com.br/application/o/nessops/"
+
+    @model_validator(mode="after")
+    def load_vapid_keys(self) -> "Settings":
+        if not self.vapid_public_key or not self.vapid_private_key:
+            try:
+                from app.core.vapid import get_or_create_vapid_keys
+                pub, priv = get_or_create_vapid_keys()
+                if not self.vapid_public_key:
+                    self.vapid_public_key = pub
+                if not self.vapid_private_key:
+                    self.vapid_private_key = priv
+            except Exception:
+                pass
+        return self
 
     model_config = {"env_prefix": "NINF_", "env_file": ".env"}
 

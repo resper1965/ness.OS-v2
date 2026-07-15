@@ -65,3 +65,10 @@ ssh_public_key = "SUBSTITUIR_PELA_CHAVE_PUBLICA_SSH"
 # ---------------------------------------------------------------------------
 project_name = "zabbix-ness"
 environment  = "prod"
+
+# ---------------------------------------------------------------------------
+# Configurações do Hub AIOps / Wazuh Hub (SOC)
+# ---------------------------------------------------------------------------
+hub_display_name = "aiops-soc-hub-prod"
+hub_product_id   = "V3"
+

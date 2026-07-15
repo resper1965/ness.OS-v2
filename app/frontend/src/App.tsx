@@ -12,6 +12,8 @@ import SecopsModule from './components/SecopsModule';
 import ModuleSwitcher, { type NessModule } from './components/ModuleSwitcher';
 import CoreDashboard from './components/CoreDashboard';
 import { useAuth } from './hooks/useAuth';
+import PushNotificationToggle from './components/PushNotificationToggle';
+
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
 
@@ -338,6 +340,51 @@ function AppShellBody({ AUTH, logout, user }: {
     if (currentView === 'incidents') fetchIncidents();
   }, [currentView, fetchIncidents]);
 
+  // Escuta SSE para incidentes em tempo real
+  useEffect(() => {
+    if (!AUTH.Authorization) return;
+    const tokenStr = AUTH.Authorization.replace('Bearer ', '');
+    if (!tokenStr) return;
+
+    const sseUrl = `${API_BASE}/api/incidents/stream?token=${encodeURIComponent(tokenStr)}`;
+    const eventSource = new EventSource(sseUrl);
+
+    eventSource.addEventListener('incident', (event) => {
+      try {
+        const newIncident = JSON.parse(event.data);
+        console.log('Novo incidente recebido via SSE:', newIncident);
+
+        // 1. Atualizar lista de incidentes
+        setIncidents((prev) => {
+          const index = prev.findIndex((inc) => inc.fingerprint === newIncident.fingerprint);
+          if (index !== -1) {
+            const updated = [...prev];
+            updated[index] = { ...updated[index], ...newIncident };
+            return updated;
+          }
+          return [newIncident, ...prev];
+        });
+
+        // 2. Recarregar resumos do dashboard
+        fetchData();
+      } catch (err) {
+        console.error('Erro ao analisar dados do SSE:', err);
+      }
+    });
+
+    eventSource.addEventListener('ping', () => {
+      // Keep alive
+    });
+
+    eventSource.onerror = (err) => {
+      console.warn('Conexão SSE com aviso ou reconectando:', err);
+    };
+
+    return () => {
+      eventSource.close();
+    };
+  }, [AUTH.Authorization, fetchData]);
+
   const hasCritical = summary && summary.problems_critical > 0;
 
   return (
@@ -362,9 +409,7 @@ function AppShellBody({ AUTH, logout, user }: {
           </p>
           <SidebarItem icon={Activity}    label="Dashboard"       active={currentView === 'dashboard'} onClick={() => setCurrentView('dashboard')} />
           <SidebarItem icon={Cloud}       label="Nuvem"          active={currentView === 'cloud'}     onClick={() => setCurrentView('cloud')} />
-          <SidebarItem icon={Layers}      label="Infraestrutura"  disabled />
           <SidebarItem icon={ShieldAlert} label="Incidentes"      active={currentView === 'incidents'} onClick={() => setCurrentView('incidents')} />
-          <SidebarItem icon={Users}       label="Clientes"        disabled />
 
           <div className="my-3 border-t border-white/[0.04]" />
 
@@ -388,6 +433,9 @@ function AppShellBody({ AUTH, logout, user }: {
 
         {/* ── User card + Logout ── */}
         <div className="px-2 space-y-2">
+          {/* Ativação do Web Push */}
+          {token && <PushNotificationToggle token={token} />}
+
           {/* Status de conexão */}
           <div role="status" aria-live="polite">
             <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs
@@ -420,6 +468,7 @@ function AppShellBody({ AUTH, logout, user }: {
                 <span className={`text-[9px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-full ${
                   user.role === 'admin' ? 'bg-[#00ADE8]/15 text-[#00ADE8]'
                   : user.role === 'noc' ? 'bg-emerald-500/15 text-emerald-400'
+                  : user.role === 'soc' ? 'bg-amber-500/15 text-amber-400'
                   : 'bg-white/10 text-white/40'
                 }`}>{user.role}</span>
               </div>

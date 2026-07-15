@@ -20,10 +20,22 @@ from app.database import Base
 
 
 class UserRole(str, enum.Enum):
-    """Roles disponíveis na plataforma n.infraops."""
+    """Roles disponíveis na plataforma ness.OS.
 
-    noc = "noc"
+    Mapeamento Authentik SSO → UserRole:
+      admin    → admin
+      noc      → noc
+      soc      → soc
+      helpdesk → helpdesk
+      gestao   → gestao
+      usuarios → cliente
+    """
+
     admin = "admin"
+    noc = "noc"
+    soc = "soc"
+    helpdesk = "helpdesk"
+    gestao = "gestao"
     cliente = "cliente"
 
 
@@ -44,6 +56,7 @@ class User(Base):
         default=UserRole.noc,
         server_default="noc",
     )
+    tenant_id: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
     is_active: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True, server_default="true"
     )

@@ -32,20 +32,16 @@ export default function CloudManagement({ selectedTenant }: { selectedTenant: st
     setLoading(true);
     try {
       const query = selectedTenant ? `?customer_id=${selectedTenant}` : '';
-      const [sumRes, compRes, storRes, fireRes, netRes, auditRes, imgRes, secRes] = await Promise.all([
-        fetch(`${API_BASE}/api/contabo/summary${query}`, { headers: AUTH }),
-        fetch(`${API_BASE}/api/contabo/compute${query}`, { headers: AUTH }),
-        fetch(`${API_BASE}/api/contabo/storage${query}`, { headers: AUTH }),
-        fetch(`${API_BASE}/api/contabo/firewall${query}`, { headers: AUTH }),
-        fetch(`${API_BASE}/api/contabo/networks${query}`, { headers: AUTH }),
-        fetch(`${API_BASE}/api/contabo/audits${query}`, { headers: AUTH }),
-        fetch(`${API_BASE}/api/contabo/images${query}`, { headers: AUTH }),
-        fetch(`${API_BASE}/api/contabo/secrets${query}`, { headers: AUTH }),
-      ]);
-
-      if (sumRes.ok) setSummary(await sumRes.json());
-      if (compRes.ok) {
-        const instData = await compRes.json();
+      const res = await fetch(`${API_BASE}/api/contabo/dashboard-full${query}`, { headers: AUTH });
+      if (res.ok) {
+        const data = await res.json();
+        setSummary(data.summary);
+        setStorage(data.storage);
+        setFirewalls(data.firewalls);
+        setNetworks(data.networks);
+        setSecrets(data.secrets);
+        
+        const instData = data.instances;
         setInstances(instData);
         
         const alerts = [];
@@ -63,10 +59,6 @@ export default function CloudManagement({ selectedTenant }: { selectedTenant: st
         });
         setHealthAlerts(alerts);
       }
-      if (storRes.ok) setStorage(await storRes.json());
-      if (fireRes.ok) setFirewalls(await fireRes.json());
-      if (netRes.ok) setNetworks(await netRes.json());
-      if (secRes.ok) setSecrets(await secRes.json());
 
     } catch (e) {
       console.error('Failed to fetch cloud data', e);

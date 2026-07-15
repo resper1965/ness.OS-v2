@@ -110,3 +110,40 @@ resource "contabo_instance" "aiops_hub" {
     prevent_destroy = false
   }
 }
+
+# ---------------------------------------------------------------------------
+# Instância Cloud VPS - Wazuh Hub SOC (Centralizado)
+# ---------------------------------------------------------------------------
+resource "contabo_instance" "wazuh_hub" {
+  display_name = var.wazuh_hub_display_name
+  product_id   = var.wazuh_hub_product_id
+  image_id     = var.vps_image_id
+  region       = var.vps_region
+  period       = var.vps_period
+  default_user = var.vps_default_user
+
+  ssh_keys = [contabo_secret.ssh_key.id]
+
+  lifecycle {
+    prevent_destroy = false
+  }
+}
+
+# ---------------------------------------------------------------------------
+# Instância Cloud VPS - Wazuh Spoke (Piloto do Cliente)
+# ---------------------------------------------------------------------------
+resource "contabo_instance" "wazuh_spoke" {
+  display_name = var.wazuh_spoke_display_name
+  product_id   = var.wazuh_spoke_product_id
+  image_id     = var.vps_image_id
+  region       = var.vps_region
+  period       = var.vps_period
+  default_user = var.vps_default_user
+
+  ssh_keys = [contabo_secret.ssh_key.id]
+
+  lifecycle {
+    prevent_destroy = false
+  }
+}
+

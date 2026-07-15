@@ -10,9 +10,11 @@ from typing import Any
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
 from app.core.dependencies import require_noc
+from app.database import get_db
 from app.integrations.rocketcyber import RocketCyberClient
 
 logger = logging.getLogger(__name__)
@@ -460,3 +462,163 @@ async def secops_summary() -> dict[str, Any]:
         logger.error(f"RocketCyber summary: {e}")
         # Retorna degraded ao invés de 502 para não quebrar o dashboard
         return {"source": "rocketcyber", "degraded": True, "error": str(e)}
+
+
+# ── Módulo n.secops: Triagem de Alertas Wazuh SOC via IA ─────────────────────
+
+def _extract_ips_and_hashes(payload: dict[str, Any]) -> tuple[list[str], list[str]]:
+    """Extrai IPs públicos e hashes de arquivo do payload de alerta do Wazuh."""
+    import re
+    ips = set()
+    hashes = set()
+    
+    # Padrão básico de IP
+    ip_pattern = re.compile(r'\b(?:\d{1,3}\.){3}\d{1,3}\b')
+    # Padrão MD5 (32 chars) e SHA256 (64 chars) hex
+    hash_pattern = re.compile(r'\b[a-fA-F0-F0-9]{32}\b|\b[a-fA-F0-F0-9]{64}\b')
+
+    def recurse(node: Any):
+        if isinstance(node, dict):
+            for k, v in node.items():
+                if isinstance(v, str):
+                    if hash_pattern.match(v):
+                        hashes.add(v)
+                    elif ip_pattern.match(v):
+                        # Ignora loopbacks e IPs privados
+                        if not (v.startswith("10.") or v.startswith("192.168.") or v.startswith("127.") or v.startswith("172.") or v.startswith("169.254.")):
+                            ips.add(v)
+                else:
+                    recurse(v)
+        elif isinstance(node, list):
+            for item in node:
+                recurse(item)
+                
+    recurse(payload)
+    return list(ips), list(hashes)
+
+
+@router.post("/triage")
+async def triage_alert(
+    payload: dict[str, Any],
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """
+    Recebe alerta do Wazuh, executa enriquecimento de Inteligência de Ameaças,
+    triagem de IA via Gemini, persiste no banco e despacha para o n8n.
+    """
+    logger.info("Recebido alerta Wazuh para triagem de IA.")
+    from app.integrations.threat_intel import enrich_ip, enrich_hash
+    from app.integrations.soc_agent import triage_wazuh_alert
+    from app.integrations.n8n import notify_soc_triage_decision
+    from app.models.models import SocDecision
+    
+    # 1. Enriquecimento de Ameaças (Threat Intel)
+    ips, hashes = _extract_ips_and_hashes(payload)
+    enriched_data = {"ips": [], "hashes": []}
+    
+    for ip in ips[:3]:  # Limita a 3 IPs para evitar gargalo
+        intel = await enrich_ip(ip)
+        if intel["abuseipdb"] or intel["virustotal"]:
+            enriched_data["ips"].append(intel)
+            
+    for h in hashes[:3]:
+        intel = await enrich_hash(h)
+        if intel["virustotal"]:
+            enriched_data["hashes"].append(intel)
+            
+    # Injeta dados enriquecidos no payload antes de enviar à IA
+    payload["threat_intel_enrichment"] = enriched_data
+    
+    # 2. Executa triagem via Gemini
+    triage_result = triage_wazuh_alert(payload)
+    
+    # 3. Extrai dados úteis do alerta do Wazuh
+    rule_id = str(payload.get("rule", {}).get("id", "unknown"))
+    agent_id = str(payload.get("agent", {}).get("id", "unknown"))
+    agent_name = payload.get("agent", {}).get("name", "unknown")
+    
+    # Suposição de customer_id baseada no grupo do Wazuh
+    customer_id = "default"
+    group = payload.get("agent", {}).get("group")
+    if group and isinstance(group, list) and len(group) > 0:
+        customer_id = str(group[0])
+    
+    # 4. Persiste a decisão no banco de dados
+    try:
+        decision = SocDecision(
+            wazuh_rule_id=rule_id,
+            agent_id=agent_id,
+            agent_name=agent_name,
+            customer_id=customer_id,
+            classification=triage_result["classification"],
+            confidence=triage_result["confidence"],
+            summary=triage_result["summary"],
+            action_taken=triage_result["action_taken"],
+            raw_alert=payload,
+        )
+        db.add(decision)
+        await db.commit()
+    except Exception as e:
+        logger.error(f"Falha ao persistir SocDecision no banco: {e}")
+        await db.rollback()
+        
+    # 5. Envia a decisão e o alerta para o n8n orquestrar (Ticket GLPI + WhatsApp)
+    # Se for um falso positivo, o n8n pode silenciar. Caso contrário, abre chamado.
+    n8n_payload = {
+        "wazuh_rule_id": rule_id,
+        "agent_id": agent_id,
+        "agent_name": agent_name,
+        "customer_id": customer_id,
+        "classification": triage_result["classification"],
+        "confidence": triage_result["confidence"],
+        "summary": triage_result["summary"],
+        "action_taken": triage_result["action_taken"],
+        "threat_intel": enriched_data,
+        "timestamp": datetime.utcnow().isoformat() + "Z"
+    }
+    notify_soc_triage_decision(n8n_payload)
+        
+    return triage_result
+
+
+
+@router.get("/decisions")
+async def list_soc_decisions(
+    customer_id: str | None = Query(None),
+    classification: str | None = Query(None),
+    limit: int = Query(50, ge=1, le=200),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """Retorna a lista de decisões de triagem do SOC persistidas."""
+    from app.models.models import SocDecision
+    from sqlalchemy import select
+    
+    stmt = select(SocDecision).order_by(SocDecision.created_at.desc()).limit(limit)
+    if customer_id:
+        stmt = stmt.where(SocDecision.customer_id == customer_id)
+    if classification:
+        stmt = stmt.where(SocDecision.classification == classification)
+        
+    result = await db.execute(stmt)
+    decisions = result.scalars().all()
+    
+    return {
+        "source": "wazuh_soc",
+        "total": len(decisions),
+        "items": [
+            {
+                "id": d.id,
+                "wazuh_rule_id": d.wazuh_rule_id,
+                "agent_id": d.agent_id,
+                "agent_name": d.agent_name,
+                "customer_id": d.customer_id,
+                "classification": d.classification,
+                "confidence": d.confidence,
+                "summary": d.summary,
+                "action_taken": d.action_taken,
+                "created_at": d.created_at,
+            }
+            for d in decisions
+        ]
+    }
+

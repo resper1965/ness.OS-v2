@@ -25,6 +25,7 @@ celery_app.conf.update(
     task_routes={
         "app.workers.tasks.process_alert": {"queue": "alerts.primary"},
         "app.workers.tasks.process_deferred_alert": {"queue": "alerts.deferred"},
+        "app.workers.alerts.process_alert_v1": {"queue": "alerts.primary"},
         "app.workers.tasks.run_anomaly_check": {"queue": "ml"},
         "app.workers.postmortem.generate_postmortem_report": {"queue": "ml"},
     },
@@ -40,3 +41,20 @@ celery_app.conf.update(
 
 # Auto-discover tasks
 celery_app.autodiscover_tasks(["app.workers"])
+
+# Garantir que o módulo de postmortem seja importado para registrar a task
+import app.workers.postmortem
+import app.workers.alerts
+
+# Evitar conflito de conexão com o banco de dados (TimescaleDB) após fork de workers Celery
+from celery.signals import worker_process_init
+
+@worker_process_init.connect
+def configure_workers(sender, **kwargs):
+    from app.database import engine
+    try:
+        engine.sync_engine.dispose()
+    except Exception:
+        pass
+
+

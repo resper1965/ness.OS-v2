@@ -1,0 +1,191 @@
+{
+  "name": "NOC - Sincronizador de Ativos RMM (Atera e Datto) para GLPI",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": "0 3 * * *"
+      },
+      "id": "e963b652-32a2-4a0b-9dfd-b7eb5c8b7475",
+      "name": "Cron (Diário às 03:00)",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://api.atera.com/api/v3/agents",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "e963b652-32a2-4a0b-9dfd-b7eb5c8b7476",
+      "name": "Buscar Ativos Atera RMM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        420,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://api.centrastage.net/api/v2/devices",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "e963b652-32a2-4a0b-9dfd-b7eb5c8b7477",
+      "name": "Buscar Ativos Datto RMM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        420,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Código para normalizar dados do Atera e Datto\nconst ateraItems = [];\ntry {\n  ateraItems = $('Buscar Ativos Atera RMM').item.json || [];\n} catch (e) {}\n\nconst dattoItems = [];\ntry {\n  dattoItems = $('Buscar Ativos Datto RMM').item.json || [];\n} catch (e) {}\n\nconst normalizedDevices = [];\n\n// 1. Processar Atera\nfor (const item of ateraItems) {\n  normalizedDevices.push({\n    name: item.MachineName || item.Name,\n    ip: item.IpAddresses?.[0] || '0.0.0.0',\n    os: item.OS || 'Unknown OS',\n    serial: item.SerialNumber || '',\n    customerName: item.CustomerName || 'Ness',\n    source: 'Atera'\n  });\n}\n\n// 2. Processar Datto\nfor (const item of dattoItems) {\n  normalizedDevices.push({\n    name: item.hostname || item.name,\n    ip: item.ipAddress || '0.0.0.0',\n    os: item.operatingSystem || 'Unknown OS',\n    serial: item.serialNumber || '',\n    customerName: item.siteName || 'Ness',\n    source: 'Datto'\n  });\n}\n\nreturn normalizedDevices.map(device => ({ json: device }));"
+      },
+      "id": "e963b652-32a2-4a0b-9dfd-b7eb5c8b7478",
+      "name": "Normalizar Ativos",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ninf-glpi/apirest.php/initSession",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "App-Token",
+              "value": "={{ $env.NINF_GLPI_APP_TOKEN || 'glpi-app-token' }}"
+            },
+            {
+              "name": "User-Token",
+              "value": "={{ $env.NINF_GLPI_USER_TOKEN || 'glpi-user-token' }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "e963b652-32a2-4a0b-9dfd-b7eb5c8b7479",
+      "name": "Iniciar Sessão GLPI",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        900,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ninf-glpi/apirest.php/Computer",
+        "authentication": "none",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"input\": {\n    \"name\": \"{{ $json.name }}\",\n    \"serial\": \"{{ $json.serial }}\",\n    \"comment\": \"Importado via n8n Sincronizador de RMM ({{ $json.source }})\"\n  }\n}",
+        "options": {},
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Session-Token",
+              "value": "={{ $('Iniciar Sessão GLPI').item.json.session_token }}"
+            },
+            {
+              "name": "App-Token",
+              "value": "={{ $env.NINF_GLPI_APP_TOKEN || 'glpi-app-token' }}"
+            }
+          ]
+        }
+      },
+      "id": "e963b652-32a2-4a0b-9dfd-b7eb5c8b7480",
+      "name": "Upsert no GLPI",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1120,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Cron (Diário às 03:00)": {
+      "main": [
+        [
+          {
+            "node": "Buscar Ativos Atera RMM",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Buscar Ativos Datto RMM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Ativos Atera RMM": {
+      "main": [
+        [
+          {
+            "node": "Normalizar Ativos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Ativos Datto RMM": {
+      "main": [
+        [
+          {
+            "node": "Normalizar Ativos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalizar Ativos": {
+      "main": [
+        [
+          {
+            "node": "Iniciar Sessão GLPI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Iniciar Sessão GLPI": {
+      "main": [
+        [
+          {
+            "node": "Upsert no GLPI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "uR1zLpxUu0QgZdUE",
+  "active": false
+}

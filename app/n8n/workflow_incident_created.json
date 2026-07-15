@@ -1,0 +1,152 @@
+{
+  "name": "NOC - Criar Ticket e Alerta WhatsApp",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "incident-created",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "e963b652-32a2-4a0b-9dfd-b7eb5c8b7468",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [
+        250,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $('Webhook').item.json.body;\nconst eventName = body.event_name || 'Incidente sem título';\nconst customerName = body.customer_name || 'Ness';\nconst hostName = body.host_name || 'unknown';\nconst severity = body.severity_label || body.severity || 'average';\nconst desc = body.clean_payload?.description || body.clean_payload?.trigger?.description || 'Sem detalhes adicionais.';\nconst fingerprint = body.fingerprint || 'N/A';\n\nconst emailSubject = `[NOC-ALERT] ${customerName} | Host: ${hostName} | Event: ${eventName} | Fingerprint: ${fingerprint}`;\nconst emailHtml = `<p><strong>Alerta NOC: Incidente Detectado</strong></p>\\n<p><strong>Cliente:</strong> ${customerName}</p>\\n<p><strong>Equipamento:</strong> ${hostName}</p>\\n<p><strong>Evento:</strong> ${eventName}</p>\\n<p><strong>Severidade:</strong> ${severity}</p>\\n<hr/>\\n<p><strong>Descrição do Ocorrido:</strong><br/>${desc}</p>\\n<hr/>\\n<p><small>Fingerprint: ${fingerprint}</small></p>`;\n\nconst whatsappText = `*Alerta NOC: Incidente Detectado*\\n\\n*Cliente:* ${customerName}\\n*Equipamento:* ${hostName}\\n*Evento:* ${eventName}\\n*Severidade:* ${severity}\\n\\n*Descrição do Ocorrido*:\\n${desc}`;\n\nreturn {\n  \"number\": $env.NINF_WHATSAPP_NOC_GROUP_ID || 'group-id',\n  \"options\": {\n    \"delay\": 1200,\n    \"presence\": \"composing\"\n  },\n  \"text\": whatsappText,\n  \"emailSubject\": emailSubject,\n  \"emailHtml\": emailHtml\n};"
+      },
+      "id": "e963b652-32a2-4a0b-9dfd-b7eb5c8b7470",
+      "name": "Prepare Body",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        470,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $env.NINF_SMTP_SENDER || 'noc-alerts@ness.com.br' }}",
+        "toEmail": "={{ $env.NINF_TICKET_EMAIL || 'suporte@ness.com.br' }}",
+        "subject": "={{ $json.emailSubject }}",
+        "html": "={{ $json.emailHtml }}",
+        "options": {}
+      },
+      "onError": "continueRegularOutput",
+      "id": "e963b652-32a2-4a0b-9dfd-b7eb5c8b7472",
+      "name": "Send Email (Abrir Chamado)",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [
+        690,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.NINF_EVOLUTION_API_URL || 'http://evolution-api:8080' }}/message/sendText/{{ $env.NINF_EVOLUTION_INSTANCE || 'noc-alerts' }}",
+        "authentication": "none",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"number\": $json.number, \"options\": $json.options, \"text\": $json.text } }}",
+        "options": {},
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.NINF_EVOLUTION_API_KEY || 'changeme' }}"
+            }
+          ]
+        }
+      },
+      "id": "31f41d9e-c852-475c-897b-4dcd48e718cc",
+      "name": "WhatsApp - Notificar Grupo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        690,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"ticket_id\": \"email-ticket\"\n}",
+        "options": {}
+      },
+      "id": "fd9081e2-b8c7-43cf-bc82-5ce948a73ccc",
+      "name": "Responder Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        910,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Prepare Body",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Body": {
+      "main": [
+        [
+          {
+            "node": "Send Email (Abrir Chamado)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "WhatsApp - Notificar Grupo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email (Abrir Chamado)": {
+      "main": [
+        [
+          {
+            "node": "Responder Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WhatsApp - Notificar Grupo": {
+      "main": [
+        [
+          {
+            "node": "Responder Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "eNLsgPPhK4ReW36t",
+  "active": true
+}

@@ -45,6 +45,8 @@ services:
       --loglevel=info
       --hostname=alerts@%h
     env_file: .env
+    volumes:
+      - ./backend/app:/app/app:ro
     depends_on:
       - api
     networks:
@@ -59,7 +61,7 @@ services:
       resources:
         limits:
           memory: 512M
-
+ 
   # --- Celery Worker (ML + Post-mortem) ---
   worker-ml:
     build:
@@ -74,6 +76,8 @@ services:
       --loglevel=info
       --hostname=ml@%h
     env_file: .env
+    volumes:
+      - ./backend/app:/app/app:ro
     depends_on:
       - api
     networks:
@@ -94,8 +98,6 @@ services:
     image: timescale/timescaledb:latest-pg16
     container_name: ninf-postgres
     restart: unless-stopped
-    ports:
-      - "5432:5432"
     environment:
       POSTGRES_DB: nessops
       POSTGRES_USER: nessops
@@ -123,8 +125,6 @@ services:
     image: redis:7-alpine
     container_name: ninf-redis
     restart: unless-stopped
-    ports:
-      - "6379:6379"
     command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
     volumes:
       - redis-data:/data
@@ -150,7 +150,7 @@ services:
       - SERVER_URL=http://localhost:8080
       - AUTHENTICATION_API_KEY=${NINF_EVOLUTION_API_KEY:-changeme}
       - DATABASE_PROVIDER=postgresql
-      - DATABASE_CONNECTION_URI=postgresql://nessops:${NINF_DB_PASSWORD:-changeme}@postgres:5432/nessops
+      - DATABASE_CONNECTION_URI=postgresql://nessops:${NINF_DB_PASSWORD:-changeme}@postgres:5432/evolution
       - DATABASE_CONNECTION_CLIENT_NAME=evolution_api
       - DATABASE_ENABLED=true
       - SKIP_MIGRATE=${NINF_EVOLUTION_SKIP_MIGRATE:-false}
@@ -171,6 +171,19 @@ services:
       resources:
         limits:
           memory: 1.5G
+
+  # --- Evolution API Manager Dashboard ---
+  evolution-manager:
+    image: evoapicloud/evolution-manager:latest
+    container_name: ninf-evolution-manager
+    restart: unless-stopped
+    entrypoint: ["sh", "-c", "sed -i 's/must-revalidate//g' /etc/nginx/conf.d/nginx.conf && /bin/sh /start.sh"]
+    ports:
+      - "8082:80"
+    networks:
+      - ninf-net
+    depends_on:
+      - evolution-api
 
   # --- Frontend (Next.js/React App) ---
   frontend:
@@ -209,6 +222,89 @@ services:
       - evolution-api
       - frontend
 
+  # --- n8n Integration Orchestrator ---
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:latest
+    container_name: ninf-n8n
+    restart: unless-stopped
+    environment:
+      - N8N_HOST=n8n.ness.com.br
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=https
+      - NODE_ENV=production
+      - WEBHOOK_URL=https://n8n.ness.com.br/
+      - N8N_BLOCK_ENV_ACCESS_IN_NODE=false
+      - NINF_EVOLUTION_API_URL=${NINF_EVOLUTION_API_URL}
+      - NINF_EVOLUTION_INSTANCE=${NINF_EVOLUTION_INSTANCE}
+      - NINF_DESKMANAGER_API_URL=${NINF_DESKMANAGER_API_URL}
+      - NINF_WHATSAPP_NOC_GROUP_ID=${NINF_WHATSAPP_NOC_GROUP_ID}
+    volumes:
+      - n8n-data:/home/node/.n8n
+    networks:
+      - ninf-net
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  # --- Authentik SSO Server ---
+  authentik-server:
+    image: ghcr.io/goauthentik/server:2026.5.4
+    container_name: ninf-authentik-server
+    restart: unless-stopped
+    command: server
+    environment:
+      AUTHENTIK_REDIS__HOST: redis
+      AUTHENTIK_POSTGRESQL__HOST: postgres
+      AUTHENTIK_POSTGRESQL__USER: nessops
+      AUTHENTIK_POSTGRESQL__NAME: authentik
+      AUTHENTIK_POSTGRESQL__PASSWORD: ${NINF_DB_PASSWORD:-changeme}
+      AUTHENTIK_SECRET_KEY: ${NINF_AUTHENTIK_SECRET_KEY:-f1e5CICu!vyh_supersecret}
+    volumes:
+      - authentik-media:/media
+      - authentik-certs:/certs
+      - authentik-templates:/templates
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - ninf-net
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  # --- Authentik SSO Worker ---
+  authentik-worker:
+    image: ghcr.io/goauthentik/server:2026.5.4
+    container_name: ninf-authentik-worker
+    restart: unless-stopped
+    command: worker
+    environment:
+      AUTHENTIK_REDIS__HOST: redis
+      AUTHENTIK_POSTGRESQL__HOST: postgres
+      AUTHENTIK_POSTGRESQL__USER: nessops
+      AUTHENTIK_POSTGRESQL__NAME: authentik
+      AUTHENTIK_POSTGRESQL__PASSWORD: ${NINF_DB_PASSWORD:-changeme}
+      AUTHENTIK_SECRET_KEY: ${NINF_AUTHENTIK_SECRET_KEY:-f1e5CICu!vyh_supersecret}
+    volumes:
+      - authentik-media:/media
+      - authentik-certs:/certs
+      - authentik-templates:/templates
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - ninf-net
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
 volumes:
   pg-data:
   redis-data:
@@ -216,6 +312,10 @@ volumes:
   evolution-store:
   caddy-data:
   caddy-config:
+  n8n-data:
+  authentik-media:
+  authentik-certs:
+  authentik-templates:
 
 networks:
   ninf-net:

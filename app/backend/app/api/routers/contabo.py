@@ -190,3 +190,55 @@ def list_audits(client: ContaboAPIClient = Depends(get_contabo_client)):
     except Exception as e:
         logger.error(f"Failed to fetch audits: {e}")
         return []
+
+@router.get("/dashboard-full")
+def get_dashboard_full(client: ContaboAPIClient = Depends(get_contabo_client)):
+    """Unified endpoint to fetch all Contabo resources concurrently for the dashboard."""
+    from concurrent.futures import ThreadPoolExecutor
+    try:
+        with ThreadPoolExecutor(max_workers=7) as executor:
+            fut_inst = executor.submit(client.get, "/compute/instances")
+            fut_stor = executor.submit(client.get, "/object-storages")
+            fut_fire = executor.submit(client.get, "/firewalls")
+            fut_net = executor.submit(client.get, "/private-networks")
+            fut_audits = executor.submit(client.get, "/compute/instances/audits")
+            fut_secrets = executor.submit(client.get, "/secrets")
+            fut_img = executor.submit(client.get, "/compute/images")
+            
+            instances = fut_inst.result().get("data", [])
+            storages = fut_stor.result().get("data", [])
+            firewalls = fut_fire.result().get("data", [])
+            networks = fut_net.result().get("data", [])
+            audits = fut_audits.result().get("data", [])
+            secrets = fut_secrets.result().get("data", [])
+            images = fut_img.result().get("data", [])
+        
+        running = sum(1 for i in instances if i.get("status") == "running")
+        total_storage = sum(float(s.get("totalSpaceTb", 0)) for s in storages)
+        
+        summary = {
+            "instances": {
+                "total": len(instances),
+                "running": running,
+                "stopped": len(instances) - running
+            },
+            "storage": {
+                "total_tb": total_storage,
+                "buckets": len(storages)
+            }
+        }
+        
+        return {
+            "summary": summary,
+            "instances": instances,
+            "storage": storages,
+            "firewalls": firewalls,
+            "networks": networks,
+            "audits": audits,
+            "secrets": secrets,
+            "images": images
+        }
+    except Exception as e:
+        logger.error(f"Failed to fetch dashboard full: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
