@@ -59,19 +59,19 @@ class Asset(Base):
 
     # Classificação
     asset_type: Mapped[AssetType] = mapped_column(
-        Enum(AssetType, name="asset_type", create_type=False),
+        Enum(AssetType, name="asset_type", create_type=False, values_callable=lambda x: [e.value for e in x]),
         nullable=False,
         default=AssetType.LINUX,
     )
     status: Mapped[AssetStatus] = mapped_column(
-        Enum(AssetStatus, name="asset_status", create_type=False),
+        Enum(AssetStatus, name="asset_status", create_type=False, values_callable=lambda x: [e.value for e in x]),
         nullable=False,
         default=AssetStatus.ACTIVE,
     )
 
     # Multi-RMM
     rmm_provider: Mapped[RmmProvider] = mapped_column(
-        Enum(RmmProvider, name="rmm_provider", create_type=False),
+        Enum(RmmProvider, name="rmm_provider", create_type=False, values_callable=lambda x: [e.value for e in x]),
         nullable=False,
         default=RmmProvider.NONE,
     )
@@ -205,7 +205,7 @@ class PlaybookExecution(Base):
     # Definição e provedor
     playbook_name: Mapped[str] = mapped_column(String(128), nullable=False)
     rmm_provider: Mapped[RmmProvider] = mapped_column(
-        Enum(RmmProvider, name="rmm_provider", create_type=False),
+        Enum(RmmProvider, name="rmm_provider", create_type=False, values_callable=lambda x: [e.value for e in x]),
         nullable=False,
     )
     execution_mode: Mapped[str] = mapped_column(String(32), nullable=False, default="manual", server_default="manual")
@@ -279,3 +279,27 @@ class TenantMapping(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
+
+
+class SocDecision(Base):
+    """Registro de decisões de triagem e inteligência geradas pelo Analista SOC IA."""
+
+    __tablename__ = "n_secops_soc_decisions"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    wazuh_rule_id: Mapped[str] = mapped_column(String(64), index=True)
+    agent_id: Mapped[str | None] = mapped_column(String(64), index=True)
+    agent_name: Mapped[str | None] = mapped_column(String(255))
+    customer_id: Mapped[str | None] = mapped_column(String(128), index=True)
+    
+    classification: Mapped[str] = mapped_column(String(32), index=True) # FP, LOW, MED, HIGH, CRIT
+    confidence: Mapped[float] = mapped_column(nullable=False, default=1.0)
+    summary: Mapped[str] = mapped_column(Text, nullable=False)
+    action_taken: Mapped[str] = mapped_column(String(255), nullable=False)
+    
+    raw_alert: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, server_default="{}")
+    
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+

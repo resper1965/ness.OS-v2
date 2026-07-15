@@ -1,0 +1,125 @@
+---
+# =============================================================================
+# Implantação Automatizada — Wazuh Hub 4.14.6 LTS (SOC)
+# =============================================================================
+# Descrição: Instala dependências, configura UFW de segurança e inicia a
+#            stack dockerizada do Wazuh (Indexer, Manager, Dashboard) no Hub.
+# =============================================================================
+
+- name: Implantar e Configurar Wazuh Hub 4.14.6
+  hosts: wazuh_hubs
+  become: true
+  vars:
+    wazuh_version: "4.14.6"
+    wazuh_docker_git: "https://github.com/wazuh/wazuh-docker.git"
+    wazuh_dir: "/opt/wazuh-docker"
+    # Defina a sub-rede privada (VLAN Contabo) para acesso seguro
+    vlan_subnet: "10.0.0.0/8"
+
+  tasks:
+    - name: Atualizar cache do apt
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Instalar pacotes de pré-requisito
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg
+          - lsb-release
+          - git
+          - ufw
+          - python3-pip
+        state: present
+
+    - name: Criar chaveiro GPG oficial do Docker
+      apt_key:
+        url: https://download.docker.com/linux/debian/gpg
+        state: present
+
+    - name: Adicionar repositório estável do Docker
+      apt_repository:
+        repo: "deb [arch=amd64] https://download.docker.com/linux/debian {{ ansible_distribution_release }} stable"
+        state: present
+
+    - name: Instalar Docker e Docker Compose Plugin
+      apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-compose-plugin
+        state: present
+        update_cache: yes
+
+    - name: Garantir que o serviço Docker está ativo e habilitado
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    # --- Configurações de Segurança do UFW (CISO-Mindset) ---
+    - name: Resetar UFW para regras padrão
+      ufw:
+        state: disabled
+        policy: deny
+
+    - name: Permitir SSH no firewall (porta customizada se definida)
+      ufw:
+        rule: allow
+        port: "{{ ansible_port | default(22) }}"
+        proto: tcp
+
+    - name: Permitir tráfego HTTP e HTTPS (Dashboard)
+      ufw:
+        rule: allow
+        port: "{{ item }}"
+        proto: tcp
+      loop:
+        - 80
+        - 443
+
+    - name: Permitir tráfego Syslog/Wazuh Agent apenas da sub-rede privada VLAN
+      ufw:
+        rule: allow
+        src: "{{ vlan_subnet }}"
+        port: "{{ item.port }}"
+        proto: "{{ item.proto }}"
+      loop:
+        - { port: 1514, proto: tcp } # Agent connection (secure)
+        - { port: 1515, proto: tcp } # Agent enrollment
+        - { port: 514, proto: udp }  # Syslog tradicional
+        - { port: 9200, proto: tcp } # OpenSearch Indexer
+
+    - name: Ativar UFW com as novas regras
+      ufw:
+        state: enabled
+
+    # --- Deploy Wazuh Hub 4.14.6 ---
+    - name: Clonar repositório wazuh-docker
+      git:
+        repo: "{{ wazuh_docker_git }}"
+        dest: "{{ wazuh_dir }}"
+        version: "v{{ wazuh_version }}"
+        force: yes
+
+    - name: Gerar certificados internos do Wazuh Indexer
+      command:
+        cmd: docker compose -f generate-certs.yml run --rm generator
+        chdir: "{{ wazuh_dir }}/single-node"
+      register: cert_gen_result
+      changed_when: "'Created' in cert_gen_result.stdout"
+
+    - name: Iniciar stack single-node do Wazuh Hub
+      command:
+        cmd: docker compose up -d
+        chdir: "{{ wazuh_dir }}/single-node"
+      register: compose_up_result
+      changed_when: "'Started' in compose_up_result.stdout"
+
+    - name: Exibir status final do deploy
+      debug:
+        msg: "Wazuh Hub {{ wazuh_version }} implantado com sucesso no Docker do servidor de SOC!"

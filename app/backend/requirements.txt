@@ -29,6 +29,7 @@ netmiko==4.4.*
 
 # --- Utilities ---
 python-multipart==0.0.*
+pywebpush==1.14.*
 
 # --- Authentication (FASE 4.1) ---
 python-jose[cryptography]==3.3.*

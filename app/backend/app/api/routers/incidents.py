@@ -4,11 +4,17 @@
 # -------------------------------------------------------
 from __future__ import annotations
 import logging
-from fastapi import APIRouter, Query, BackgroundTasks
+import json
+import asyncio
+from fastapi import APIRouter, Query, status, HTTPException
+from fastapi.responses import StreamingResponse
 from sqlalchemy import select, desc
 from app.database import SessionLocal
 from app.models import Incident
 from app.models.schemas import IncidentAnalyzeRequest
+from app.core.jwt import verify_token
+from app.config import get_settings
+from redis.asyncio import Redis
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -38,8 +44,9 @@ async def list_incidents(
     status: str | None = Query(default=None),
 ):
     """Retorna lista de incidentes com stage do pipeline."""
+    from sqlalchemy.orm import selectinload
     async with SessionLocal() as session:
-        stmt = select(Incident).order_by(desc(Incident.last_seen)).limit(limit)
+        stmt = select(Incident).options(selectinload(Incident.asset)).order_by(desc(Incident.last_seen)).limit(limit)
         if status:
             stmt = stmt.where(Incident.status == status)
         result = await session.execute(stmt)
@@ -53,6 +60,7 @@ async def list_incidents(
                     "severity": SEVERITY_LABEL.get(inc.severity or 0, "unknown"),
                     "severity_level": inc.severity or 0,
                     "host_name": inc.host_name or "unknown",
+                    "client": inc.asset.customer_name if inc.asset else "Ness",
                     "status": inc.status,
                     "alert_count": inc.alert_count or 1,
                     "first_seen": inc.first_seen.isoformat() if inc.first_seen else None,
@@ -65,62 +73,90 @@ async def list_incidents(
         }
 
 
-async def _run_incident_analysis(request: IncidentAnalyzeRequest):
-    """Executa a análise de causa raiz via Gemini em background e aciona o n8n."""
-    from app.config import get_settings
-    from app.integrations.gemini import generate_postmortem
-    import httpx
-    
-    settings = get_settings()
-    
-    try:
-        # 1. Obter dados brutos do incidente enviado pelo Keep
-        incident_data = request.incident_data
-        
-        # TODO: Buscar métricas reais no TimescaleDB e logs reais
-        # Mocking para v1.0
-        metrics_mock = [{"metric": "cpu_load", "value": 95.5, "timestamp": "2026-07-06T12:00:00Z"}]
-        logs_mock = ["ERROR: connection timeout to database", "WARN: high memory usage detected"]
-        
-        # 2. Chamar o Gemini para gerar o PostMortem
-        logger.info(f"Iniciando análise Gemini para incidente {incident_data.get('fingerprint', 'unknown')}")
-        postmortem = generate_postmortem(
-            incident=incident_data,
-            metrics=metrics_mock,
-            related_logs=logs_mock
-        )
-        
-        # 3. Disparar webhook para o n8n (/webhook/postmortem-ready)
-        n8n_url = f"{settings.n8n_base_url.rstrip('/')}{settings.n8n_webhook_postmortem}"
-        payload = {
-            "ticket_id": request.ticket_id,
-            "incident_fingerprint": postmortem.incident_fingerprint,
-            "summary": postmortem.summary,
-            "root_cause": postmortem.root_cause,
-            "markdown_report": postmortem.markdown_report,
-            "blast_radius": postmortem.blast_radius,
-            "corrective_actions": postmortem.corrective_actions
-        }
-        
-        logger.info(f"Enviando PostMortem para o n8n: {n8n_url}")
-        async with httpx.AsyncClient() as client:
-            resp = await client.post(n8n_url, json=payload, timeout=10.0)
-            resp.raise_for_status()
-            logger.info("PostMortem enviado ao n8n com sucesso.")
-            
-    except Exception as exc:
-        logger.error(f"Falha na análise de incidente em background: {exc}")
-
-
 @router.post("/api/incident/analyze", tags=["incidents"], status_code=202)
 async def analyze_incident(
     request: IncidentAnalyzeRequest,
-    background_tasks: BackgroundTasks
 ):
     """
-    Recebe um alerta correlacionado (ex: via Keep AIOps), 
-    adiciona tarefa em background para gerar RCA no Gemini 
-    e retorna 202 Accepted.
+    Recebe um alerta correlacionado (ex: via Keep AIOps),
+    agenda a task no Celery para gerar RCA e Post-Mortem usando
+    métricas e buscas reais, e retorna 202 Accepted.
     """
-    background_tasks.add_task(_run_incident_analysis, request)
-    return {"status": "accepted", "message": "Análise de causa raiz iniciada em background."}
+    from app.workers.postmortem import generate_postmortem_report
+
+    logger.info(
+        "Recebida solicitação de análise para incidente | fingerprint=%s ticket=%s",
+        request.incident_data.get("fingerprint"),
+        request.ticket_id,
+    )
+
+    generate_postmortem_report.apply_async(
+        args=[request.incident_data, request.ticket_id],
+        queue="ml",
+    )
+
+    return {"status": "accepted", "message": "Análise de causa raiz iniciada no Celery."}
+
+
+@router.get("/api/incidents/stream", tags=["incidents"])
+async def stream_incidents(
+    token: str = Query(..., description="JWT Token de acesso para autenticação")
+):
+    """Canal SSE (Server-Sent Events) para stream de novos incidentes em tempo real."""
+    try:
+        payload = verify_token(token)
+        user_role = payload.get("role")
+        user_tenant_id = payload.get("tenant_id")
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token de acesso inválido ou expirado.",
+        )
+
+    async def event_generator():
+        settings = get_settings()
+        # Conecta no Redis de forma assíncrona
+        client = Redis.from_url(settings.redis_url, decode_responses=True)
+        pubsub = client.pubsub()
+        await pubsub.subscribe("ninf_incidents")
+        logger.info(f"Conexão SSE aberta para o usuário role={user_role} (tenant={user_tenant_id})")
+
+        try:
+            # Envia ping de conexão inicial estabelecida
+            yield "event: ping\ndata: {}\n\n"
+            
+            while True:
+                # Ler mensagem do Redis com timeout curto para enviar ping periódico
+                message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=15.0)
+                if message:
+                    try:
+                        data = json.loads(message["data"])
+                        incident_tenant_id = data.get("tenant_id")
+                        
+                        # Filtro Multi-tenant:
+                        # Operadores noc/soc/admin recebem tudo.
+                        # Clientes recebem apenas do próprio tenant_id.
+                        if user_role in ("noc", "soc", "admin") or (incident_tenant_id and incident_tenant_id == user_tenant_id):
+                            yield f"event: incident\ndata: {json.dumps(data)}\n\n"
+                    except Exception as err:
+                        logger.error(f"Erro ao analisar payload no SSE: {err}")
+                else:
+                    # Keep-alive ping para manter a conexão aberta
+                    yield "event: ping\ndata: {}\n\n"
+        except asyncio.CancelledError:
+            logger.info("Conexão SSE encerrada pelo cliente.")
+        finally:
+            await pubsub.unsubscribe("ninf_incidents")
+            await pubsub.close()
+            await client.aclose()
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",  # Evita buffering em Caddy/Nginx
+        }
+    )
+

@@ -64,11 +64,11 @@ def require_authenticated(user: User = Depends(get_current_user)) -> User:
 
 
 def require_noc(user: User = Depends(get_current_user)) -> User:
-    """Role noc ou admin."""
-    if user.role not in (UserRole.noc, UserRole.admin):
+    """Role noc, soc ou admin."""
+    if user.role not in (UserRole.noc, UserRole.soc, UserRole.admin):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Acesso restrito a operadores NOC",
+            detail="Acesso restrito a operadores NOC/SOC",
         )
     return user
 

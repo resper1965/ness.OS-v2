@@ -248,3 +248,26 @@ CREATE INDEX idx_credentials_customer ON n_infraops_customer_credentials (custom
 CREATE TRIGGER trg_credentials_updated_at
     BEFORE UPDATE ON n_infraops_customer_credentials
     FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+-- ---------------------------------------------------------
+-- Tabela de decisões de triagem do SOC (Wazuh SOC Triage Log)
+-- ---------------------------------------------------------
+CREATE TABLE n_secops_soc_decisions (
+    id              BIGSERIAL       PRIMARY KEY,
+    wazuh_rule_id   VARCHAR(64)     NOT NULL,
+    agent_id        VARCHAR(64),
+    agent_name      VARCHAR(255),
+    customer_id     VARCHAR(128)    NOT NULL,
+    classification  VARCHAR(32)     NOT NULL,
+    confidence      DOUBLE PRECISION NOT NULL DEFAULT 1.0,
+    summary         TEXT            NOT NULL,
+    action_taken    VARCHAR(255)    NOT NULL,
+    raw_alert       JSONB           NOT NULL DEFAULT '{}',
+    created_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_soc_decisions_rule ON n_secops_soc_decisions (wazuh_rule_id);
+CREATE INDEX idx_soc_decisions_agent ON n_secops_soc_decisions (agent_id);
+CREATE INDEX idx_soc_decisions_customer ON n_secops_soc_decisions (customer_id);
+CREATE INDEX idx_soc_decisions_classification ON n_secops_soc_decisions (classification);
+

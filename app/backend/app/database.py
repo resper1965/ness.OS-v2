@@ -8,10 +8,13 @@ from app.config import get_settings
 
 settings = get_settings()
 
+from sqlalchemy.pool import NullPool
+
 engine = create_async_engine(
     settings.database_url,
     echo=False,
     future=True,
+    poolclass=NullPool,
     connect_args={"ssl": False},  # Postgres em Docker sem SSL
 )
 

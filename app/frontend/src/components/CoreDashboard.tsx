@@ -216,7 +216,7 @@ export default function CoreDashboard({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Score */}
         <div
-          className="rounded-2xl p-6 border flex flex-col items-center justify-center gap-3"
+          className="rounded-2xl p-6 border flex flex-col items-center justify-center gap-3 animate-fade-in"
           style={{
             background: 'linear-gradient(135deg, rgba(99,102,241,0.12) 0%, rgba(99,102,241,0.04) 100%)',
             borderColor: 'rgba(99,102,241,0.25)',
@@ -237,6 +237,113 @@ export default function CoreDashboard({
               ))
             : kpis.map(kpi => <KpiCard key={kpi.id} kpi={kpi} />)
           }
+        </div>
+      </div>
+
+      {/* ── ITIL Service Desk & CMDB (GLPI) ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* CMDB Assets Summary */}
+        <div
+          className="rounded-2xl p-5 border flex flex-col justify-between gap-4 transition-all hover:border-blue-500/30"
+          style={{
+            background: 'linear-gradient(135deg, rgba(59,130,246,0.08) 0%, rgba(59,130,246,0.03) 100%)',
+            borderColor: 'rgba(59,130,246,0.15)',
+          }}
+        >
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <Server size={16} className="text-blue-400" />
+              <h3 className="text-sm font-semibold text-white">Inventário CMDB (Zabbix)</h3>
+            </div>
+            <p className="text-xs text-white/40">Ativos sincronizados, normalizados por fabricante/modelo e distribuídos por tenant no GLPI.</p>
+          </div>
+          
+          <div className="grid grid-cols-3 gap-2">
+            <div className="bg-white/[0.02] border border-white/[0.04] rounded-xl p-3 text-center">
+              <span className="text-xl font-bold text-white block">85</span>
+              <span className="text-[10px] text-white/40 block mt-0.5">Servidores</span>
+            </div>
+            <div className="bg-white/[0.02] border border-white/[0.04] rounded-xl p-3 text-center">
+              <span className="text-xl font-bold text-white block">155</span>
+              <span className="text-[10px] text-white/40 block mt-0.5">Equip. Rede</span>
+            </div>
+            <div className="bg-white/[0.02] border border-white/[0.04] rounded-xl p-3 text-center">
+              <span className="text-xl font-bold text-white block">11</span>
+              <span className="text-[10px] text-white/40 block mt-0.5">Clientes</span>
+            </div>
+          </div>
+        </div>
+
+        {/* SLA Compliance */}
+        <div
+          className="lg:col-span-2 rounded-2xl p-5 border flex flex-col justify-between gap-4 transition-all hover:border-emerald-500/30"
+          style={{
+            background: 'linear-gradient(135deg, rgba(16,185,129,0.08) 0%, rgba(16,185,129,0.03) 100%)',
+            borderColor: 'rgba(16,185,129,0.15)',
+          }}
+        >
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <CheckCircle size={16} className="text-emerald-400" />
+                <h3 className="text-sm font-semibold text-white">Acordos de Nível de Serviço (SLA)</h3>
+              </div>
+              <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/25">97.8% Global</span>
+            </div>
+            <p className="text-xs text-white/40">Status de cumprimento de metas de SLA (Bronze, Silver, Gold, Platinum) em tempo limite (TTO/TTR).</p>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+            {[
+              { name: 'Platinum', sla: '4h TTR', compliance: '100%', color: '#8B5CF6' },
+              { name: 'Gold', sla: '24h TTR', compliance: '98.2%', color: '#F59E0B' },
+              { name: 'Silver', sla: '2d TTR', compliance: '96.5%', color: '#3B82F6' },
+              { name: 'Bronze', sla: '5d TTR', compliance: '95.0%', color: '#94A3B8' },
+            ].map(item => (
+              <div key={item.name} className="bg-white/[0.01] border border-white/[0.04] rounded-xl p-3 relative overflow-hidden group hover:border-white/10 transition-all">
+                <div className="absolute top-0 left-0 w-[3px] h-full" style={{ backgroundColor: item.color }} />
+                <span className="text-[10px] font-bold text-white/60 block ml-1">{item.name}</span>
+                <span className="text-[10px] text-white/30 block ml-1">{item.sla}</span>
+                <span className="text-base font-bold text-white block mt-1 ml-1" style={{ color: item.color }}>{item.compliance}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ITIL Service Catalog */}
+      <div className="border border-white/[0.05] bg-white/[0.01] rounded-2xl p-5 space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-bold text-white">Catálogo de Serviços TI (GLPI)</h3>
+            <p className="text-xs text-white/40 mt-0.5">Formulários oficiais parametrizados para requisição e suporte aos usuários.</p>
+          </div>
+          <span className="text-[10px] font-semibold text-white/30 bg-white/5 px-2 py-0.5 rounded-full">ITIL v4</span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+          {[
+            { id: 'onboarding', label: 'Novo Colaborador', desc: 'Provisionamento de AD, hardware e e-mail.', color: '#10B981', action: 'Abrir' },
+            { id: 'access', label: 'Solicitar Acesso', desc: 'Acessos de VPN, pastas de rede e sistemas.', color: '#3B82F6', action: 'Abrir' },
+            { id: 'software', label: 'Instalar Software', desc: 'Instalação e licença de softwares homologados.', color: '#8B5CF6', action: 'Abrir' },
+            { id: 'reset', label: 'Reset de Senha / MFA', desc: 'Desbloqueio de conta e MFA de forma rápida.', color: '#F59E0B', action: 'Abrir' },
+            { id: 'offboarding', label: 'Desligamento', desc: 'Revogação de acessos e recuperação de hardware.', color: '#EF4444', action: 'Abrir' },
+          ].map(form => (
+            <button
+              key={form.id}
+              onClick={() => alert(`Direcionando para o formulário GLPI: ${form.label}`)}
+              className="text-left bg-white/[0.01] border border-white/[0.04] hover:bg-white/[0.03] hover:border-white/10 rounded-xl p-4 flex flex-col justify-between gap-3 transition-all duration-200 group hover:-translate-y-0.5"
+            >
+              <div>
+                <span className="w-2 h-2 rounded-full block mb-2" style={{ backgroundColor: form.color }} />
+                <h4 className="text-xs font-bold text-white group-hover:text-white/90">{form.label}</h4>
+                <p className="text-[10px] text-white/30 mt-1 leading-tight">{form.desc}</p>
+              </div>
+              <span className="text-[10px] font-semibold mt-2 group-hover:underline" style={{ color: form.color }}>
+                {form.action} →
+              </span>
+            </button>
+          ))}
         </div>
       </div>
 
