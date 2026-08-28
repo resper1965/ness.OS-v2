@@ -1,7 +1,8 @@
 # Plano Zabbix — qualidade de coleta e visibilidade
 
 Data: 2026-08-28 (BRT)  
-Estado: aprovado para execução por ondas após a restauração isolada mais recente.  
+Estado: aprovado por Ricardo Esper em 2026-08-28 para execução por ondas após
+a restauração isolada mais recente.  
 Escopo: Zabbix; não ativa ações, mídias, conectores ou coleta produtiva sem
 gate explícito.
 
