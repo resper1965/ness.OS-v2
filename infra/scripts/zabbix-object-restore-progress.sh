@@ -18,6 +18,11 @@ printf 'Zabbix restore progress — %s\n\n' "$(date --iso-8601=seconds)"
   else
     echo session=stopped
   fi
+  if sudo pgrep -af 'restic restore 96f2a24e' >/dev/null; then
+    echo restore_process=running
+  else
+    echo restore_process=stopped
+  fi
   echo '[latest log]'
   sudo tail -n 16 '${LOG_FILE}' 2>/dev/null || echo log=awaiting-start
   echo '[staging artifacts]'
