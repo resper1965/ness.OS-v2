@@ -8,7 +8,7 @@ readonly SOURCE_KEY="${SOURCE_KEY:-/home/resper/.ssh/id_ed25519_stackvps}"
 readonly TARGET_HOST="148.230.77.242"
 readonly TARGET_KEY="${TARGET_KEY:-/home/resper/.ssh/ness_os_hostinger_kvm8}"
 readonly STAMP="20260826T220019-0300"
-readonly LOG_FILE="/var/tmp/ness-zabbix-direct-transfer-20260828.log"
+readonly LOCAL_LOG_FILE="/var/tmp/ness-zabbix-transfer-local-20260828.log"
 readonly TARGET_ROOT="/var/lib/ness-os/restore-input"
 
 source_ssh=(ssh -p "${SOURCE_PORT}" -o BatchMode=yes -o ConnectTimeout=10 \
@@ -19,20 +19,18 @@ target_ssh=(ssh -o BatchMode=yes -o ConnectTimeout=10 -o IdentitiesOnly=yes \
 printf 'Zabbix migration progress — %s\n\n' "$(date --iso-8601=seconds)"
 
 printf '[automation session]\n'
-if tmux has-session -t ness_zbx_direct_agent 2>/dev/null; then
+if tmux has-session -t ness_zbx_transfer_local 2>/dev/null; then
   echo state=running
 else
   echo state=stopped
 fi
 
-printf '\n[source transfer log]\n'
-"${source_ssh[@]}" '
-  if test -f /var/tmp/ness-zabbix-direct-transfer-20260828.log; then
-    tail -n 12 /var/tmp/ness-zabbix-direct-transfer-20260828.log
-  else
-    echo log=absent
-  fi
-'
+printf '\n[transfer log]\n'
+if test -s "${LOCAL_LOG_FILE}"; then
+  tail -n 12 "${LOCAL_LOG_FILE}"
+else
+  echo log=awaiting-transfer-result
+fi
 
 printf '\n[target artifact]\n'
 "${target_ssh[@]}" "
