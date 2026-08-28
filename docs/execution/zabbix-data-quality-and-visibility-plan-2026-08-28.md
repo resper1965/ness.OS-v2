@@ -1,8 +1,8 @@
 # Plano Zabbix — qualidade de coleta e visibilidade
 
 Data: 2026-08-28 (BRT)  
-Estado: aprovado por Ricardo Esper em 2026-08-28 para execução por ondas após
-a restauração isolada mais recente.  
+Estado: aprovado por Ricardo Esper em 2026-08-28. Rota de migração ajustada
+em 2026-08-28 para eliminar a KVM temporária do caminho crítico.
 Escopo: Zabbix; não ativa ações, mídias, conectores ou coleta produtiva sem
 gate explícito.
 
@@ -18,6 +18,41 @@ dados corretos -> alertas qualificados -> serviços -> painéis/mapas -> marca n
 
 Dashboards não compensam coleta incorreta. Nenhum número executivo será
 classificado como confiável antes de passar pelos gates de qualidade abaixo.
+
+## Rota de migração corrigida
+
+A KVM temporária foi útil como prova de restauração, mas a transferência direta
+da origem para ela mostrou-se frágil e não deve continuar bloqueando o projeto.
+A rota oficial passa a ser:
+
+```text
+Zabbix atual (rollback, intacto)
+  -> backup validado no Contabo Object Storage
+  -> zbx-prd-01: restauração em staging
+  -> validação isolada do banco e baseline
+  -> UAT controlada
+  -> corte de DNS e operação
+```
+
+O snapshot externo mais recente identificado é o conjunto
+`20260827T220026-0300` (snapshot Restic `96f2a24e`). O `zbx-prd-01` já provou
+acesso a esse repositório; portanto não depende de salto SSH nem de disco da
+Hostinger. A KVM sai do caminho crítico e fica somente como evidência histórica
+descartável. Nenhum dado do Zabbix atual será removido durante esta etapa.
+
+### Gates objetivos
+
+| Gate | Dono técnico | Evidência para avançar | Rollback |
+| --- | --- | --- | --- |
+| M1 — obter | ness. | `restic check`, restore em staging, `SHA256SUMS` e `gzip -t` aprovados | apagar apenas staging incompleto |
+| M2 — restaurar | ness. | backup local do banco atual do destino; tabelas, hosts, itens, triggers e `dbversion` validados | restaurar o dump local do destino; origem intocada |
+| M3 — isolar | ness. | server mascarado/inativo; ações, mídias e conectores inativos; sem listener `10051` | manter o isolamento |
+| M4 — homologar | ness. + Ricardo | SAML, HTTPS, interface, dados e piloto Cavan — Matriz aprovados | manter origem como canônica |
+| M5 — cortar | Ricardo | janela, DNS, smoke test e plano de retorno aprovados | reverter DNS/origem sem apagar destino |
+
+**Regra de execução:** não há corte, ativação de coleta, proxy, agente,
+notificação ou DNS enquanto M1–M4 não estiverem aprovados. Cada gate deixa um
+registro datado em `docs/execution/`.
 
 ## Fotografia que guia a priorização
 
@@ -113,12 +148,18 @@ exigência artificial de zerar tudo no primeiro corte:
 - **Exposição entre clientes:** tags, grupos e permissões devem ser testados
   com perfil cliente somente-leitura antes de publicar painel externo.
 
-## Próximo passo operacional
+## Sequência operacional imediata
 
-Concluir a transferência com SHA-256, restaurar no ambiente isolado e gerar a
-baseline da Onda 0. Em seguida, executar **somente a Onda 1 no piloto Cavan —
-Matriz**. Dashboards executivos, mapas finais e a customização ness. começam
-depois que esse piloto tiver dados confiáveis.
+1. Restaurar o snapshot `96f2a24e` do Object Storage em staging no
+   `zbx-prd-01`, validar manifest, SHA-256 e gzip (**M1**).
+2. Gerar backup local reversível do banco hoje instalado no `zbx-prd-01` e
+   importar o conjunto validado sem iniciar o Zabbix Server (**M2**).
+3. Rodar relatório offline, repetir os controles de isolamento e publicar a
+   baseline única da Onda 0 (**M3**).
+4. Revalidar HTTPS/SAML e aplicar somente o piloto Cavan — Matriz da Onda 1
+   (**M4**).
+5. Preparar corte com DNS somente após os quatro gates. Customização visual,
+   mapas e painéis vêm depois de dados confiáveis; não bloqueiam a migração.
 
 ## Referências
 
