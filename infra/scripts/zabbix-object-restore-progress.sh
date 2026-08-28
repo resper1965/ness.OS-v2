@@ -18,7 +18,7 @@ printf 'Zabbix restore progress — %s\n\n' "$(date --iso-8601=seconds)"
   else
     echo session=stopped
   fi
-  if sudo pgrep -af 'restic restore 96f2a24e' >/dev/null; then
+  if sudo pgrep -f '[r]estic restore 96f2a24e' >/dev/null; then
     echo restore_process=running
   else
     echo restore_process=stopped

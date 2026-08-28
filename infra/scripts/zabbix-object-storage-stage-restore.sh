@@ -35,7 +35,12 @@ restic restore "${snapshot_id}" --target "${stage}"
 backup_set="$(find "${stage}" -type f -name SHA256SUMS -printf '%h\n' | head -n 1)"
 [[ -n "${backup_set}" ]] || { echo 'SHA256SUMS not found' >&2; exit 4; }
 echo 'phase=sha256'
-( cd "${backup_set}" && sha256sum -c SHA256SUMS )
+source_file="$(awk 'NR == 1 { print $2 }' "${backup_set}/SHA256SUMS")"
+source_root="${source_file%/*}"
+(
+  cd "${backup_set}"
+  sed "s#  ${source_root}/#  #" SHA256SUMS | sha256sum -c -
+)
 
 dump="$(find "${backup_set}" -type f -name 'dbzabbix*.sql.gz' -print -quit)"
 [[ -n "${dump}" ]] || { echo 'zabbix dump not found' >&2; exit 5; }
