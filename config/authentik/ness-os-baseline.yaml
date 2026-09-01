@@ -1,0 +1,59 @@
+version: 1
+state: desired-not-applied
+
+groups:
+  - name: platform_admin
+    aliases: [ness-os-platform-admin]
+    purpose: administração global do ness.OS
+    mfa_required: true
+  - name: admin
+    purpose: administração delegada por aplicação
+    mfa_required: true
+  - name: noc
+    purpose: operação de disponibilidade
+  - name: soc
+    purpose: operação de segurança
+  - name: helpdesk
+    purpose: operação ITSM
+  - name: gestao
+    purpose: indicadores e gestão
+  - name: usuarios
+    purpose: acesso cliente/read-only
+
+applications:
+  - slug: hub
+    protocol: oidc
+    client_id: hub-ness
+    pkce: S256
+    callbacks: [https://hub.ness.com.br/callback]
+    required_claims: [email, name, groups, tenant_id]
+  - slug: zabbix
+    protocol: saml
+    jit: false
+    mfa_required: true
+    break_glass_required: true
+  - slug: glpi
+    protocol: proxy-forward-auth-temporary
+    machine_api_bypass: private-network-only
+    target_protocol: oidc-native-after-separate-gate
+  - slug: n8n
+    protocol: proxy-forward-auth
+    native_roles_required: [owner, editor, viewer]
+
+promotion_tests:
+  - login
+  - mfa
+  - group_and_tenant
+  - forbidden_without_group
+  - forbidden_cross_tenant
+  - logout
+  - session_expiration
+  - user_deactivation
+  - revocation
+  - break_glass_without_idp
+
+guardrails:
+  api_changes: dry-run-export-import-verify
+  secrets: psono-human-sops-age-automation
+  delete_users: false
+  remove_legacy_provider_before_acceptance: false

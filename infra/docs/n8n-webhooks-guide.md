@@ -2,17 +2,17 @@
 
 O fluxo de NOC AIOps foi projetado de forma que o n8n sirva como o **Orquestrador de Integrações Visuais** na "borda" (atualizar DeskManager, disparar mensagens na Evolution API/WhatsApp).
 
-Você precisará criar **dois workflows principais no n8n** ouvindo via Webhook. Abaixo estão os formatos exatos de JSON que a aplicação (Keep e FastAPI) vai enviar.
+Você precisará criar **dois workflows principais no n8n** ouvindo via Webhook. Abaixo estão os formatos exatos de JSON enviados pelo backend FastAPI e seus workers.
 
 ## 1. Workflow: Criação de Ticket e Alerta Inicial
 - **Webhook Method:** `POST`
-- **Webhook URL Esperada:** `http://<n8n-ip>:5678/webhook/incident-created` (ou equivalente no seu domínio n8n). *A URL real deve estar configurada no Keep (`NINF_N8N_BASE_URL`).*
-- **Quem dispara:** Keep AIOps (`escalate-incident.yml`)
+- **Webhook URL Esperada:** `http://<n8n-ip>:5678/webhook/incident-created` (ou equivalente no seu domínio n8n). A base deve estar configurada em `NINF_N8N_BASE_URL`.
+- **Quem dispara:** worker de alertas FastAPI (`process_alert`)
 
 ### Funcionalidade:
 O n8n deve pegar este payload, chamar a API do DeskManager para criar um ticket de incidente e enviar uma notificação no grupo de NOC do WhatsApp contendo as tags e dados do host.
 
-### Payload de Exemplo (Enviado pelo Keep):
+### Payload de Exemplo (Enviado pelo worker de alertas):
 ```json
 {
   "fingerprint": "8d3e2ab1-e5d3-4f91",
@@ -31,7 +31,7 @@ O n8n deve pegar este payload, chamar a API do DeskManager para criar um ticket 
 ```
 
 ### O que o n8n DEVE retornar:
-O webhook no n8n precisa estar configurado para retornar uma reposta JSON contendo o `ticket_id` que ele acabou de criar. O Keep usará isso no próximo passo (Gemini RCA).
+O webhook no n8n precisa retornar uma resposta JSON contendo o `ticket_id` criado. O worker usará esse identificador no passo seguinte de RCA com Gemini.
 ```json
 {
   "ticket_id": "123456"

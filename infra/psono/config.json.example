@@ -1,0 +1,12 @@
+{
+  "backend_servers": [
+    {
+      "title": "ness. cofre",
+      "url": "https://cofre.ness.com.br/server"
+    }
+  ],
+  "base_url": "https://cofre.ness.com.br/",
+  "allow_custom_server": false,
+  "allow_registration": true,
+  "allow_lost_password": true
+}

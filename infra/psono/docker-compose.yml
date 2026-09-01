@@ -1,0 +1,92 @@
+name: ness-os-psono
+
+services:
+  database:
+    image: postgres:17-alpine@sha256:18cfe3ef5e6815560c98237d6216d1e5119702fb0f3894c8785dd58b8bbe5d73
+    container_name: ness-psono-db
+    restart: unless-stopped
+    env_file:
+      - ${PSONO_POSTGRES_ENV_FILE:-./runtime/postgres.env}
+    environment:
+      POSTGRES_DB: psono
+      POSTGRES_USER: psono
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U psono -d psono"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - data
+    security_opt:
+      - no-new-privileges:true
+
+  psono:
+    image: psono/psono-combo:latest@sha256:0266a866addd08e7ad364ffe457bb499815a6941744251012a0e2eae506575fd
+    container_name: ness-psono
+    restart: unless-stopped
+    depends_on:
+      database:
+        condition: service_healthy
+    environment:
+      PSONO_DOMAIN: ${PSONO_DOMAIN:?PSONO_DOMAIN is required}
+    volumes:
+      - ./runtime/settings.yaml:/root/.psono_server/settings.yaml:ro
+      - ./runtime/config.json:/usr/share/nginx/html/config.json:ro
+      - ./runtime/config.json:/usr/share/nginx/html/portal/config.json:ro
+      - ./branding/custom.css:/usr/share/nginx/html/css/custom.css:ro
+      - ./branding/index.html:/usr/share/nginx/html/index.html:ro
+      - ./branding/portal-index.html:/usr/share/nginx/html/portal/index.html:ro
+      - ./branding/service-worker.js:/usr/share/nginx/html/service-worker.js:ro
+      - ./branding/service-worker-load.js:/usr/share/nginx/html/js/service-worker-load.js:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail --silent --header \"Host: $${PSONO_DOMAIN}\" http://127.0.0.1/server/info/ >/dev/null"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - app
+      - data
+      - shared_edge
+    security_opt:
+      - no-new-privileges:true
+
+  caddy:
+    image: caddy:2-alpine@sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648
+    container_name: ness-psono-caddy
+    restart: unless-stopped
+    environment:
+      PSONO_DOMAIN: ${PSONO_DOMAIN:?PSONO_DOMAIN is required}
+    depends_on:
+      psono:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks:
+      - edge
+      - app
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  edge:
+  app:
+    internal: true
+  data:
+    internal: true
+  shared_edge:
+    name: ${PSONO_SHARED_EDGE_NETWORK:?PSONO_SHARED_EDGE_NETWORK is required}
+    external: true
+
+volumes:
+  postgres-data:
+  caddy-data:
+  caddy-config:

@@ -6,10 +6,12 @@ Este documento descreve os passos para implantar a stack completa do **n.infraop
 
 ## Pré-requisitos no Servidor Alvo
 
-Antes de iniciar, garanta que o servidor possui os seguintes requisitos instalados (isso pode ser provisionado via Ansible no playbook `site.yml`):
+Antes de iniciar, garanta que o servidor possui os seguintes requisitos instalados:
 - **Docker Engine** (v24.0.0 ou superior)
 - **Docker Compose Plugin** (v2.20.0 ou superior)
 - **Git** (para clonar o repositório ou transferir o código)
+
+> O playbook `infra/ansible/playbooks/site.yml` é exclusivo da VPS Zabbix e não instala Docker no Hub. O script `app/setup_hub.sh` faz o hardening básico e cria `/opt/n-infraops`, mas a instalação do Docker deve ser realizada separadamente e validada com `docker version` e `docker compose version`.
 
 ---
 
@@ -49,6 +51,10 @@ Antes de iniciar, garanta que o servidor possui os seguintes requisitos instalad
    - `NINF_N8N_PASSWORD`: Defina uma senha segura para o acesso ao n8n.
    - `NINF_DESKMANAGER_API_TOKEN` e `NINF_DESKMANAGER_OPERATOR_ID`: Credenciais de ticketing.
    - `NINF_EVOLUTION_API_KEY` e `NINF_WHATSAPP_NOC_GROUP_ID`: Credenciais do WhatsApp.
+   - `NINF_AUTHENTIK_SECRET_KEY`: Segredo criptograficamente aleatório do Authentik.
+   - `NINF_GLPI_DB_ROOT_PASSWORD` e `NINF_GLPI_DB_PASSWORD`: Credenciais exclusivas do MariaDB/GLPI.
+
+   Não dependa de valores padrão presentes nos arquivos Compose. Em produção, todas as variáveis de segredo devem estar explicitamente definidas e armazenadas fora do Git.
 
 ---
 
@@ -56,21 +62,35 @@ Antes de iniciar, garanta que o servidor possui os seguintes requisitos instalad
 
 1. Execute o comando para construir as imagens customizadas (API Backend e Celery Workers) e iniciar todos os serviços em segundo plano:
    ```bash
-   docker compose up -d --build
+   docker compose \
+     -f docker-compose.yml \
+     -f docker-compose.tickets.yml \
+     up -d --build
    ```
 
 2. Verifique se todos os containers subiram com sucesso e estão rodando:
    ```bash
-   docker compose ps
+   docker compose \
+     -f docker-compose.yml \
+     -f docker-compose.tickets.yml \
+     ps
    ```
 
-   Você deve ver 6 containers ativos:
+   Você deve ver 14 contêineres ativos:
    - `ninf-postgres` (PostgreSQL + TimescaleDB + pgvector)
    - `ninf-redis` (Cache e filas de processamento)
    - `ninf-api` (API FastAPI)
    - `ninf-worker-alerts` (Fila Celery de alertas rápidos)
    - `ninf-worker-ml` (Fila Celery de ML e Post-Mortem)
    - `ninf-n8n` (Workflow Engine)
+   - `ninf-frontend` (Dashboard React/Vite)
+   - `ninf-caddy` (Proxy reverso e TLS)
+   - `ninf-authentik-server` (SSO/IdP)
+   - `ninf-authentik-worker` (Worker do Authentik)
+   - `ninf-evolution` (Evolution API/WhatsApp)
+   - `ninf-evolution-manager` (Gerenciador da Evolution API)
+   - `ninf-glpi` (GLPI/Service Desk)
+   - `ninf-glpi-db` (MariaDB exclusivo do GLPI)
 
 ---
 
@@ -78,13 +98,14 @@ Antes de iniciar, garanta que o servidor possui os seguintes requisitos instalad
 
 1. Faça uma requisição para o endpoint de health check da API:
    ```bash
-   curl -f http://localhost:8000/webhook/health
+   docker exec ninf-api python -c \
+     "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8000/webhook/health').read().decode())"
    ```
    A resposta deve ser:
    `{"status": "healthy", "service": "webhook-receiver"}`
 
-2. Acesse a documentação Swagger interativa:
-   Abra no seu navegador: `http://<IP_DA_VPS_CONTABO>:8000/docs`
+2. Acesse a documentação Swagger interativa pelo domínio protegido:
+   `https://api.ness.com.br/docs`. Um retorno `401` sem autenticação é esperado quando a proteção do Caddy está habilitada.
 
 ---
 
@@ -92,22 +113,22 @@ Antes de iniciar, garanta que o servidor possui os seguintes requisitos instalad
 
 ### Parar a Stack
 ```bash
-docker compose down
+docker compose -f docker-compose.yml -f docker-compose.tickets.yml down
 ```
 
 ### Reiniciar Serviços Específicos
 Caso faça uma alteração de código ou configuração:
 ```bash
-docker compose restart api worker-alerts worker-ml
+docker compose -f docker-compose.yml -f docker-compose.tickets.yml restart api worker-alerts worker-ml
 ```
 
 ### Visualizar Logs em Tempo Real
 ```bash
 # Todos os logs
-docker compose logs -f
+docker compose -f docker-compose.yml -f docker-compose.tickets.yml logs -f
 
 # Logs apenas do processamento de alertas
-docker compose logs -f worker-alerts
+docker compose -f docker-compose.yml -f docker-compose.tickets.yml logs -f worker-alerts
 ```
 
 ---
@@ -118,5 +139,10 @@ Os dados estão persistidos nos seguintes volumes Docker gerenciados:
 - `pg-data`: Armazena o banco de dados PostgreSQL.
 - `redis-data`: Dados em cache do Redis.
 - `n8n-data`: Bancos e fluxos do n8n.
+- `authentik-media`, `authentik-templates` e `authentik-certs`: Dados do Authentik.
+- `evolution-instances` e `evolution-store`: Instâncias e estado da Evolution API.
+- `glpi-data` e `glpi-db-data`: Aplicação e banco do GLPI.
 
-Para realizar backups dos volumes, consulte a seção de backups no runbook operacional do Zabbix ou utilize ferramentas como o Restic/Duplicity apontando para `/var/lib/docker/volumes/`.
+O backup do Hub deve ser tratado separadamente do runbook do Zabbix. É obrigatório incluir dumps consistentes do PostgreSQL e MariaDB, além dos volumes persistentes, armazená-los fora da VPS e testar periodicamente a restauração. Copiar `/var/lib/docker/volumes` enquanto os bancos estão gravando não constitui, sozinho, um backup consistente.
+
+O estado real observado das duas VPS está registrado em [`as-built-vps.md`](as-built-vps.md).
