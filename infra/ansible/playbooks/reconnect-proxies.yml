@@ -106,11 +106,17 @@
     # ATENÇÃO: Em produção, mova o auth_token para ansible-vault!
     # -------------------------------------------------------------------------
     zabbix_api_url: "https://zabbix.ness.com.br/api_jsonrpc.php"
-    zabbix_api_auth_token: "d8cbeca4537bd4b0ebf28d67db6b74b14263ef4f04a9139a178025e4371f0728"
+    zabbix_api_auth_token: "{{ lookup('env', 'ZABBIX_API_TOKEN') }}"
     zabbix_api_headers:
       Content-Type: "application/json"
 
   tasks:
+
+    - name: "Exigir token Zabbix fornecido pelo ambiente"
+      ansible.builtin.assert:
+        that:
+          - zabbix_api_auth_token | length > 0
+        fail_msg: "Defina ZABBIX_API_TOKEN no ambiente antes de executar este playbook."
 
     - name: "Exibir proxies que serão atualizados via API"
       ansible.builtin.debug:

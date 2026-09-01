@@ -1,21 +1,21 @@
 """
-Router: /api/secops -- n.secops: CVE Intelligence + Zabbix Health + RocketCyber SOC
+Router: /api/secops -- n.secops: CVE Intelligence + Zabbix Health + Wazuh SOC
 Expoe achados de seguranca, CVEs criticos dos clientes e saude do Zabbix.
 """
+
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
-from app.core.dependencies import require_noc
+from app.core.triage_engine import TriageAction, TriageEngine
 from app.database import get_db
-from app.integrations.rocketcyber import RocketCyberClient
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/secops", tags=["secops"])
@@ -80,7 +80,9 @@ CVE_DATABASE = [
         "description": "Zero-day explorado ativamente. TOCTOU → Out-of-Bounds Write no VMXNET3. Permite escape de VM para o kernel do host ESXi. Grupos de ransomware usam ativamente.",
         "action": "Aplicar patch VMSA-2025-0004 urgentemente. Se não patched desde Q1/2025, considerar hosts comprometidos.",
         "published": "2025-03-04",
-        "references": ["https://support.broadcom.com/web/ecx/support-content-notification/-/external/content/SecurityAdvisories/0/25098"],
+        "references": [
+            "https://support.broadcom.com/web/ecx/support-content-notification/-/external/content/SecurityAdvisories/0/25098"
+        ],
     },
     {
         "id": "CVE-2025-22225",
@@ -95,7 +97,9 @@ CVE_DATABASE = [
         "description": "Escrita arbitrária em kernel ESXi permite escape de VM para o host. Usado em conjunto com CVE-2025-22224 em ataques encadeados.",
         "action": "Idem CVE-2025-22224 — mesmo pacote de patch VMSA-2025-0004.",
         "published": "2025-03-04",
-        "references": ["https://support.broadcom.com/web/ecx/support-content-notification/-/external/content/SecurityAdvisories/0/25098"],
+        "references": [
+            "https://support.broadcom.com/web/ecx/support-content-notification/-/external/content/SecurityAdvisories/0/25098"
+        ],
     },
     {
         "id": "CVE-2026-34908",
@@ -174,17 +178,25 @@ CVE_DATABASE = [
     },
 ]
 
-ZABBIX_URL   = "https://zabbix.ness.com.br/api_jsonrpc.php"
-ZABBIX_TOKEN = "d8cbeca4537bd4b0ebf28d67db6b74b14263ef4f04a9139a178025e4371f0728"
+settings = get_settings()
+ZABBIX_URL = settings.zabbix_url
 
 
 async def _zabbix(method: str, params: dict) -> Any:
     """Faz chamada à API do Zabbix Contabo."""
+    if not settings.zabbix_api_token:
+        raise RuntimeError("NINF_ZABBIX_API_TOKEN is not configured")
     async with httpx.AsyncClient(verify=False, timeout=15) as client:
-        resp = await client.post(ZABBIX_URL, json={
-            "jsonrpc": "2.0", "method": method,
-            "params": params, "auth": ZABBIX_TOKEN, "id": 1,
-        })
+        resp = await client.post(
+            ZABBIX_URL,
+            headers={"Authorization": f"Bearer {settings.zabbix_api_token}"},
+            json={
+                "jsonrpc": "2.0",
+                "method": method,
+                "params": params,
+                "id": 1,
+            },
+        )
         data = resp.json()
         if "error" in data:
             raise Exception(data["error"].get("data", data["error"]))
@@ -192,6 +204,7 @@ async def _zabbix(method: str, params: dict) -> Any:
 
 
 # ── Endpoints Públicos (sem auth para o frontend interno) ────────────────────
+
 
 @router.get("/cve-intel")
 async def cve_intel(
@@ -207,12 +220,16 @@ async def cve_intel(
     if severity:
         items = [c for c in items if c["severity"] == severity]
     if client:
-        items = [c for c in items if any(client.lower() in ac.lower() for ac in c["affected_clients"])]
+        items = [
+            c
+            for c in items
+            if any(client.lower() in ac.lower() for ac in c["affected_clients"])
+        ]
     if exploited_only:
         items = [c for c in items if c["exploited_wild"]]
 
     critical = sum(1 for c in items if c["severity"] == "critical")
-    high     = sum(1 for c in items if c["severity"] == "high")
+    high = sum(1 for c in items if c["severity"] == "high")
     exploited = sum(1 for c in items if c["exploited_wild"])
 
     return {
@@ -240,122 +257,167 @@ async def zabbix_health() -> dict[str, Any]:
 
     try:
         # ── 1. Proxies conectados ──────────────────────────────────────────
-        proxies = await _zabbix("proxy.get", {
-            "output": ["proxyid", "name", "operating_mode", "lastaccess"],
-            "selectHosts": ["hostid"],
-        })
+        proxies = await _zabbix(
+            "proxy.get",
+            {
+                "output": ["proxyid", "name", "operating_mode", "lastaccess"],
+                "selectHosts": ["hostid"],
+            },
+        )
         proxy_never_seen = [p for p in proxies if int(p.get("lastaccess", 0)) == 0]
         proxy_status = "danger" if proxy_never_seen else "secure"
         if proxy_never_seen:
             score -= 25
-        checks.append({
-            "check": "Proxies Conectados",
-            "status": proxy_status,
-            "value": f"{len(proxies) - len(proxy_never_seen)}/{len(proxies)}",
-            "message": (
-                f"{len(proxy_never_seen)} proxies nunca conectaram ao servidor"
-                if proxy_never_seen else "Todos os proxies conectados"
-            ),
-            "details": [p["name"] for p in proxy_never_seen],
-        })
+        checks.append(
+            {
+                "check": "Proxies Conectados",
+                "status": proxy_status,
+                "value": f"{len(proxies) - len(proxy_never_seen)}/{len(proxies)}",
+                "message": (
+                    f"{len(proxy_never_seen)} proxies nunca conectaram ao servidor"
+                    if proxy_never_seen
+                    else "Todos os proxies conectados"
+                ),
+                "details": [p["name"] for p in proxy_never_seen],
+            }
+        )
 
         # ── 2. Hosts sem proxy atribuído ───────────────────────────────────
         hosts_total = int(await _zabbix("host.get", {"countOutput": True}))
         hosts_with_proxy = sum(len(p.get("hosts", [])) for p in proxies)
         hosts_no_proxy = hosts_total - hosts_with_proxy
-        proxy_assign_status = "danger" if hosts_no_proxy > 100 else ("warning" if hosts_no_proxy > 0 else "secure")
+        proxy_assign_status = (
+            "danger"
+            if hosts_no_proxy > 100
+            else ("warning" if hosts_no_proxy > 0 else "secure")
+        )
         if hosts_no_proxy > 0:
             score -= 15
-        checks.append({
-            "check": "Distribuição por Proxies",
-            "status": proxy_assign_status,
-            "value": f"{hosts_with_proxy}/{hosts_total}",
-            "message": (
-                f"{hosts_no_proxy} hosts monitorados diretamente (sem proxy)"
-                if hosts_no_proxy > 0 else "Todos os hosts com proxy atribuído"
-            ),
-            "details": [],
-        })
+        checks.append(
+            {
+                "check": "Distribuição por Proxies",
+                "status": proxy_assign_status,
+                "value": f"{hosts_with_proxy}/{hosts_total}",
+                "message": (
+                    f"{hosts_no_proxy} hosts monitorados diretamente (sem proxy)"
+                    if hosts_no_proxy > 0
+                    else "Todos os hosts com proxy atribuído"
+                ),
+                "details": [],
+            }
+        )
 
         # ── 3. Actions (alertas) habilitadas ──────────────────────────────
-        actions_all = await _zabbix("action.get", {"output": ["actionid", "name", "status"]})
+        actions_all = await _zabbix(
+            "action.get", {"output": ["actionid", "name", "status"]}
+        )
         actions_disabled = [a for a in actions_all if str(a.get("status", "1")) == "1"]
-        actions_status = "danger" if len(actions_disabled) == len(actions_all) else (
-            "warning" if actions_disabled else "secure"
+        actions_status = (
+            "danger"
+            if len(actions_disabled) == len(actions_all)
+            else ("warning" if actions_disabled else "secure")
         )
         if len(actions_disabled) == len(actions_all):
             score -= 30
         elif actions_disabled:
             score -= 10
-        checks.append({
-            "check": "Actions de Alerta",
-            "status": actions_status,
-            "value": f"{len(actions_all) - len(actions_disabled)}/{len(actions_all)} ativas",
-            "message": (
-                "NENHUMA action habilitada — sem alertas ativos!"
-                if len(actions_disabled) == len(actions_all)
-                else f"{len(actions_disabled)} action(s) desabilitada(s)"
-                if actions_disabled else "Todas as actions habilitadas"
-            ),
-            "details": [a["name"] for a in actions_disabled],
-        })
+        checks.append(
+            {
+                "check": "Actions de Alerta",
+                "status": actions_status,
+                "value": f"{len(actions_all) - len(actions_disabled)}/{len(actions_all)} ativas",
+                "message": (
+                    "NENHUMA action habilitada — sem alertas ativos!"
+                    if len(actions_disabled) == len(actions_all)
+                    else f"{len(actions_disabled)} action(s) desabilitada(s)"
+                    if actions_disabled
+                    else "Todas as actions habilitadas"
+                ),
+                "details": [a["name"] for a in actions_disabled],
+            }
+        )
 
         # ── 4. Hosts sem template ──────────────────────────────────────────
-        hosts_detail = await _zabbix("host.get", {
-            "output": ["hostid", "host"],
-            "selectParentTemplates": ["templateid"],
-            "filter": {"status": "0"},
-        })
+        hosts_detail = await _zabbix(
+            "host.get",
+            {
+                "output": ["hostid", "host"],
+                "selectParentTemplates": ["templateid"],
+                "filter": {"status": "0"},
+            },
+        )
         no_template = [h["host"] for h in hosts_detail if not h.get("parentTemplates")]
-        tpl_status = "danger" if len(no_template) > 10 else ("warning" if no_template else "secure")
+        tpl_status = (
+            "danger"
+            if len(no_template) > 10
+            else ("warning" if no_template else "secure")
+        )
         if no_template:
             score -= 10
-        checks.append({
-            "check": "Cobertura de Templates",
-            "status": tpl_status,
-            "value": f"{len(hosts_detail) - len(no_template)}/{len(hosts_detail)}",
-            "message": (
-                f"{len(no_template)} host(s) sem template — sem monitoramento de itens"
-                if no_template else "100% dos hosts com template vinculado"
-            ),
-            "details": no_template[:10],
-        })
+        checks.append(
+            {
+                "check": "Cobertura de Templates",
+                "status": tpl_status,
+                "value": f"{len(hosts_detail) - len(no_template)}/{len(hosts_detail)}",
+                "message": (
+                    f"{len(no_template)} host(s) sem template — sem monitoramento de itens"
+                    if no_template
+                    else "100% dos hosts com template vinculado"
+                ),
+                "details": no_template[:10],
+            }
+        )
 
         # ── 5. Problemas ativos por severidade ────────────────────────────
-        problems = await _zabbix("problem.get", {"output": ["eventid", "name", "severity"]})
+        problems = await _zabbix(
+            "problem.get", {"output": ["eventid", "name", "severity"]}
+        )
         sev_count = {str(s): 0 for s in range(6)}
         for p in problems:
-            sev_count[str(p.get("severity", "0"))] = sev_count.get(str(p.get("severity", "0")), 0) + 1
+            sev_count[str(p.get("severity", "0"))] = (
+                sev_count.get(str(p.get("severity", "0")), 0) + 1
+            )
         disaster = sev_count.get("5", 0)
-        high_p   = sev_count.get("4", 0)
-        prob_status = "danger" if disaster > 0 else ("warning" if high_p > 5 else "secure")
+        high_p = sev_count.get("4", 0)
+        prob_status = (
+            "danger" if disaster > 0 else ("warning" if high_p > 5 else "secure")
+        )
         if disaster > 0:
             score -= 10
-        checks.append({
-            "check": "Problemas Ativos",
-            "status": prob_status,
-            "value": f"{len(problems)} total",
-            "message": f"Disaster: {disaster} | High: {high_p} | Average: {sev_count.get('3', 0)}",
-            "details": [],
-        })
+        checks.append(
+            {
+                "check": "Problemas Ativos",
+                "status": prob_status,
+                "value": f"{len(problems)} total",
+                "message": f"Disaster: {disaster} | High: {high_p} | Average: {sev_count.get('3', 0)}",
+                "details": [],
+            }
+        )
 
         # ── 6. SNMP community global ───────────────────────────────────────
-        gmacros = await _zabbix("usermacro.get", {"output": "extend", "globalmacro": True})
-        snmp_macro = next((m for m in gmacros if m["macro"] == "{$SNMP_COMMUNITY}"), None)
+        gmacros = await _zabbix(
+            "usermacro.get", {"output": "extend", "globalmacro": True}
+        )
+        snmp_macro = next(
+            (m for m in gmacros if m["macro"] == "{$SNMP_COMMUNITY}"), None
+        )
         snmp_value = snmp_macro["value"] if snmp_macro else "não configurada"
         snmp_status = "danger" if snmp_value in ("public", "private", "") else "secure"
         if snmp_status == "danger":
             score -= 10
-        checks.append({
-            "check": "SNMP Community",
-            "status": snmp_status,
-            "value": f"{{$SNMP_COMMUNITY}} = {snmp_value}",
-            "message": (
-                f"Community '{snmp_value}' é insegura — padrão reconhecido por atacantes"
-                if snmp_status == "danger" else "Community SNMP configurada de forma segura"
-            ),
-            "details": [],
-        })
+        checks.append(
+            {
+                "check": "SNMP Community",
+                "status": snmp_status,
+                "value": f"{{$SNMP_COMMUNITY}} = {snmp_value}",
+                "message": (
+                    f"Community '{snmp_value}' é insegura — padrão reconhecido por atacantes"
+                    if snmp_status == "danger"
+                    else "Community SNMP configurada de forma segura"
+                ),
+                "details": [],
+            }
+        )
 
         overall = "secure" if score >= 80 else ("warning" if score >= 50 else "danger")
 
@@ -379,103 +441,23 @@ async def zabbix_health() -> dict[str, Any]:
         }
 
 
-# ── Endpoints RocketCyber (existentes) ──────────────────────────────────────
+# ── Módulo n.secops: Triagem de Alertas Wazuh SOC via IA & Camada 4 ─────────────
 
-def _client() -> RocketCyberClient:
-    settings = get_settings()
-    key = getattr(settings, "rocketcyber_api_key", None)
-    if not key:
-        raise HTTPException(503, "ROCKETCYBER_API_KEY not configured")
-    return RocketCyberClient(api_key=key)
+_triage_engine = TriageEngine()
+_TRIAGE_METRICS: dict[str, int] = {"total": 0, "bypassed": 0, "llm_called": 0}
 
-
-@router.get("/incidents", dependencies=[Depends(require_noc)])
-async def list_incidents(
-    account_id: int | None = Query(None, description="Account ID do cliente"),
-    status: str = Query("open", description="open|resolved|all"),
-    limit: int = Query(50, ge=1, le=200),
-) -> dict[str, Any]:
-    """
-    Lista incidentes de segurança RocketCyber.
-    Sem account_id retorna todos (nível MSP).
-    """
-    try:
-        client = _client()
-        if status == "all":
-            # busca open por padrão quando sem filtro
-            incidents = await client.list_open_incidents(account_id=account_id, limit=limit)
-        else:
-            incidents = await client.list_open_incidents(account_id=account_id, limit=limit)
-        return {
-            "source": "rocketcyber",
-            "account_id": account_id,
-            "status": status,
-            "total": len(incidents),
-            "items": incidents,
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"RocketCyber incidents: {e}")
-        raise HTTPException(502, str(e))
-
-
-@router.get("/incidents/{incident_id}", dependencies=[Depends(require_noc)])
-async def get_incident(incident_id: int, account_id: int = Query(...)) -> dict[str, Any]:
-    """Detalhe de um incidente específico."""
-    try:
-        client = _client()
-        incident = await client.get_incident(incident_id=incident_id, account_id=account_id)
-        if not incident:
-            raise HTTPException(404, f"Incident {incident_id} not found")
-        return incident
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"RocketCyber get_incident: {e}")
-        raise HTTPException(502, str(e))
-
-
-@router.get("/agents", dependencies=[Depends(require_noc)])
-async def list_agents(account_id: int = Query(...)) -> dict[str, Any]:
-    """Lista agentes RocketCyber de um cliente."""
-    try:
-        client = _client()
-        agents = await client.list_agents(account_id=account_id)
-        return {"source": "rocketcyber", "account_id": account_id, "total": len(agents), "items": agents}
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"RocketCyber agents: {e}")
-        raise HTTPException(502, str(e))
-
-
-@router.get("/summary", dependencies=[Depends(require_noc)])
-async def secops_summary() -> dict[str, Any]:
-    """Resumo SOC consolidado para o dashboard (todos os accounts)."""
-    try:
-        client = _client()
-        return await client.get_dashboard_summary()
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"RocketCyber summary: {e}")
-        # Retorna degraded ao invés de 502 para não quebrar o dashboard
-        return {"source": "rocketcyber", "degraded": True, "error": str(e)}
-
-
-# ── Módulo n.secops: Triagem de Alertas Wazuh SOC via IA ─────────────────────
 
 def _extract_ips_and_hashes(payload: dict[str, Any]) -> tuple[list[str], list[str]]:
     """Extrai IPs públicos e hashes de arquivo do payload de alerta do Wazuh."""
     import re
+
     ips = set()
     hashes = set()
-    
+
     # Padrão básico de IP
-    ip_pattern = re.compile(r'\b(?:\d{1,3}\.){3}\d{1,3}\b')
+    ip_pattern = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
     # Padrão MD5 (32 chars) e SHA256 (64 chars) hex
-    hash_pattern = re.compile(r'\b[a-fA-F0-F0-9]{32}\b|\b[a-fA-F0-F0-9]{64}\b')
+    hash_pattern = re.compile(r"\b[a-fA-F0-F0-9]{32}\b|\b[a-fA-F0-F0-9]{64}\b")
 
     def recurse(node: Any):
         if isinstance(node, dict):
@@ -485,16 +467,41 @@ def _extract_ips_and_hashes(payload: dict[str, Any]) -> tuple[list[str], list[st
                         hashes.add(v)
                     elif ip_pattern.match(v):
                         # Ignora loopbacks e IPs privados
-                        if not (v.startswith("10.") or v.startswith("192.168.") or v.startswith("127.") or v.startswith("172.") or v.startswith("169.254.")):
+                        if not (
+                            v.startswith("10.")
+                            or v.startswith("192.168.")
+                            or v.startswith("127.")
+                            or v.startswith("172.")
+                            or v.startswith("169.254.")
+                        ):
                             ips.add(v)
                 else:
                     recurse(v)
         elif isinstance(node, list):
             for item in node:
                 recurse(item)
-                
+
     recurse(payload)
     return list(ips), list(hashes)
+
+
+@router.get("/triage-stats")
+async def get_triage_stats() -> dict[str, Any]:
+    """Retorna estatísticas do Triage Worker (Camada 4) e métricas de bypass de LLM."""
+    total = _TRIAGE_METRICS["total"]
+    bypassed = _TRIAGE_METRICS["bypassed"]
+    llm_called = _TRIAGE_METRICS["llm_called"]
+    pct_bypassed = round((bypassed / total * 100.0), 2) if total > 0 else 100.0
+
+    return {
+        "timestamp": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+        "total_processed": total,
+        "llm_bypassed_count": bypassed,
+        "llm_called_count": llm_called,
+        "bypassed_percentage": pct_bypassed,
+        "target_meta_percentage": 95.0,
+        "status": "optimal" if pct_bypassed >= 95.0 else "suboptimal",
+    }
 
 
 @router.post("/triage")
@@ -503,47 +510,79 @@ async def triage_alert(
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """
-    Recebe alerta do Wazuh, executa enriquecimento de Inteligência de Ameaças,
-    triagem de IA via Gemini, persiste no banco e despacha para o n8n.
+    Recebe alerta do Wazuh, executa triagem determinística (Camada 4 - Risk Engine),
+    enriquecimento de Threat Intel e envia para o LLM apenas se risco >= 75.
     """
-    logger.info("Recebido alerta Wazuh para triagem de IA.")
+    logger.info("Recebido alerta Wazuh para triagem.")
     from app.integrations.threat_intel import enrich_ip, enrich_hash
     from app.integrations.soc_agent import triage_wazuh_alert
     from app.integrations.n8n import notify_soc_triage_decision
     from app.models.models import SocDecision
-    
+
     # 1. Enriquecimento de Ameaças (Threat Intel)
     ips, hashes = _extract_ips_and_hashes(payload)
     enriched_data = {"ips": [], "hashes": []}
-    
+
     for ip in ips[:3]:  # Limita a 3 IPs para evitar gargalo
         intel = await enrich_ip(ip)
         if intel["abuseipdb"] or intel["virustotal"]:
             enriched_data["ips"].append(intel)
-            
+
     for h in hashes[:3]:
         intel = await enrich_hash(h)
         if intel["virustotal"]:
             enriched_data["hashes"].append(intel)
-            
-    # Injeta dados enriquecidos no payload antes de enviar à IA
+
     payload["threat_intel_enrichment"] = enriched_data
-    
-    # 2. Executa triagem via Gemini
-    triage_result = triage_wazuh_alert(payload)
-    
-    # 3. Extrai dados úteis do alerta do Wazuh
+
+    # 2. Avaliação de Risco Determinística (Camada 4 - Triage Worker sem LLM)
     rule_id = str(payload.get("rule", {}).get("id", "unknown"))
     agent_id = str(payload.get("agent", {}).get("id", "unknown"))
     agent_name = payload.get("agent", {}).get("name", "unknown")
-    
-    # Suposição de customer_id baseada no grupo do Wazuh
+    fingerprint = f"{agent_id}:{rule_id}"
+
+    eval_result = _triage_engine.evaluate_alert(
+        alert_data=payload,
+        threat_intel=enriched_data,
+        fingerprint=fingerprint,
+    )
+
+    _TRIAGE_METRICS["total"] += 1
+
+    # 3. Se Risco < 75 -> Arquiva e Agrega (Bypass de LLM)
+    if eval_result.action == TriageAction.ARCHIVE:
+        _TRIAGE_METRICS["bypassed"] += 1
+        summary = (
+            f"Arquivado por Triage Worker (Risk Score: {eval_result.risk_score}/100 < 75). "
+            f"Motivos: {', '.join(eval_result.reasons)}."
+        )
+        triage_result = {
+            "classification": "FALSE_POSITIVE",
+            "confidence": 1.0,
+            "summary": summary,
+            "action_taken": "ARCHIVE_NO_LLM",
+            "risk_score": eval_result.risk_score,
+            "llm_bypassed": True,
+        }
+        logger.info(
+            "Alerta %s arquivado sem LLM (Risk Score %d < 75)",
+            fingerprint,
+            eval_result.risk_score,
+        )
+    else:
+        # 4. Se Risco >= 75 -> Encaminha para o LLM (Gemini)
+        _TRIAGE_METRICS["llm_called"] += 1
+        triage_result = triage_wazuh_alert(payload)
+        triage_result["risk_score"] = eval_result.risk_score
+        triage_result["llm_bypassed"] = False
+
+    # 5. Extração de customer_id
     customer_id = "default"
     group = payload.get("agent", {}).get("group")
     if group and isinstance(group, list) and len(group) > 0:
         customer_id = str(group[0])
-    
-    # 4. Persiste a decisão no banco de dados
+
+    # 6. Persiste a decisão no banco de dados
     try:
         decision = SocDecision(
             wazuh_rule_id=rule_id,
@@ -561,25 +600,25 @@ async def triage_alert(
     except Exception as e:
         logger.error(f"Falha ao persistir SocDecision no banco: {e}")
         await db.rollback()
-        
-    # 5. Envia a decisão e o alerta para o n8n orquestrar (Ticket GLPI + WhatsApp)
-    # Se for um falso positivo, o n8n pode silenciar. Caso contrário, abre chamado.
-    n8n_payload = {
-        "wazuh_rule_id": rule_id,
-        "agent_id": agent_id,
-        "agent_name": agent_name,
-        "customer_id": customer_id,
-        "classification": triage_result["classification"],
-        "confidence": triage_result["confidence"],
-        "summary": triage_result["summary"],
-        "action_taken": triage_result["action_taken"],
-        "threat_intel": enriched_data,
-        "timestamp": datetime.utcnow().isoformat() + "Z"
-    }
-    notify_soc_triage_decision(n8n_payload)
-        
-    return triage_result
 
+    # 7. Despacha para n8n apenas se não for arquivado silenciosamente
+    if eval_result.action != TriageAction.ARCHIVE:
+        n8n_payload = {
+            "wazuh_rule_id": rule_id,
+            "agent_id": agent_id,
+            "agent_name": agent_name,
+            "customer_id": customer_id,
+            "classification": triage_result["classification"],
+            "confidence": triage_result["confidence"],
+            "summary": triage_result["summary"],
+            "action_taken": triage_result["action_taken"],
+            "risk_score": eval_result.risk_score,
+            "threat_intel": enriched_data,
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+        }
+        notify_soc_triage_decision(n8n_payload)
+
+    return triage_result
 
 
 @router.get("/decisions")
@@ -592,16 +631,16 @@ async def list_soc_decisions(
     """Retorna a lista de decisões de triagem do SOC persistidas."""
     from app.models.models import SocDecision
     from sqlalchemy import select
-    
+
     stmt = select(SocDecision).order_by(SocDecision.created_at.desc()).limit(limit)
     if customer_id:
         stmt = stmt.where(SocDecision.customer_id == customer_id)
     if classification:
         stmt = stmt.where(SocDecision.classification == classification)
-        
+
     result = await db.execute(stmt)
     decisions = result.scalars().all()
-    
+
     return {
         "source": "wazuh_soc",
         "total": len(decisions),
@@ -619,6 +658,5 @@ async def list_soc_decisions(
                 "created_at": d.created_at,
             }
             for d in decisions
-        ]
+        ],
     }
-

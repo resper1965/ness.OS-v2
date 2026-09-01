@@ -1,9 +1,10 @@
+import os
 import urllib.request
 import json
 import ssl
 
 url = "https://zabbix.ness.com.br/api_jsonrpc.php"
-token = "d8cbeca4537bd4b0ebf28d67db6b74b14263ef4f04a9139a178025e4371f0728"
+token = os.environ["ZABBIX_API_TOKEN"]
 
 headers = {"Content-Type": "application/json-rpc"}
 

@@ -1,7 +1,7 @@
 import subprocess, os
 
 env = os.environ.copy()
-env["SSHPASS"] = "lav9f1e5CICu!vyh"
+env["SSHPASS"] = "<REVOKED_USE_PSONO>"
 
 queries = [
     # Check if GLPI is configured to auto-add external auth users
@@ -17,9 +17,9 @@ for q in queries:
     print(f"\n=== QUERY: {q} ===")
     cmd = [
         'sshpass', '-e',
-        'ssh', '-o', 'StrictHostKeyChecking=no', '-o', 'KexAlgorithms=curve25519-sha256', '-o', 'IPQoS=none',
+        'ssh', '-o', 'StrictHostKeyChecking=yes', '-o', 'KexAlgorithms=curve25519-sha256', '-o', 'IPQoS=none',
         'root@144.91.115.242',
-        f"docker exec ninf-glpi-db mysql -uglpi -pglpi_pass_nessops_2026 glpi -e \"{q}\""
+        f"docker exec ninf-glpi-db mysql -uglpi -p<REVOKED_USE_PSONO> glpi -e \"{q}\""
     ]
     res = subprocess.run(cmd, capture_output=True, text=True, env=env)
     print(res.stdout)
@@ -30,7 +30,7 @@ for q in queries:
 print("\n=== GLPI PHP Error Logs ===")
 cmd2 = [
     'sshpass', '-e',
-    'ssh', '-o', 'StrictHostKeyChecking=no', '-o', 'KexAlgorithms=curve25519-sha256', '-o', 'IPQoS=none',
+    'ssh', '-o', 'StrictHostKeyChecking=yes', '-o', 'KexAlgorithms=curve25519-sha256', '-o', 'IPQoS=none',
     'root@144.91.115.242',
     "docker exec ninf-glpi tail -30 /var/log/apache2/error.log 2>/dev/null || docker exec ninf-glpi find /var/log -name '*.log' -exec tail -5 {} +"
 ]
@@ -43,7 +43,7 @@ if res2.stderr:
 print("\n=== GLPI files log ===")
 cmd3 = [
     'sshpass', '-e',
-    'ssh', '-o', 'StrictHostKeyChecking=no', '-o', 'KexAlgorithms=curve25519-sha256', '-o', 'IPQoS=none',
+    'ssh', '-o', 'StrictHostKeyChecking=yes', '-o', 'KexAlgorithms=curve25519-sha256', '-o', 'IPQoS=none',
     'root@144.91.115.242',
     "docker exec ninf-glpi tail -30 /var/www/html/glpi/files/_log/php-errors.log 2>/dev/null || echo 'no php-errors.log'"
 ]

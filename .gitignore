@@ -37,6 +37,11 @@ infra/ansible/*.retry
 *.key
 *.ppk
 **/secrets/
+**/vapid_keys.json
+
+# Versioned secret-management tooling (never runtime secret values).
+!infra/secrets/
+!infra/secrets/**
 
 # --- IDE ---
 .vscode/
@@ -52,6 +57,9 @@ desktop.ini
 # --- Logs ---
 *.log
 /var/log/
+
+# --- Generated reports and previews ---
+/outputs/
 
 # --- Docker ---
 docker-compose.override.yml
