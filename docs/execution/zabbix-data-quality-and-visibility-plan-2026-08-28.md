@@ -1,6 +1,6 @@
 # Plano Zabbix — qualidade de coleta e visibilidade
 
-Data: 2026-08-28 (BRT)  
+Data: 2026-08-28 (BRT)
 Estado: aprovado por Ricardo Esper em 2026-08-28. Rota de migração ajustada
 em 2026-08-28 para eliminar a KVM temporária do caminho crítico.
 Escopo: Zabbix; não ativa ações, mídias, conectores ou coleta produtiva sem

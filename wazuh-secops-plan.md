@@ -178,6 +178,21 @@ CAMADA 1 — ENDPOINTS (máquinas dos clientes)
   Monitor: Spoke Manager offline > 5 min → notificação WhatsApp
   Verificar: desligar Spoke-piloto por 6 minutos, receber WhatsApp de alerta
 
+### Fase F — Google Workspace (Cavan)
+
+- [ ] F1: Criar integração somente leitura para o tenant único da Cavan
+  (Matriz e unidades fabris), com projeto Google Cloud e conta de serviço
+  exclusivos.
+- [ ] F2: Aprovar delegação de domínio de escopo mínimo para Reports API e
+  Alert Center API; não conceder privilégios de alteração.
+- [ ] F3: Executar GAM7 para inventário/postura inicial e armazenar apenas o
+  relatório sanitizado e os achados, nunca chaves ou conteúdo de usuários.
+- [ ] F4: Publicar o conector Google Workspace no pipeline AIOps/Wazuh,
+  normalizando auditorias de login, administração, OAuth/token e Drive.
+- [ ] F5: Criar a visão por serviços (Workspace geral, identidade,
+  administração, colaboração) no portal executivo. Matriz/fábricas serão
+  contexto dos eventos, não tenants distintos.
+
 ---
 
 ## Done When
