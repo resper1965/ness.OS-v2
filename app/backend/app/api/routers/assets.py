@@ -1,6 +1,7 @@
 """
 Router: /api/assets -- Assets unificados (Atera + futuro: Datto, Zabbix)
 """
+
 from __future__ import annotations
 
 import logging
@@ -26,7 +27,10 @@ async def get_assets_summary() -> dict[str, Any]:
     """Resumo consolidado de ativos — Atera + Datto (futuro)."""
     client = _atera()
     if not client:
-        return {"atera": {"degraded": True, "error": "API key not configured"}, "datto": {"total": 0}}
+        return {
+            "atera": {"degraded": True, "error": "API key not configured"},
+            "datto": {"total": 0},
+        }
     try:
         summary = await client.get_dashboard_summary()
         return {
@@ -65,18 +69,24 @@ async def list_assets(
 
         normalized = []
         for a in agents:
-            normalized.append({
-                "id": a.get("AgentID"),
-                "name": a.get("MachineName") or a.get("AgentName", ""),
-                "customer": a.get("CustomerName", ""),
-                "customer_id": a.get("CustomerID"),
-                "os": a.get("OS") or a.get("OSType", ""),
-                "os_type": "windows" if "windows" in (a.get("OS", "") or "").lower() else "linux",
-                "ip": a.get("IpAddresses") or a.get("PublicIP", ""),
-                "status": "active" if a.get("Online") or a.get("OnlineStatus") == "Online" else "offline",
-                "rmm_provider": "atera",
-                "source": "atera",
-            })
+            normalized.append(
+                {
+                    "id": a.get("AgentID"),
+                    "name": a.get("MachineName") or a.get("AgentName", ""),
+                    "customer": a.get("CustomerName", ""),
+                    "customer_id": a.get("CustomerID"),
+                    "os": a.get("OS") or a.get("OSType", ""),
+                    "os_type": "windows"
+                    if "windows" in (a.get("OS", "") or "").lower()
+                    else "linux",
+                    "ip": a.get("IpAddresses") or a.get("PublicIP", ""),
+                    "status": "active"
+                    if a.get("Online") or a.get("OnlineStatus") == "Online"
+                    else "offline",
+                    "rmm_provider": "atera",
+                    "source": "atera",
+                }
+            )
 
         return {
             "source": "atera",

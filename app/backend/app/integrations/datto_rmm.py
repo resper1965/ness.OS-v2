@@ -8,6 +8,7 @@ IMPORTANTE: Identificar a plataforma pelo subdominio do portal:
   Ex: se acessar merlot.centrastage.net → DATTO_PLATFORM=merlot
 Plataformas: pinotage, merlot, concord, vidal, zinfandel, syrah
 """
+
 import httpx
 import base64
 import logging
@@ -25,18 +26,20 @@ class DattoRMMClient:
             api_key:  chave pública gerada em Setup → Users → Generate API Keys
             api_secret: chave privada (exibida apenas uma vez na geração)
         """
-        self.platform   = platform
-        self.api_key    = api_key
+        self.platform = platform
+        self.api_key = api_key
         self.api_secret = api_secret
-        self.base_url   = f"https://{platform}-api.centrastage.net/api"
-        self.token_url  = f"https://{platform}-api.centrastage.net/auth/oauth/token"
+        self.base_url = f"https://{platform}-api.centrastage.net/api"
+        self.token_url = f"https://{platform}-api.centrastage.net/auth/oauth/token"
         self._token: str | None = None
         self._expires_at: datetime = datetime.min
 
     async def _get_token(self) -> str:
         if self._token and datetime.utcnow() < self._expires_at:
             return self._token
-        credentials = base64.b64encode(f"{self.api_key}:{self.api_secret}".encode()).decode()
+        credentials = base64.b64encode(
+            f"{self.api_key}:{self.api_secret}".encode()
+        ).decode()
         async with httpx.AsyncClient() as client:
             r = await client.post(
                 self.token_url,
@@ -50,7 +53,9 @@ class DattoRMMClient:
             data = r.json()
             self._token = data["access_token"]
             # Token expira em ~4h (14399s), renovamos com 5min de margem
-            self._expires_at = datetime.utcnow() + timedelta(seconds=data.get("expires_in", 14399) - 300)
+            self._expires_at = datetime.utcnow() + timedelta(
+                seconds=data.get("expires_in", 14399) - 300
+            )
             logger.info(f"Datto RMM token refreshed. Platform: {self.platform}")
             return self._token
 
@@ -86,7 +91,9 @@ class DattoRMMClient:
 
     async def get_site(self, site_uid: str) -> dict[str, Any]:
         async with httpx.AsyncClient() as client:
-            r = await client.get(f"{self.base_url}/v2/site/{site_uid}", headers=await self._headers())
+            r = await client.get(
+                f"{self.base_url}/v2/site/{site_uid}", headers=await self._headers()
+            )
             r.raise_for_status()
             return r.json()
 
@@ -103,7 +110,9 @@ class DattoRMMClient:
 
     async def get_device(self, device_uid: str) -> dict[str, Any]:
         async with httpx.AsyncClient() as client:
-            r = await client.get(f"{self.base_url}/v2/device/{device_uid}", headers=await self._headers())
+            r = await client.get(
+                f"{self.base_url}/v2/device/{device_uid}", headers=await self._headers()
+            )
             r.raise_for_status()
             return r.json()
 
@@ -128,7 +137,11 @@ class DattoRMMClient:
                 json={},
             )
             r.raise_for_status()
-            return {"status": "resolved", "alert_uid": alert_uid, "approved_by": approved_by}
+            return {
+                "status": "resolved",
+                "alert_uid": alert_uid,
+                "approved_by": approved_by,
+            }
 
     # -------------------------------------------------------
     # SUMMARY para o Dashboard n.infraops
@@ -136,10 +149,10 @@ class DattoRMMClient:
     async def get_dashboard_summary(self) -> dict[str, Any]:
         """Retorna resumo consolidado para o painel."""
         try:
-            sites   = await self.list_sites()
+            sites = await self.list_sites()
             devices = await self.list_all_devices()
-            alerts  = await self.list_open_alerts()
-            online  = sum(1 for d in devices if d.get("online") is True)
+            alerts = await self.list_open_alerts()
+            online = sum(1 for d in devices if d.get("online") is True)
             return {
                 "source": "datto_rmm",
                 "platform": self.platform,

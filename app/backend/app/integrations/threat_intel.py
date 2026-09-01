@@ -12,25 +12,22 @@ _TIMEOUT = httpx.Timeout(5.0)
 
 async def enrich_ip(ip_address: str) -> dict[str, Any]:
     """Consulta reputação e inteligência de ameaças para um endereço IP."""
+    from app.integrations.misp import search_misp_ioc
+
     result: dict[str, Any] = {
         "ip": ip_address,
         "abuseipdb": None,
-        "virustotal": None
+        "virustotal": None,
+        "misp": None,
     }
-    
+
     # 1. Consulta AbuseIPDB
     key_abuse = getattr(settings, "abuseipdb_api_key", None)
     if key_abuse:
         try:
             url = "https://api.abuseipdb.com/api/v2/check"
-            headers = {
-                "Key": key_abuse,
-                "Accept": "application/json"
-            }
-            params = {
-                "ipAddress": ip_address,
-                "maxAgeInDays": 90
-            }
+            headers = {"Key": key_abuse, "Accept": "application/json"}
+            params = {"ipAddress": ip_address, "maxAgeInDays": 90}
             async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
                 resp = await client.get(url, headers=headers, params=params)
                 if resp.status_code == 200:
@@ -43,7 +40,11 @@ async def enrich_ip(ip_address: str) -> dict[str, Any]:
                         "is_tor": data.get("isTor", False),
                     }
                 else:
-                    logger.warning("AbuseIPDB retornou status %d para o IP %s", resp.status_code, ip_address)
+                    logger.warning(
+                        "AbuseIPDB retornou status %d para o IP %s",
+                        resp.status_code,
+                        ip_address,
+                    )
         except Exception as e:
             logger.error("Erro ao consultar AbuseIPDB para o IP %s: %s", ip_address, e)
 
@@ -65,20 +66,32 @@ async def enrich_ip(ip_address: str) -> dict[str, Any]:
                         "undetected": stats.get("undetected", 0),
                     }
                 else:
-                    logger.warning("VirusTotal retornou status %d para o IP %s", resp.status_code, ip_address)
+                    logger.warning(
+                        "VirusTotal retornou status %d para o IP %s",
+                        resp.status_code,
+                        ip_address,
+                    )
         except Exception as e:
             logger.error("Erro ao consultar VirusTotal para o IP %s: %s", ip_address, e)
+
+    # 3. Consulta MISP Threat Intel
+    misp_res = await search_misp_ioc(ip_address)
+    if misp_res["found"]:
+        result["misp"] = misp_res
 
     return result
 
 
 async def enrich_hash(file_hash: str) -> dict[str, Any]:
     """Consulta inteligência de ameaças para um hash de arquivo (MD5/SHA256)."""
+    from app.integrations.misp import search_misp_ioc
+
     result: dict[str, Any] = {
         "hash": file_hash,
-        "virustotal": None
+        "virustotal": None,
+        "misp": None,
     }
-    
+
     key_vt = getattr(settings, "virustotal_api_key", None)
     if key_vt:
         try:
@@ -96,8 +109,19 @@ async def enrich_hash(file_hash: str) -> dict[str, Any]:
                         "undetected": stats.get("undetected", 0),
                     }
                 else:
-                    logger.warning("VirusTotal retornou status %d para o hash %s", resp.status_code, file_hash)
+                    logger.warning(
+                        "VirusTotal retornou status %d para o hash %s",
+                        resp.status_code,
+                        file_hash,
+                    )
         except Exception as e:
-            logger.error("Erro ao consultar VirusTotal para o hash %s: %s", file_hash, e)
+            logger.error(
+                "Erro ao consultar VirusTotal para o hash %s: %s", file_hash, e
+            )
+
+    # Consulta MISP Threat Intel
+    misp_res = await search_misp_ioc(file_hash)
+    if misp_res["found"]:
+        result["misp"] = misp_res
 
     return result

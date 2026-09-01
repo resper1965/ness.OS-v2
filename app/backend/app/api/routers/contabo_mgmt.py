@@ -2,9 +2,9 @@
 n.infraops — Contabo API Router
 Endpoints para gerenciamento de Firewall e Instâncias via HITL.
 """
-from fastapi import APIRouter, HTTPException, Header
+
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from typing import Optional
 import os
 
 from app.integrations.contabo_firewall import (
@@ -29,6 +29,7 @@ def get_token_manager() -> ContaboTokenManager:
 # FIREWALL ENDPOINTS
 # -------------------------------------------------------
 
+
 @router.get("/firewalls")
 async def list_firewalls():
     """Lista todos os firewalls da conta Contabo."""
@@ -50,8 +51,8 @@ async def get_firewall(firewall_id: str):
 
 
 class BlockIpRequest(BaseModel):
-    ip_cidr: str          # ex: "192.168.1.1/32"
-    approved_by: str      # ID do usuário que autorizou (HITL)
+    ip_cidr: str  # ex: "192.168.1.1/32"
+    approved_by: str  # ID do usuário que autorizou (HITL)
 
 
 @router.post("/firewalls/{firewall_id}/block-ip")
@@ -71,7 +72,7 @@ async def block_ip(firewall_id: str, body: BlockIpRequest):
 
 class OpenPortRequest(BaseModel):
     port: int
-    source_ip: str        # ex: "177.100.200.5/32"
+    source_ip: str  # ex: "177.100.200.5/32"
     approved_by: str
 
 
@@ -85,7 +86,9 @@ async def open_port(firewall_id: str, body: OpenPortRequest):
         raise HTTPException(status_code=403, detail="HITL: approved_by é obrigatório.")
     try:
         client = ContaboFirewallClient(get_token_manager())
-        return await client.open_port_temporarily(firewall_id, body.port, body.source_ip, body.approved_by)
+        return await client.open_port_temporarily(
+            firewall_id, body.port, body.source_ip, body.approved_by
+        )
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Contabo API Error: {e}")
 
@@ -93,6 +96,7 @@ async def open_port(firewall_id: str, body: OpenPortRequest):
 # -------------------------------------------------------
 # INSTANCE ENDPOINTS
 # -------------------------------------------------------
+
 
 @router.get("/instances")
 async def list_instances():
@@ -128,8 +132,8 @@ async def restart_instance(instance_id: str, body: ActionRequest):
         ic = ContaboInstanceClient(get_token_manager())
         await ic.create_snapshot(
             instance_id,
-            name=f"pre-restart-hitl",
-            description=f"Auto-snapshot antes de restart HITL. Aprovado por: {body.approved_by}"
+            name="pre-restart-hitl",
+            description=f"Auto-snapshot antes de restart HITL. Aprovado por: {body.approved_by}",
         )
         return await ic.restart_instance(instance_id, body.approved_by)
     except Exception as e:

@@ -14,6 +14,7 @@ Pipeline completo:
   6. Persistir relatório em `incident_reports`.
   7. Enviar ao n8n → DeskManager (Interação Interna).
 """
+
 import asyncio
 import logging
 from typing import Any
@@ -38,21 +39,41 @@ async def _async_generate_postmortem_report(
 ) -> dict[str, Any]:
     # Resolvendo o nome do cliente
     def resolve_customer_name(h_name: str, tags_dict: dict[str, str]) -> str:
-        for k in ("cliente", "client", "customer", "tenant", "Cliente", "Client", "Customer", "Tenant"):
+        for k in (
+            "cliente",
+            "client",
+            "customer",
+            "tenant",
+            "Cliente",
+            "Client",
+            "Customer",
+            "Tenant",
+        ):
             if tags_dict and k in tags_dict and tags_dict[k]:
                 return tags_dict[k]
         if "-" in h_name:
             parts = h_name.split("-")
             if len(parts) > 1:
                 first = parts[0]
-                if first.lower() not in ("wan", "lan", "srv", "web", "db", "app", "fw", "vpn", "core", "test"):
+                if first.lower() not in (
+                    "wan",
+                    "lan",
+                    "srv",
+                    "web",
+                    "db",
+                    "app",
+                    "fw",
+                    "vpn",
+                    "core",
+                    "test",
+                ):
                     return first.upper()
         if "wan-core" in h_name.lower() or "web-server" in h_name.lower():
             return "Ness"
         return "Outros"
 
     fingerprint = incident_data.get("fingerprint", "?")
-    
+
     # Injetar ticket_id no contexto do incidente
     incident_data["deskmanager_ticket_id"] = deskmanager_ticket_id
 
@@ -62,12 +83,20 @@ async def _async_generate_postmortem_report(
         from sqlalchemy import select
         from sqlalchemy.orm import selectinload
         from app.models.models import Incident
-        stmt = select(Incident).options(selectinload(Incident.asset)).where(Incident.fingerprint == fingerprint)
+
+        stmt = (
+            select(Incident)
+            .options(selectinload(Incident.asset))
+            .where(Incident.fingerprint == fingerprint)
+        )
         result = await session.execute(stmt)
         db_incident = result.scalar_one_or_none()
         if not db_incident:
-            logger.info("Criando incidente inexistente no banco de dados para postmortem | fingerprint=%s", fingerprint)
-            
+            logger.info(
+                "Criando incidente inexistente no banco de dados para postmortem | fingerprint=%s",
+                fingerprint,
+            )
+
             raw_severity = incident_data.get("severity", 3)
             if isinstance(raw_severity, str):
                 sev_map = {
@@ -99,9 +128,11 @@ async def _async_generate_postmortem_report(
             )
             session.add(db_incident)
             await session.commit()
-            
+
         # Injetar dados do cliente e host reais do banco
-        incident_data["host_name"] = db_incident.host_name or incident_data.get("host_name", "?")
+        incident_data["host_name"] = db_incident.host_name or incident_data.get(
+            "host_name", "?"
+        )
         if db_incident.asset and db_incident.asset.customer_name:
             incident_data["customer_name"] = db_incident.asset.customer_name
         else:
@@ -136,7 +167,8 @@ async def _async_generate_postmortem_report(
     # --- 3. Buscar incidentes similares via pgvector ---
     similar = await _async_fetch_similar_incidents(
         title=incident_data.get("title", ""),
-        description=incident_data.get("sanitized_description", "") or incident_data.get("trigger_description", ""),
+        description=incident_data.get("sanitized_description", "")
+        or incident_data.get("trigger_description", ""),
         fingerprint=fingerprint,
     )
 
@@ -202,10 +234,12 @@ def generate_postmortem_report(
             deskmanager_ticket_id,
         )
 
-        return asyncio.run(_async_generate_postmortem_report(
-            incident_data=incident_data,
-            deskmanager_ticket_id=deskmanager_ticket_id,
-        ))
+        return asyncio.run(
+            _async_generate_postmortem_report(
+                incident_data=incident_data,
+                deskmanager_ticket_id=deskmanager_ticket_id,
+            )
+        )
 
     except Exception as exc:
         logger.exception(
@@ -247,7 +281,9 @@ async def _async_fetch_host_metrics(
             for row in result
         ]
     except Exception as exc:
-        logger.warning("Falha ao consultar TimescaleDB metrics, usando lista vazia: %s", exc)
+        logger.warning(
+            "Falha ao consultar TimescaleDB metrics, usando lista vazia: %s", exc
+        )
         return []
     finally:
         try:
@@ -262,9 +298,7 @@ def _fetch_related_logs(
     trigger_id: str,
 ) -> list[str]:
     """Busca logs sanitizados relacionados ao trigger."""
-    logger.debug(
-        "Buscando logs | host_id=%s trigger_id=%s", host_id, trigger_id
-    )
+    logger.debug("Buscando logs | host_id=%s trigger_id=%s", host_id, trigger_id)
     raw_logs = [
         f"[{host_id}] Trigger {trigger_id} fired: threshold exceeded",
         f"[{host_id}] Service check failed: connection refused",
@@ -298,7 +332,7 @@ async def _async_fetch_similar_incidents(
         """)
         similar_result = await session.execute(
             similar_query,
-            {"embedding": embedding, "fingerprint": fingerprint, "limit": limit}
+            {"embedding": embedding, "fingerprint": fingerprint, "limit": limit},
         )
         return [
             {

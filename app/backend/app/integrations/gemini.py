@@ -8,6 +8,7 @@ logs, métricas e contexto do incidente.
 
 Os dados passam pelo sanitizer ANTES de chegar aqui.
 """
+
 from __future__ import annotations
 
 import json
@@ -35,9 +36,7 @@ def generate_embedding(text: str) -> list[float]:
     headers = {"Content-Type": "application/json"}
     body = {
         "model": "models/text-embedding-004",
-        "content": {
-            "parts": [{"text": text}]
-        }
+        "content": {"parts": [{"text": text}]},
     }
     try:
         with httpx.Client(timeout=_TIMEOUT) as client:
@@ -164,9 +163,7 @@ def generate_postmortem(
 
     Usa a API REST do Google AI Studio (generateContent).
     """
-    prompt = build_postmortem_prompt(
-        incident, metrics, related_logs, similar_incidents
-    )
+    prompt = build_postmortem_prompt(incident, metrics, related_logs, similar_incidents)
 
     api_url = (
         f"https://generativelanguage.googleapis.com/v1beta/models/"

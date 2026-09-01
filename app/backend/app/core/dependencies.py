@@ -11,6 +11,7 @@ Exemplos:
     async def noc(user: User = Depends(require_authenticated)):
         ...
 """
+
 from __future__ import annotations
 
 from fastapi import Depends, HTTPException, status
@@ -64,8 +65,13 @@ def require_authenticated(user: User = Depends(get_current_user)) -> User:
 
 
 def require_noc(user: User = Depends(get_current_user)) -> User:
-    """Role noc, soc ou admin."""
-    if user.role not in (UserRole.noc, UserRole.soc, UserRole.admin):
+    """Role noc, soc, admin ou platform_admin."""
+    if user.role not in (
+        UserRole.noc,
+        UserRole.soc,
+        UserRole.admin,
+        UserRole.platform_admin,
+    ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Acesso restrito a operadores NOC/SOC",
@@ -74,8 +80,8 @@ def require_noc(user: User = Depends(get_current_user)) -> User:
 
 
 def require_admin(user: User = Depends(get_current_user)) -> User:
-    """Apenas admin."""
-    if user.role != UserRole.admin:
+    """Admin local ou platform_admin global."""
+    if user.role not in (UserRole.admin, UserRole.platform_admin):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Acesso restrito a administradores",
@@ -83,13 +89,24 @@ def require_admin(user: User = Depends(get_current_user)) -> User:
     return user
 
 
+def require_platform_admin(user: User = Depends(get_current_user)) -> User:
+    """Administração global da plataforma e do plano de controle."""
+    if user.role != UserRole.platform_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Acesso restrito a administradores da plataforma",
+        )
+    return user
+
+
 def require_role(*roles: UserRole):
     """Factory: exige um dos roles listados.
-    
+
     Uso:
         @router.get("/")
         async def ep(user: User = Depends(require_role(UserRole.admin, UserRole.noc))):
     """
+
     async def _check(user: User = Depends(get_current_user)) -> User:
         if user.role not in roles:
             raise HTTPException(
@@ -97,4 +114,5 @@ def require_role(*roles: UserRole):
                 detail=f"Acesso restrito a: {', '.join(r.value for r in roles)}",
             )
         return user
+
     return _check

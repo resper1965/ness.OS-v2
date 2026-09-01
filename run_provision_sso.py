@@ -15,12 +15,12 @@ import sys
 
 # Configuracao do servidor
 VPS_IP = "144.91.115.242"
-VPS_PASSWORD = "lav9f1e5CICu!vyh"
+VPS_PASSWORD = "<REVOKED_USE_PSONO>"
 CONTAINER_NAME = "ninf-authentik-server"
 LOCAL_SCRIPT = "/home/resper/zabbix.ness/provision_authentik_sso.py"
 
 SSH_OPTS = [
-    '-o', 'StrictHostKeyChecking=no',
+    '-o', 'StrictHostKeyChecking=yes',
     '-o', 'KexAlgorithms=curve25519-sha256',
     '-o', 'IPQoS=none',
 ]

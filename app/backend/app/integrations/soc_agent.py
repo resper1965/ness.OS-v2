@@ -43,7 +43,9 @@ def triage_wazuh_alert(alert_payload: dict[str, Any]) -> TriageResult:
     # Obter chave de API a partir de gemini_api_key
     gemini_key = getattr(settings, "gemini_api_key", None)
     if not gemini_key:
-        logger.warning("Gemini API key não configurada para triagem SOC. Usando fallback padrão.")
+        logger.warning(
+            "Gemini API key não configurada para triagem SOC. Usando fallback padrão."
+        )
         return {
             "classification": "HIGH",
             "confidence": 0.5,
@@ -53,7 +55,7 @@ def triage_wazuh_alert(alert_payload: dict[str, Any]) -> TriageResult:
 
     api_url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
     headers = {"Content-Type": "application/json"}
-    
+
     body = {
         "contents": [
             {
@@ -64,9 +66,7 @@ def triage_wazuh_alert(alert_payload: dict[str, Any]) -> TriageResult:
                 ]
             }
         ],
-        "systemInstruction": {
-            "parts": [{"text": _SOC_SYSTEM_PROMPT}]
-        },
+        "systemInstruction": {"parts": [{"text": _SOC_SYSTEM_PROMPT}]},
         "generationConfig": {
             "responseMimeType": "application/json",
             "responseSchema": {
@@ -74,21 +74,15 @@ def triage_wazuh_alert(alert_payload: dict[str, Any]) -> TriageResult:
                 "properties": {
                     "classification": {
                         "type": "STRING",
-                        "enum": ["FP", "LOW", "MED", "HIGH", "CRIT"]
+                        "enum": ["FP", "LOW", "MED", "HIGH", "CRIT"],
                     },
-                    "confidence": {
-                        "type": "NUMBER"
-                    },
-                    "summary": {
-                        "type": "STRING"
-                    },
-                    "action_taken": {
-                        "type": "STRING"
-                    }
+                    "confidence": {"type": "NUMBER"},
+                    "summary": {"type": "STRING"},
+                    "action_taken": {"type": "STRING"},
                 },
-                "required": ["classification", "confidence", "summary", "action_taken"]
-            }
-        }
+                "required": ["classification", "confidence", "summary", "action_taken"],
+            },
+        },
     }
 
     try:
@@ -101,14 +95,14 @@ def triage_wazuh_alert(alert_payload: dict[str, Any]) -> TriageResult:
             )
             response.raise_for_status()
             result = response.json()
-            
+
             text_response = (
                 result.get("candidates", [{}])[0]
                 .get("content", {})
                 .get("parts", [{}])[0]
                 .get("text", "{}")
             )
-            
+
             triage_data = json.loads(text_response)
             logger.info(
                 "Triage SOC concluída via Gemini | classificação=%s confiança=%s",

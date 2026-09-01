@@ -8,6 +8,7 @@ de comandos ou roteamento para n8n.
 
 Cobre rmm_provider = 'none' com asset_type = 'network_device'.
 """
+
 from __future__ import annotations
 
 import logging
@@ -155,9 +156,7 @@ class NetworkDriver(BaseRMMDriver):
 
         except Exception as exc:
             elapsed = int((time.monotonic() - start) * 1000)
-            logger.error(
-                "Network falhou | host=%s: %s", self.hostname, exc
-            )
+            logger.error("Network falhou | host=%s: %s", self.hostname, exc)
             return PlaybookResult(
                 status=ExecutionStatus.FAILED,
                 error=str(exc),
@@ -169,9 +168,7 @@ class NetworkDriver(BaseRMMDriver):
         import socket
 
         try:
-            sock = socket.create_connection(
-                (self.hostname, self.ssh_port), timeout=5
-            )
+            sock = socket.create_connection((self.hostname, self.ssh_port), timeout=5)
             sock.close()
             return True
         except (socket.timeout, OSError):

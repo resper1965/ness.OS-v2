@@ -1,36 +1,10 @@
 # -------------------------------------------------------
 # n.infraops — Ponytail Infrastructure (IaC)
-# Stack: Keep AIOps + FastAPI + Postgres + Caddy
+# Stack: FastAPI + Postgres + Caddy
 # -------------------------------------------------------
 version: '3.8'
 
 services:
-  # O Coração: Ingestão e Correlação de Eventos
-  keep-backend:
-    image: keephq/keep-backend:latest
-    container_name: ninf-keep-backend
-    restart: unless-stopped
-    environment:
-      - DATABASE_URL=postgresql://admin:${DB_PASSWORD}@postgres:5432/keep
-      - AUTH_SECRET=${AUTH_SECRET}
-      - PORT=8080
-    volumes:
-      - keep_data:/app/data
-    networks:
-      - ninf-net
-    depends_on:
-      postgres:
-        condition: service_healthy
-
-  keep-frontend:
-    image: keephq/keep-frontend:latest
-    container_name: ninf-keep-ui
-    restart: unless-stopped
-    environment:
-      - NEXT_PUBLIC_KEEP_BACKEND_URL=https://events.hub.ness.com.br
-    networks:
-      - ninf-net
-
   # O Cérebro: n.infraops AI Proxy & HITL Logic
   api:
     build:
@@ -41,7 +15,6 @@ services:
     env_file: .env
     environment:
       - DATABASE_URL=postgresql+asyncpg://admin:${DB_PASSWORD}@postgres:5432/ninf_db
-      - KEEP_API_URL=http://keep-backend:8080
     networks:
       - ninf-net
     depends_on:
@@ -64,7 +37,7 @@ services:
     restart: unless-stopped
     environment:
       - POSTGRES_USER=admin
-      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:?DB_PASSWORD is required}
       - POSTGRES_DB=ninf_db
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -99,4 +72,3 @@ volumes:
   postgres_data:
   caddy_data:
   caddy_config:
-  keep_data:

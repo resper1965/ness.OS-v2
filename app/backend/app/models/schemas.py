@@ -185,16 +185,15 @@ class WhatsAppAlertMessage(BaseModel):
     message: str = Field(description="Mensagem formatada pronta para envio")
 
 
-# --- Payload de Entrada do Keep (RCA) ---
+# --- Solicitação de análise de incidente (RCA) ---
 class IncidentAnalyzeRequest(BaseModel):
-    """Payload recebido do Keep AIOps para gerar PostMortem."""
-    
+    """Payload recebido pela API para gerar PostMortem."""
+
     incident_data: dict[str, Any] = Field(
-        description="Dados sanitizados do incidente, agrupados pelo Keep"
+        description="Dados sanitizados do incidente consolidado"
     )
     ticket_id: str | None = Field(
-        default=None,
-        description="ID do ticket no DeskManager (se já criado pelo n8n)"
+        default=None, description="ID do ticket no DeskManager (se já criado pelo n8n)"
     )
 
 
@@ -202,8 +201,12 @@ class GlpiWebhookPayload(BaseModel):
     """Payload recebido do webhook do GLPI ao resolver um ticket."""
 
     ticket_id: str = Field(..., description="ID do ticket no GLPI")
-    status: str = Field(..., description="Status do ticket no GLPI (ex: solved, closed)")
-    solution: str = Field(default="", description="Texto de solução preenchido pelo técnico")
+    status: str = Field(
+        ..., description="Status do ticket no GLPI (ex: solved, closed)"
+    )
+    solution: str = Field(
+        default="", description="Texto de solução preenchido pelo técnico"
+    )
 
 
 # --- PWA Push Notifications ---
@@ -219,7 +222,3 @@ class PushSubscribeRequest(BaseModel):
 
 class PushUnsubscribeRequest(BaseModel):
     endpoint: str
-
-
-
-

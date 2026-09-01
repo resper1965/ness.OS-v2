@@ -13,7 +13,11 @@ from cryptography.hazmat.primitives import serialization
 
 logger = logging.getLogger("nessops.vapid")
 
-KEYS_FILE = Path("/app/vapid_keys.json") if Path("/app").exists() else Path(__file__).resolve().parent.parent.parent / "vapid_keys.json"
+KEYS_FILE = (
+    Path("/app/vapid_keys.json")
+    if Path("/app").exists()
+    else Path(__file__).resolve().parent.parent.parent / "vapid_keys.json"
+)
 
 
 def generate_vapid_keys() -> dict[str, str]:
@@ -24,21 +28,18 @@ def generate_vapid_keys() -> dict[str, str]:
     private_pem = private_key.private_bytes(
         encoding=serialization.Encoding.PEM,
         format=serialization.PrivateFormat.PKCS8,
-        encryption_algorithm=serialization.NoEncryption()
+        encryption_algorithm=serialization.NoEncryption(),
     ).decode("utf-8")
 
     # Chave Pública uncompressed em Base64 URL-safe (sem padding) para o navegador/frontend
     public_key = private_key.public_key()
     public_bytes = public_key.public_bytes(
         encoding=serialization.Encoding.X962,
-        format=serialization.PublicFormat.UncompressedPoint
+        format=serialization.PublicFormat.UncompressedPoint,
     )
     public_b64 = base64.urlsafe_b64encode(public_bytes).decode("utf-8").rstrip("=")
 
-    return {
-        "private_key": private_pem,
-        "public_key": public_b64
-    }
+    return {"private_key": private_pem, "public_key": public_b64}
 
 
 def get_or_create_vapid_keys() -> tuple[str, str]:
@@ -59,7 +60,9 @@ def get_or_create_vapid_keys() -> tuple[str, str]:
                 pub = data.get("public_key")
                 priv = data.get("private_key")
                 if pub and priv:
-                    logger.info(f"Chaves VAPID carregadas do arquivo persistente: {KEYS_FILE}")
+                    logger.info(
+                        f"Chaves VAPID carregadas do arquivo persistente: {KEYS_FILE}"
+                    )
                     return pub, priv
         except Exception as e:
             logger.error(f"Erro ao ler arquivo de chaves VAPID {KEYS_FILE}: {e}")
@@ -68,15 +71,17 @@ def get_or_create_vapid_keys() -> tuple[str, str]:
     logger.info("Chaves VAPID não encontradas. Gerando novo par persistente...")
     try:
         keys = generate_vapid_keys()
-        
+
         # Tentar salvar no arquivo para persistência
         KEYS_FILE.parent.mkdir(parents=True, exist_ok=True)
         with open(KEYS_FILE, "w") as f:
             json.dump(keys, f, indent=4)
-        
+
         logger.info(f"Novas chaves VAPID salvas com sucesso em: {KEYS_FILE}")
         return keys["public_key"], keys["private_key"]
     except Exception as e:
-        logger.error(f"Falha ao persistir chaves VAPID: {e}. Gerando chaves temporárias em memória.")
+        logger.error(
+            f"Falha ao persistir chaves VAPID: {e}. Gerando chaves temporárias em memória."
+        )
         temp_keys = generate_vapid_keys()
         return temp_keys["public_key"], temp_keys["private_key"]

@@ -35,14 +35,20 @@ class ZabbixClient:
         if self.token:
             headers["Authorization"] = f"Bearer {self.token}"
 
-        async with httpx.AsyncClient(timeout=self.timeout, verify=self.verify_ssl) as client:
+        async with httpx.AsyncClient(
+            timeout=self.timeout, verify=self.verify_ssl
+        ) as client:
             try:
                 response = await client.post(self.url, json=payload, headers=headers)
                 response.raise_for_status()
                 res_data = response.json()
                 if "error" in res_data:
-                    logger.error("Erro na API Zabbix [%s]: %s", method, res_data["error"])
-                    raise ValueError(f"Zabbix API Error: {res_data['error'].get('data', '') or res_data['error'].get('message', '')}")
+                    logger.error(
+                        "Erro na API Zabbix [%s]: %s", method, res_data["error"]
+                    )
+                    raise ValueError(
+                        f"Zabbix API Error: {res_data['error'].get('data', '') or res_data['error'].get('message', '')}"
+                    )
                 return res_data.get("result")
             except Exception as e:
                 logger.error("Falha ao comunicar com API Zabbix [%s]: %s", method, e)
@@ -50,7 +56,7 @@ class ZabbixClient:
 
     async def get_active_problems(self, severity_min: int = 4) -> list[dict[str, Any]]:
         """Recupera problemas ativos no Zabbix filtrados por severidade mínima.
-        
+
         Zabbix severities:
           0 - Not classified, 1 - Info, 2 - Warning, 3 - Average, 4 - High, 5 - Disaster
         """
@@ -67,9 +73,11 @@ class ZabbixClient:
 
         return await self._call("problem.get", params)
 
-    async def get_history(self, item_ids: list[str], limit: int = 100, history_type: int = 0) -> list[dict[str, Any]]:
+    async def get_history(
+        self, item_ids: list[str], limit: int = 100, history_type: int = 0
+    ) -> list[dict[str, Any]]:
         """Recupera histórico bruto de valores de um item.
-        
+
         history_type: 0 (float), 1 (char), 2 (log), 3 (int), 4 (text)
         """
         params = {
@@ -78,24 +86,28 @@ class ZabbixClient:
             "history": history_type,
             "sortfield": "clock",
             "sortorder": "DESC",
-            "limit": limit
+            "limit": limit,
         }
         return await self._call("history.get", params)
 
-    async def get_trends(self, item_ids: list[str], limit: int = 1000) -> list[dict[str, Any]]:
+    async def get_trends(
+        self, item_ids: list[str], limit: int = 1000
+    ) -> list[dict[str, Any]]:
         """Recupera dados agregados (trends) para capacity planning."""
         params = {
             "output": "extend",
             "itemids": item_ids,
             "sortfield": "clock",
             "sortorder": "DESC",
-            "limit": limit
+            "limit": limit,
         }
         return await self._call("trend.get", params)
 
-    async def acknowledge_problem(self, event_id: str, message: str, action: int = 6) -> Any:
+    async def acknowledge_problem(
+        self, event_id: str, message: str, action: int = 6
+    ) -> Any:
         """Acknowledge e opcionalmente fecha um problema.
-        
+
         action bitmask:
           1 - close problem
           2 - acknowledge event
@@ -103,27 +115,29 @@ class ZabbixClient:
           8 - change severity
         Default action=6 (acknowledge + add message)
         """
-        params = {
-            "eventids": event_id,
-            "action": action,
-            "message": message
-        }
+        params = {"eventids": event_id, "action": action, "message": message}
         return await self._call("event.acknowledge", params)
 
     async def acknowledge_trigger(self, trigger_id: str, message: str) -> bool:
         """Encontra o problema ativo para a trigger_id e o reconhece/fecha (action=7)."""
-        problems = await self._call("problem.get", {
-            "output": ["eventid"],
-            "objectids": [trigger_id],
-            "recent": False,
-        })
-        
+        problems = await self._call(
+            "problem.get",
+            {
+                "output": ["eventid"],
+                "objectids": [trigger_id],
+                "recent": False,
+            },
+        )
+
         if not problems:
-            logger.info("Nenhum problema ativo encontrado no Zabbix para a trigger_id=%s", trigger_id)
+            logger.info(
+                "Nenhum problema ativo encontrado no Zabbix para a trigger_id=%s",
+                trigger_id,
+            )
             return False
-            
+
         event_id = problems[0]["eventid"]
-        
+
         # Action 7 = Close problem (1) + Acknowledge event (2) + Add message (4)
         await self.acknowledge_problem(
             event_id=event_id,
@@ -134,17 +148,16 @@ class ZabbixClient:
 
     async def execute_script(self, script_id: str, host_id: str) -> dict[str, Any]:
         """Executa um script do Zabbix (comando remoto no Agent/Server)."""
-        params = {
-            "scriptid": script_id,
-            "hostid": host_id
-        }
+        params = {"scriptid": script_id, "hostid": host_id}
         return await self._call("script.execute", params)
 
-    async def create_maintenance(self, host_ids: list[str], duration_seconds: int = 3600, name: str | None = None) -> str:
+    async def create_maintenance(
+        self, host_ids: list[str], duration_seconds: int = 3600, name: str | None = None
+    ) -> str:
         """Cria uma janela de manutenção silenciosa no Zabbix."""
         now = int(time.time())
         m_name = name or f"n.infraops Auto Maintenance {now}"
-        
+
         params = {
             "name": m_name,
             "active_since": now,
@@ -154,9 +167,9 @@ class ZabbixClient:
                 {
                     "timeperiod_type": 0,  # One-time period
                     "start_date": now,
-                    "period": duration_seconds
+                    "period": duration_seconds,
                 }
-            ]
+            ],
         }
         res = await self._call("maintenance.create", params)
         # Retorna o ID da manutenção criada

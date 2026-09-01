@@ -9,6 +9,7 @@ Fluxo:
   2. Lock OK → process_alert (fila primary)
   3. Lock falha → process_deferred_alert (fila deferred, com delay)
 """
+
 from __future__ import annotations
 
 import logging
@@ -210,15 +211,36 @@ async def _async_upsert_incident(
     alert_data: dict[str, Any],
 ) -> dict[str, Any]:
     """Cria ou atualiza incidente no PostgreSQL utilizando SQLAlchemy Async."""
+
     def resolve_customer_name(h_name: str, tags_dict: dict[str, str]) -> str:
-        for k in ("cliente", "client", "customer", "tenant", "Cliente", "Client", "Customer", "Tenant"):
+        for k in (
+            "cliente",
+            "client",
+            "customer",
+            "tenant",
+            "Cliente",
+            "Client",
+            "Customer",
+            "Tenant",
+        ):
             if tags_dict and k in tags_dict and tags_dict[k]:
                 return tags_dict[k]
         if "-" in h_name:
             parts = h_name.split("-")
             if len(parts) > 1:
                 first = parts[0]
-                if first.lower() not in ("wan", "lan", "srv", "web", "db", "app", "fw", "vpn", "core", "test"):
+                if first.lower() not in (
+                    "wan",
+                    "lan",
+                    "srv",
+                    "web",
+                    "db",
+                    "app",
+                    "fw",
+                    "vpn",
+                    "core",
+                    "test",
+                ):
                     return first.upper()
         if "wan-core" in h_name.lower() or "web-server" in h_name.lower():
             return "Ness"
@@ -235,19 +257,24 @@ async def _async_upsert_incident(
 
             # Try to resolve Asset based on host_id, hostname, or IP address
             asset_stmt = select(Asset).where(
-                (Asset.zabbix_host_id == alert_data.get("host_id")) |
-                (Asset.hostname == alert_data.get("host_name")) |
-                (Asset.ip_address == alert_data.get("host_ip"))
+                (Asset.zabbix_host_id == alert_data.get("host_id"))
+                | (Asset.hostname == alert_data.get("host_name"))
+                | (Asset.ip_address == alert_data.get("host_ip"))
             )
             asset_result = await session.execute(asset_stmt)
             db_asset = asset_result.scalar_one_or_none()
-            
+
             if db_asset:
                 # Se o ativo foi pareado pelo hostname/IP mas não tinha o ID do Zabbix, atualiza
-                if not db_asset.zabbix_host_id or db_asset.zabbix_host_id == f"rmm_{db_asset.rmm_device_id}":
+                if (
+                    not db_asset.zabbix_host_id
+                    or db_asset.zabbix_host_id == f"rmm_{db_asset.rmm_device_id}"
+                ):
                     db_asset.zabbix_host_id = alert_data.get("host_id")
             elif alert_data.get("host_id"):
-                customer_name = resolve_customer_name(alert_data.get("host_name", ""), alert_data.get("tags", {}))
+                customer_name = resolve_customer_name(
+                    alert_data.get("host_name", ""), alert_data.get("tags", {})
+                )
                 db_asset = Asset(
                     zabbix_host_id=alert_data.get("host_id"),
                     hostname=alert_data.get("host_name"),
@@ -258,7 +285,7 @@ async def _async_upsert_incident(
                 )
                 session.add(db_asset)
                 await session.flush()
-                
+
             asset_id = db_asset.id if db_asset else None
 
             if db_incident:
@@ -304,8 +331,12 @@ async def _async_upsert_incident(
                 "trigger_id": db_incident.trigger_id,
                 "asset_id": db_incident.asset_id,
                 "alert_count": db_incident.alert_count,
-                "first_seen": db_incident.first_seen.isoformat() if db_incident.first_seen else now.isoformat(),
-                "last_seen": db_incident.last_seen.isoformat() if db_incident.last_seen else now.isoformat(),
+                "first_seen": db_incident.first_seen.isoformat()
+                if db_incident.first_seen
+                else now.isoformat(),
+                "last_seen": db_incident.last_seen.isoformat()
+                if db_incident.last_seen
+                else now.isoformat(),
                 "sanitized_description": db_incident.sanitized_description or "",
                 "tags": db_incident.tags or {},
                 "action": action,
@@ -334,29 +365,36 @@ async def _async_increment_incident(
                 # If asset_id is not set, try to resolve it
                 if not db_incident.asset_id:
                     asset_stmt = select(Asset).where(
-                        (Asset.zabbix_host_id == alert_data.get("host_id")) |
-                        (Asset.hostname == alert_data.get("host_name")) |
-                        (Asset.ip_address == alert_data.get("host_ip"))
+                        (Asset.zabbix_host_id == alert_data.get("host_id"))
+                        | (Asset.hostname == alert_data.get("host_name"))
+                        | (Asset.ip_address == alert_data.get("host_ip"))
                     )
                     asset_result = await session.execute(asset_stmt)
                     db_asset = asset_result.scalar_one_or_none()
                     if db_asset:
                         db_incident.asset_id = db_asset.id
-                        if not db_asset.zabbix_host_id or db_asset.zabbix_host_id == f"rmm_{db_asset.rmm_device_id}":
+                        if (
+                            not db_asset.zabbix_host_id
+                            or db_asset.zabbix_host_id
+                            == f"rmm_{db_asset.rmm_device_id}"
+                        ):
                             db_asset.zabbix_host_id = alert_data.get("host_id")
 
                 action = "incremented"
             else:
                 # Fallback to creation if not found
                 asset_stmt = select(Asset).where(
-                    (Asset.zabbix_host_id == alert_data.get("host_id")) |
-                    (Asset.hostname == alert_data.get("host_name")) |
-                    (Asset.ip_address == alert_data.get("host_ip"))
+                    (Asset.zabbix_host_id == alert_data.get("host_id"))
+                    | (Asset.hostname == alert_data.get("host_name"))
+                    | (Asset.ip_address == alert_data.get("host_ip"))
                 )
                 asset_result = await session.execute(asset_stmt)
                 db_asset = asset_result.scalar_one_or_none()
                 asset_id = db_asset.id if db_asset else None
-                if db_asset and (not db_asset.zabbix_host_id or db_asset.zabbix_host_id == f"rmm_{db_asset.rmm_device_id}"):
+                if db_asset and (
+                    not db_asset.zabbix_host_id
+                    or db_asset.zabbix_host_id == f"rmm_{db_asset.rmm_device_id}"
+                ):
                     db_asset.zabbix_host_id = alert_data.get("host_id")
 
                 db_incident = Incident(
@@ -390,8 +428,12 @@ async def _async_increment_incident(
                 "trigger_id": db_incident.trigger_id,
                 "asset_id": db_incident.asset_id,
                 "alert_count": db_incident.alert_count,
-                "first_seen": db_incident.first_seen.isoformat() if db_incident.first_seen else now.isoformat(),
-                "last_seen": db_incident.last_seen.isoformat() if db_incident.last_seen else now.isoformat(),
+                "first_seen": db_incident.first_seen.isoformat()
+                if db_incident.first_seen
+                else now.isoformat(),
+                "last_seen": db_incident.last_seen.isoformat()
+                if db_incident.last_seen
+                else now.isoformat(),
                 "sanitized_description": db_incident.sanitized_description or "",
                 "tags": db_incident.tags or {},
                 "action": action,
@@ -407,54 +449,67 @@ def sync_assets_from_rmm() -> dict[str, Any]:
     """Sincroniza ativos do Atera RMM para a tabela n_infraops_assets local."""
     from app.integrations.atera import AteraClient
     from app.models import Asset, AssetType, RmmProvider, AssetStatus
-    
+
     if not settings.atera_api_key:
-        logger.warning("NINF_ATERA_API_KEY não configurada. Pulando sincronização de ativos.")
+        logger.warning(
+            "NINF_ATERA_API_KEY não configurada. Pulando sincronização de ativos."
+        )
         return {"status": "skipped", "reason": "API key missing"}
 
     client = AteraClient(api_key=settings.atera_api_key)
-    
+
     try:
         # 1. Buscar todos os agentes do Atera RMM
         agents = asyncio.run(client.list_agents())
         logger.info(f"Sincronizando {len(agents)} ativos do Atera RMM...")
-        
+
         # 2. Upsert no banco de dados local
         async def _db_upsert():
             async with SessionLocal() as session:
                 async with session.begin():
                     updated_count = 0
                     created_count = 0
-                    
+
                     for agent in agents:
                         device_id = str(agent.get("AgentID"))
-                        hostname = agent.get("MachineName") or agent.get("AgentName", "")
-                        ip_address = agent.get("IpAddresses") or agent.get("PublicIP", "")
+                        hostname = agent.get("MachineName") or agent.get(
+                            "AgentName", ""
+                        )
+                        ip_address = agent.get("IpAddresses") or agent.get(
+                            "PublicIP", ""
+                        )
                         customer_name = agent.get("CustomerName", "")
                         os_val = agent.get("OS") or agent.get("OSType", "")
-                        
+
                         # Determinar tipo
                         if "windows" in (os_val or "").lower():
                             asset_type = AssetType.WINDOWS
                         else:
                             asset_type = AssetType.LINUX
-                            
+
                         # Determinar status
-                        status = AssetStatus.ACTIVE if agent.get("Online") or agent.get("OnlineStatus") == "Online" else AssetStatus.ACTIVE
-                        
+                        status = (
+                            AssetStatus.ACTIVE
+                            if agent.get("Online")
+                            or agent.get("OnlineStatus") == "Online"
+                            else AssetStatus.ACTIVE
+                        )
+
                         # Procurar se já existe por rmm_device_id ou hostname
                         stmt = select(Asset).where(
-                            (Asset.rmm_device_id == device_id) |
-                            (Asset.hostname == hostname)
+                            (Asset.rmm_device_id == device_id)
+                            | (Asset.hostname == hostname)
                         )
                         result = await session.execute(stmt)
                         db_asset = result.scalar_one_or_none()
-                        
+
                         if db_asset:
                             # Atualiza metadados
                             db_asset.rmm_device_id = device_id
                             db_asset.hostname = hostname
-                            db_asset.ip_address = ip_address if ip_address else db_asset.ip_address
+                            db_asset.ip_address = (
+                                ip_address if ip_address else db_asset.ip_address
+                            )
                             db_asset.customer_name = customer_name
                             db_asset.os_version = os_val
                             db_asset.rmm_provider = RmmProvider.ATERA
@@ -463,7 +518,7 @@ def sync_assets_from_rmm() -> dict[str, Any]:
                         else:
                             # Cria novo
                             db_asset = Asset(
-                                zabbix_host_id=f"rmm_{device_id}", # fallback provisório até ser pareado pelo alerta
+                                zabbix_host_id=f"rmm_{device_id}",  # fallback provisório até ser pareado pelo alerta
                                 hostname=hostname,
                                 ip_address=ip_address if ip_address else None,
                                 asset_type=asset_type,
@@ -472,17 +527,21 @@ def sync_assets_from_rmm() -> dict[str, Any]:
                                 rmm_device_id=device_id,
                                 os_version=os_val,
                                 customer_name=customer_name,
-                                customer_id=customer_name.lower() if customer_name else None,
+                                customer_id=customer_name.lower()
+                                if customer_name
+                                else None,
                             )
                             session.add(db_asset)
                             created_count += 1
-                            
+
                     return created_count, updated_count
 
         created, updated = asyncio.run(_db_upsert())
-        logger.info(f"Sincronização de ativos concluída: {created} criados, {updated} atualizados.")
+        logger.info(
+            f"Sincronização de ativos concluída: {created} criados, {updated} atualizados."
+        )
         return {"status": "success", "created": created, "updated": updated}
-        
+
     except Exception as exc:
         logger.exception("Falha ao sincronizar ativos do RMM: %s", exc)
         return {"status": "failed", "error": str(exc)}
@@ -497,84 +556,99 @@ def process_ticket_resolution(
     solution_text: str = "",
 ) -> dict[str, Any]:
     """Processa a resolução do ticket vinda do GLPI.
-    
+
     1. Atualiza o status do incidente no PostgreSQL para 'resolved'.
     2. Enriquece o Post-Mortem com a solução humana e gera novos embeddings.
-    3. Envia solicitação de fechamento/reconhecimento do alerta no Zabbix/Keep.
+    3. Envia solicitação de fechamento/reconhecimento do alerta no Zabbix.
     """
     logger.info(
         "Iniciando processamento de resolução | ticket_id=%s",
         ticket_id,
     )
-    
+
     from app.models import Incident, IncidentReport
     from app.integrations.gemini import generate_embedding
     from app.integrations.zabbix import ZabbixClient
     import asyncio
-    
+
     async def _db_resolve():
         async with SessionLocal() as session:
             async with session.begin():
                 # 1. Localiza o incidente
-                stmt = select(Incident).where(Incident.deskmanager_ticket_id == ticket_id)
+                stmt = select(Incident).where(
+                    Incident.deskmanager_ticket_id == ticket_id
+                )
                 result = await session.execute(stmt)
                 db_incident = result.scalar_one_or_none()
-                
+
                 if not db_incident:
-                    logger.warning("Nenhum incidente local encontrado com ticket_id=%s", ticket_id)
+                    logger.warning(
+                        "Nenhum incidente local encontrado com ticket_id=%s", ticket_id
+                    )
                     return None
-                
+
                 # Atualiza status
                 db_incident.status = "resolved"
                 db_incident.updated_at = datetime.now(timezone.utc)
-                
+
                 # 2. Localiza o relatório correspondente (Post-Mortem)
-                report_stmt = select(IncidentReport).where(IncidentReport.deskmanager_ticket_id == ticket_id)
+                report_stmt = select(IncidentReport).where(
+                    IncidentReport.deskmanager_ticket_id == ticket_id
+                )
                 report_result = await session.execute(report_stmt)
                 db_report = report_result.scalar_one_or_none()
-                
+
                 if db_report:
                     # Enriquecer markdown com a solução humana
-                    solution_md = f"\n\n## 🛠️ Solução Realizada (Humana)\n- {solution_text}\n"
+                    solution_md = (
+                        f"\n\n## 🛠️ Solução Realizada (Humana)\n- {solution_text}\n"
+                    )
                     db_report.markdown_report += solution_md
                     db_report.root_cause += f"\n\n[Solução Humana]: {solution_text}"
-                    db_report.corrective_actions.append(f"Solução aplicada: {solution_text}")
-                    
+                    db_report.corrective_actions.append(
+                        f"Solução aplicada: {solution_text}"
+                    )
+
                     # Re-gerar embedding vetorial
                     new_embed = generate_embedding(db_report.markdown_report)
                     db_report.embedding = new_embed
-                    logger.info("Relatório Post-Mortem enriquecido com a solução humana e re-indexado via pgvector.")
-                
+                    logger.info(
+                        "Relatório Post-Mortem enriquecido com a solução humana e re-indexado via pgvector."
+                    )
+
                 return {
                     "fingerprint": db_incident.fingerprint,
                     "trigger_id": db_incident.trigger_id,
                     "host_id": db_incident.host_id,
                     "title": db_incident.title,
                 }
-                
+
     result_data = asyncio.run(_db_resolve())
-    
+
     if not result_data:
         return {"status": "not_found", "ticket_id": ticket_id}
-        
-    # 3. Fechar alerta no Zabbix/Keep
+
+    # 3. Fechar alerta no Zabbix
     trigger_id = result_data.get("trigger_id")
     zabbix_status = "skipped"
     if trigger_id:
         try:
             zabbix = ZabbixClient()
             # Chama o método de reconhecer/fechar a trigger no Zabbix
-            z_result = asyncio.run(zabbix.acknowledge_trigger(trigger_id, f"Resolvido automaticamente via GLPI Ticket {ticket_id}. Solução: {solution_text}"))
+            z_result = asyncio.run(
+                zabbix.acknowledge_trigger(
+                    trigger_id,
+                    f"Resolvido automaticamente via GLPI Ticket {ticket_id}. Solução: {solution_text}",
+                )
+            )
             zabbix_status = "success" if z_result else "failed"
         except Exception as e:
             logger.error("Falha ao reconhecer trigger no Zabbix: %s", e)
             zabbix_status = f"failed: {str(e)}"
-            
+
     return {
         "status": "success",
         "ticket_id": ticket_id,
         "fingerprint": result_data.get("fingerprint"),
         "zabbix_status": zabbix_status,
     }
-
-

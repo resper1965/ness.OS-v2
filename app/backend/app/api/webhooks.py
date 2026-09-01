@@ -11,12 +11,13 @@ Fluxo de concorrência:
   4. Lock falha → envia para fila "alerts.deferred" com delay.
   5. Retorna 202 Accepted imediatamente (fire-and-forget).
 """
+
 from __future__ import annotations
 
 import logging
-import httpx
+from typing import Any
 
-from fastapi import APIRouter, Depends, status, Header, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Depends, status, Header, HTTPException
 from redis.asyncio import Redis
 
 from app.config import get_settings
@@ -29,55 +30,22 @@ from app.workers.tasks import process_alert, process_deferred_alert
 logger = logging.getLogger(__name__)
 settings = get_settings()
 
+
 async def verify_webhook_key(x_api_key: str = Header(None, alias="X-Api-Key")):
     if not settings.webhook_api_key:
-        logger.warning("Webhook authentication is disabled (NINF_WEBHOOK_API_KEY is empty).")
+        logger.warning(
+            "Webhook authentication is disabled (NINF_WEBHOOK_API_KEY is empty)."
+        )
         return
     if x_api_key != settings.webhook_api_key:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid API Key")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid API Key"
+        )
 
-router = APIRouter(prefix="/webhook", tags=["webhooks"], dependencies=[Depends(verify_webhook_key)])
 
-
-async def forward_to_keep(payload: ZabbixAlertPayload):
-    """Retransmite o alerta de forma transparente para o Keep (AIOps Hub)."""
-    if not settings.keep_url:
-        return
-
-    # Mapeamento do payload para garantir compatibilidade com zabbix-correlation.yml
-    keep_payload = {
-        "name": payload.trigger_name,
-        "source": ["zabbix"],
-        "status": "firing" if payload.status.upper() == "PROBLEM" else "resolved",
-        "severity": payload.severity.name.lower(),
-        "host": {
-            "name": payload.host_name,
-            "ip": payload.host_ip,
-            "id": payload.host_id
-        },
-        "trigger": {
-            "id": payload.trigger_id,
-            "name": payload.trigger_name,
-            "description": payload.trigger_description
-        },
-        "trigger_id": payload.trigger_id,
-        "event_id": payload.event_id,
-        "timestamp": payload.timestamp.isoformat(),
-        "tags": payload.tags
-    }
-
-    url = f"{settings.keep_url.rstrip('/')}/alerts/event"
-    headers = {"Content-Type": "application/json"}
-    if settings.keep_api_key:
-        headers["X-API-KEY"] = settings.keep_api_key
-
-    try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.post(url, json=keep_payload, headers=headers, timeout=5.0)
-            resp.raise_for_status()
-            logger.info("Alerta Zabbix retransmitido com sucesso para o Keep.")
-    except Exception as exc:
-        logger.error(f"Erro ao retransmitir alerta para o Keep: {exc}")
+router = APIRouter(
+    prefix="/webhook", tags=["webhooks"], dependencies=[Depends(verify_webhook_key)]
+)
 
 
 @router.post(
@@ -89,13 +57,9 @@ async def forward_to_keep(payload: ZabbixAlertPayload):
 )
 async def receive_zabbix_alert(
     payload: ZabbixAlertPayload,
-    background_tasks: BackgroundTasks,
     redis: Redis = Depends(get_redis),
 ) -> AlertResponse:
-    """Recebe alerta, gera fingerprint, roteia via lock distribuído e repassa ao Keep."""
-
-    # Retransmite o alerta para o Keep em background
-    background_tasks.add_task(forward_to_keep, payload)
+    """Recebe alerta e o roteia diretamente para o pipeline interno."""
 
     fingerprint = generate_fingerprint(payload)
     alert_data = payload.model_dump(mode="json")
@@ -157,18 +121,21 @@ async def receive_glpi_resolution(
         payload.ticket_id,
         payload.status,
     )
-    
+
     # Se o status for de solução/resolução (status 5 ou 6, ou nomes solved/resolved/closed)
     if payload.status.lower() in ("solved", "resolved", "closed", "5", "6"):
         from app.workers.tasks import process_ticket_resolution
-        
+
         process_ticket_resolution.delay(
             ticket_id=payload.ticket_id,
             solution_text=payload.solution,
         )
         return {"status": "dispatched", "ticket_id": payload.ticket_id}
-        
-    return {"status": "ignored", "reason": f"Status '{payload.status}' não requer tratativa"}
+
+    return {
+        "status": "ignored",
+        "reason": f"Status '{payload.status}' não requer tratativa",
+    }
 
 
 @router.get(

@@ -23,6 +23,7 @@ class UserRole(str, enum.Enum):
     """Roles disponíveis na plataforma ness.OS.
 
     Mapeamento Authentik SSO → UserRole:
+      platform_admin → platform_admin
       admin    → admin
       noc      → noc
       soc      → soc
@@ -31,6 +32,7 @@ class UserRole(str, enum.Enum):
       usuarios → cliente
     """
 
+    platform_admin = "platform_admin"
     admin = "admin"
     noc = "noc"
     soc = "soc"
@@ -56,7 +58,9 @@ class User(Base):
         default=UserRole.noc,
         server_default="noc",
     )
-    tenant_id: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
+    tenant_id: Mapped[str | None] = mapped_column(
+        String(128), nullable=True, index=True
+    )
     is_active: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True, server_default="true"
     )

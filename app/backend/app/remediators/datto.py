@@ -7,6 +7,7 @@ Datto RMM API (componente 'Quick Jobs' ou 'ComStore').
 
 Referência: https://rmm-api-docs.datto.com/
 """
+
 from __future__ import annotations
 
 import logging

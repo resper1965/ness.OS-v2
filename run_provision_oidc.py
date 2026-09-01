@@ -8,8 +8,8 @@ def chunk_file(local_path, remote_path):
     
     # Clear remote
     subprocess.run([
-        'sshpass', '-p', 'lav9f1e5CICu!vyh',
-        'ssh', '-o', 'StrictHostKeyChecking=no', '-o', 'KexAlgorithms=curve25519-sha256', '-o', 'IPQoS=none',
+        'sshpass', '-p', '<REVOKED_USE_PSONO>',
+        'ssh', '-o', 'StrictHostKeyChecking=yes', '-o', 'KexAlgorithms=curve25519-sha256', '-o', 'IPQoS=none',
         'root@144.91.115.242',
         f'echo -n "" > /tmp/temp_prv.b64'
     ], check=True)
@@ -19,16 +19,16 @@ def chunk_file(local_path, remote_path):
     for i in range(0, len(b64_str), chunk_size):
         chunk = b64_str[i:i+chunk_size]
         subprocess.run([
-            'sshpass', '-p', 'lav9f1e5CICu!vyh',
-            'ssh', '-o', 'StrictHostKeyChecking=no', '-o', 'KexAlgorithms=curve25519-sha256', '-o', 'IPQoS=none',
+            'sshpass', '-p', '<REVOKED_USE_PSONO>',
+            'ssh', '-o', 'StrictHostKeyChecking=yes', '-o', 'KexAlgorithms=curve25519-sha256', '-o', 'IPQoS=none',
             'root@144.91.115.242',
             f'echo -n "{chunk}" >> /tmp/temp_prv.b64'
         ], check=True)
         
     # Decode to target
     subprocess.run([
-        'sshpass', '-p', 'lav9f1e5CICu!vyh',
-        'ssh', '-o', 'StrictHostKeyChecking=no', '-o', 'KexAlgorithms=curve25519-sha256', '-o', 'IPQoS=none',
+        'sshpass', '-p', '<REVOKED_USE_PSONO>',
+        'ssh', '-o', 'StrictHostKeyChecking=yes', '-o', 'KexAlgorithms=curve25519-sha256', '-o', 'IPQoS=none',
         'root@144.91.115.242',
         f'base64 -d /tmp/temp_prv.b64 > /tmp/deploy_oidc.py && rm -f /tmp/temp_prv.b64'
     ], check=True)
@@ -41,8 +41,8 @@ chunk_file(
 
 # Run in container
 run_cmd = [
-    'sshpass', '-p', 'lav9f1e5CICu!vyh',
-    'ssh', '-o', 'StrictHostKeyChecking=no', '-o', 'KexAlgorithms=curve25519-sha256', '-o', 'IPQoS=none',
+    'sshpass', '-p', '<REVOKED_USE_PSONO>',
+    'ssh', '-o', 'StrictHostKeyChecking=yes', '-o', 'KexAlgorithms=curve25519-sha256', '-o', 'IPQoS=none',
     'root@144.91.115.242',
     'docker cp /tmp/deploy_oidc.py ninf-authentik-server:/tmp/deploy_oidc.py && ' +
     'docker exec -u root -i ninf-authentik-server python3 /tmp/deploy_oidc.py && ' +
