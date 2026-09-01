@@ -22,10 +22,6 @@
 # Credenciais OAuth2 da API Contabo
 # Obtenha em: https://my.contabo.com/api/details
 # ---------------------------------------------------------------------------
-contabo_oauth2_client_id     = "SUBSTITUIR_PELO_CLIENT_ID"
-contabo_oauth2_client_secret = "SUBSTITUIR_PELO_CLIENT_SECRET"
-contabo_oauth2_user          = "SUBSTITUIR_PELO_EMAIL"
-contabo_oauth2_pass          = "SUBSTITUIR_PELA_SENHA"
 
 # ---------------------------------------------------------------------------
 # Configurações da VPS - Cloud VPS V3
@@ -71,4 +67,3 @@ environment  = "prod"
 # ---------------------------------------------------------------------------
 hub_display_name = "aiops-soc-hub-prod"
 hub_product_id   = "V3"
-

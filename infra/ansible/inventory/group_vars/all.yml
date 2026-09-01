@@ -61,8 +61,8 @@ zabbix_db_name: "dbzabbix"
 zabbix_db_user: "usrzabbix"
 
 # Senha do usuário do banco de dados
-zabbix_db_password: "zabbix_db_pass_N3ss2026!"
-mariadb_root_password: "REDACTED_CREDENTIAL"
+zabbix_db_password: "{{ lookup('ansible.builtin.env', 'NESS_ZABBIX_DB_PASSWORD') | mandatory }}"
+mariadb_root_password: "{{ lookup('ansible.builtin.env', 'NESS_MARIADB_ROOT_PASSWORD') | mandatory }}"
 
 # Host do banco de dados (localhost para instalação all-in-one)
 zabbix_db_host: "localhost"
@@ -332,10 +332,10 @@ backup_retention_monthly: 3
 # --- Credenciais Contabo S3 (CRIPTOGRAFAR COM VAULT) ---
 
 # Access Key do Contabo Object Storage
-backup_s3_access_key: "b02ae5cec2f0ebdc9865fbe0cf359ec8"
+backup_s3_access_key: "{{ lookup('ansible.builtin.env', 'NESS_BACKUP_S3_ACCESS_KEY') | mandatory }}"
 
 # Secret Key do Contabo Object Storage
-backup_s3_secret_key: "REDACTED_CREDENTIAL"
+backup_s3_secret_key: "{{ lookup('ansible.builtin.env', 'NESS_BACKUP_S3_SECRET_KEY') | mandatory }}"
 
 # Endpoint S3 do Contabo
 backup_s3_endpoint: "https://eu2.contabostorage.com"
