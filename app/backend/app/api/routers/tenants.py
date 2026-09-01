@@ -1,18 +1,24 @@
 import logging
 from typing import Any, Dict, List
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 
+from app.core.dependencies import (
+    require_authenticated,
+    require_noc,
+    resolve_tenant_scope,
+)
 from app.core.security import SecurityScanner
 from app.database import SessionLocal
 from app.models.models import Asset, CustomerCredentials
+from app.models.users import User
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.get("/health", tags=["system"])
+@router.get("/health", tags=["system"], dependencies=[Depends(require_noc)])
 async def system_health():
     """Check connectivity with all integrated components."""
     from cli.contabo.api_client import ContaboAPIClient
@@ -53,14 +59,22 @@ async def system_health():
     return health
 
 
-@router.get("/security-audit", tags=["system"])
+@router.get(
+    "/security-audit",
+    tags=["system"],
+    dependencies=[Depends(require_noc)],
+)
 async def security_audit():
     """Run a local security and update audit."""
     scanner = SecurityScanner()
     return scanner.run_all()
 
 
-@router.get("/list", response_model=List[Dict[str, Any]])
+@router.get(
+    "/list",
+    response_model=List[Dict[str, Any]],
+    dependencies=[Depends(require_noc)],
+)
 async def list_tenants():
     """List all available tenants (customers)."""
     async with SessionLocal() as session:
@@ -96,17 +110,21 @@ async def list_tenants():
 
 
 @router.get("/{tenant_id}/summary")
-async def get_tenant_summary(tenant_id: str):
+async def get_tenant_summary(
+    tenant_id: str,
+    current_user: User = Depends(require_authenticated),
+):
     """Get a quick health summary for a specific tenant."""
+    tenant_scope = resolve_tenant_scope(current_user, tenant_id)
     async with SessionLocal() as session:
         try:
             # Assets count
-            asset_stmt = select(Asset).where(Asset.customer_id == tenant_id)
+            asset_stmt = select(Asset).where(Asset.customer_id == tenant_scope)
             asset_result = await session.execute(asset_stmt)
             assets = asset_result.scalars().all()
 
             return {
-                "tenant_id": tenant_id,
+                "tenant_id": tenant_scope,
                 "assets_count": len(assets),
                 "status": "active",
             }

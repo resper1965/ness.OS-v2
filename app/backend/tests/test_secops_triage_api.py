@@ -1,7 +1,23 @@
+from types import SimpleNamespace
+
+import pytest
 from fastapi.testclient import TestClient
+
+from app.core.dependencies import get_current_user
 from app.main import app
+from app.models.users import UserRole
 
 client = TestClient(app)
+
+
+@pytest.fixture(autouse=True)
+def authenticated_soc():
+    app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(
+        role=UserRole.soc,
+        tenant_id=None,
+    )
+    yield
+    app.dependency_overrides.pop(get_current_user, None)
 
 
 def test_triage_stats_endpoint():

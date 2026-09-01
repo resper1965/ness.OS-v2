@@ -44,6 +44,23 @@ def is_noc_role(role: UserRole | str | None) -> bool:
         return False
 
 
+def resolve_tenant_scope(user: User, requested_tenant_id: str | None) -> str | None:
+    """Resolve tenant scope without allowing non-operators to widen access."""
+    if is_noc_role(user.role):
+        return requested_tenant_id
+    if not user.tenant_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Usuario sem tenant associado",
+        )
+    if requested_tenant_id and requested_tenant_id != user.tenant_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Acesso cross-tenant negado",
+        )
+    return user.tenant_id
+
+
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
     db: AsyncSession = Depends(get_db),

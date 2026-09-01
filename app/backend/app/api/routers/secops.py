@@ -14,8 +14,14 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
+from app.core.dependencies import (
+    require_authenticated,
+    require_noc,
+    resolve_tenant_scope,
+)
 from app.core.triage_engine import TriageAction, TriageEngine
 from app.database import get_db
+from app.models.users import User
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/secops", tags=["secops"])
@@ -208,10 +214,10 @@ async def _zabbix(method: str, params: dict) -> Any:
         return data["result"]
 
 
-# ── Endpoints Públicos (sem auth para o frontend interno) ────────────────────
+# ── Endpoints operacionais autenticados ──────────────────────────────────────
 
 
-@router.get("/cve-intel")
+@router.get("/cve-intel", dependencies=[Depends(require_noc)])
 async def cve_intel(
     severity: str | None = Query(None, description="critical|high|medium"),
     client: str | None = Query(None, description="Filtrar por cliente"),
@@ -253,7 +259,7 @@ async def cve_intel(
     }
 
 
-@router.get("/zabbix-health")
+@router.get("/zabbix-health", dependencies=[Depends(require_noc)])
 async def zabbix_health() -> dict[str, Any]:
     """
     Verifica saúde do Zabbix Contabo em tempo real.
@@ -495,7 +501,7 @@ def _extract_ips_and_hashes(payload: dict[str, Any]) -> tuple[list[str], list[st
     return list(ips), list(hashes)
 
 
-@router.get("/triage-stats")
+@router.get("/triage-stats", dependencies=[Depends(require_noc)])
 async def get_triage_stats() -> dict[str, Any]:
     """Retorna estatísticas do Triage Worker (Camada 4) e métricas de bypass de LLM."""
     total = _TRIAGE_METRICS["total"]
@@ -514,7 +520,7 @@ async def get_triage_stats() -> dict[str, Any]:
     }
 
 
-@router.post("/triage")
+@router.post("/triage", dependencies=[Depends(require_noc)])
 async def triage_alert(
     payload: dict[str, Any],
     db: AsyncSession = Depends(get_db),
@@ -637,15 +643,17 @@ async def list_soc_decisions(
     classification: str | None = Query(None),
     limit: int = Query(50, ge=1, le=200),
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_authenticated),
 ) -> dict[str, Any]:
     """Retorna a lista de decisões de triagem do SOC persistidas."""
     from sqlalchemy import select
 
     from app.models.models import SocDecision
 
+    tenant_scope = resolve_tenant_scope(current_user, customer_id)
     stmt = select(SocDecision).order_by(SocDecision.created_at.desc()).limit(limit)
-    if customer_id:
-        stmt = stmt.where(SocDecision.customer_id == customer_id)
+    if tenant_scope:
+        stmt = stmt.where(SocDecision.customer_id == tenant_scope)
     if classification:
         stmt = stmt.where(SocDecision.classification == classification)
 

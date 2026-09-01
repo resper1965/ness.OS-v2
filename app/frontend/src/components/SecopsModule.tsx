@@ -5,6 +5,7 @@ import {
   Zap, Activity, ChevronDown, ChevronUp,
   ExternalLink, RefreshCw, Bug, Eye, Globe,
 } from 'lucide-react';
+import { useAuth } from '../hooks/useAuth';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
 
@@ -330,6 +331,7 @@ function ClientRiskMatrix({ cves }: { cves: CveItem[] }) {
 type FilterSev = 'all' | 'critical' | 'high';
 
 export default function SecopsModule() {
+  const { authHeader } = useAuth();
   const [cveIntel, setCveIntel] = useState<CveIntel | null>(null);
   const [health, setHealth]     = useState<ZabbixHealth | null>(null);
   const [cveLoading, setCveLoading]       = useState(true);
@@ -344,19 +346,19 @@ export default function SecopsModule() {
     setHealthLoading(true);
 
     try {
-      const res = await fetch(`${API_BASE}/api/secops/cve-intel`);
+      const res = await fetch(`${API_BASE}/api/secops/cve-intel`, { headers: authHeader() });
       if (res.ok) setCveIntel(await res.json());
     } catch (e) { console.error('CVE intel:', e); }
     finally { setCveLoading(false); }
 
     try {
-      const res = await fetch(`${API_BASE}/api/secops/zabbix-health`);
+      const res = await fetch(`${API_BASE}/api/secops/zabbix-health`, { headers: authHeader() });
       if (res.ok) setHealth(await res.json());
     } catch (e) { console.error('Zabbix health:', e); }
     finally { setHealthLoading(false); }
 
     setLastRefresh(new Date());
-  }, []);
+  }, [authHeader]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
