@@ -1,0 +1,1086 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Apresentação executiva do projeto completo ness.OS, da infraestrutura ao portal AIOps.">
+  <title>ness.OS — Projeto completo</title>
+  <style>
+    @font-face {
+      font-family: "Montserrat";
+      src: local("Montserrat Medium"), local("Montserrat-Medium"), local("Montserrat");
+      font-style: normal;
+      font-weight: 500;
+      font-display: swap;
+    }
+
+    :root {
+      color-scheme: dark;
+      --ink: #ffffff;
+      --muted: #b8b8b8;
+      --night: #000000;
+      --panel: #0a0a0a;
+      --panel-2: #151515;
+      --line: #343434;
+      --brand: #00ade8;
+      --mint: var(--brand);
+      --amber: var(--brand);
+      --cyan: var(--brand);
+      --red: var(--brand);
+      --shadow: 0 28px 80px rgba(0, 0, 0, .38);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body { height: 100%; }
+
+    body {
+      margin: 0;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 78% 18%, rgba(0, 173, 232, .12), transparent 30%),
+        radial-gradient(circle at 12% 84%, rgba(0, 173, 232, .06), transparent 34%),
+        var(--night);
+      color: var(--ink);
+      font-family: "Montserrat", sans-serif;
+      font-weight: 500;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: .22;
+      background-image:
+        linear-gradient(rgba(0, 173, 232, .07) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 173, 232, .07) 1px, transparent 1px);
+      background-size: 52px 52px;
+      mask-image: linear-gradient(to bottom, black, transparent 82%);
+    }
+
+    button { font: inherit; }
+
+    .deck {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      isolation: isolate;
+    }
+
+    .slide {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      align-content: center;
+      gap: clamp(18px, 2.4vw, 34px);
+      padding: clamp(42px, 7vw, 108px) clamp(28px, 8vw, 124px) clamp(72px, 8vw, 112px);
+      opacity: 0;
+      visibility: hidden;
+      transform: translateX(4%);
+      transition: opacity .32s ease, transform .42s cubic-bezier(.2, .8, .2, 1), visibility .32s;
+    }
+
+    .slide.active {
+      opacity: 1;
+      visibility: visible;
+      transform: translateX(0);
+      z-index: 2;
+    }
+
+    .slide.leaving { transform: translateX(-4%); }
+
+    .eyebrow {
+      margin: 0;
+      color: var(--mint);
+      font-family: "Bahnschrift", "Aptos Display", sans-serif;
+      font-size: clamp(.72rem, 1.1vw, .92rem);
+      font-weight: 500;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+    }
+
+    h1, h2, h3, p { margin-top: 0; }
+
+    h1, h2 {
+      max-width: 1050px;
+      margin-bottom: 0;
+      font-family: "Bahnschrift", "Aptos Display", sans-serif;
+      font-weight: 500;
+      letter-spacing: -.045em;
+    }
+
+    h1 { font-size: clamp(3.2rem, 8vw, 7.8rem); line-height: .87; }
+    h2 { font-size: clamp(2rem, 4.8vw, 4.7rem); line-height: .94; }
+    h3 { font-size: clamp(1rem, 1.4vw, 1.2rem); font-weight: 500; }
+
+    .lede {
+      max-width: 880px;
+      margin-bottom: 0;
+      color: var(--muted);
+      font-size: clamp(1rem, 1.7vw, 1.42rem);
+      line-height: 1.5;
+    }
+
+    .brand-dot { color: var(--mint); }
+    .accent { color: var(--amber); }
+
+    .cover-mark {
+      position: absolute;
+      right: clamp(28px, 8vw, 124px);
+      top: clamp(36px, 7vw, 96px);
+      width: clamp(72px, 9vw, 136px);
+      aspect-ratio: 1;
+      border: 1px solid var(--line);
+      border-radius: 50%;
+    }
+
+    .cover-mark::before,
+    .cover-mark::after {
+      content: "";
+      position: absolute;
+      inset: 16%;
+      border: 1px solid var(--mint);
+      transform: rotate(45deg);
+    }
+
+    .cover-mark::after {
+      inset: 34%;
+      border-color: var(--amber);
+    }
+
+    .cover-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px 30px;
+      color: var(--muted);
+      font-size: .9rem;
+    }
+
+    .cover-meta strong { color: var(--ink); font-weight: 500; }
+
+    .metric-row,
+    .card-grid,
+    .buy-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: clamp(12px, 1.6vw, 22px);
+    }
+
+    .stage-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: clamp(12px, 1.4vw, 20px);
+    }
+
+    .stage-card {
+      min-width: 0;
+      padding: clamp(16px, 1.8vw, 24px);
+      border: 1px solid var(--line);
+      background: rgba(10, 10, 10, .92);
+    }
+
+    .stage-card .state {
+      display: block;
+      margin-bottom: 14px;
+      color: var(--brand);
+      font-size: .7rem;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
+    .stage-card h3 { margin-bottom: 8px; }
+    .stage-card p { margin-bottom: 0; color: var(--muted); font-size: .9rem; line-height: 1.45; }
+    .stage-card.blocked { border-style: dashed; opacity: .76; }
+
+    .metric,
+    .machine,
+    .buy-item {
+      position: relative;
+      min-width: 0;
+      padding: clamp(18px, 2vw, 28px);
+      border: 1px solid var(--line);
+      background: linear-gradient(145deg, rgba(21, 21, 21, .96), rgba(5, 5, 5, .94));
+      box-shadow: var(--shadow);
+    }
+
+    .metric::before,
+    .machine::before,
+    .buy-item::before {
+      content: "";
+      position: absolute;
+      top: -1px;
+      left: -1px;
+      width: 42px;
+      height: 3px;
+      background: var(--mint);
+    }
+
+    .metric .value {
+      margin-bottom: 8px;
+      font-family: "Bahnschrift", sans-serif;
+      font-size: clamp(2.3rem, 5vw, 5rem);
+      line-height: .9;
+      letter-spacing: -.05em;
+    }
+
+    .metric .label,
+    .machine p,
+    .buy-item p {
+      margin-bottom: 0;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .metric.warning::before { background: var(--amber); }
+    .metric.info::before { background: var(--cyan); }
+
+    .machine .state,
+    .buy-item .state {
+      display: inline-block;
+      margin-bottom: 20px;
+      color: var(--mint);
+      font-family: "Bahnschrift", sans-serif;
+      font-size: .72rem;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+
+    .machine h3,
+    .buy-item h3 { margin-bottom: 8px; }
+
+    .machine strong,
+    .buy-item strong {
+      display: block;
+      margin-bottom: 9px;
+      font-family: "Bahnschrift", sans-serif;
+      font-size: clamp(1.25rem, 2.2vw, 2rem);
+      font-weight: 500;
+    }
+
+    .machine.temp { opacity: .68; }
+    .machine.temp::before { background: var(--muted); }
+    .machine.hostinger::before { background: var(--amber); }
+
+    .formula {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr auto 1fr;
+      align-items: center;
+      gap: clamp(10px, 2vw, 28px);
+      max-width: 1100px;
+    }
+
+    .formula .step {
+      padding: 22px;
+      border-top: 1px solid var(--line);
+    }
+
+    .formula .step span {
+      display: block;
+      color: var(--muted);
+      font-size: .82rem;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+    }
+
+    .formula .step strong {
+      display: block;
+      margin-top: 8px;
+      font-family: "Bahnschrift", sans-serif;
+      font-size: clamp(1.5rem, 3vw, 3rem);
+      font-weight: 500;
+    }
+
+    .formula .op { color: var(--amber); font-size: 2rem; }
+
+    .topology {
+      width: min(100%, 1180px);
+      max-height: 62vh;
+      overflow: visible;
+      filter: drop-shadow(0 22px 38px rgba(0, 0, 0, .32));
+    }
+
+    .topology text {
+      fill: var(--ink);
+      font-family: "Aptos", sans-serif;
+      font-size: 17px;
+    }
+
+    .topology .small { fill: var(--muted); font-size: 13px; }
+    .topology .existing { fill: #101010; stroke: var(--brand); }
+    .topology .buy { fill: #0c0c0c; stroke: var(--brand); }
+    .topology .hub { fill: #101010; stroke: var(--brand); }
+    .topology .source { fill: #0c0c0c; stroke: #555555; }
+    .topology .cluster-boundary { fill: rgba(0, 173, 232, .018); stroke: var(--brand); stroke-width: 1.4; stroke-dasharray: 10 8; }
+    .topology .hub-boundary { fill: rgba(0, 173, 232, .018); stroke: var(--brand); stroke-width: 1.4; stroke-dasharray: 10 8; }
+    .topology .zone-label { font-size: 13px; font-weight: 500; letter-spacing: 2px; }
+    .topology .port-label { fill: var(--amber); font-size: 12px; }
+    .topology .flow { fill: none; stroke: var(--line); stroke-width: 2.2; }
+    .topology .vpn { stroke: var(--amber); stroke-dasharray: 8 7; }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 18px;
+      color: var(--muted);
+      font-size: .84rem;
+    }
+
+    .legend span::before {
+      content: "";
+      display: inline-block;
+      width: 9px;
+      height: 9px;
+      margin-right: 8px;
+      border-radius: 50%;
+      background: var(--mint);
+    }
+
+    .legend .new::before { background: var(--amber); }
+    .legend .central::before { background: var(--cyan); }
+    .slide[data-title="Topologia"] .legend { transform: translateY(-42px); }
+
+    .flow-lanes {
+      display: grid;
+      gap: 14px;
+    }
+
+    .flow-lane {
+      display: grid;
+      grid-template-columns: 150px minmax(170px, 1fr) 46px minmax(170px, 1fr) 46px minmax(190px, 1fr) 46px minmax(170px, 1fr);
+      align-items: stretch;
+      gap: 10px;
+    }
+
+    .lane-label,
+    .flow-node {
+      display: grid;
+      align-content: center;
+      min-width: 0;
+      min-height: 94px;
+      padding: 16px 18px;
+      border: 1px solid var(--line);
+      background: rgba(12, 12, 12, .9);
+    }
+
+    .lane-label {
+      border-color: var(--mint);
+      color: var(--mint);
+      font-family: "Bahnschrift", sans-serif;
+      font-size: .8rem;
+      font-weight: 500;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+
+    .flow-lane:nth-child(2) .lane-label { border-color: var(--amber); color: var(--amber); }
+    .flow-lane:nth-child(3) .lane-label { border-color: var(--cyan); color: var(--cyan); }
+
+    .flow-node strong { margin-bottom: 6px; font-weight: 500; }
+    .flow-node span { color: var(--muted); font-size: .85rem; line-height: 1.35; }
+    .flow-node.target { border-color: var(--brand); background: rgba(0, 173, 232, .08); }
+    .flow-arrow { display: grid; place-items: center; color: var(--muted); font-size: 1.45rem; }
+
+    .buy-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+    .buy-item { padding: clamp(16px, 1.7vw, 24px); }
+    .buy-item .qty {
+      position: absolute;
+      right: 16px;
+      top: 14px;
+      color: var(--amber);
+      font-family: "Bahnschrift", sans-serif;
+      font-size: 1.25rem;
+    }
+
+    .total-band {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      gap: 22px;
+      padding: 20px 0;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .total-band .number {
+      color: var(--amber);
+      font-family: "Bahnschrift", sans-serif;
+      font-size: clamp(3rem, 6vw, 6rem);
+      line-height: .8;
+    }
+
+    .total-band p { margin: 0; color: var(--muted); }
+    .total-band strong { color: var(--ink); font-weight: 500; }
+
+    .failure-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: clamp(18px, 3vw, 42px);
+    }
+
+    .failure-case {
+      padding: clamp(20px, 3vw, 34px);
+      border-left: 3px solid var(--mint);
+      background: rgba(18, 18, 18, .78);
+    }
+
+    .failure-case.indexer { border-color: var(--cyan); }
+    .failure-case .big {
+      display: block;
+      color: var(--ink);
+      font-family: "Bahnschrift", sans-serif;
+      font-size: clamp(2rem, 4vw, 4rem);
+      line-height: 1;
+    }
+
+    .failure-case p { margin: 12px 0 0; color: var(--muted); line-height: 1.5; }
+
+    .timeline {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0;
+      counter-reset: phase;
+    }
+
+    .phase {
+      position: relative;
+      padding: 34px 22px 22px;
+      border-top: 2px solid var(--line);
+      counter-increment: phase;
+    }
+
+    .phase::before {
+      content: counter(phase, decimal-leading-zero);
+      position: absolute;
+      top: -17px;
+      left: 20px;
+      display: grid;
+      width: 34px;
+      height: 34px;
+      place-items: center;
+      border-radius: 50%;
+      background: var(--night);
+      border: 1px solid var(--mint);
+      color: var(--mint);
+      font-family: "Bahnschrift", sans-serif;
+      font-size: .75rem;
+    }
+
+    .phase p { margin-bottom: 0; color: var(--muted); line-height: 1.45; }
+
+    .decision {
+      max-width: 1000px;
+      padding-left: clamp(22px, 3vw, 42px);
+      border-left: 5px solid var(--amber);
+      font-family: "Bahnschrift", sans-serif;
+      font-size: clamp(1.45rem, 3.2vw, 3.1rem);
+      line-height: 1.2;
+      letter-spacing: -.025em;
+    }
+
+    .footer {
+      position: fixed;
+      z-index: 10;
+      right: clamp(18px, 3vw, 42px);
+      bottom: clamp(14px, 2vw, 28px);
+      left: clamp(18px, 3vw, 42px);
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      gap: 18px;
+    }
+
+    .footer-brand {
+      color: var(--muted);
+      font-family: "Bahnschrift", sans-serif;
+      letter-spacing: .08em;
+    }
+
+    .progress {
+      height: 2px;
+      background: var(--line);
+      overflow: hidden;
+    }
+
+    .progress > span {
+      display: block;
+      height: 100%;
+      width: 7.69%;
+      background: var(--mint);
+      transition: width .28s ease;
+    }
+
+    .controls { display: flex; align-items: center; gap: 8px; }
+
+    .controls button {
+      display: grid;
+      width: 38px;
+      height: 38px;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 50%;
+      background: rgba(12, 12, 12, .9);
+      color: var(--ink);
+      cursor: pointer;
+      transition: border-color .18s ease, background .18s ease, transform .18s ease;
+    }
+
+    .controls button:hover { border-color: var(--mint); background: var(--panel-2); transform: translateY(-2px); }
+    .controls button:focus-visible { outline: 2px solid var(--amber); outline-offset: 3px; }
+    .counter { min-width: 48px; color: var(--muted); text-align: center; font-variant-numeric: tabular-nums; }
+
+    body,
+    button,
+    h1,
+    h2,
+    h3,
+    .eyebrow,
+    .metric .value,
+    .machine .state,
+    .buy-item .state,
+    .machine strong,
+    .buy-item strong,
+    .formula .step strong,
+    .topology text,
+    .lane-label,
+    .buy-item .qty,
+    .total-band .number,
+    .failure-case .big,
+    .phase::before,
+    .decision,
+    .footer-brand {
+      font-family: "Montserrat", sans-serif;
+      font-weight: 500;
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    @media (max-width: 900px) {
+      .slide { overflow-y: auto; align-content: start; }
+      .card-grid, .metric-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .stage-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .buy-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .formula { grid-template-columns: 1fr; }
+      .formula .op { display: none; }
+      .timeline { grid-template-columns: 1fr 1fr; gap: 26px 0; }
+      .flow-lane { grid-template-columns: 1fr; gap: 8px; }
+      .flow-arrow { min-height: 22px; transform: rotate(90deg); }
+      .cover-mark { opacity: .45; }
+    }
+
+    @media (max-width: 600px) {
+      .slide { padding-inline: 22px; }
+      .card-grid, .metric-row, .buy-grid, .failure-grid { grid-template-columns: 1fr; }
+      .stage-grid { grid-template-columns: 1fr; }
+      .total-band { grid-template-columns: auto 1fr; }
+      .total-band > :last-child { grid-column: 1 / -1; }
+      .timeline { grid-template-columns: 1fr; gap: 28px; }
+      .footer-brand { display: none; }
+      .footer { grid-template-columns: 1fr auto; }
+      .topology { min-width: 720px; }
+      .topology-wrap { overflow-x: auto; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
+    }
+
+    @media print {
+      @page { size: 16in 9in; margin: 0; }
+      body { overflow: visible; background: #000000; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+      .deck { height: auto; }
+      .slide {
+        position: relative;
+        width: 16in;
+        height: 9in;
+        break-after: page;
+        opacity: 1;
+        visibility: visible;
+        transform: none;
+      }
+      .footer { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="deck" aria-label="Apresentação de infraestrutura ness.OS">
+    <section class="slide active" data-title="Abertura">
+      <div class="cover-mark" aria-hidden="true"></div>
+      <p class="eyebrow">Projeto diretor · decisão executiva</p>
+      <h1>ness<span class="brand-dot">.</span>OS<br><span class="accent">projeto</span> completo</h1>
+      <p class="lede">Da instalação dos ativos ao AIOps, portal executivo, API Contabo, governança, segurança e operação escalável até 5.000 endpoints.</p>
+      <div class="cover-meta">
+        <span><strong>Base observada</strong> 624 endpoints</span>
+        <span><strong>Versão oficial</strong> 24 ago 2026</span>
+        <span><strong>Primeiro ciclo</strong> 18 semanas</span>
+      </div>
+    </section>
+
+    <section class="slide" data-title="Decisão">
+      <p class="eyebrow">Resumo executivo</p>
+      <h2>Um projeto, <span class="accent">13 pacotes</span>, oito marcos</h2>
+      <div class="metric-row">
+        <article class="metric">
+          <div class="value">18</div>
+          <div class="label">semanas até operação integrada</div>
+        </article>
+        <article class="metric info">
+          <div class="value">8</div>
+          <div class="label">VPS Wazuh após o Gate 6</div>
+        </article>
+        <article class="metric warning">
+          <div class="value">5k</div>
+          <div class="label">teto acionado por métricas</div>
+        </article>
+      </div>
+      <p class="lede">O trabalho começa fechando o Gate 0. A expansão Wazuh só é liberada depois que identidade, recuperação, Zabbix, GLPI e núcleo AIOps estiverem comprovados.</p>
+    </section>
+
+    <section class="slide" data-title="Estágio atual">
+      <p class="eyebrow">24 ago 2026 · evidência por gate</p>
+      <h2>Fundação em execução; expansão bloqueada</h2>
+      <div class="stage-grid">
+        <article class="stage-card">
+          <span class="state">Comprovado</span>
+          <h3>Backup e restore local</h3>
+          <p>AIOps e Zabbix restaurados em isolamento, com checksums e quarentena aprovados.</p>
+        </article>
+        <article class="stage-card">
+          <span class="state">Em andamento</span>
+          <h3>Zabbix</h3>
+          <p>Restore íntegro; cutover NO-GO até reduzir 2,88% unsupported, 584 unknown e 1.829 escalations.</p>
+        </article>
+        <article class="stage-card">
+          <span class="state">Parcial</span>
+          <h3>Identidade e GLPI</h3>
+          <p>Authentik saudável, nenhuma aplicação homologada. GLPI estável, manifesto ainda sem carga produtiva.</p>
+        </article>
+        <article class="stage-card blocked">
+          <span class="state">Bloqueio externo</span>
+          <h3>Object Storage e cofre</h3>
+          <p>Faltam S3/Restic comprovado e VPS Psono. Sem isso, Gate 0 e M1 não encerram.</p>
+        </article>
+      </div>
+      <div class="decision">Rotinas internas: 57 testes backend, build frontend e tooling aprovados. Agora: fechar M0; depois identidade + GLPI → Zabbix → AIOps/painel → Wazuh.</div>
+    </section>
+
+    <section class="slide" data-title="Projeto end-to-end">
+      <p class="eyebrow">Escopo completo · uma cadeia de entrega</p>
+      <h2>Instalar, integrar, explicar e operar</h2>
+      <div class="flow-lanes" aria-label="Fluxo end-to-end do projeto ness.OS">
+        <div class="flow-lane">
+          <div class="lane-label">Fundação</div>
+          <div class="flow-node"><strong>Ativos e VPS</strong><span>Contabo, redes, DNS, TLS, IaC e contas nominais</span></div>
+          <div class="flow-arrow" aria-hidden="true">→</div>
+          <div class="flow-node"><strong>Identidade e recuperação</strong><span>Authentik, Psono, SOPS/age, S3 e restore</span></div>
+          <div class="flow-arrow" aria-hidden="true">→</div>
+          <div class="flow-node"><strong>Sistemas canônicos</strong><span>Zabbix, GLPI e Wazuh hub-spoke</span></div>
+          <div class="flow-arrow" aria-hidden="true">→</div>
+          <div class="flow-node target"><strong>Coleta confiável</strong><span>Disponibilidade, inventário, segurança e controle</span></div>
+        </div>
+        <div class="flow-lane">
+          <div class="lane-label">Produto</div>
+          <div class="flow-node"><strong>Contratos de ingestão</strong><span>Zabbix, Wazuh, GLPI e API Contabo</span></div>
+          <div class="flow-arrow" aria-hidden="true">→</div>
+          <div class="flow-node"><strong>Motor AIOps</strong><span>Normalização, deduplicação, correlação e RCA</span></div>
+          <div class="flow-arrow" aria-hidden="true">→</div>
+          <div class="flow-node"><strong>API e modelo comum</strong><span>Tenant, serviço, ativo, projeto, risco e incidente</span></div>
+          <div class="flow-arrow" aria-hidden="true">→</div>
+          <div class="flow-node target"><strong>Portal/PWA</strong><span>Painel executivo e jornadas por persona</span></div>
+        </div>
+        <div class="flow-lane">
+          <div class="lane-label">Operação</div>
+          <div class="flow-node"><strong>Testes e segurança</strong><span>Tenant, E2E, pentest, hardening e rollback</span></div>
+          <div class="flow-arrow" aria-hidden="true">→</div>
+          <div class="flow-node"><strong>SLO e continuidade</strong><span>Observabilidade, backup, DR e capacidade</span></div>
+          <div class="flow-arrow" aria-hidden="true">→</div>
+          <div class="flow-node"><strong>Conhecimento multi-tenant</strong><span>Runbooks Ness/cliente; políticas oficiais apenas referenciadas</span></div>
+          <div class="flow-arrow" aria-hidden="true">→</div>
+          <div class="flow-node target"><strong>Operação assistida</strong><span>Aceite, plantão, indicadores e melhoria contínua</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" data-title="Existente">
+      <p class="eyebrow">O que já temos</p>
+      <h2>Capacidade existente preservada</h2>
+      <div class="card-grid">
+        <article class="machine">
+          <span class="state">Contabo · existente</span>
+          <h3>Zabbix</h3>
+          <strong>8 vCPU · 32 GB</strong>
+          <p>Permanece dedicado à monitoração. Não entra na capacidade Wazuh.</p>
+        </article>
+        <article class="machine">
+          <span class="state">Contabo · existente</span>
+          <h3>ness.OS / AIOps</h3>
+          <strong>8 vCPU · 24 GB</strong>
+          <p>Portal, GLPI, Authentik, integrações e indicadores executivos.</p>
+        </article>
+        <article class="machine hostinger">
+          <span class="state">Hostinger · existente</span>
+          <h3>Wazuh atual</h3>
+          <strong>4 vCPU · 16 GB</strong>
+          <p>624 endpoints. É apenas a origem da migração e será desativado.</p>
+        </article>
+        <article class="machine temp">
+          <span class="state">Hostinger · temporária</span>
+          <h3>KVM8</h3>
+          <strong>8 vCPU · 32 GB</strong>
+          <p>Fábrica de transmutação Zabbix. Não integra o estado permanente.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="slide" data-title="Carga real">
+      <p class="eyebrow">Modelo proporcional · sem benchmark genérico</p>
+      <h2>Da fotografia atual à carga-alvo</h2>
+      <div class="formula" aria-label="Cálculo de projeção de CPU">
+        <div class="step"><span>Atual</span><strong>624 hosts</strong></div>
+        <div class="op" aria-hidden="true">×</div>
+        <div class="step"><span>Fator</span><strong>8,01</strong></div>
+        <div class="op" aria-hidden="true">=</div>
+        <div class="step"><span>Alvo</span><strong>5.000</strong></div>
+      </div>
+      <div class="metric-row">
+        <article class="metric">
+          <div class="value">6,8</div>
+          <div class="label">vCPU médios projetados</div>
+        </article>
+        <article class="metric warning">
+          <div class="value">13,2</div>
+          <div class="label">vCPU no pico projetado</div>
+        </article>
+        <article class="metric info">
+          <div class="value">80</div>
+          <div class="label">vCPU Wazuh provisionados nas classes Contabo</div>
+        </article>
+      </div>
+    </section>
+
+    <section class="slide" data-title="Topologia">
+      <p class="eyebrow">Arquitetura-alvo · estado final escalonado</p>
+      <h2>Um hub central, até quatro spokes de coleta</h2>
+      <div class="topology-wrap">
+        <svg class="topology" viewBox="0 0 1280 610" role="img" aria-labelledby="topology-title topology-desc">
+          <title id="topology-title">Topologia hub-spoke do Wazuh</title>
+          <desc id="topology-desc">Agentes, equipamentos de rede e serviços de nuvem originam a coleta. O tráfego passa pela entrada em alta disponibilidade e é distribuído para quatro spokes Wazuh. Os spokes e o master formam o Wazuh Server Cluster. O hub central contém master, indexadores, dashboard, API e a integração com o ness.OS.</desc>
+          <defs>
+            <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="#343434"></path>
+            </marker>
+          </defs>
+
+          <rect class="cluster-boundary" x="410" y="65" width="520" height="480" rx="18"></rect>
+          <text class="zone-label" x="430" y="92">WAZUH SERVER CLUSTER · MASTER + WORKERS</text>
+          <rect class="hub-boundary" x="700" y="35" width="555" height="540" rx="18"></rect>
+          <text class="zone-label" x="1228" y="63" text-anchor="end">HUB CENTRAL · CONTABO</text>
+
+          <path class="flow" d="M205 145 C240 145 240 260 270 260" marker-end="url(#arrow)"></path>
+          <path class="flow" d="M205 300 L270 300" marker-end="url(#arrow)"></path>
+          <path class="flow vpn" d="M205 455 C330 455 650 440 735 295" marker-end="url(#arrow)"></path>
+          <path class="flow" d="M390 280 C420 280 420 160 445 160" marker-end="url(#arrow)"></path>
+          <path class="flow" d="M390 280 C420 280 420 260 445 260" marker-end="url(#arrow)"></path>
+          <path class="flow" d="M390 300 C420 300 420 360 445 360" marker-end="url(#arrow)"></path>
+          <path class="flow" d="M390 300 C420 300 420 460 445 460" marker-end="url(#arrow)"></path>
+          <path class="flow vpn" d="M650 160 C700 160 700 245 735 245" marker-end="url(#arrow)"></path>
+          <path class="flow vpn" d="M650 260 L735 260" marker-end="url(#arrow)"></path>
+          <path class="flow vpn" d="M650 360 C700 360 700 275 735 275" marker-end="url(#arrow)"></path>
+          <path class="flow vpn" d="M650 460 C715 460 700 290 735 290" marker-end="url(#arrow)"></path>
+          <path class="flow" d="M650 175 C760 175 900 175 965 205" marker-end="url(#arrow)"></path>
+          <path class="flow" d="M650 275 C780 275 890 240 965 225" marker-end="url(#arrow)"></path>
+          <path class="flow" d="M650 375 C800 375 880 285 965 245" marker-end="url(#arrow)"></path>
+          <path class="flow" d="M650 475 C810 475 890 330 965 265" marker-end="url(#arrow)"></path>
+          <path class="flow" d="M920 260 L965 260" marker-end="url(#arrow)"></path>
+          <path class="flow" d="M1090 295 L1090 345" marker-end="url(#arrow)"></path>
+          <path class="flow" d="M1090 425 L1090 475" marker-end="url(#arrow)"></path>
+
+          <text class="zone-label" x="25" y="60">ORIGEM DAS COLETAS</text>
+          <rect class="source" x="25" y="95" width="180" height="100" rx="10"></rect>
+          <text x="115" y="128" text-anchor="middle">Endpoints</text>
+          <text class="small" x="115" y="153" text-anchor="middle">Windows · Linux · macOS</text>
+          <text class="small" x="115" y="174" text-anchor="middle">Wazuh Agent</text>
+
+          <rect class="source" x="25" y="250" width="180" height="100" rx="10"></rect>
+          <text x="115" y="283" text-anchor="middle">Infraestrutura</text>
+          <text class="small" x="115" y="308" text-anchor="middle">Firewall · switch · router</text>
+          <text class="small" x="115" y="329" text-anchor="middle">Syslog · SNMP · appliances</text>
+
+          <rect class="source" x="25" y="405" width="180" height="100" rx="10"></rect>
+          <text x="115" y="438" text-anchor="middle">Nuvem &amp; SaaS</text>
+          <text class="small" x="115" y="463" text-anchor="middle">AWS · Azure · GCP · M365</text>
+          <text class="small" x="115" y="484" text-anchor="middle">APIs e módulos de coleta</text>
+
+          <rect class="hub" x="270" y="235" width="120" height="90" rx="10"></rect>
+          <text x="330" y="269" text-anchor="middle">Entrada HA</text>
+          <text class="small" x="330" y="294" text-anchor="middle">LB · relay</text>
+          <text class="port-label" x="330" y="313" text-anchor="middle">1514 / 1515</text>
+
+          <rect class="buy" x="445" y="120" width="205" height="80" rx="10"></rect>
+          <rect class="buy" x="445" y="220" width="205" height="80" rx="10"></rect>
+          <rect class="buy" x="445" y="320" width="205" height="80" rx="10"></rect>
+          <rect class="buy" x="445" y="420" width="205" height="80" rx="10"></rect>
+          <text class="zone-label" x="465" y="145">SPOKE 01</text><text x="465" y="174">Worker · coleta e análise</text>
+          <text class="zone-label" x="465" y="245">SPOKE 02</text><text x="465" y="274">Worker · coleta e análise</text>
+          <text class="zone-label" x="465" y="345">SPOKE 03</text><text x="465" y="374">Worker · coleta e análise</text>
+          <text class="zone-label" x="465" y="445">SPOKE 04</text><text x="465" y="474">Worker · coleta e análise</text>
+
+          <rect class="hub" x="735" y="205" width="185" height="110" rx="10"></rect>
+          <text class="zone-label" x="755" y="233">HUB · MASTER</text>
+          <text x="755" y="264">Controle e enrollment</text>
+          <text class="small" x="755" y="287">Regras · chaves · grupos</text>
+          <text class="port-label" x="755" y="305">sincronização 1516</text>
+
+          <rect class="hub" x="965" y="125" width="250" height="170" rx="10"></rect>
+          <text class="zone-label" x="985" y="153">HUB · INDEXER CLUSTER</text>
+          <rect class="hub" x="985" y="175" width="62" height="72" rx="7"></rect>
+          <rect class="hub" x="1059" y="175" width="62" height="72" rx="7"></rect>
+          <rect class="hub" x="1133" y="175" width="62" height="72" rx="7"></rect>
+          <text class="small" x="1016" y="218" text-anchor="middle">IDX 1</text>
+          <text class="small" x="1090" y="218" text-anchor="middle">IDX 2</text>
+          <text class="small" x="1164" y="218" text-anchor="middle">IDX 3</text>
+          <text class="small" x="1090" y="275" text-anchor="middle">indexação · busca · réplica</text>
+
+          <rect class="hub" x="965" y="345" width="250" height="80" rx="10"></rect>
+          <text class="zone-label" x="985" y="372">HUB · EXPERIÊNCIA</text>
+          <text x="985" y="400">Dashboard · API · Edge HA</text>
+
+          <rect class="existing" x="965" y="475" width="250" height="70" rx="10"></rect>
+          <text class="zone-label" x="985" y="502">SAÍDA QUALIFICADA</text>
+          <text x="985" y="529">ness.OS · GLPI · indicadores</text>
+        </svg>
+      </div>
+      <div class="legend" aria-label="Legenda">
+        <span class="new">Spoke: recebe e processa coleta</span><span class="central">Hub: controla, indexa e disponibiliza</span><span>Origem/integração existente</span>
+      </div>
+    </section>
+
+    <section class="slide" data-title="Origem das coletas">
+      <p class="eyebrow">Ecossistema ness.OS · fontes canônicas</p>
+      <h2>Cada indicador preserva sua origem</h2>
+      <div class="flow-lanes" aria-label="Fluxos de coleta do ecossistema">
+        <div class="flow-lane">
+          <div class="lane-label">Segurança</div>
+          <div class="flow-node"><strong>Endpoints, rede e nuvem</strong><span>Wazuh Agent, syslog, APIs e módulos cloud</span></div>
+          <div class="flow-arrow" aria-hidden="true">→</div>
+          <div class="flow-node"><strong>Até 4 spokes Wazuh</strong><span>Recepção, decodificação e análise distribuída</span></div>
+          <div class="flow-arrow" aria-hidden="true">→</div>
+          <div class="flow-node"><strong>Hub Wazuh</strong><span>Master, indexadores, dashboard e API</span></div>
+          <div class="flow-arrow" aria-hidden="true">→</div>
+          <div class="flow-node target"><strong>Incidente qualificado</strong><span>ness.OS + ticket canônico no GLPI</span></div>
+        </div>
+        <div class="flow-lane">
+          <div class="lane-label">Disponibilidade</div>
+          <div class="flow-node"><strong>Hosts, serviços e aplicações</strong><span>Agent 2, proxies, SNMP, APIs e verificações sintéticas</span></div>
+          <div class="flow-arrow" aria-hidden="true">→</div>
+          <div class="flow-node"><strong>Zabbix</strong><span>Saúde, capacidade, disponibilidade e eventos</span></div>
+          <div class="flow-arrow" aria-hidden="true">→</div>
+          <div class="flow-node"><strong>Correlação AIOps</strong><span>Deduplicação, contexto e impacto no serviço</span></div>
+          <div class="flow-arrow" aria-hidden="true">→</div>
+          <div class="flow-node target"><strong>Saúde executiva</strong><span>Painéis, SLO, tendência e incidente</span></div>
+        </div>
+        <div class="flow-lane">
+          <div class="lane-label">Governança</div>
+          <div class="flow-node"><strong>Ativos, pessoas e serviços</strong><span>GLPI Agent, RMM, catálogo e responsáveis</span></div>
+          <div class="flow-arrow" aria-hidden="true">→</div>
+          <div class="flow-node"><strong>GLPI</strong><span>CMDB, ITSM, projetos e runbooks operacionais</span></div>
+          <div class="flow-arrow" aria-hidden="true">→</div>
+          <div class="flow-node"><strong>Modelo comum ness.OS</strong><span>Tenant, cliente, serviço, ativo, projeto e risco</span></div>
+          <div class="flow-arrow" aria-hidden="true">→</div>
+          <div class="flow-node target"><strong>Visão por stakeholder</strong><span>Governança, Infra, Sustentação e Segurança</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" data-title="Gestão Contabo">
+      <p class="eyebrow">Plano de controle · gestão restrita</p>
+      <h2>Contabo informa; Zabbix comprova; ness.OS governa</h2>
+      <div class="flow-lanes" aria-label="Integração da API Contabo e do Object Storage">
+        <div class="flow-lane">
+          <div class="lane-label">Controle</div>
+          <div class="flow-node"><strong>API Contabo</strong><span>VPS, estado, região, plano, auditoria/histórico, snapshots e capacidade</span></div>
+          <div class="flow-arrow" aria-hidden="true">→</div>
+          <div class="flow-node"><strong>Coletor read-only</strong><span>Credencial no cofre; nunca no navegador ou Git</span></div>
+          <div class="flow-arrow" aria-hidden="true">→</div>
+          <div class="flow-node"><strong>Reconciliação</strong><span>CI GLPI + host Zabbix + recurso do provedor</span></div>
+          <div class="flow-arrow" aria-hidden="true">→</div>
+          <div class="flow-node target"><strong>Visão de gestão</strong><span>Saúde, headroom, backup, custo e aderência ao plano</span></div>
+        </div>
+        <div class="flow-lane">
+          <div class="lane-label">Backup</div>
+          <div class="flow-node"><strong>Zabbix · Wazuh · GLPI · ness.OS</strong><span>Dumps consistentes e configurações exportáveis</span></div>
+          <div class="flow-arrow" aria-hidden="true">→</div>
+          <div class="flow-node"><strong>Criptografia + SHA-256</strong><span>Manifesto e marcador COMPLETED</span></div>
+          <div class="flow-arrow" aria-hidden="true">→</div>
+          <div class="flow-node"><strong>Contabo Object Storage</strong><span>Buckets privados, S3, versionamento, lock e lifecycle</span></div>
+          <div class="flow-arrow" aria-hidden="true">→</div>
+          <div class="flow-node target"><strong>Restore comprovado</strong><span>RPO 24 h · RTO 4 h · futura segunda cópia</span></div>
+        </div>
+        <div class="flow-lane">
+          <div class="lane-label">Acesso</div>
+          <div class="flow-node"><strong>Authentik + MFA</strong><span>Grupo global platform_admin</span></div>
+          <div class="flow-arrow" aria-hidden="true">→</div>
+          <div class="flow-node"><strong>Ismael · Rogerio · Ricardo</strong><span>Únicos administradores iniciais da plataforma</span></div>
+          <div class="flow-arrow" aria-hidden="true">→</div>
+          <div class="flow-node"><strong>Autorização server-side</strong><span>Tenant, recurso, operação e resultado auditados</span></div>
+          <div class="flow-arrow" aria-hidden="true">→</div>
+          <div class="flow-node target"><strong>CDN opcional</strong><span>Web estática; GO só com ganho em p95, cache-hit, banda, segurança e custo</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" data-title="Compra">
+      <p class="eyebrow">Onda 1 piloto · liberação após Gates 6 e Financeiro</p>
+      <h2>Comprar somente a capacidade inicial</h2>
+      <div class="buy-grid">
+        <article class="buy-item"><span class="qty">×3</span><span class="state">Hub</span><h3>Cloud VPS 30</h3><strong>8 vCPU · 24 GB</strong><p>Indexadores iniciais</p></article>
+        <article class="buy-item"><span class="qty">×1</span><span class="state">Hub</span><h3>Cloud VPS 20</h3><strong>6 vCPU · 12 GB</strong><p>Master</p></article>
+        <article class="buy-item"><span class="qty">×2</span><span class="state">Spokes</span><h3>Cloud VPS 30</h3><strong>8 vCPU · 24 GB</strong><p>Workers iniciais</p></article>
+        <article class="buy-item"><span class="qty">×1</span><span class="state">Edge</span><h3>Cloud VPS 10</h3><strong>3 vCPU · 8 GB</strong><p>Dashboard/API/LB</p></article>
+        <article class="buy-item"><span class="qty">×1</span><span class="state">Cofre</span><h3>Cloud VPS 10</h3><strong>3 vCPU · 8 GB</strong><p>Psono Community</p></article>
+      </div>
+      <div class="total-band">
+        <span class="number">8</span>
+        <p><strong>8 VPS totais</strong><br>7 Wazuh + 1 Psono; piloto sem HA/SLA e com Hostinger preservada</p>
+        <p><strong>Onda 2: +2 · teto: +1</strong><br>edge/worker antes do SLA e da saída Hostinger; quarto worker por gatilho</p>
+      </div>
+    </section>
+
+    <section class="slide" data-title="Resiliência">
+      <p class="eyebrow">Capacidade em contingência · estado final com edge HA</p>
+      <h2>A falha de um nó não interrompe a operação</h2>
+      <div class="failure-grid">
+        <article class="failure-case">
+          <h3>Perda de um worker</h3>
+          <span class="big">≈ 1.667</span>
+          <p>endpoints por worker remanescente. Carga projetada de aproximadamente 4,4 vCPU em nós com 8 vCPU.</p>
+        </article>
+        <article class="failure-case indexer">
+          <h3>Perda de um indexador</h3>
+          <span class="big">16 vCPU</span>
+          <p>permanecem nas duas VPS 30 restantes, acima do pico total projetado de 13,2 vCPU. Com VPS 40 seriam 24 vCPU.</p>
+        </article>
+      </div>
+      <p class="lede">A Hostinger permanece como fallback na Onda 1 e só é retirada após Onda 2, edge HA, N−1 e 7–14 dias estáveis; cluster e APIs continuam privados.</p>
+    </section>
+
+    <section class="slide" data-title="Sequência">
+      <p class="eyebrow">Escalonamento progressivo</p>
+      <h2>Escalar apenas com demanda comprovada</h2>
+      <div class="timeline">
+        <article class="phase"><h3>Onda 1 · piloto</h3><p>8 VPS totais: 7 Wazuh + Psono. Até ~1.000; edge único, sem HA/SLA e Hostinger preservada.</p></article>
+        <article class="phase"><h3>Onda 2 · produção</h3><p>10 VPS totais: segundo edge e terceiro worker. Até ~2.500; SLA e saída Hostinger só após estabilidade.</p></article>
+        <article class="phase"><h3>Até 3.750</h3><p>Adicionar o quarto worker quando p95, filas, previsão ou teste N−1 atingirem o gatilho.</p></article>
+        <article class="phase"><h3>Até 5.000</h3><p>Manter 11 VPS; substituir indexers por VPS 40 em rolling apenas se as métricas exigirem.</p></article>
+      </div>
+    </section>
+
+    <section class="slide" data-title="Roadmap do projeto">
+      <p class="eyebrow">Roadmap integrado · 18 semanas</p>
+      <h2>Cada release termina com evidência</h2>
+      <div class="timeline">
+        <article class="phase"><h3>0–5 · Fundação</h3><p>Gate 0, Psono/S3, Zabbix limpo, Authentik, GLPI e infraestrutura reproduzível.</p></article>
+        <article class="phase"><h3>6 · Núcleo</h3><p>AIOps, API Contabo read-only, modelo comum, painel real e isolamento por tenant.</p></article>
+        <article class="phase"><h3>7A/7B · Segurança</h3><p>Onda 1: 8 totais, piloto sem HA. Onda 2: +2, edge HA, 624 agentes e saída Hostinger após estabilidade.</p></article>
+        <article class="phase"><h3>8 · Operação</h3><p>UAT, pentest, DR, SLO, treinamento, aceite e operação assistida.</p></article>
+      </div>
+      <p class="lede">A Release 9 não tem data fixa: adiciona capacidade somente por ocupação, previsão de 90 dias, p95, filas, SLO ou teste N−1.</p>
+    </section>
+
+    <section class="slide" data-title="Decisão final">
+      <p class="eyebrow">Decisão solicitada</p>
+      <h2>Autorizar o projeto e seus gates</h2>
+      <div class="decision">Fechar Gate 0, entregar o núcleo e aprovar a BOM ≤ EUR 2.000/mês antes de cada onda.</div>
+      <p class="lede">Onda 1 libera 8 VPS totais para piloto. Onda 2 adiciona 2 para HA e permite retirar a Hostinger após estabilidade. Bloqueios: owners técnicos e tenant/50–100 endpoints do piloto.</p>
+      <div class="cover-meta">
+        <span><strong>Primeiro ciclo</strong> 18 semanas</span>
+        <span><strong>Onda 1</strong> 7 Wazuh + 1 Psono</span>
+        <span><strong>Onda 2</strong> + edge + worker</span>
+        <span><strong>Teto</strong> 11 VPS · EUR 2.000/mês</span>
+        <span><strong>Hostinger</strong> sai após Onda 2 estável</span>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer" aria-label="Controles da apresentação">
+    <div class="footer-brand">ness<span class="brand-dot">.</span>OS</div>
+    <div class="progress" aria-hidden="true"><span id="progressBar"></span></div>
+    <div class="controls">
+      <button id="prevBtn" type="button" aria-label="Slide anterior">←</button>
+      <span class="counter" id="counter" aria-live="polite">01 / 14</span>
+      <button id="nextBtn" type="button" aria-label="Próximo slide">→</button>
+    </div>
+  </footer>
+  <p id="slideAnnounce" class="sr-only" aria-live="polite"></p>
+
+  <script>
+    (() => {
+      const slides = [...document.querySelectorAll('.slide')];
+      const counter = document.getElementById('counter');
+      const progress = document.getElementById('progressBar');
+      const announce = document.getElementById('slideAnnounce');
+      const prev = document.getElementById('prevBtn');
+      const next = document.getElementById('nextBtn');
+      let index = 0;
+      let touchStart = 0;
+
+      function show(target) {
+        const nextIndex = Math.max(0, Math.min(slides.length - 1, target));
+        if (nextIndex === index && slides[index].classList.contains('active')) return;
+        slides[index].classList.remove('active');
+        slides[index].classList.toggle('leaving', nextIndex > index);
+        index = nextIndex;
+        slides.forEach((slide, i) => {
+          slide.classList.toggle('active', i === index);
+          if (i !== index) slide.classList.remove('leaving');
+          slide.setAttribute('aria-hidden', i === index ? 'false' : 'true');
+        });
+        const current = String(index + 1).padStart(2, '0');
+        const total = String(slides.length).padStart(2, '0');
+        counter.textContent = `${current} / ${total}`;
+        progress.style.width = `${((index + 1) / slides.length) * 100}%`;
+        announce.textContent = `Slide ${index + 1} de ${slides.length}: ${slides[index].dataset.title}`;
+        prev.disabled = index === 0;
+        next.disabled = index === slides.length - 1;
+        history.replaceState(null, '', `#${index + 1}`);
+      }
+
+      prev.addEventListener('click', () => show(index - 1));
+      next.addEventListener('click', () => show(index + 1));
+      document.addEventListener('keydown', event => {
+        if (['ArrowRight', 'PageDown', ' '].includes(event.key)) { event.preventDefault(); show(index + 1); }
+        if (['ArrowLeft', 'PageUp'].includes(event.key)) { event.preventDefault(); show(index - 1); }
+        if (event.key === 'Home') { event.preventDefault(); show(0); }
+        if (event.key === 'End') { event.preventDefault(); show(slides.length - 1); }
+      });
+      document.addEventListener('touchstart', event => { touchStart = event.changedTouches[0].screenX; }, { passive: true });
+      document.addEventListener('touchend', event => {
+        const delta = event.changedTouches[0].screenX - touchStart;
+        if (Math.abs(delta) > 55) show(index + (delta < 0 ? 1 : -1));
+      }, { passive: true });
+
+      const requested = Number(location.hash.slice(1));
+      index = Number.isInteger(requested) && requested > 0 && requested <= slides.length ? requested - 1 : 0;
+      slides.forEach((slide, i) => {
+        slide.classList.toggle('active', i === index);
+        slide.setAttribute('aria-hidden', i === index ? 'false' : 'true');
+      });
+      const current = String(index + 1).padStart(2, '0');
+      counter.textContent = `${current} / ${String(slides.length).padStart(2, '0')}`;
+      progress.style.width = `${((index + 1) / slides.length) * 100}%`;
+      prev.disabled = index === 0;
+      next.disabled = index === slides.length - 1;
+    })();
+  </script>
+</body>
+</html>

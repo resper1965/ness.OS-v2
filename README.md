@@ -2,8 +2,8 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/release/python-3120/)
-[![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)](https://reactjs.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.110.0-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)](https://react.dev/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![Ansible](https://img.shields.io/badge/Ansible-Automated-EE0000?logo=ansible&logoColor=white)](https://www.ansible.com/)
 [![Terraform](https://img.shields.io/badge/Terraform-IaC-7B42BC?logo=terraform&logoColor=white)](https://www.terraform.io/)
 
@@ -129,10 +129,17 @@ cd app
 cp .env.example .env  # preencher credenciais
 
 # 2. Subir stack
-docker compose up -d
+docker compose \
+  -f docker-compose.yml \
+  -f docker-compose.tickets.yml \
+  up -d --build
 
 # 3. Verificar
-curl http://localhost:8000/docs  # Swagger UI
+docker compose \
+  -f docker-compose.yml \
+  -f docker-compose.tickets.yml \
+  ps
+# Swagger protegido: https://api.ness.com.br/docs
 ```
 
 ---
@@ -161,7 +168,7 @@ curl http://localhost:8000/docs  # Swagger UI
 | Ticketing | DeskManager API |
 | WhatsApp | Evolution API |
 | RMM | Datto, Atera, SSH/Netmiko |
-| Frontend | Next.js 14+ (em desenvolvimento) |
+| Frontend | React 19, Vite 8, Tailwind CSS 4 |
 
 ---
 
@@ -173,6 +180,9 @@ Este projeto segue diretrizes rigorosas de código e segurança. Para garantir q
 - **[CONTRIBUTING.md](CONTRIBUTING.md):** Padrões de commits (Conventional Commits), arquitetura do código e guias de Pull Requests.
 - **[SECURITY.md](SECURITY.md):** Política de segurança, SLAs de correção e como reportar vulnerabilidades sem expô-las publicamente.
 - **[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md):** Nosso compromisso em manter um ambiente colaborativo e profissional.
+- **[infra/docs/as-built-vps.md](infra/docs/as-built-vps.md):** Inventário do estado real das VPS Zabbix e AIOps, divergências e riscos operacionais.
+- **[docs/ecosystem-completion-plan.md](docs/ecosystem-completion-plan.md):** Plano diretor para regularização, estabilização, otimização e aceite operacional do ecossistema.
+- **[docs/adr/README.md](docs/adr/README.md):** Registro das decisões arquiteturais e operacionais aprovadas.
 
 ---
 
