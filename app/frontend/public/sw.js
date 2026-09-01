@@ -1,5 +1,7 @@
-const CACHE_NAME = 'ninf-v1';
-const STATIC_ASSETS = ['/', '/manifest.json'];
+// O HTML deve vir da rede antes do cache. Bundles Vite são versionados por
+// hash; HTML antigo apontando a um bundle removido resulta em tela branca.
+const CACHE_NAME = 'ninf-v2';
+const STATIC_ASSETS = ['/manifest.json', '/favicon.svg'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -23,12 +25,27 @@ self.addEventListener('fetch', (event) => {
   // Passthrough para chamadas de API (sempre online)
   if (url.pathname.startsWith('/api/')) return;
 
-  // Cache-first para assets estáticos
-  event.respondWith(
-    caches.match(event.request).then(
-      (cached) => cached ?? fetch(event.request).catch(() => caches.match('/'))
-    )
-  );
+  // A navegação recebe sempre o HTML atual. A última página válida é usada
+  // somente como contingência offline.
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          if (response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put('/', copy));
+          }
+          return response;
+        })
+        .catch(() => caches.match('/').then((cached) => cached ?? Response.error()))
+    );
+    return;
+  }
+
+  // Apenas bundles imutáveis com hash recebem cache-first.
+  if (url.pathname.startsWith('/assets/')) {
+    event.respondWith(caches.match(event.request).then((cached) => cached ?? fetch(event.request)));
+  }
 });
 
 // --- Web Push Listener ---

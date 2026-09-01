@@ -6,12 +6,26 @@ import { useState, useEffect, useCallback, createContext, useContext } from 'rea
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
 const TOKEN_KEY = 'ninf_token';
+const OIDC_STATE_KEY = 'oidc_state';
+const OIDC_VERIFIER_KEY = 'oidc_code_verifier';
+
+function base64Url(bytes: Uint8Array): string {
+  let binary = '';
+  bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+async function createPkce(): Promise<{ verifier: string; challenge: string }> {
+  const verifier = base64Url(crypto.getRandomValues(new Uint8Array(64)));
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier));
+  return { verifier, challenge: base64Url(new Uint8Array(digest)) };
+}
 
 export interface User {
   id: number;
   email: string;
   full_name: string;
-  role: 'noc' | 'soc' | 'admin' | 'cliente';
+  role: 'platform_admin' | 'admin' | 'noc' | 'soc' | 'helpdesk' | 'gestao' | 'cliente';
 }
 
 interface AuthState {
@@ -23,7 +37,7 @@ interface AuthState {
 interface AuthContextValue extends AuthState {
   login: (email: string, password: string) => Promise<void>;
   loginWithSSO: () => void;
-  exchangeCodeForToken: (code: string) => Promise<void>;
+  exchangeCodeForToken: (code: string, returnedState: string) => Promise<void>;
   logout: () => void;
   isAuthenticated: boolean;
   authHeader: () => Record<string, string>;
@@ -72,22 +86,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setState({ user: data, token: data.access_token, loading: false });
   }, []);
 
-  const loginWithSSO = useCallback(() => {
+  const loginWithSSO = useCallback(async () => {
     const clientId = "hub-ness";
     const redirectUri = encodeURIComponent(`${window.location.origin}/callback`);
-    const oidcState = Math.random().toString(36).substring(2, 15);
-    sessionStorage.setItem('oidc_state', oidcState);
+    const stateBytes = crypto.getRandomValues(new Uint8Array(32));
+    const oidcState = Array.from(stateBytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+    const { verifier, challenge } = await createPkce();
+    sessionStorage.setItem(OIDC_STATE_KEY, oidcState);
+    sessionStorage.setItem(OIDC_VERIFIER_KEY, verifier);
     
-    const authorizeUrl = `https://sso.ness.com.br/application/o/authorize/?client_id=${clientId}&response_type=code&redirect_uri=${redirectUri}&scope=openid+profile+email+groups&state=${oidcState}`;
+    const authorizeUrl = `https://sso.ness.com.br/application/o/authorize/?client_id=${clientId}&response_type=code&redirect_uri=${redirectUri}&scope=openid+profile+email+groups&state=${oidcState}&code_challenge=${challenge}&code_challenge_method=S256`;
     window.location.href = authorizeUrl;
   }, []);
 
-  const exchangeCodeForToken = useCallback(async (code: string) => {
+  const exchangeCodeForToken = useCallback(async (code: string, returnedState: string) => {
+    const expectedState = sessionStorage.getItem(OIDC_STATE_KEY);
+    const codeVerifier = sessionStorage.getItem(OIDC_VERIFIER_KEY);
+    sessionStorage.removeItem(OIDC_STATE_KEY);
+    sessionStorage.removeItem(OIDC_VERIFIER_KEY);
+    if (!expectedState || !returnedState || expectedState !== returnedState || !codeVerifier) {
+      throw new Error('Estado OIDC inválido ou expirado. Inicie o login novamente.');
+    }
+
     const redirectUri = `${window.location.origin}/callback`;
     const r = await fetch(`${API_BASE}/api/auth/oidc/callback`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code, redirect_uri: redirectUri }),
+      body: JSON.stringify({ code, redirect_uri: redirectUri, code_verifier: codeVerifier }),
     });
     
     if (!r.ok) {

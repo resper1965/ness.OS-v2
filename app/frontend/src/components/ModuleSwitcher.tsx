@@ -4,9 +4,9 @@
  * Cada módulo tem cor, ícone e label próprios.
  */
 import React from 'react';
-import { Globe, Server, Shield } from 'lucide-react';
+import { Calculator, Globe, Server, Shield } from 'lucide-react';
 
-export type NessModule = 'core' | 'infraops' | 'secops';
+export type NessModule = 'core' | 'infraops' | 'secops' | 'pricing';
 
 interface ModuleDef {
   id: NessModule;
@@ -20,7 +20,7 @@ interface ModuleDef {
 const MODULES: ModuleDef[] = [
   {
     id: 'core',
-    label: 'ness.OS',
+    label: 'Visão geral',
     sublabel: 'Gestão Global',
     color: '#6366F1',
     glowColor: 'rgba(99,102,241,0.4)',
@@ -28,7 +28,7 @@ const MODULES: ModuleDef[] = [
   },
   {
     id: 'infraops',
-    label: 'n.infraops',
+    label: 'InfraOps',
     sublabel: 'NOC · Infraestrutura',
     color: '#3B82F6',
     glowColor: 'rgba(59,130,246,0.4)',
@@ -36,23 +36,30 @@ const MODULES: ModuleDef[] = [
   },
   {
     id: 'secops',
-    label: 'n.secops',
+    label: 'SecOps',
     sublabel: 'SOC · Segurança',
     color: '#EF4444',
     glowColor: 'rgba(239,68,68,0.4)',
     icon: Shield,
   },
+  {
+    id: 'pricing',
+    label: 'Pricing',
+    sublabel: 'Comercial · Unit economics',
+    color: '#10B981',
+    glowColor: 'rgba(16,185,129,0.4)',
+    icon: Calculator,
+  },
 ];
 
 export default function ModuleSwitcher({
-  active,
-  onChange,
+  active, onChange, showPricing = false,
 }: {
   active: NessModule;
   onChange: (mod: NessModule) => void;
+  showPricing?: boolean;
 }) {
-  const activeDef = MODULES.find(m => m.id === active)!;
-
+  const visibleModules = showPricing ? MODULES : MODULES.filter((module) => module.id !== 'pricing');
   return (
     <div
       className="flex items-center gap-1 px-2 py-1.5 rounded-2xl border"
@@ -61,7 +68,7 @@ export default function ModuleSwitcher({
         borderColor: 'rgba(255,255,255,0.08)',
       }}
     >
-      {MODULES.map(mod => {
+      {visibleModules.map(mod => {
         const Icon = mod.icon;
         const isActive = mod.id === active;
         return (

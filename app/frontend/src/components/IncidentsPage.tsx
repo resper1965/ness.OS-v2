@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShieldAlert, CheckCircle, Clock, Server, AlertTriangle, Tag, RefreshCw } from 'lucide-react';
+import { ShieldAlert, CheckCircle, Clock, Server, AlertTriangle, RefreshCw } from 'lucide-react';
 
 const SEVERITY_CONFIG: Record<string, { badge: string; dot: string; label: string }> = {
   disaster:       { badge: 'bg-red-500/15 border-red-500/40 text-red-400',     dot: 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.9)]',         label: 'Desastre' },
