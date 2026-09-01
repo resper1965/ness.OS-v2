@@ -1,0 +1,11 @@
+[Unit]
+Description=Copy the completed AIOps backup to Object Storage after its local timer
+
+[Timer]
+OnCalendar=*-*-* 00:30:00 America/Sao_Paulo
+Persistent=true
+AccuracySec=5min
+Unit=ness-aiops-object-storage-backup.service
+
+[Install]
+WantedBy=timers.target

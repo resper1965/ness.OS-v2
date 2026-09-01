@@ -24,12 +24,35 @@ api.ness.com.br {
     reverse_proxy api:8000
 }
 
-# Keep AIOps Dashboard
-events.hub.ness.com.br {
-    reverse_proxy keep-frontend:3000
-}
-
 # Evolution API (WhatsApp Center)
 waba.ness.com.br {
     reverse_proxy evolution-api:8080
+}
+
+# Authentik SSO Portal
+sso.ness.com.br {
+    # Serve logo directly
+    rewrite /media/logo.svg /logo.svg
+    handle /logo.svg {
+        root * /srv/public
+        file_server
+    }
+
+    handle {
+        reverse_proxy authentik-server:9000
+    }
+}
+
+# GLPI Service Desk with Authentik Forward Auth
+n-ticket.ness.com.br {
+    # Authenticate via Authentik Forward Auth
+    forward_auth authentik-server:9000 {
+        uri /outpost.goauthentik.io/auth/caddy
+        copy_headers X-Authentik-Username X-Authentik-Groups X-Authentik-Email X-Authentik-Name X-Authentik-Uid X-Webauth-User Remote-User
+    }
+
+    request_header Remote-User {http.auth.user.id}
+    request_header REMOTE_USER {http.auth.user.id}
+
+    reverse_proxy ninf-glpi:80
 }

@@ -1,0 +1,25 @@
+[Unit]
+Description=Temporary Zabbix cutover TCP bridge to 169.58.234.9
+Documentation=file:/var/lib/ness-os/restore-evidence/
+Wants=network-online.target
+After=network-online.target
+Conflicts=zabbix-server.service
+
+[Service]
+Type=simple
+User=nobody
+Group=nogroup
+ExecStart=/usr/bin/socat TCP4-LISTEN:10051,reuseaddr,fork TCP4:169.58.234.9:10051
+Restart=always
+RestartSec=2s
+KillMode=control-group
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+RestrictAddressFamilies=AF_INET
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+
+[Install]
+WantedBy=multi-user.target
