@@ -8,12 +8,13 @@ import asyncio
 import json
 import logging
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
 from redis.asyncio import Redis
 from sqlalchemy import desc, select
 
 from app.config import get_settings
+from app.core.dependencies import is_noc_role, require_noc
 from app.core.jwt import verify_token
 from app.database import SessionLocal
 from app.models import Incident
@@ -45,7 +46,11 @@ def _pipeline_stage(incident: Incident) -> str:
     return "detected"
 
 
-@router.get("/api/incidents", tags=["incidents"])
+@router.get(
+    "/api/incidents",
+    tags=["incidents"],
+    dependencies=[Depends(require_noc)],
+)
 async def list_incidents(
     limit: int = Query(default=20, le=100),
     status: str | None = Query(default=None),
@@ -88,7 +93,12 @@ async def list_incidents(
         }
 
 
-@router.post("/api/incident/analyze", tags=["incidents"], status_code=202)
+@router.post(
+    "/api/incident/analyze",
+    tags=["incidents"],
+    status_code=202,
+    dependencies=[Depends(require_noc)],
+)
 async def analyze_incident(
     request: IncidentAnalyzeRequest,
 ):
@@ -158,7 +168,7 @@ async def stream_incidents(
                         # Filtro Multi-tenant:
                         # Operadores noc/soc/admin recebem tudo.
                         # Clientes recebem apenas do próprio tenant_id.
-                        if user_role in ("noc", "soc", "admin") or (
+                        if is_noc_role(user_role) or (
                             incident_tenant_id and incident_tenant_id == user_tenant_id
                         ):
                             yield f"event: incident\ndata: {json.dumps(data)}\n\n"

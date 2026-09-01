@@ -26,6 +26,23 @@ from app.models.users import User, UserRole
 
 _bearer = HTTPBearer(auto_error=False)
 
+NOC_ROLES = frozenset(
+    {
+        UserRole.noc,
+        UserRole.soc,
+        UserRole.admin,
+        UserRole.platform_admin,
+    }
+)
+
+
+def is_noc_role(role: UserRole | str | None) -> bool:
+    """Return whether a persisted role or JWT role value is an operator role."""
+    try:
+        return UserRole(role) in NOC_ROLES
+    except (TypeError, ValueError):
+        return False
+
 
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
@@ -66,12 +83,7 @@ def require_authenticated(user: User = Depends(get_current_user)) -> User:
 
 def require_noc(user: User = Depends(get_current_user)) -> User:
     """Role noc, soc, admin ou platform_admin."""
-    if user.role not in (
-        UserRole.noc,
-        UserRole.soc,
-        UserRole.admin,
-        UserRole.platform_admin,
-    ):
+    if not is_noc_role(user.role):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Acesso restrito a operadores NOC/SOC",
