@@ -1,13 +1,13 @@
 services:
   glpi-db:
-    image: mariadb:10.11
+    image: mariadb:10.11@sha256:be981e4113326ada8d6004174dd09eeaefc03094037f811182a52d4f2e737350
     container_name: ninf-glpi-db
     restart: unless-stopped
     environment:
-      - MYSQL_ROOT_PASSWORD=${NINF_GLPI_DB_ROOT_PASSWORD:-root_pass_nessops_2026}
+      - MYSQL_ROOT_PASSWORD=${NINF_GLPI_DB_ROOT_PASSWORD:?NINF_GLPI_DB_ROOT_PASSWORD is required}
       - MYSQL_DATABASE=glpi
       - MYSQL_USER=glpi
-      - MYSQL_PASSWORD=${NINF_GLPI_DB_PASSWORD:-glpi_pass_nessops_2026}
+      - MYSQL_PASSWORD=${NINF_GLPI_DB_PASSWORD:?NINF_GLPI_DB_PASSWORD is required}
     volumes:
       - glpi-db-data:/var/lib/mysql
     networks:
@@ -18,18 +18,16 @@ services:
           memory: 512M
 
   glpi:
-    image: elestio/glpi:latest
+    image: elestio/glpi:latest@sha256:48ec3ce559fda9eaf73c6fe2f0fc2dd382ef013f2dda14004f34ee88ec17c8b8
     container_name: ninf-glpi
     restart: unless-stopped
-    ports:
-      - "8085:80"
     depends_on:
       - glpi-db
     environment:
       - GLPI_LANG=pt_BR
       - DB_HOST=glpi-db
       - DB_USER=glpi
-      - DB_PASSWORD=${NINF_GLPI_DB_PASSWORD:-glpi_pass_nessops_2026}
+      - DB_PASSWORD=${NINF_GLPI_DB_PASSWORD:?NINF_GLPI_DB_PASSWORD is required}
       - DB_DATABASE=glpi
     volumes:
       - glpi-data:/var/www/html/glpi

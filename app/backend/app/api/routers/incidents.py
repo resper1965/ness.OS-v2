@@ -21,8 +21,12 @@ router = APIRouter()
 
 # Mapeamento severity → label
 SEVERITY_LABEL = {
-    0: "not_classified", 1: "info", 2: "warning",
-    3: "average", 4: "high", 5: "disaster",
+    0: "not_classified",
+    1: "info",
+    2: "warning",
+    3: "average",
+    4: "high",
+    5: "disaster",
 }
 
 
@@ -45,8 +49,14 @@ async def list_incidents(
 ):
     """Retorna lista de incidentes com stage do pipeline."""
     from sqlalchemy.orm import selectinload
+
     async with SessionLocal() as session:
-        stmt = select(Incident).options(selectinload(Incident.asset)).order_by(desc(Incident.last_seen)).limit(limit)
+        stmt = (
+            select(Incident)
+            .options(selectinload(Incident.asset))
+            .order_by(desc(Incident.last_seen))
+            .limit(limit)
+        )
         if status:
             stmt = stmt.where(Incident.status == status)
         result = await session.execute(stmt)
@@ -63,7 +73,9 @@ async def list_incidents(
                     "client": inc.asset.customer_name if inc.asset else "Ness",
                     "status": inc.status,
                     "alert_count": inc.alert_count or 1,
-                    "first_seen": inc.first_seen.isoformat() if inc.first_seen else None,
+                    "first_seen": inc.first_seen.isoformat()
+                    if inc.first_seen
+                    else None,
                     "last_seen": inc.last_seen.isoformat() if inc.last_seen else None,
                     "pipeline_stage": _pipeline_stage(inc),
                 }
@@ -78,7 +90,7 @@ async def analyze_incident(
     request: IncidentAnalyzeRequest,
 ):
     """
-    Recebe um alerta correlacionado (ex: via Keep AIOps),
+    Recebe um incidente consolidado pelo pipeline interno,
     agenda a task no Celery para gerar RCA e Post-Mortem usando
     métricas e buscas reais, e retorna 202 Accepted.
     """
@@ -95,12 +107,15 @@ async def analyze_incident(
         queue="ml",
     )
 
-    return {"status": "accepted", "message": "Análise de causa raiz iniciada no Celery."}
+    return {
+        "status": "accepted",
+        "message": "Análise de causa raiz iniciada no Celery.",
+    }
 
 
 @router.get("/api/incidents/stream", tags=["incidents"])
 async def stream_incidents(
-    token: str = Query(..., description="JWT Token de acesso para autenticação")
+    token: str = Query(..., description="JWT Token de acesso para autenticação"),
 ):
     """Canal SSE (Server-Sent Events) para stream de novos incidentes em tempo real."""
     try:
@@ -119,24 +134,30 @@ async def stream_incidents(
         client = Redis.from_url(settings.redis_url, decode_responses=True)
         pubsub = client.pubsub()
         await pubsub.subscribe("ninf_incidents")
-        logger.info(f"Conexão SSE aberta para o usuário role={user_role} (tenant={user_tenant_id})")
+        logger.info(
+            f"Conexão SSE aberta para o usuário role={user_role} (tenant={user_tenant_id})"
+        )
 
         try:
             # Envia ping de conexão inicial estabelecida
             yield "event: ping\ndata: {}\n\n"
-            
+
             while True:
                 # Ler mensagem do Redis com timeout curto para enviar ping periódico
-                message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=15.0)
+                message = await pubsub.get_message(
+                    ignore_subscribe_messages=True, timeout=15.0
+                )
                 if message:
                     try:
                         data = json.loads(message["data"])
                         incident_tenant_id = data.get("tenant_id")
-                        
+
                         # Filtro Multi-tenant:
                         # Operadores noc/soc/admin recebem tudo.
                         # Clientes recebem apenas do próprio tenant_id.
-                        if user_role in ("noc", "soc", "admin") or (incident_tenant_id and incident_tenant_id == user_tenant_id):
+                        if user_role in ("noc", "soc", "admin") or (
+                            incident_tenant_id and incident_tenant_id == user_tenant_id
+                        ):
                             yield f"event: incident\ndata: {json.dumps(data)}\n\n"
                     except Exception as err:
                         logger.error(f"Erro ao analisar payload no SSE: {err}")
@@ -157,6 +178,5 @@ async def stream_incidents(
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
             "X-Accel-Buffering": "no",  # Evita buffering em Caddy/Nginx
-        }
+        },
     )
-

@@ -2,10 +2,10 @@ import subprocess
 
 # We will fetch current users to know their names and IDs
 cmd_users = [
-    'sshpass', '-p', 'lav9f1e5CICu!vyh',
-    'ssh', '-o', 'StrictHostKeyChecking=no', '-o', 'KexAlgorithms=curve25519-sha256', '-o', 'IPQoS=none',
+    'sshpass', '-p', '<REVOKED_USE_PSONO>',
+    'ssh', '-o', 'StrictHostKeyChecking=yes', '-o', 'KexAlgorithms=curve25519-sha256', '-o', 'IPQoS=none',
     'root@144.91.115.242',
-    "docker exec ninf-glpi-db mysql -u glpi --password=glpi_pass_nessops_2026 glpi -N -e 'SELECT id, name, realname, firstname FROM glpi_users;'"
+    "docker exec ninf-glpi-db mysql -u glpi --password=<REVOKED_USE_PSONO> glpi -N -e 'SELECT id, name, realname, firstname FROM glpi_users;'"
 ]
 
 res = subprocess.run(cmd_users, capture_output=True, text=True, check=True)
@@ -84,8 +84,8 @@ sql_full = "\n".join(sql_statements)
 # Initialize remote file
 print("Initializing remote SQL file...")
 subprocess.run([
-    'sshpass', '-p', 'lav9f1e5CICu!vyh',
-    'ssh', '-o', 'StrictHostKeyChecking=no', '-o', 'KexAlgorithms=curve25519-sha256', '-o', 'IPQoS=none',
+    'sshpass', '-p', '<REVOKED_USE_PSONO>',
+    'ssh', '-o', 'StrictHostKeyChecking=yes', '-o', 'KexAlgorithms=curve25519-sha256', '-o', 'IPQoS=none',
     'root@144.91.115.242',
     'cat > /tmp/enrich_users.sql'
 ], input="", text=True, check=True)
@@ -96,8 +96,8 @@ chunk_size = 1000
 for i in range(0, len(sql_full), chunk_size):
     chunk = sql_full[i:i+chunk_size]
     cmd = [
-        'sshpass', '-p', 'lav9f1e5CICu!vyh',
-        'ssh', '-o', 'StrictHostKeyChecking=no', '-o', 'KexAlgorithms=curve25519-sha256', '-o', 'IPQoS=none',
+        'sshpass', '-p', '<REVOKED_USE_PSONO>',
+        'ssh', '-o', 'StrictHostKeyChecking=yes', '-o', 'KexAlgorithms=curve25519-sha256', '-o', 'IPQoS=none',
         'root@144.91.115.242',
         'cat >> /tmp/enrich_users.sql'
     ]
@@ -105,17 +105,17 @@ for i in range(0, len(sql_full), chunk_size):
 
 print("Executing SQL updates on database container...")
 exec_cmd = [
-    'sshpass', '-p', 'lav9f1e5CICu!vyh',
-    'ssh', '-o', 'StrictHostKeyChecking=no', '-o', 'KexAlgorithms=curve25519-sha256', '-o', 'IPQoS=none',
+    'sshpass', '-p', '<REVOKED_USE_PSONO>',
+    'ssh', '-o', 'StrictHostKeyChecking=yes', '-o', 'KexAlgorithms=curve25519-sha256', '-o', 'IPQoS=none',
     'root@144.91.115.242',
-    'docker exec -i ninf-glpi-db mysql -u glpi --password=glpi_pass_nessops_2026 glpi < /tmp/enrich_users.sql'
+    'docker exec -i ninf-glpi-db mysql -u glpi --password=<REVOKED_USE_PSONO> glpi < /tmp/enrich_users.sql'
 ]
 subprocess.run(exec_cmd, check=True)
 
 # Cleanup
 subprocess.run([
-    'sshpass', '-p', 'lav9f1e5CICu!vyh',
-    'ssh', '-o', 'StrictHostKeyChecking=no', '-o', 'KexAlgorithms=curve25519-sha256', '-o', 'IPQoS=none',
+    'sshpass', '-p', '<REVOKED_USE_PSONO>',
+    'ssh', '-o', 'StrictHostKeyChecking=yes', '-o', 'KexAlgorithms=curve25519-sha256', '-o', 'IPQoS=none',
     'root@144.91.115.242',
     'rm -f /tmp/enrich_users.sql'
 ], check=True)

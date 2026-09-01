@@ -23,7 +23,7 @@ async def get_jwks() -> dict[str, Any]:
     """Obtém o JSON Web Key Set (JWKS) do Authentik SSO com cache em memória."""
     global _JWKS_CACHE, _JWKS_CACHE_TIME
     now = time.time()
-    
+
     if _JWKS_CACHE and (now - _JWKS_CACHE_TIME < JWKS_TTL_SECONDS):
         return _JWKS_CACHE
 
@@ -68,7 +68,9 @@ async def verify_oidc_token(token: str) -> dict[str, Any]:
         raise
 
 
-async def exchange_oidc_code(code: str, redirect_uri: str) -> dict[str, Any]:
+async def exchange_oidc_code(
+    code: str, redirect_uri: str, code_verifier: str | None = None
+) -> dict[str, Any]:
     """
     Realiza o POST para trocar o código de autorização por tokens no Authentik
     usando o client_secret (BFF seguro).
@@ -81,10 +83,14 @@ async def exchange_oidc_code(code: str, redirect_uri: str) -> dict[str, Any]:
         "client_id": settings.oidc_client_id,
         "client_secret": settings.oidc_client_secret,
     }
+    if code_verifier:
+        data["code_verifier"] = code_verifier
 
     async with httpx.AsyncClient(timeout=10) as client:
         res = await client.post(settings.oidc_token_url, data=data)
         if not res.is_success:
-            logger.error(f"Erro na requisição /token do Authentik: {res.status_code} - {res.text}")
+            logger.error(
+                f"Erro na requisição /token do Authentik: {res.status_code} - {res.text}"
+            )
             res.raise_for_status()
         return res.json()

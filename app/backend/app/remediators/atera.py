@@ -7,6 +7,7 @@ Atera API v3 (Scripts & Automation).
 
 Referência: https://app.atera.com/apidocs
 """
+
 from __future__ import annotations
 
 import logging

@@ -2,6 +2,7 @@
 Router: /api/rmm/atera -- Atera RMM v3
 Expoe clientes, agentes e alertas Atera para o dashboard.
 """
+
 from __future__ import annotations
 
 import logging
@@ -50,7 +51,12 @@ async def list_agents(
             agents = await client.list_agents_by_customer(customer_id=customer_id)
         else:
             agents = await client.list_agents()
-        return {"source": "atera", "customer_id": customer_id, "total": len(agents), "items": agents}
+        return {
+            "source": "atera",
+            "customer_id": customer_id,
+            "total": len(agents),
+            "items": agents,
+        }
     except HTTPException:
         raise
     except Exception as e:
@@ -67,7 +73,9 @@ async def list_alerts(
         client = _client()
         alerts = await client.list_alerts()
         if severity:
-            alerts = [a for a in alerts if a.get("Severity", "").lower() == severity.lower()]
+            alerts = [
+                a for a in alerts if a.get("Severity", "").lower() == severity.lower()
+            ]
         return {
             "source": "atera",
             "severity_filter": severity,

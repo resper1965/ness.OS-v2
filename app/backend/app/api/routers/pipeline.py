@@ -6,7 +6,6 @@ from __future__ import annotations
 import asyncio
 import logging
 from fastapi import APIRouter
-from app.integrations.zabbix import ZabbixClient
 from app.config import get_settings
 
 logger = logging.getLogger(__name__)
@@ -18,10 +17,16 @@ async def _check_zabbix() -> dict:
     """Chama apiinfo.version sem auth — metodo publico do Zabbix."""
     try:
         import httpx
+
         async with httpx.AsyncClient(timeout=5, verify=False) as client:
             r = await client.post(
                 settings.zabbix_url,
-                json={"jsonrpc": "2.0", "method": "apiinfo.version", "params": {}, "id": 1},
+                json={
+                    "jsonrpc": "2.0",
+                    "method": "apiinfo.version",
+                    "params": {},
+                    "id": 1,
+                },
             )
             data = r.json()
             version = data.get("result", "?")
@@ -34,12 +39,16 @@ async def _check_workers() -> dict:
     """Verifica workers via Redis — presença de heartbeat key."""
     try:
         import redis.asyncio as aioredis
+
         r = await aioredis.from_url(settings.redis_url, decode_responses=True)
         # Workers saudáveis registram-se no broker (fila existe)
-        alerts_len = await r.llen("alerts.primary") 
+        alerts_len = await r.llen("alerts.primary")
         ml_len = await r.llen("ml")
         await r.aclose()
-        return {"status": "ok", "detail": f"queues ok (alerts:{alerts_len} ml:{ml_len})"}
+        return {
+            "status": "ok",
+            "detail": f"queues ok (alerts:{alerts_len} ml:{ml_len})",
+        }
     except Exception as e:
         return {"status": "error", "detail": str(e)[:80]}
 
@@ -47,6 +56,7 @@ async def _check_workers() -> dict:
 async def _check_n8n() -> dict:
     try:
         import httpx
+
         async with httpx.AsyncClient(timeout=5) as client:
             r = await client.get(f"{settings.n8n_base_url}/healthz")
             if r.status_code == 200:
@@ -67,6 +77,7 @@ async def _check_whatsapp() -> dict:
         return {"status": "unconfigured", "detail": "API key não configurada"}
     try:
         import httpx
+
         async with httpx.AsyncClient(timeout=5) as client:
             r = await client.get(
                 f"{settings.evolution_api_url}/instance/fetchInstances",

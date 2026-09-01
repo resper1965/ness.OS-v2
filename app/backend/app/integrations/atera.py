@@ -5,6 +5,7 @@ Auth: Static API Key via X-API-KEY header (permanente, sem refresh)
 Rate Limit: 700 req/min (~11.6/s). Retry automático em 429.
 Pagination: page + itemsInPage (max 50 por página)
 """
+
 import asyncio
 import logging
 import time
@@ -15,9 +16,9 @@ import httpx
 logger = logging.getLogger(__name__)
 
 ATERA_BASE_URL = "https://app.atera.com/api/v3"
-_REQUEST_DELAY = 0.15   # ~6 req/s — bem abaixo do limite de 700/min
-_RETRY_DELAY   = 2.0    # segundos de espera em 429
-_MAX_RETRIES   = 3
+_REQUEST_DELAY = 0.15  # ~6 req/s — bem abaixo do limite de 700/min
+_RETRY_DELAY = 2.0  # segundos de espera em 429
+_MAX_RETRIES = 3
 
 
 class AteraClient:
@@ -38,7 +39,9 @@ class AteraClient:
                 r = await client.get(url, headers=self._headers(), params=params or {})
                 if r.status_code == 429:
                     retry_after = float(r.headers.get("Retry-After", _RETRY_DELAY))
-                    logger.warning(f"Atera 429 rate limit — waiting {retry_after}s (attempt {attempt+1})")
+                    logger.warning(
+                        f"Atera 429 rate limit — waiting {retry_after}s (attempt {attempt + 1})"
+                    )
                     await asyncio.sleep(retry_after)
                     continue
                 r.raise_for_status()
@@ -54,7 +57,11 @@ class AteraClient:
         )
 
     async def _paginate(
-        self, endpoint: str, data_key: str, params: dict | None = None, max_pages: int = 100
+        self,
+        endpoint: str,
+        data_key: str,
+        params: dict | None = None,
+        max_pages: int = 100,
     ) -> list[dict[str, Any]]:
         """Busca todas as páginas com throttling. Respeita max_pages."""
         results = []
@@ -155,9 +162,15 @@ class AteraClient:
                 self._get_page_one("/alerts", page_size=1),
             )
 
-            total_customers = customers_r.get("totalItemCount", len(customers_r.get("items", [])))
-            total_agents    = agents_r.get("totalItemCount", len(agents_r.get("items", [])))
-            total_alerts    = alerts_r.get("totalItemCount", len(alerts_r.get("items", [])))
+            total_customers = customers_r.get(
+                "totalItemCount", len(customers_r.get("items", []))
+            )
+            total_agents = agents_r.get(
+                "totalItemCount", len(agents_r.get("items", []))
+            )
+            total_alerts = alerts_r.get(
+                "totalItemCount", len(alerts_r.get("items", []))
+            )
 
             elapsed_ms = int((time.monotonic() - t0) * 1000)
             return {

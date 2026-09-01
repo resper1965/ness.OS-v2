@@ -55,7 +55,9 @@ async def subscribe_push(
         existing_sub.user_id = current_user.id
         existing_sub.auth_key = request.keys.auth
         existing_sub.p256dh_key = request.keys.p256dh
-        logger.info(f"Subscrição de push atualizada para o usuário {current_user.email} (tenant={current_user.tenant_id})")
+        logger.info(
+            f"Subscrição de push atualizada para o usuário {current_user.email} (tenant={current_user.tenant_id})"
+        )
     else:
         # Cria uma nova subscrição
         new_sub = PushSubscription(
@@ -66,10 +68,15 @@ async def subscribe_push(
             p256dh_key=request.keys.p256dh,
         )
         db.add(new_sub)
-        logger.info(f"Nova subscrição de push criada para o usuário {current_user.email} (tenant={current_user.tenant_id})")
+        logger.info(
+            f"Nova subscrição de push criada para o usuário {current_user.email} (tenant={current_user.tenant_id})"
+        )
 
     await db.commit()
-    return {"status": "success", "message": "Inscrição de notificações push registrada."}
+    return {
+        "status": "success",
+        "message": "Inscrição de notificações push registrada.",
+    }
 
 
 @router.post("/unsubscribe")
@@ -84,7 +91,9 @@ async def unsubscribe_push(
     await db.commit()
 
     if res.rowcount == 0:
-        logger.warning(f"Tentativa de desinscrição para endpoint inexistente de {current_user.email}")
+        logger.warning(
+            f"Tentativa de desinscrição para endpoint inexistente de {current_user.email}"
+        )
         return {"status": "not_found", "message": "Inscrição não encontrada."}
 
     logger.info(f"Subscrição de push removida para o usuário {current_user.email}")

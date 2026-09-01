@@ -2,6 +2,7 @@
 # n.infraops — Celery App (configuração do broker)
 # -------------------------------------------------------
 from celery import Celery
+from celery.signals import worker_process_init
 
 from app.config import get_settings
 
@@ -43,18 +44,14 @@ celery_app.conf.update(
 celery_app.autodiscover_tasks(["app.workers"])
 
 # Garantir que o módulo de postmortem seja importado para registrar a task
-import app.workers.postmortem
-import app.workers.alerts
+
 
 # Evitar conflito de conexão com o banco de dados (TimescaleDB) após fork de workers Celery
-from celery.signals import worker_process_init
-
 @worker_process_init.connect
 def configure_workers(sender, **kwargs):
     from app.database import engine
+
     try:
         engine.sync_engine.dispose()
     except Exception:
         pass
-
-

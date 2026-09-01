@@ -7,7 +7,7 @@ import secrets
 from datetime import datetime, timezone, timedelta
 from typing import Any
 
-from jose import jwt, JWTError
+from jose import jwt
 
 from app.config import get_settings
 

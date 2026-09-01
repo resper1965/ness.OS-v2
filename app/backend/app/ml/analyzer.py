@@ -10,13 +10,26 @@ settings = get_settings()
 
 _TIMEOUT = httpx.Timeout(connect=10.0, read=120.0, write=10.0, pool=5.0)
 
+
 class AIAnalysisResult(BaseModel):
-    executive_action_plan: str = Field(..., description="Plano de ação resumido e executivo para o cliente final")
-    technical_action_plan: str = Field(..., description="Passo a passo técnico detalhado de mitigação para a equipe de NOC/SOC")
-    urgency: str = Field(..., description="Grau de urgência determinado: LOW, MEDIUM, HIGH, CRITICAL")
-    isolation_required: bool = Field(..., description="Indica se é necessário isolamento do host ou ativo afetado")
+    executive_action_plan: str = Field(
+        ..., description="Plano de ação resumido e executivo para o cliente final"
+    )
+    technical_action_plan: str = Field(
+        ...,
+        description="Passo a passo técnico detalhado de mitigação para a equipe de NOC/SOC",
+    )
+    urgency: str = Field(
+        ..., description="Grau de urgência determinado: LOW, MEDIUM, HIGH, CRITICAL"
+    )
+    isolation_required: bool = Field(
+        ..., description="Indica se é necessário isolamento do host ou ativo afetado"
+    )
     probable_cause: str = Field(..., description="Causa provável do problema analisado")
-    recommended_playbook: str = Field(..., description="Nome do playbook aplicável sugerido")
+    recommended_playbook: str = Field(
+        ..., description="Nome do playbook aplicável sugerido"
+    )
+
 
 _ANALYZER_SYSTEM_PROMPT = """Você é um especialista em AIOps e SecOps sênior da ness.
 Analise o incidente técnico fornecido, juntamente com os metadados do cliente e os playbooks disponíveis.
@@ -33,24 +46,27 @@ Sua resposta DEVE ser estritamente no formato JSON que siga o seguinte schema:
 }
 """
 
+
 async def analyze_incident(
     incident_data: Dict[str, Any],
     customer_metadata: Optional[Dict[str, Any]] = None,
-    playbooks: Optional[List[str]] = None
+    playbooks: Optional[List[str]] = None,
 ) -> AIAnalysisResult:
     """Realiza análise estruturada do incidente usando Gemini AI.
-    
+
     Retorna um objeto Pydantic com a triagem estruturada do incidente.
     """
     if not settings.gemini_api_key:
-        logger.warning("Gemini API key não configurada. Retornando análise padrão/mock.")
+        logger.warning(
+            "Gemini API key não configurada. Retornando análise padrão/mock."
+        )
         return AIAnalysisResult(
             executive_action_plan="Sem chave Gemini. Verificação manual necessária.",
             technical_action_plan="Verificar logs locais do Zabbix/sistema.",
             urgency="MEDIUM",
             isolation_required=False,
             probable_cause="Indeterminada (Sem IA)",
-            recommended_playbook="Default Troubleshooting"
+            recommended_playbook="Default Troubleshooting",
         )
 
     # Lista de playbooks padrão/disponíveis
@@ -77,18 +93,28 @@ Gere a análise estruturada em JSON correspondente ao incidente acima.
 """
 
     api_url = f"https://generativelanguage.googleapis.com/v1beta/models/{settings.gemini_model}:generateContent"
-    
+
     response_schema = {
         "type": "OBJECT",
         "properties": {
             "executive_action_plan": {"type": "STRING"},
             "technical_action_plan": {"type": "STRING"},
-            "urgency": {"type": "STRING", "enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL"]},
+            "urgency": {
+                "type": "STRING",
+                "enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL"],
+            },
             "isolation_required": {"type": "BOOLEAN"},
             "probable_cause": {"type": "STRING"},
-            "recommended_playbook": {"type": "STRING"}
+            "recommended_playbook": {"type": "STRING"},
         },
-        "required": ["executive_action_plan", "technical_action_plan", "urgency", "isolation_required", "probable_cause", "recommended_playbook"]
+        "required": [
+            "executive_action_plan",
+            "technical_action_plan",
+            "urgency",
+            "isolation_required",
+            "probable_cause",
+            "recommended_playbook",
+        ],
     }
 
     request_body = {
@@ -98,7 +124,7 @@ Gere a análise estruturada em JSON correspondente ao incidente acima.
             "temperature": 0.2,
             "maxOutputTokens": 2048,
             "responseMimeType": "application/json",
-            "responseSchema": response_schema
+            "responseSchema": response_schema,
         },
     }
 
@@ -108,7 +134,7 @@ Gere a análise estruturada em JSON correspondente ao incidente acima.
                 api_url,
                 json=request_body,
                 params={"key": settings.gemini_api_key},
-                headers={"Content-Type": "application/json"}
+                headers={"Content-Type": "application/json"},
             )
             res.raise_for_status()
             result = res.json()
@@ -119,7 +145,7 @@ Gere a análise estruturada em JSON correspondente ao incidente acima.
             .get("parts", [{}])[0]
             .get("text", "")
         )
-        
+
         data = json.loads(raw_text)
         return AIAnalysisResult(**data)
 
@@ -131,5 +157,5 @@ Gere a análise estruturada em JSON correspondente ao incidente acima.
             urgency="MEDIUM",
             isolation_required=False,
             probable_cause=f"Falha de comunicação/IA: {str(exc)}",
-            recommended_playbook="Default Troubleshooting"
+            recommended_playbook="Default Troubleshooting",
         )

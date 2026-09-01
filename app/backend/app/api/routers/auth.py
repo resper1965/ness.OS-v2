@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from datetime import datetime, timezone
 
 import bcrypt as _bcrypt
@@ -27,6 +28,7 @@ bearer_scheme = HTTPBearer(auto_error=False)
 
 
 # ── Schemas ──────────────────────────────────────────────────────────────────
+
 
 class LoginRequest(BaseModel):
     email: str  # str simples evita dep. email-validator
@@ -53,6 +55,7 @@ class SeedResponse(BaseModel):
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
+
 def _hash_password(plain: str) -> str:
     return _bcrypt.hashpw(plain.encode(), _bcrypt.gensalt()).decode()
 
@@ -62,6 +65,37 @@ def _verify_password(plain: str, hashed: str) -> bool:
         return _bcrypt.checkpw(plain.encode(), hashed.encode())
     except Exception:
         return False
+
+
+_AUTHENTIK_GROUP_ROLE_PRIORITY = (
+    ({"platform_admin", "ness-os-platform-admin"}, UserRole.platform_admin),
+    ({"admin"}, UserRole.admin),
+    ({"noc"}, UserRole.noc),
+    ({"soc"}, UserRole.soc),
+    ({"helpdesk"}, UserRole.helpdesk),
+    ({"gestao"}, UserRole.gestao),
+    ({"usuarios"}, UserRole.cliente),
+)
+
+
+def map_authentik_role(claims: dict) -> UserRole:
+    """Mapeia grupos/role sem depender de um único nome legado de grupo."""
+    groups = claims.get("groups", [])
+    if isinstance(groups, str):
+        groups = [groups]
+    normalized_groups = {str(group).strip().lower() for group in groups}
+
+    for aliases, role in _AUTHENTIK_GROUP_ROLE_PRIORITY:
+        if normalized_groups.intersection(aliases):
+            return role
+
+    if not normalized_groups:
+        raw_role = str(claims.get("role", "cliente")).lower()
+        try:
+            return UserRole(raw_role)
+        except ValueError:
+            pass
+    return UserRole.cliente
 
 
 async def _get_current_user(
@@ -97,6 +131,7 @@ async def _get_current_user(
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
+
 
 @router.post("/login", response_model=TokenResponse, summary="Login com e-mail e senha")
 async def login(
@@ -139,7 +174,9 @@ async def login(
     )
 
 
-@router.get("/me", response_model=MeResponse, summary="Retorna dados do usuário autenticado")
+@router.get(
+    "/me", response_model=MeResponse, summary="Retorna dados do usuário autenticado"
+)
 async def me(
     current_user: User = Depends(_get_current_user),
 ) -> MeResponse:
@@ -179,8 +216,14 @@ async def seed_admin(
         )
 
     SEED_EMAIL = "admin@ness.com.br"
-    SEED_PASSWORD = "Nessnet@436!"
+    SEED_PASSWORD = os.getenv("NINF_SEED_ADMIN_PASSWORD")
     SEED_FULL_NAME = "Administrador n.infraops"
+
+    if not SEED_PASSWORD:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="NINF_SEED_ADMIN_PASSWORD não configurada",
+        )
 
     result = await db.execute(select(User).where(User.email == SEED_EMAIL))
     existing: User | None = result.scalar_one_or_none()
@@ -206,12 +249,18 @@ async def seed_admin(
 
 # --- Authentik OIDC BFF Callback (Task 3) ---
 
+
 class OidcCallbackRequest(BaseModel):
     code: str
     redirect_uri: str
+    code_verifier: str | None = None
 
 
-@router.post("/oidc/callback", response_model=TokenResponse, summary="Callback OIDC para troca de tokens com Authentik (BFF)")
+@router.post(
+    "/oidc/callback",
+    response_model=TokenResponse,
+    summary="Callback OIDC para troca de tokens com Authentik (BFF)",
+)
 async def oidc_callback(
     request: OidcCallbackRequest,
     db: AsyncSession = Depends(get_db),
@@ -225,7 +274,9 @@ async def oidc_callback(
 
     # 1. Trocar código OIDC no Authentik
     try:
-        token_payload = await exchange_oidc_code(request.code, request.redirect_uri)
+        token_payload = await exchange_oidc_code(
+            request.code, request.redirect_uri, request.code_verifier
+        )
     except Exception as e:
         logger.error(f"Erro na troca do código OIDC: {e}")
         raise HTTPException(
@@ -260,33 +311,7 @@ async def oidc_callback(
             detail="Token OIDC do Authentik não possui a claim obrigatória 'email'.",
         )
 
-    # Mapear grupos Authentik → role local (prioridade: admin > noc > soc > helpdesk > gestao > cliente)
-    groups = claims.get("groups", [])
-    if isinstance(groups, str):
-        groups = [groups]
-
-    GROUPS_PRIORITY = [
-        ("admin", UserRole.admin),
-        ("noc", UserRole.noc),
-        ("soc", UserRole.soc),
-        ("helpdesk", UserRole.helpdesk),
-        ("gestao", UserRole.gestao),
-        ("usuarios", UserRole.cliente),
-    ]
-
-    user_role = UserRole.cliente  # default
-    for group_name, role in GROUPS_PRIORITY:
-        if group_name in groups:
-            user_role = role
-            break
-
-    # Fallback: tentar claim 'role' direta (compatibilidade)
-    if not groups:
-        raw_role = claims.get("role", "cliente")
-        try:
-            user_role = UserRole(raw_role.lower())
-        except ValueError:
-            user_role = UserRole.cliente
+    user_role = map_authentik_role(claims)
 
     tenant_id = claims.get("tenant_id", "")
     full_name = claims.get("name") or claims.get("given_name")
@@ -321,7 +346,7 @@ async def oidc_callback(
     local_token = create_access_token(
         user_id=user.id,
         role=user.role.value,
-        extra_claims={"tenant_id": user.tenant_id}
+        extra_claims={"tenant_id": user.tenant_id},
     )
 
     return TokenResponse(
@@ -329,4 +354,3 @@ async def oidc_callback(
         role=user.role.value,
         full_name=user.full_name,
     )
-

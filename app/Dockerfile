@@ -32,6 +32,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copiar código
 COPY backend/ .
+COPY cli/ ./cli/
+RUN python -c "from cli.contabo.api_client import ContaboAPIClient"
 
 # Trocar para usuário não-root
 USER nessops

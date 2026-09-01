@@ -11,6 +11,7 @@ O n8n é o "edge orchestrator" — o backend Python NÃO chama
 DeskManager ou Evolution diretamente. Isso isola a lógica de
 integração no n8n (visual, editável, sem deploy).
 """
+
 from __future__ import annotations
 
 import logging
@@ -193,4 +194,3 @@ def notify_soc_triage_decision(decision_data: dict[str, Any]) -> dict[str, Any]:
     except httpx.HTTPError as exc:
         logger.error("Falha ao enviar decisão de triagem SOC ao n8n: %s", exc)
         return {"error": str(exc)}
-
