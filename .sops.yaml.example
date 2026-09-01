@@ -1,0 +1,11 @@
+# Copie para .sops.yaml somente depois que dois custodians gerarem e trocarem
+# suas chaves públicas age. Chaves privadas nunca entram no repositório.
+creation_rules:
+  - path_regex: ^secrets/production/.*\.sops\.(yaml|json)$
+    age: >-
+      age1REPLACE_WITH_CUSTODIAN_1_PUBLIC_KEY,
+      age1REPLACE_WITH_CUSTODIAN_2_PUBLIC_KEY
+  - path_regex: ^secrets/staging/.*\.sops\.(yaml|json)$
+    age: >-
+      age1REPLACE_WITH_STAGING_CUSTODIAN_1_PUBLIC_KEY,
+      age1REPLACE_WITH_STAGING_CUSTODIAN_2_PUBLIC_KEY

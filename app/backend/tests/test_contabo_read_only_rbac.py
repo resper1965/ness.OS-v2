@@ -1,0 +1,58 @@
+from types import SimpleNamespace
+
+import pytest
+from fastapi import HTTPException
+
+from app.main import app
+from app.api.routers import contabo
+from app.core.dependencies import require_platform_admin
+from app.models.users import UserRole
+
+
+def test_contabo_router_is_platform_admin_only_and_read_only():
+    assert contabo.router.dependencies[0].dependency is require_platform_admin
+    methods = {method for route in contabo.router.routes for method in route.methods}
+    assert methods <= {"GET", "HEAD"}
+
+
+def test_mutable_contabo_management_router_is_not_mounted():
+    contabo_routes = [
+        route
+        for route in app.routes
+        if getattr(route, "path", "").startswith("/api/contabo")
+    ]
+    assert contabo_routes
+    assert {
+        method
+        for route in contabo_routes
+        for method in getattr(route, "methods", set())
+    } <= {"GET", "HEAD"}
+    assert not any(
+        marker in route.path
+        for route in contabo_routes
+        for marker in ("block-ip", "open-port", "restart", "stop")
+    )
+
+
+def test_platform_admin_dependency_rejects_other_roles():
+    with pytest.raises(HTTPException) as error:
+        require_platform_admin(SimpleNamespace(role=UserRole.admin))
+    assert error.value.status_code == 403
+
+
+def test_platform_admin_dependency_accepts_platform_admin():
+    user = SimpleNamespace(role=UserRole.platform_admin)
+    assert require_platform_admin(user) is user
+
+
+def test_dashboard_does_not_fetch_or_return_secrets():
+    paths: list[str] = []
+
+    class Client:
+        def get(self, path: str):
+            paths.append(path)
+            return {"data": []}
+
+    payload = contabo.get_dashboard_full(Client())
+    assert "secrets" not in payload
+    assert "/secrets" not in paths

@@ -38,3 +38,13 @@
 # Etapa 4: Configuração do backup automatizado
 # - name: "Etapa 4/4 - Backup automatizado (rclone + S3)"
 #   ansible.builtin.import_playbook: backup.yml
+
+# Etapa 5 (opcional): Reconexão e reconfiguração dos proxies Zabbix
+# Descomente para incluir na execução completa do site.yml.
+# Requer que os IPs em inventory/proxies.yml estejam preenchidos.
+#
+# Uso standalone: ansible-playbook playbooks/reconnect-proxies.yml \
+#                   -i inventory/proxies.yml
+#
+# - name: "Etapa 5/5 - Reconectar proxies Zabbix (requer inventory/proxies.yml)"
+#   ansible.builtin.import_playbook: reconnect-proxies.yml

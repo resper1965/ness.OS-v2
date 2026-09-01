@@ -1,0 +1,235 @@
+# ==============================================================================
+# Template: zabbix_proxy.conf.j2
+# Gerado pelo Ansible — NÃO EDITE MANUALMENTE
+# Role: zabbix-proxy | Zabbix {{ zabbix_version }} LTS
+# Host: {{ inventory_hostname }} | Data: {{ ansible_date_time.iso8601 | default('N/A') }}
+# ==============================================================================
+# Referência completa:
+# https://www.zabbix.com/documentation/{{ zabbix_version }}/en/manual/appendix/config/zabbix_proxy
+# ==============================================================================
+
+# ==============================================================================
+# SEÇÃO 1: MODO DE OPERAÇÃO DO PROXY
+# ==============================================================================
+
+# ProxyMode: define como o proxy se comunica com o Zabbix Server
+#   0 = Proxy ATIVO   → proxy inicia a conexão com o Server (recomendado)
+#   1 = Proxy PASSIVO → Server inicia a conexão com o proxy
+ProxyMode={{ zabbix_proxy_mode }}
+
+# ==============================================================================
+# SEÇÃO 2: CONECTIVIDADE COM O ZABBIX SERVER
+# ==============================================================================
+
+# Server: endereço IP ou FQDN do Zabbix Server
+# Em modo ativo (ProxyMode=0): endereço para onde o proxy envia dados
+# Em modo passivo (ProxyMode=1): endereço que tem permissão de conectar
+Server={{ zabbix_proxy_server }}
+
+# ServerPort: porta do Zabbix Server (padrão: 10051)
+ServerPort={{ zabbix_proxy_server_port }}
+
+# ==============================================================================
+# SEÇÃO 3: IDENTIFICAÇÃO DO PROXY
+# ==============================================================================
+
+# Hostname: nome único deste proxy no Zabbix Server
+# DEVE ser idêntico ao nome cadastrado na interface web do Zabbix Server
+# (Administração → Proxies)
+Hostname={{ zabbix_proxy_name | default(inventory_hostname) }}
+
+# ==============================================================================
+# SEÇÃO 4: PORTA DE ESCUTA DO PROXY
+# ==============================================================================
+
+# ListenPort: porta em que o proxy escuta conexões dos agentes
+# Padrão: 10051
+ListenPort={{ zabbix_proxy_listen_port }}
+
+{% if zabbix_proxy_listen_ip is defined and zabbix_proxy_listen_ip != "" %}
+# ListenIP: endereço IP em que o proxy escuta (vazio = todas as interfaces)
+ListenIP={{ zabbix_proxy_listen_ip }}
+{% endif %}
+
+# ==============================================================================
+# SEÇÃO 5: ARQUIVOS DE LOG E PID
+# ==============================================================================
+
+# LogType: destino das mensagens de log
+#   file   = arquivo em disco (padrão)
+#   system = syslog
+#   console = saída padrão
+LogType={{ zabbix_proxy_log_type }}
+
+# LogFile: caminho do arquivo de log (somente quando LogType=file)
+LogFile={{ zabbix_proxy_log_file }}
+
+# LogFileSize: tamanho máximo do arquivo de log em MB
+#   0 = sem limite (usar rotação externa via logrotate)
+#   Padrão: 1 MB, valores aceitáveis: 0–1024
+LogFileSize={{ zabbix_proxy_log_file_size }}
+
+# DebugLevel: nível de detalhamento do log
+#   0 = básico (panic)
+#   1 = crítico
+#   2 = erro
+#   3 = aviso (recomendado para produção)
+#   4 = debug
+#   5 = trace (muito verboso)
+DebugLevel={{ zabbix_proxy_debug_level }}
+
+# PidFile: arquivo de PID do processo zabbix_proxy
+PidFile={{ zabbix_proxy_pid_file }}
+
+# ==============================================================================
+# SEÇÃO 6: BANCO DE DADOS LOCAL DO PROXY
+# ==============================================================================
+
+# O proxy armazena dados coletados localmente antes de enviar ao Server.
+# Para proxies, SQLite3 é a escolha mais simples e recomendada.
+
+{% if zabbix_proxy_db_type == "SQLite3" %}
+# DBName: caminho completo do arquivo SQLite (para SQLite3)
+DBName={{ zabbix_proxy_db_name }}
+
+{% else %}
+# DBHost: endereço do servidor de banco de dados (MySQL/PostgreSQL)
+DBHost={{ zabbix_proxy_db_host }}
+
+# DBPort: porta do banco de dados (MySQL: 3306, PostgreSQL: 5432)
+DBPort={{ zabbix_proxy_db_port }}
+
+# DBName: nome do banco de dados
+DBName={{ zabbix_proxy_db_name }}
+
+# DBUser: usuário do banco de dados
+DBUser={{ zabbix_proxy_db_user }}
+
+# DBPassword: senha do usuário do banco de dados
+DBPassword={{ zabbix_proxy_db_password }}
+{% endif %}
+
+# ==============================================================================
+# SEÇÃO 7: FREQUÊNCIAS DE COMUNICAÇÃO COM O SERVER
+# ==============================================================================
+
+# HeartbeatFrequency: intervalo (s) de envio de sinal de vida ao Server
+# Informa ao Server que o proxy está ativo. Padrão: 60s (1 min)
+HeartbeatFrequency={{ zabbix_proxy_heartbeat_frequency }}
+
+# ConfigFrequency: intervalo (s) de sincronização de configuração com o Server
+# Com que frequência o proxy baixa a lista de hosts/itens do Server.
+# Padrão: 3600s (1 hora). Reduce para atualizar configs mais rápido em testes.
+ConfigFrequency={{ zabbix_proxy_config_frequency }}
+
+# DataSenderFrequency: intervalo (s) de envio de dados coletados ao Server
+# Com que frequência o proxy envia os dados coletados dos agentes.
+# Padrão: 1s (intervalo mínimo recomendado para dados em tempo real)
+DataSenderFrequency={{ zabbix_proxy_data_sender_frequency }}
+
+# ==============================================================================
+# SEÇÃO 8: PROCESSOS INTERNOS (TUNNING DE PERFORMANCE)
+# ==============================================================================
+
+# StartPollers: número de processos de coleta padrão (ICMP, agente, SNMP simples)
+# Aumente se houver muitos hosts para monitorar. Padrão: 5
+StartPollers={{ zabbix_proxy_start_pollers }}
+
+# StartUnreachablePollers: coletores de hosts não alcançáveis
+StartUnreachablePollers={{ zabbix_proxy_start_unreachable_pollers }}
+
+# StartTrappers: processos que recebem dados de agentes no modo ativo
+# e métricas enviadas via zabbix_sender
+StartTrappers={{ zabbix_proxy_start_trappers }}
+
+# StartHTTPPollers: processos para monitoramento de URLs/APIs via HTTP(S)
+StartHTTPPollers={{ zabbix_proxy_start_http_pollers }}
+
+{% if zabbix_proxy_start_snmp_trapper | int > 0 %}
+# StartSNMPTrapper: ativa o receptor de SNMP traps (1 = ativado)
+StartSNMPTrapper={{ zabbix_proxy_start_snmp_trapper }}
+
+# SNMPTrapperFile: arquivo de spool das SNMP traps recebidas
+SNMPTrapperFile={{ zabbix_proxy_snmp_trap_file }}
+{% endif %}
+
+{% if zabbix_proxy_start_ipmi_pollers | int > 0 %}
+# StartIPMIPollers: coletores IPMI para monitoramento de hardware
+StartIPMIPollers={{ zabbix_proxy_start_ipmi_pollers }}
+{% endif %}
+
+{% if zabbix_proxy_start_java_pollers | int > 0 %}
+# StartJavaPollers: coletores JMX para Java/JVM
+StartJavaPollers={{ zabbix_proxy_start_java_pollers }}
+{% endif %}
+
+# StartPreprocessors: processos de pré-processamento de dados coletados
+StartPreprocessors={{ zabbix_proxy_start_preprocessors }}
+
+# ==============================================================================
+# SEÇÃO 9: CACHE E MEMÓRIA
+# ==============================================================================
+
+# CacheSize: tamanho do cache de configuração do proxy
+# Aumentar se houver muitos hosts/itens monitorados pelo proxy.
+# Formatos aceitos: 128K, 1M, 32M, 1G
+CacheSize={{ zabbix_proxy_cache_size }}
+
+# HistoryCacheSize: buffer em memória para dados coletados (antes de enviar ao Server)
+# Aumentar se o proxy coletar dados rapidamente mas o envio for lento.
+HistoryCacheSize={{ zabbix_proxy_history_cache_size }}
+
+# HistoryIndexCacheSize: índice do cache de histórico
+HistoryIndexCacheSize={{ zabbix_proxy_history_index_cache_size }}
+
+# ==============================================================================
+# SEÇÃO 10: TIMEOUTS
+# ==============================================================================
+
+# Timeout: timeout geral (s) para operações de coleta de dados
+# Aplicável a: agente, SNMP, ICMP, verificações externas, etc.
+# Padrão: 3s. Aumentar para redes lentas/hosts distantes.
+Timeout={{ zabbix_proxy_timeout }}
+
+# ==============================================================================
+# SEÇÃO 11: CAMINHOS DE SCRIPTS
+# ==============================================================================
+
+# ExternalScripts: diretório para scripts externos do Zabbix
+ExternalScripts={{ zabbix_proxy_external_scripts }}
+
+# AlertScriptsPath: diretório de scripts de alerta (mediatype Scripts)
+AlertScriptsPath={{ zabbix_proxy_alert_scripts_path }}
+
+# ==============================================================================
+# SEÇÃO 12: CONFIGURAÇÕES TLS (CRIPTOGRAFIA)
+# ==============================================================================
+
+# TLSConnect: tipo de cifra na conexão SAINTE do proxy (para o Server)
+#   unencrypted = sem criptografia
+#   psk         = PSK (Pre-Shared Key) — recomendado sem PKI
+#   cert        = Certificado TLS/X.509
+TLSConnect={{ zabbix_proxy_tls_connect }}
+
+# TLSAccept: tipo(s) de cifra aceitos em conexões ENTRANTES (dos agentes)
+#   unencrypted,psk = aceita ambos (mais flexível durante migração)
+TLSAccept={{ zabbix_proxy_tls_accept }}
+
+{% if zabbix_proxy_tls_connect == "psk" or zabbix_proxy_tls_accept is search("psk") %}
+# TLSPSKIdentity: identidade PSK (deve coincidir com o agente/servidor)
+TLSPSKIdentity={{ zabbix_proxy_tls_psk_identity | default('ProxyPSK') }}
+
+# TLSPSKFile: caminho do arquivo com a chave PSK (formato hex, 128–512 bits)
+TLSPSKFile={{ zabbix_proxy_tls_psk_file | default('/etc/zabbix/zabbix_proxy.psk') }}
+{% endif %}
+
+{% if zabbix_proxy_tls_connect == "cert" or zabbix_proxy_tls_accept is search("cert") %}
+# TLSCAFile: certificado CA para validação de peers
+TLSCAFile={{ zabbix_proxy_tls_ca_file | default('/etc/zabbix/ssl/ca.crt') }}
+
+# TLSCertFile: certificado deste proxy
+TLSCertFile={{ zabbix_proxy_tls_cert_file | default('/etc/zabbix/ssl/proxy.crt') }}
+
+# TLSKeyFile: chave privada deste proxy
+TLSKeyFile={{ zabbix_proxy_tls_key_file | default('/etc/zabbix/ssl/proxy.key') }}
+{% endif %}

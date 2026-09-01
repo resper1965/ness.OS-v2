@@ -1,0 +1,28 @@
+:root {
+  --ness-bluedot: #00ade8;
+  --ness-brand-on-light: #000000;
+  --ness-brand-on-dark: #ffffff;
+  --ness-space-1: 8px;
+  --ness-space-2: 16px;
+  --ness-space-3: 24px;
+  --ness-shadow-soft: 0 8px 24px rgb(0 0 0 / 12%);
+  --ness-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ness-motion-fast: 160ms;
+}
+
+button,
+a,
+[role="button"] {
+  transition-timing-function: var(--ness-ease-standard);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}

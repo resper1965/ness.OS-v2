@@ -1,0 +1,56 @@
+hub.ness.com.br {
+    handle /api/* {
+        reverse_proxy api:8000
+    }
+    handle /webhook/* {
+        reverse_proxy api:8000
+    }
+    handle {
+        reverse_proxy frontend:3000
+    }
+}
+
+# n8n Integration Orchestrator (Forward Auth via Authentik SSO)
+n8n.ness.com.br {
+    forward_auth authentik-server:9000 {
+        uri /outpost.goauthentik.io/auth/caddy
+        copy_headers X-Authentik-Username X-Authentik-Groups X-Authentik-Email X-Authentik-Name X-Authentik-Uid
+    }
+
+    reverse_proxy n8n:5678
+}
+
+# Authentik SSO Identity Provider
+sso.ness.com.br {
+    reverse_proxy authentik-server:9000
+}
+
+api.ness.com.br {
+    basicauth {
+        admin $2b$14$aADfhsw7v4QDBbqbTUZTbOVtl4mxRAfgENJ/DenyfJHr1g8oz5G2C
+    }
+    reverse_proxy api:8000
+}
+
+waba.ness.com.br {
+    reverse_proxy evolution-api:8080
+}
+
+n-ticket.ness.com.br {
+    reverse_proxy ninf-glpi:80
+}
+
+# Psono Community — temporarily co-located on the AIOps host.
+cofre.ness.com.br {
+    encode zstd gzip
+
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "same-origin"
+        -Server
+    }
+
+    reverse_proxy ness-psono:80
+}

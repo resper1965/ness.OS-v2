@@ -1,0 +1,1314 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ness.OS — O Sistema Operacional da ness.</title>
+  <meta name="description" content="Plataforma unificada de operação gerenciada: NOC, SOC e infraestrutura em uma visão global para múltiplos clientes."/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <style>
+    /* ═══════════════════════════════════════════════
+       DESIGN TOKENS
+    ═══════════════════════════════════════════════ */
+    :root {
+      --bg-deep:     #050810;
+      --bg-base:     #080C16;
+      --bg-raised:   #0D1220;
+      --bg-float:    #121929;
+      --border-sub:  rgba(255,255,255,0.05);
+      --border-std:  rgba(255,255,255,0.09);
+      --border-emph: rgba(255,255,255,0.16);
+      --text-hi:     #F0F4FF;
+      --text-mid:    #94A3B8;
+      --text-lo:     #475569;
+      --core:        #7C6EF8;
+      --core-dim:    rgba(124,110,248,0.12);
+      --core-glow:   rgba(124,110,248,0.35);
+      --infra:       #38BDF8;
+      --infra-dim:   rgba(56,189,248,0.1);
+      --sec:         #F87171;
+      --sec-dim:     rgba(248,113,113,0.1);
+      --gold:        #FBBF24;
+      --green:       #34D399;
+      --r: 0.875rem;
+    }
+
+    /* ═══════════════════════════════════════════════
+       RESET & BASE
+    ═══════════════════════════════════════════════ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; font-size: 16px; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg-base);
+      color: var(--text-hi);
+      line-height: 1.65;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+    ::selection { background: var(--core-glow); color: #fff; }
+    ::-webkit-scrollbar { width: 3px; }
+    ::-webkit-scrollbar-thumb { background: var(--core); border-radius: 2px; }
+
+    a { color: inherit; text-decoration: none; }
+    img { max-width: 100%; display: block; }
+
+    /* ═══════════════════════════════════════════════
+       UTILITIES
+    ═══════════════════════════════════════════════ */
+    .container { max-width: 1120px; margin: 0 auto; padding: 0 2rem; }
+    .tag {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.68rem; font-weight: 500;
+      text-transform: uppercase; letter-spacing: 0.14em;
+      padding: 0.28rem 0.75rem; border-radius: 99px;
+      border: 1px solid;
+    }
+    .tag-dot { width: 5px; height: 5px; border-radius: 50%; }
+
+    /* ═══════════════════════════════════════════════
+       NOISE OVERLAY
+    ═══════════════════════════════════════════════ */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+      opacity: 0.4;
+    }
+
+    /* ═══════════════════════════════════════════════
+       NAV
+    ═══════════════════════════════════════════════ */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+      height: 56px;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 2.5rem;
+      background: rgba(8,12,22,0.8);
+      backdrop-filter: blur(24px) saturate(1.5);
+      border-bottom: 1px solid var(--border-sub);
+      transition: border-color 0.3s;
+    }
+    nav.scrolled { border-bottom-color: var(--border-std); }
+
+    .brand {
+      font-family: 'Syne', sans-serif;
+      font-size: 1.2rem; font-weight: 700;
+      letter-spacing: -0.03em; color: var(--text-hi);
+    }
+    .brand em { color: var(--core); font-style: normal; }
+
+    .nav-links {
+      display: flex; align-items: center; gap: 2rem; list-style: none;
+    }
+    .nav-links a {
+      font-size: 0.8rem; color: var(--text-mid);
+      transition: color 0.2s; font-weight: 500;
+    }
+    .nav-links a:hover { color: var(--text-hi); }
+
+    .nav-cta {
+      font-size: 0.78rem; font-weight: 600;
+      padding: 0.4rem 1rem; border-radius: 6px;
+      background: var(--core); color: #fff;
+      transition: opacity 0.2s, transform 0.2s;
+    }
+    .nav-cta:hover { opacity: 0.9; transform: translateY(-1px); }
+
+    /* ═══════════════════════════════════════════════
+       HERO
+    ═══════════════════════════════════════════════ */
+    .hero {
+      min-height: 100svh;
+      display: grid; place-items: center;
+      padding: 7rem 2rem 5rem;
+      position: relative; overflow: hidden;
+      text-align: center;
+    }
+
+    /* Grid background */
+    .hero::before {
+      content: '';
+      position: absolute; inset: 0; z-index: 0;
+      background-image:
+        linear-gradient(to right, rgba(255,255,255,0.03) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255,255,255,0.03) 1px, transparent 1px);
+      background-size: 60px 60px;
+      mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black, transparent);
+    }
+
+    /* Radial glow */
+    .hero-glow {
+      position: absolute; top: 10%; left: 50%;
+      width: 700px; height: 500px;
+      transform: translateX(-50%);
+      background: radial-gradient(ellipse at center, rgba(124,110,248,0.14) 0%, rgba(56,189,248,0.05) 40%, transparent 70%);
+      filter: blur(1px); z-index: 0; pointer-events: none;
+      animation: glowPulse 6s ease-in-out infinite;
+    }
+    @keyframes glowPulse {
+      0%, 100% { opacity: 0.8; transform: translateX(-50%) scale(1); }
+      50%       { opacity: 1;   transform: translateX(-50%) scale(1.05); }
+    }
+
+    .hero-content { position: relative; z-index: 1; max-width: 860px; }
+
+    .hero-eyebrow {
+      display: inline-flex; align-items: center; gap: 0.6rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem; color: var(--core);
+      letter-spacing: 0.16em; text-transform: uppercase;
+      border: 1px solid rgba(124,110,248,0.22);
+      background: rgba(124,110,248,0.07);
+      padding: 0.35rem 1rem; border-radius: 99px;
+      margin-bottom: 2rem;
+    }
+    .hero-eyebrow-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--core); animation: blink 1.5s step-end infinite;
+    }
+    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
+    .hero-title {
+      font-family: 'Syne', sans-serif;
+      font-size: clamp(4rem, 9vw, 7.5rem);
+      font-weight: 800; line-height: 0.95;
+      letter-spacing: -0.04em;
+      margin-bottom: 0.5rem;
+    }
+    .hero-title .word-ness { color: var(--text-hi); }
+    .hero-title .word-dot {
+      color: var(--core);
+      text-shadow: 0 0 40px var(--core-glow), 0 0 80px rgba(124,110,248,0.2);
+    }
+    .hero-title .word-os {
+      color: transparent;
+      -webkit-text-stroke: 1.5px rgba(255,255,255,0.25);
+    }
+
+    .hero-sub {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem; color: var(--core);
+      opacity: 0.7; letter-spacing: 0.06em;
+      margin-bottom: 2rem;
+    }
+
+    .hero-body {
+      font-size: 1.1rem; color: var(--text-mid);
+      max-width: 540px; margin: 0 auto 3rem;
+      line-height: 1.8; font-weight: 300;
+    }
+
+    .hero-chips {
+      display: flex; flex-wrap: wrap; gap: 0.6rem;
+      justify-content: center; margin-bottom: 4rem;
+    }
+    .chip {
+      display: inline-flex; align-items: center; gap: 0.45rem;
+      font-size: 0.78rem; font-weight: 500;
+      padding: 0.4rem 1rem; border-radius: 99px;
+      border: 1px solid; letter-spacing: 0.01em;
+      transition: all 0.2s;
+    }
+    .chip:hover { transform: translateY(-2px); }
+    .chip-dot { width: 6px; height: 6px; border-radius: 50%; }
+    .chip-core { border-color: rgba(124,110,248,0.3); color: var(--core); background: var(--core-dim); }
+    .chip-core .chip-dot { background: var(--core); box-shadow: 0 0 6px var(--core); }
+    .chip-infra { border-color: rgba(56,189,248,0.3); color: var(--infra); background: var(--infra-dim); }
+    .chip-infra .chip-dot { background: var(--infra); box-shadow: 0 0 6px var(--infra); }
+    .chip-sec { border-color: rgba(248,113,113,0.3); color: var(--sec); background: var(--sec-dim); }
+    .chip-sec .chip-dot { background: var(--sec); box-shadow: 0 0 6px var(--sec); }
+
+    .hero-scroll-hint {
+      display: flex; flex-direction: column; align-items: center;
+      gap: 0.5rem; color: var(--text-lo);
+      font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase;
+    }
+    .scroll-line {
+      width: 1px; height: 48px;
+      background: linear-gradient(to bottom, var(--core), transparent);
+      animation: scrollLine 2s ease-in-out infinite;
+    }
+    @keyframes scrollLine { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
+
+    /* ═══════════════════════════════════════════════
+       SECTION BASE
+    ═══════════════════════════════════════════════ */
+    section { padding: 7rem 0; position: relative; z-index: 1; }
+    section:nth-child(even) { background: var(--bg-raised); }
+
+    .sec-header { margin-bottom: 4rem; }
+    .sec-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.18em;
+      margin-bottom: 0.75rem; display: block;
+    }
+    .sec-title {
+      font-family: 'Syne', sans-serif;
+      font-size: clamp(2rem, 4.5vw, 3rem);
+      font-weight: 700; letter-spacing: -0.03em;
+      line-height: 1.15; color: var(--text-hi);
+      margin-bottom: 0.75rem;
+    }
+    .sec-desc { color: var(--text-mid); max-width: 500px; font-size: 1rem; line-height: 1.75; }
+    .sec-rule { height: 1px; background: var(--border-sub); margin: 0; }
+
+    /* ═══════════════════════════════════════════════
+       MODULES SECTION
+    ═══════════════════════════════════════════════ */
+    #modulos .modules-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.5px;
+      border: 1px solid var(--border-sub);
+      border-radius: 20px;
+      overflow: hidden;
+      background: var(--border-sub);
+    }
+
+    .mod-card {
+      background: var(--bg-base);
+      padding: 2.5rem;
+      position: relative;
+      overflow: hidden;
+      transition: background 0.3s;
+    }
+    .mod-card:hover { background: var(--bg-raised); }
+
+    .mod-card::after {
+      content: '';
+      position: absolute; bottom: 0; left: 0; right: 0;
+      height: 2px;
+      transform: scaleX(0); transform-origin: left;
+      transition: transform 0.4s cubic-bezier(0.4,0,0.2,1);
+    }
+    .mod-card:hover::after { transform: scaleX(1); }
+
+    .mod-card-core::after  { background: var(--core); }
+    .mod-card-infra::after { background: var(--infra); }
+    .mod-card-sec::after   { background: var(--sec); }
+
+    .mod-number {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.65rem; color: var(--text-lo);
+      letter-spacing: 0.1em; margin-bottom: 2rem;
+    }
+    .mod-icon {
+      width: 44px; height: 44px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.25rem; margin-bottom: 1.5rem; border: 1px solid;
+    }
+    .mod-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.68rem; text-transform: uppercase;
+      letter-spacing: 0.14em; margin-bottom: 0.4rem;
+    }
+    .mod-name {
+      font-family: 'Syne', sans-serif;
+      font-size: 1.4rem; font-weight: 700;
+      letter-spacing: -0.02em; margin-bottom: 0.9rem;
+      color: var(--text-hi);
+    }
+    .mod-desc { font-size: 0.875rem; color: var(--text-mid); line-height: 1.7; margin-bottom: 1.75rem; }
+
+    .mod-feats { display: flex; flex-direction: column; gap: 0.4rem; }
+    .mod-feat {
+      display: flex; align-items: center; gap: 0.6rem;
+      font-size: 0.82rem; color: rgba(240,244,255,0.6);
+    }
+    .feat-icon { font-size: 0.7rem; flex-shrink: 0; }
+
+    /* ═══════════════════════════════════════════════
+       INFRASTRUCTURE SECTION
+    ═══════════════════════════════════════════════ */
+    #infra {
+      background: var(--bg-deep);
+    }
+    .infra-intro {
+      display: flex; justify-content: space-between; align-items: flex-end;
+      margin-bottom: 3rem; gap: 2rem; flex-wrap: wrap;
+    }
+    .infra-note {
+      display: flex; align-items: center; gap: 0.5rem;
+      font-size: 0.78rem; color: var(--text-lo);
+      font-family: 'JetBrains Mono', monospace;
+      border: 1px solid var(--border-sub);
+      padding: 0.5rem 0.9rem; border-radius: 8px;
+      background: var(--bg-raised);
+    }
+
+    .vps-list { display: grid; grid-template-columns: repeat(3,1fr); gap: 1rem; }
+
+    .vps-card {
+      border-radius: 16px; padding: 1.75rem 1.5rem;
+      border: 1px solid var(--border-sub);
+      background: var(--bg-raised);
+      position: relative; overflow: hidden;
+      transition: border-color 0.25s, transform 0.25s;
+    }
+    .vps-card:hover { border-color: var(--border-emph); transform: translateY(-3px); }
+
+    .vps-card::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: 1px;
+    }
+    .vps-1::before { background: linear-gradient(to right, transparent, var(--infra), transparent); }
+    .vps-2::before { background: linear-gradient(to right, transparent, var(--sec), transparent); }
+    .vps-3::before { background: linear-gradient(to right, transparent, var(--text-lo), transparent); }
+
+    .vps-status {
+      position: absolute; top: 1.2rem; right: 1.2rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.1em;
+      padding: 0.18rem 0.55rem; border-radius: 99px;
+    }
+    .status-live   { background: rgba(52,211,153,0.12); color: var(--green); border: 1px solid rgba(52,211,153,0.25); }
+    .status-soon   { background: rgba(251,191,36,0.1);  color: var(--gold);  border: 1px solid rgba(251,191,36,0.25); }
+    .status-stable { background: rgba(148,163,184,0.1); color: var(--text-lo); border: 1px solid var(--border-sub); }
+
+    .vps-num {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.65rem; color: var(--text-lo); margin-bottom: 1.2rem;
+    }
+    .vps-name {
+      font-family: 'Syne', sans-serif;
+      font-size: 1.1rem; font-weight: 700; margin-bottom: 0.25rem; letter-spacing: -0.02em;
+    }
+    .vps-host {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem; margin-bottom: 0.2rem;
+    }
+    .vps-ip {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem; color: var(--text-lo); margin-bottom: 1.5rem;
+    }
+
+    .vps-specs-bar {
+      display: grid; grid-template-columns: repeat(2, 1fr);
+      gap: 0.5rem; margin-bottom: 1.5rem;
+    }
+    .spec-box {
+      background: var(--bg-float); border-radius: 8px;
+      padding: 0.6rem 0.75rem;
+    }
+    .spec-v { font-size: 0.9rem; font-weight: 700; color: var(--text-hi); line-height: 1; }
+    .spec-k { font-size: 0.65rem; color: var(--text-lo); margin-top: 0.2rem; }
+
+    .vps-svcs { display: flex; flex-direction: column; gap: 0.3rem; }
+    .svc {
+      display: flex; align-items: center; gap: 0.55rem;
+      font-size: 0.78rem; color: rgba(240,244,255,0.55);
+      padding: 0.2rem 0;
+    }
+    .svc-bullet { width: 4px; height: 4px; border-radius: 50%; flex-shrink: 0; }
+
+    /* ═══════════════════════════════════════════════
+       N.SECOPS SECTION
+    ═══════════════════════════════════════════════ */
+    #secops { background: var(--bg-base); }
+
+    .secops-grid {
+      display: grid; grid-template-columns: 1fr 1.6fr; gap: 3rem; align-items: start;
+    }
+
+    .layer-stack { display: flex; flex-direction: column; gap: 0; }
+    .layer {
+      padding: 1.5rem 1.75rem;
+      border: 1px solid; border-radius: 0;
+      position: relative;
+      transition: background 0.2s;
+    }
+    .layer:first-child { border-radius: 14px 14px 0 0; }
+    .layer:last-child  { border-radius: 0 0 14px 14px; }
+    .layer:not(:last-child) { border-bottom: none; }
+    .layer:hover { background: rgba(255,255,255,0.02); }
+
+    .layer-connector {
+      display: flex; align-items: center; gap: 0.75rem;
+      padding: 0.5rem 1.75rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.67rem; color: var(--text-lo); letter-spacing: 0.06em;
+    }
+    .conn-line { flex: 1; height: 1px; background: var(--border-sub); }
+
+    .layer-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.1em;
+      padding: 0.18rem 0.6rem; border-radius: 4px;
+      display: inline-block; margin-bottom: 0.6rem; border: 1px solid;
+    }
+    .layer-title { font-size: 0.9rem; font-weight: 600; margin-bottom: 0.3rem; }
+    .layer-desc  { font-size: 0.78rem; color: var(--text-mid); line-height: 1.6; }
+
+    .layer-hub  { border-color: rgba(248,113,113,0.25); }
+    .layer-hub:hover { background: rgba(248,113,113,0.03); }
+    .layer-spoke{ border-color: rgba(251,191,36,0.2); }
+    .layer-spoke:hover { background: rgba(251,191,36,0.03); }
+    .layer-ep   { border-color: rgba(56,189,248,0.2); }
+    .layer-ep:hover { background: rgba(56,189,248,0.03); }
+
+    .spoke-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;
+    }
+    .spoke-item {
+      padding: 1rem 1.25rem; border-radius: 10px;
+      border: 1px solid; font-size: 0.82rem;
+      transition: transform 0.2s;
+      cursor: default;
+    }
+    .spoke-item:hover { transform: translateY(-2px); }
+    .spoke-item-name { font-weight: 600; margin-bottom: 0.2rem; font-size: 0.85rem; }
+    .spoke-item-desc { font-size: 0.75rem; color: var(--text-mid); }
+
+    .spoke-contabo { border-color: rgba(251,191,36,0.25); background: rgba(251,191,36,0.04); }
+    .spoke-azure   { border-color: rgba(0,120,212,0.25);  background: rgba(0,120,212,0.04); }
+    .spoke-aws     { border-color: rgba(255,153,0,0.25);  background: rgba(255,153,0,0.04); }
+    .spoke-onprem  { border-color: var(--border-std);     background: rgba(255,255,255,0.02); }
+
+    .spoke-contabo .spoke-item-name { color: var(--gold); }
+    .spoke-azure   .spoke-item-name { color: #60A5FA; }
+    .spoke-aws     .spoke-item-name { color: #FB923C; }
+    .spoke-onprem  .spoke-item-name { color: var(--text-mid); }
+
+    /* ═══════════════════════════════════════════════
+       AI SECTION
+    ═══════════════════════════════════════════════ */
+    #ia { background: var(--bg-raised); }
+
+    .pipeline {
+      display: flex; align-items: stretch;
+      gap: 0; margin-bottom: 3rem;
+      overflow-x: auto; padding-bottom: 0.5rem;
+    }
+
+    .pipe-step {
+      flex: 1; min-width: 140px;
+      display: flex; flex-direction: column;
+      position: relative;
+    }
+
+    .pipe-connector {
+      position: absolute; top: 28px; right: 0;
+      width: 100%; height: 1px;
+      background: var(--border-std); z-index: 0;
+    }
+    .pipe-step:last-child .pipe-connector { display: none; }
+
+    .pipe-node {
+      width: 56px; height: 56px; border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.3rem; margin-bottom: 1rem;
+      border: 1px solid; position: relative; z-index: 1;
+      transition: transform 0.2s;
+    }
+    .pipe-step:hover .pipe-node { transform: scale(1.08); }
+
+    .pipe-arrow {
+      position: absolute; top: 20px; right: -14px;
+      width: 28px; height: 16px; z-index: 2;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .pipe-arrow svg { color: var(--text-lo); }
+
+    .pipe-name { font-size: 0.82rem; font-weight: 600; margin-bottom: 0.2rem; }
+    .pipe-desc { font-size: 0.72rem; color: var(--text-mid); line-height: 1.55; }
+
+    .ai-node { animation: aiPulse 2.5s ease-in-out infinite; }
+    @keyframes aiPulse {
+      0%, 100% { box-shadow: 0 0 0 0 transparent; }
+      50%       { box-shadow: 0 0 0 8px rgba(124,110,248,0.12); }
+    }
+
+    .outcomes {
+      display: grid; grid-template-columns: repeat(5, 1fr);
+      gap: 1px; background: var(--border-sub);
+      border: 1px solid var(--border-sub); border-radius: 14px; overflow: hidden;
+    }
+    .outcome {
+      background: var(--bg-base); padding: 1.5rem 1.2rem;
+      transition: background 0.2s;
+      display: flex; flex-direction: column; gap: 0.5rem;
+    }
+    .outcome:hover { background: var(--bg-float); }
+    .outcome-icon { font-size: 1.4rem; }
+    .outcome-level {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em;
+      padding: 0.15rem 0.5rem; border-radius: 4px; border: 1px solid;
+      display: inline-block; width: fit-content;
+    }
+    .outcome-action { font-size: 0.78rem; font-weight: 600; color: var(--text-hi); }
+    .outcome-detail { font-size: 0.72rem; color: var(--text-mid); line-height: 1.5; }
+
+    .lvl-fp   { color: var(--text-lo);  border-color: var(--border-std); background: var(--bg-raised); }
+    .lvl-low  { color: var(--infra);    border-color: rgba(56,189,248,0.25); background: var(--infra-dim); }
+    .lvl-med  { color: var(--gold);     border-color: rgba(251,191,36,0.25); background: rgba(251,191,36,0.08); }
+    .lvl-high { color: var(--sec);      border-color: rgba(248,113,113,0.3); background: var(--sec-dim); }
+    .lvl-crit { color: #FF4444;         border-color: rgba(255,68,68,0.4); background: rgba(255,68,68,0.1); }
+
+    /* ═══════════════════════════════════════════════
+       STACK SECTION
+    ═══════════════════════════════════════════════ */
+    #stack { background: var(--bg-base); }
+
+    .stack-cols {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 1px; border: 1px solid var(--border-sub);
+      border-radius: 16px; overflow: hidden;
+      background: var(--border-sub);
+    }
+    .stack-col {
+      background: var(--bg-raised); padding: 2rem;
+      transition: background 0.2s;
+    }
+    .stack-col:hover { background: var(--bg-float); }
+
+    .sc-cat {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.16em;
+      color: var(--text-lo); margin-bottom: 1.25rem;
+      padding-bottom: 0.75rem; border-bottom: 1px solid var(--border-sub);
+    }
+    .sc-items { display: flex; flex-direction: column; gap: 0.5rem; }
+    .sc-item {
+      display: flex; align-items: center; gap: 0.6rem;
+      font-size: 0.82rem; color: rgba(240,244,255,0.65);
+      padding: 0.3rem 0; border-radius: 4px;
+    }
+    .sc-item:hover { color: var(--text-hi); }
+    .sc-bullet { width: 4px; height: 4px; border-radius: 50%; flex-shrink: 0; }
+    .sc-version {
+      margin-left: auto;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.62rem; color: var(--text-lo);
+    }
+
+    /* ═══════════════════════════════════════════════
+       FOOTER
+    ═══════════════════════════════════════════════ */
+    footer {
+      border-top: 1px solid var(--border-sub);
+      padding: 2.5rem;
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 1rem;
+      background: var(--bg-deep);
+    }
+    .footer-brand {
+      font-family: 'Syne', sans-serif;
+      font-size: 1rem; font-weight: 700; letter-spacing: -0.02em;
+    }
+    .footer-brand em { color: var(--core); font-style: normal; }
+    .footer-meta {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.68rem; color: var(--text-lo);
+    }
+
+    /* ═══════════════════════════════════════════════
+       REVEAL ANIMATION
+    ═══════════════════════════════════════════════ */
+    .r {
+      opacity: 0; transform: translateY(20px);
+      transition: opacity 0.55s ease, transform 0.55s ease;
+    }
+    .r.in { opacity: 1; transform: none; }
+
+    /* ═══════════════════════════════════════════════
+       RESPONSIVE
+    ═══════════════════════════════════════════════ */
+    @media (max-width: 900px) {
+      #modulos .modules-grid { grid-template-columns: 1fr; }
+      .vps-list { grid-template-columns: 1fr; }
+      .secops-grid { grid-template-columns: 1fr; }
+      .outcomes { grid-template-columns: 1fr 1fr; }
+      .stack-cols { grid-template-columns: 1fr; }
+      .hero-title { font-size: 3.5rem; }
+      .nav-links { display: none; }
+      .pipeline { flex-direction: column; }
+      .pipe-step { flex-direction: row; gap: 1rem; align-items: flex-start; }
+      .pipe-connector { display: none; }
+      .pipe-arrow { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══════════ NAV ══════════ -->
+<nav id="nav">
+  <div class="brand">ness<em>.</em>OS</div>
+  <ul class="nav-links">
+    <li><a href="#modulos">Módulos</a></li>
+    <li><a href="#infra">Infraestrutura</a></li>
+    <li><a href="#secops">n.secops</a></li>
+    <li><a href="#ia">IA Agêntica</a></li>
+    <li><a href="#diagramas">Diagramas</a></li>
+    <li><a href="#stack">Stack</a></li>
+  </ul>
+  <a href="#diagramas" class="nav-cta">Ver diagramas</a>
+</nav>
+
+<!-- ══════════ HERO ══════════ -->
+<section class="hero" aria-label="ness.OS plataforma">
+  <div class="hero-glow" aria-hidden="true"></div>
+  <div class="hero-content">
+    <div class="hero-eyebrow">
+      <span class="hero-eyebrow-dot" aria-hidden="true"></span>
+      ness. · Managed Services Platform
+    </div>
+
+    <h1 class="hero-title" aria-label="ness.OS">
+      <span class="word-ness">ness</span><span class="word-dot">.</span><span class="word-os">OS</span>
+    </h1>
+    <p class="hero-sub">O sistema operacional da ness.</p>
+
+    <p class="hero-body">
+      Plataforma unificada de operação gerenciada que consolida NOC, SOC e infraestrutura em uma visão global — para múltiplos clientes, em qualquer nuvem.
+    </p>
+
+    <div class="hero-chips" role="list" aria-label="Módulos">
+      <span class="chip chip-core" role="listitem"><span class="chip-dot" aria-hidden="true"></span>ness.OS Core</span>
+      <span class="chip chip-infra" role="listitem"><span class="chip-dot" aria-hidden="true"></span>n.infraops</span>
+      <span class="chip chip-sec"  role="listitem"><span class="chip-dot" aria-hidden="true"></span>n.secops</span>
+    </div>
+
+    <div class="hero-scroll-hint" aria-hidden="true">
+      <div class="scroll-line"></div>
+      scroll
+    </div>
+  </div>
+</section>
+
+<hr class="sec-rule"/>
+
+<!-- ══════════ PLATAFORMA VISUAL ══════════ -->
+<section id="visao" aria-labelledby="visao-title" style="padding:4rem 0;background:var(--bg-deep)">
+  <div class="container">
+    <header style="text-align:center;margin-bottom:2.5rem" class="r">
+      <span class="sec-label" style="color:var(--text-lo);display:block;margin-bottom:0.5rem">//&nbsp;visão geral</span>
+      <h2 id="visao-title" style="font-family:'Syne',sans-serif;font-size:clamp(1.6rem,3.5vw,2.4rem);font-weight:700;letter-spacing:-0.03em;color:var(--text-hi)">
+        Como a plataforma funciona
+      </h2>
+    </header>
+
+    <div class="r" style="
+      border-radius:20px;
+      border:1px solid var(--border-std);
+      overflow:hidden;
+      position:relative;
+      background:var(--bg-raised);
+      box-shadow:0 0 80px rgba(124,110,248,0.06), 0 0 40px rgba(248,113,113,0.04);
+    ">
+      <img
+        src="platform.png"
+        alt="Diagrama da arquitetura ness.OS: Endpoints com Wazuh Agent → Spokes → Hub SOC Wazuh → AI Agent Gemini → Ações (ticket, WhatsApp, resposta ativa)"
+        width="1600" height="900"
+        loading="lazy"
+        style="width:100%;height:auto;display:block"
+        onerror="this.style.display='none';document.getElementById('plat-fallback').style.display='flex'"
+      />
+      <!-- Fallback se a imagem não carregar -->
+      <div id="plat-fallback" style="display:none;align-items:center;justify-content:center;padding:4rem;color:var(--text-lo);font-family:'JetBrains Mono',monospace;font-size:0.8rem">
+        [diagrama carregando...]
+      </div>
+      <!-- Caption bar -->
+      <div style="
+        padding:0.75rem 1.5rem;
+        background:rgba(8,12,22,0.9);
+        border-top:1px solid var(--border-sub);
+        display:flex;align-items:center;justify-content:space-between;
+        flex-wrap:wrap;gap:0.5rem;
+      ">
+        <span style="font-family:'JetBrains Mono',monospace;font-size:0.68rem;color:var(--text-lo);letter-spacing:0.08em">
+          Endpoints → Spoke (Wazuh Manager) → Hub SOC → AI Agent → Ação
+        </span>
+        <div style="display:flex;gap:1rem">
+          <span style="font-family:'JetBrains Mono',monospace;font-size:0.65rem;color:rgba(124,110,248,0.6)">n.secops</span>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:0.65rem;color:rgba(56,189,248,0.6)">n.infraops</span>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:0.65rem;color:rgba(248,113,113,0.6)">Wazuh 4.14.6</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="sec-rule"/>
+
+<!-- ══════════ MÓDULOS ══════════ -->
+<section id="modulos" aria-labelledby="modulos-title">
+  <div class="container">
+    <header class="sec-header r">
+      <span class="sec-label" style="color:var(--core)">//&nbsp;plataforma</span>
+      <h2 class="sec-title" id="modulos-title">Três módulos.<br>Uma operação.</h2>
+      <p class="sec-desc">Cada módulo opera de forma independente e se conecta ao core para uma visão consolidada em tempo real.</p>
+    </header>
+
+    <div class="modules-grid r">
+      <!-- Core -->
+      <article class="mod-card mod-card-core">
+        <div class="mod-number">01 / CORE</div>
+        <div class="mod-icon" style="background:var(--core-dim);border-color:rgba(124,110,248,0.2);color:var(--core)" aria-hidden="true">◎</div>
+        <div class="mod-label" style="color:var(--core)">ness.OS Core</div>
+        <h3 class="mod-name">Visão global</h3>
+        <p class="mod-desc">Dashboard executivo com health score, KPIs consolidados e acompanhamento de projetos transversais entre infraops e secops.</p>
+        <ul class="mod-feats" aria-label="Features do Core">
+          <li class="mod-feat"><span class="feat-icon" aria-hidden="true">◆</span>Health score global (0–100)</li>
+          <li class="mod-feat"><span class="feat-icon" aria-hidden="true">◆</span>KPIs infraops + secops unificados</li>
+          <li class="mod-feat"><span class="feat-icon" aria-hidden="true">◆</span>Projetos transversais</li>
+          <li class="mod-feat"><span class="feat-icon" aria-hidden="true">◆</span>Portal do cliente (roadmap)</li>
+        </ul>
+      </article>
+
+      <!-- Infraops -->
+      <article class="mod-card mod-card-infra">
+        <div class="mod-number">02 / N.INFRAOPS</div>
+        <div class="mod-icon" style="background:var(--infra-dim);border-color:rgba(56,189,248,0.2);color:var(--infra)" aria-hidden="true">⬡</div>
+        <div class="mod-label" style="color:var(--infra)">n.infraops</div>
+        <h3 class="mod-name">NOC &amp; Infraestrutura</h3>
+        <p class="mod-desc">Operação de infraestrutura e centro de operações de rede. Monitoramento contínuo, inventário de ativos e integração cloud.</p>
+        <ul class="mod-feats" aria-label="Features do infraops">
+          <li class="mod-feat"><span class="feat-icon" aria-hidden="true">◆</span>Zabbix — hosts, alertas, triggers</li>
+          <li class="mod-feat"><span class="feat-icon" aria-hidden="true">◆</span>Azure / M365 / AWS</li>
+          <li class="mod-feat"><span class="feat-icon" aria-hidden="true">◆</span>CMDB — inventário de ativos</li>
+          <li class="mod-feat"><span class="feat-icon" aria-hidden="true">◆</span>Pipeline de incidentes NOC</li>
+        </ul>
+      </article>
+
+      <!-- Secops -->
+      <article class="mod-card mod-card-sec">
+        <div class="mod-number">03 / N.SECOPS</div>
+        <div class="mod-icon" style="background:var(--sec-dim);border-color:rgba(248,113,113,0.2);color:var(--sec)" aria-hidden="true">⬡</div>
+        <div class="mod-label" style="color:var(--sec)">n.secops</div>
+        <h3 class="mod-name">SOC &amp; Segurança</h3>
+        <p class="mod-desc">SIEM, SOAR e analistas agênticos com IA. Compliance LGPD e CIS Controls com policies SCA customizadas por cliente.</p>
+        <ul class="mod-feats" aria-label="Features do secops">
+          <li class="mod-feat"><span class="feat-icon" aria-hidden="true">◆</span>Wazuh SIEM/XDR 4.14.6</li>
+          <li class="mod-feat"><span class="feat-icon" aria-hidden="true">◆</span>Shuffle SOAR — automação</li>
+          <li class="mod-feat"><span class="feat-icon" aria-hidden="true">◆</span>Analista SOC IA (Gemini)</li>
+          <li class="mod-feat"><span class="feat-icon" aria-hidden="true">◆</span>Compliance LGPD / CIS Controls</li>
+        </ul>
+      </article>
+    </div>
+  </div>
+</section>
+
+<hr class="sec-rule"/>
+
+<!-- ══════════ INFRAESTRUTURA ══════════ -->
+<section id="infra" aria-labelledby="infra-title">
+  <div class="container">
+    <div class="infra-intro r">
+      <header class="sec-header" style="margin-bottom:0">
+        <span class="sec-label" style="color:var(--infra)">//&nbsp;infraestrutura</span>
+        <h2 class="sec-title" id="infra-title">3 máquinas.<br>Isolamento total.</h2>
+        <p class="sec-desc">Wazuh, Zabbix e ness.OS App nunca compartilham CPU ou RAM. Isolamento por design.</p>
+      </header>
+      <div class="infra-note" aria-label="Regra de isolamento">
+        <span aria-hidden="true">⚠</span> Sem CPU compartilhado entre workloads
+      </div>
+    </div>
+
+    <div class="vps-list r">
+      <!-- VPS 1 -->
+      <article class="vps-card vps-1" aria-label="VPS 1 - ness.OS Platform">
+        <span class="vps-status status-live" aria-label="Status: Ativo">● Ativo</span>
+        <div class="vps-num">VPS 01</div>
+        <h3 class="vps-name">ness.OS Platform</h3>
+        <div class="vps-host" style="color:var(--infra)">hub.ness.com.br</div>
+        <div class="vps-ip">144.91.115.242 · Contabo · Debian 12</div>
+        <div class="vps-specs-bar" aria-label="Especificações">
+          <div class="spec-box"><div class="spec-v">8</div><div class="spec-k">vCPU AMD EPYC</div></div>
+          <div class="spec-box"><div class="spec-v">23 GB</div><div class="spec-k">RAM</div></div>
+          <div class="spec-box"><div class="spec-v">394 GB</div><div class="spec-k">SSD</div></div>
+          <div class="spec-box"><div class="spec-v" style="color:var(--green)">~15%</div><div class="spec-k">uso CPU</div></div>
+        </div>
+        <div class="vps-svcs" aria-label="Serviços">
+          <div class="svc"><span class="svc-bullet" style="background:var(--core)"></span>FastAPI backend (ness.OS)</div>
+          <div class="svc"><span class="svc-bullet" style="background:var(--infra)"></span>React PWA (frontend)</div>
+          <div class="svc"><span class="svc-bullet" style="background:#F97316"></span>TimescaleDB + pgvector</div>
+          <div class="svc"><span class="svc-bullet" style="background:#EF4444"></span>Redis 7 + Celery Workers</div>
+          <div class="svc"><span class="svc-bullet" style="background:var(--green)"></span>WhatsApp (Evolution API)</div>
+          <div class="svc"><span class="svc-bullet" style="background:var(--core)"></span>Caddy (TLS automático)</div>
+        </div>
+      </article>
+
+      <!-- VPS 2 -->
+      <article class="vps-card vps-2" aria-label="VPS 2 - Wazuh Hub SOC">
+        <span class="vps-status status-soon" aria-label="Status: Em provisionamento">⧗ Em breve</span>
+        <div class="vps-num">VPS 02</div>
+        <h3 class="vps-name">Wazuh Hub SOC</h3>
+        <div class="vps-host" style="color:var(--sec)">wazuh.ness.com.br</div>
+        <div class="vps-ip">IP a definir · Contabo XL · Debian 12</div>
+        <div class="vps-specs-bar" aria-label="Especificações planejadas">
+          <div class="spec-box"><div class="spec-v">8</div><div class="spec-k">vCPU</div></div>
+          <div class="spec-box"><div class="spec-v">32 GB</div><div class="spec-k">RAM</div></div>
+          <div class="spec-box"><div class="spec-v">800 GB</div><div class="spec-k">NVMe SSD</div></div>
+          <div class="spec-box"><div class="spec-v" style="color:var(--gold)">~€35</div><div class="spec-k">por mês</div></div>
+        </div>
+        <div class="vps-svcs" aria-label="Serviços planejados">
+          <div class="svc"><span class="svc-bullet" style="background:var(--sec)"></span>Wazuh Indexer (OpenSearch)</div>
+          <div class="svc"><span class="svc-bullet" style="background:#F97316"></span>Wazuh Manager API :55000</div>
+          <div class="svc"><span class="svc-bullet" style="background:var(--gold)"></span>Wazuh Dashboard MFA :443</div>
+          <div class="svc"><span class="svc-bullet" style="background:#8B5CF6"></span>Shuffle SOAR CE</div>
+          <div class="svc"><span class="svc-bullet" style="background:var(--text-lo)"></span>9200 / 55000 — VLAN only</div>
+        </div>
+      </article>
+
+      <!-- VPS 3 -->
+      <article class="vps-card vps-3" aria-label="VPS 3 - Zabbix">
+        <span class="vps-status status-stable" aria-label="Status: Existente">◉ Existente</span>
+        <div class="vps-num">VPS 03</div>
+        <h3 class="vps-name">Zabbix</h3>
+        <div class="vps-host" style="color:var(--text-mid)">zabbix.ness.com.br</div>
+        <div class="vps-ip">Contabo existente · não modificamos</div>
+        <div class="vps-specs-bar" aria-label="Integração">
+          <div class="spec-box" style="grid-column:span 2">
+            <div class="spec-v" style="font-size:0.8rem;color:var(--text-mid)">Integração somente via API</div>
+            <div class="spec-k">JSONRPC — sem instalar nada</div>
+          </div>
+        </div>
+        <div class="vps-svcs" aria-label="Serviços">
+          <div class="svc"><span class="svc-bullet" style="background:#F97316"></span>Zabbix Server</div>
+          <div class="svc"><span class="svc-bullet" style="background:var(--text-lo)"></span>JSONRPC API → ness.OS</div>
+          <div class="svc"><span class="svc-bullet" style="background:var(--text-lo)"></span>Hosts · Triggers · Alertas</div>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<hr class="sec-rule"/>
+
+<!-- ══════════ N.SECOPS ══════════ -->
+<section id="secops" aria-labelledby="secops-title">
+  <div class="container">
+    <header class="sec-header r">
+      <span class="sec-label" style="color:var(--sec)">//&nbsp;n.secops</span>
+      <h2 class="sec-title" id="secops-title">Wazuh MSSP<br>Hub-to-Spoke.</h2>
+      <p class="sec-desc">Hub centralizado na Contabo. Spokes onde o cliente já está — Contabo, Azure, AWS ou on-premises.</p>
+    </header>
+
+    <div class="secops-grid r">
+      <!-- Arquitetura em camadas -->
+      <div>
+        <p style="font-size:0.75rem;color:var(--text-lo);font-family:'JetBrains Mono',monospace;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:1rem">Arquitetura em 3 camadas</p>
+
+        <div class="layer-stack" role="list" aria-label="Camadas de arquitetura">
+          <div class="layer layer-hub" role="listitem">
+            <span class="layer-badge" style="background:rgba(248,113,113,0.1);color:var(--sec);border-color:rgba(248,113,113,0.25)">Camada 3 · Hub</span>
+            <div class="layer-title">Wazuh Hub SOC</div>
+            <div class="layer-desc">Indexer OpenSearch · Dashboard MFA · índices separados por cliente · Shuffle SOAR</div>
+          </div>
+          <div class="layer-connector" aria-hidden="true">
+            <span class="conn-line"></span>
+            <span>alertas 9200/HTTPS</span>
+            <span class="conn-line"></span>
+          </div>
+          <div class="layer layer-spoke" role="listitem">
+            <span class="layer-badge" style="background:rgba(251,191,36,0.1);color:var(--gold);border-color:rgba(251,191,36,0.25)">Camada 2 · Spoke</span>
+            <div class="layer-title">Wazuh Manager + Filebeat</div>
+            <div class="layer-desc">1 por contrato · descarta ~95% · fila 15 GB · contingência 7 dias</div>
+          </div>
+          <div class="layer-connector" aria-hidden="true">
+            <span class="conn-line"></span>
+            <span>eventos 1514/TLS</span>
+            <span class="conn-line"></span>
+          </div>
+          <div class="layer layer-ep" role="listitem">
+            <span class="layer-badge" style="background:rgba(56,189,248,0.1);color:var(--infra);border-color:rgba(56,189,248,0.25)">Camada 1 · Endpoints</span>
+            <div class="layer-title">Agente Wazuh 4.14.6 + Sysmon</div>
+            <div class="layer-desc">Windows com Sysmon v15 · SHA256 + IMPHASH · FIM · SCA · inventário</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Spokes -->
+      <div>
+        <p style="font-size:0.75rem;color:var(--text-lo);font-family:'JetBrains Mono',monospace;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:1rem">Spoke roda onde o cliente já está</p>
+        <div class="spoke-grid" role="list" aria-label="Tipos de Spoke">
+          <article class="spoke-item spoke-contabo" role="listitem">
+            <div class="spoke-item-name">☁ Contabo VLAN</div>
+            <div class="spoke-item-desc">VPS na rede privada · sem tráfego pela internet · latência mínima ao Hub</div>
+          </article>
+          <article class="spoke-item spoke-azure" role="listitem">
+            <div class="spoke-item-name">⬡ Azure</div>
+            <div class="spoke-item-desc">VM no tenant do cliente · integra M365 e Azure AD nativamente</div>
+          </article>
+          <article class="spoke-item spoke-aws" role="listitem">
+            <div class="spoke-item-name">◆ AWS</div>
+            <div class="spoke-item-desc">EC2 na conta do cliente · 9200/HTTPS internet TLS</div>
+          </article>
+          <article class="spoke-item spoke-onprem" role="listitem">
+            <div class="spoke-item-name">⬛ On-premises</div>
+            <div class="spoke-item-desc">VM no datacenter físico · dados não saem do site</div>
+          </article>
+        </div>
+
+        <div style="margin-top:1.5rem;padding:1rem 1.25rem;border-radius:10px;border:1px solid var(--border-sub);background:var(--bg-float)">
+          <p style="font-size:0.78rem;color:var(--text-mid);line-height:1.65">
+            <strong style="color:var(--text-hi);display:block;margin-bottom:0.3rem">Regra invariante</strong>
+            Todos os Spokes enviam <strong style="color:var(--text-hi)">apenas alertas</strong> ao Hub — nunca logs brutos. O Spoke processa localmente e descarta ~95–99% dos eventos.
+          </p>
+        </div>
+
+        <div style="margin-top:1rem;padding:1rem 1.25rem;border-radius:10px;border:1px solid rgba(124,110,248,0.2);background:rgba(124,110,248,0.06)">
+          <p style="font-size:0.78rem;color:var(--text-mid);line-height:1.65">
+            <strong style="color:var(--core);display:block;margin-bottom:0.3rem">Compliance nativo</strong>
+            SCA com policies YAML customizadas por cliente — CIS Controls, LGPD e baselines próprios da ness.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="sec-rule"/>
+
+<!-- ══════════ IA AGÊNTICA ══════════ -->
+<section id="ia" aria-labelledby="ia-title">
+  <div class="container">
+    <header class="sec-header r">
+      <span class="sec-label" style="color:var(--core)">//&nbsp;inteligência artificial</span>
+      <h2 class="sec-title" id="ia-title">Analista SOC<br>agêntico 24/7.</h2>
+      <p class="sec-desc">Cada alerta é enriquecido, analisado e decidido por IA em português — sem intervenção humana para falsos positivos e ameaças de baixo risco.</p>
+    </header>
+
+    <!-- Pipeline -->
+    <div class="pipeline r" role="list" aria-label="Pipeline de triage">
+      <div class="pipe-step" role="listitem">
+        <div class="pipe-node" style="background:rgba(56,189,248,0.1);border-color:rgba(56,189,248,0.25);color:var(--infra)" aria-hidden="true">🔔</div>
+        <div class="pipe-arrow" aria-hidden="true">
+          <svg width="20" height="12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M0 6h16M12 2l4 4-4 4"/></svg>
+        </div>
+        <div>
+          <div class="pipe-name">Wazuh Alert</div>
+          <div class="pipe-desc">Nível ≥ 7<br>gerado no Spoke</div>
+        </div>
+      </div>
+
+      <div class="pipe-step" role="listitem">
+        <div class="pipe-node" style="background:rgba(251,191,36,0.1);border-color:rgba(251,191,36,0.25);color:var(--gold)" aria-hidden="true">⚡</div>
+        <div class="pipe-arrow" aria-hidden="true">
+          <svg width="20" height="12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M0 6h16M12 2l4 4-4 4"/></svg>
+        </div>
+        <div>
+          <div class="pipe-name">Shuffle SOAR</div>
+          <div class="pipe-desc">Webhook<br>Integrator</div>
+        </div>
+      </div>
+
+      <div class="pipe-step" role="listitem">
+        <div class="pipe-node" style="background:rgba(139,92,246,0.1);border-color:rgba(139,92,246,0.25);color:#A78BFA" aria-hidden="true">🔍</div>
+        <div class="pipe-arrow" aria-hidden="true">
+          <svg width="20" height="12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M0 6h16M12 2l4 4-4 4"/></svg>
+        </div>
+        <div>
+          <div class="pipe-name">Enriquecimento</div>
+          <div class="pipe-desc">VirusTotal<br>AbuseIPDB<br>MITRE ATT&amp;CK</div>
+        </div>
+      </div>
+
+      <div class="pipe-step" role="listitem">
+        <div class="pipe-node ai-node" style="background:rgba(124,110,248,0.15);border-color:rgba(124,110,248,0.4);color:var(--core)" aria-label="AI Agent - núcleo do pipeline" aria-hidden="true">✦</div>
+        <div class="pipe-arrow" aria-hidden="true">
+          <svg width="20" height="12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M0 6h16M12 2l4 4-4 4"/></svg>
+        </div>
+        <div>
+          <div class="pipe-name">AI Agent</div>
+          <div class="pipe-desc">Gemini 2.0 Flash<br>Triage em PT-BR<br>&lt; 2s latência</div>
+        </div>
+      </div>
+
+      <div class="pipe-step" role="listitem">
+        <div class="pipe-node" style="background:rgba(52,211,153,0.1);border-color:rgba(52,211,153,0.25);color:var(--green)" aria-hidden="true">→</div>
+        <div>
+          <div class="pipe-name">Decisão</div>
+          <div class="pipe-desc">Ação automática<br>ou escalada<br>+ audit log</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Outcomes -->
+    <div class="outcomes r" role="list" aria-label="Decisões possíveis do agente">
+      <div class="outcome" role="listitem">
+        <div class="outcome-icon" aria-hidden="true">🔇</div>
+        <span class="outcome-level lvl-fp">FP</span>
+        <div class="outcome-action">Auto-silence</div>
+        <div class="outcome-detail">Regra de silêncio no Wazuh (24h)</div>
+      </div>
+      <div class="outcome" role="listitem">
+        <div class="outcome-icon" aria-hidden="true">📋</div>
+        <span class="outcome-level lvl-low">LOW</span>
+        <div class="outcome-action">Log</div>
+        <div class="outcome-detail">Indexado sem ação imediata</div>
+      </div>
+      <div class="outcome" role="listitem">
+        <div class="outcome-icon" aria-hidden="true">🎫</div>
+        <span class="outcome-level lvl-med">MED</span>
+        <div class="outcome-action">Ticket Atera</div>
+        <div class="outcome-detail">Chamado criado no PSA</div>
+      </div>
+      <div class="outcome" role="listitem">
+        <div class="outcome-icon" aria-hidden="true">📲</div>
+        <span class="outcome-level lvl-high">HIGH</span>
+        <div class="outcome-action">Ticket + WhatsApp</div>
+        <div class="outcome-detail">Paging do analista on-call</div>
+      </div>
+      <div class="outcome" role="listitem">
+        <div class="outcome-icon" aria-hidden="true">🚨</div>
+        <span class="outcome-level lvl-crit">CRIT</span>
+        <div class="outcome-action">Resposta Ativa</div>
+        <div class="outcome-detail">Bloquear IP · isolar host + ticket urgente + WhatsApp</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="sec-rule"/>
+
+<!-- ══════════ DIAGRAMAS — MODO DOCUMENTO ══════════ -->
+<section id="diagramas" aria-labelledby="diagramas-title" style="background:var(--bg-deep);padding:6rem 0">
+  <div class="container">
+
+    <header class="sec-header r" style="max-width:700px">
+      <span class="sec-label" style="color:var(--text-lo)">//&nbsp;documentação visual</span>
+      <h2 class="sec-title" id="diagramas-title">Diagramas técnicos</h2>
+      <p class="sec-desc">Arquitetura completa em três visões: visão geral da plataforma, topologia de rede e fluxo de dados agêntico.</p>
+    </header>
+
+    <!-- DOC STYLE GLOBAL -->
+    <style>
+      .doc-item { margin-bottom: 4rem; }
+      .doc-item:last-child { margin-bottom: 0; }
+      .doc-num {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.62rem; letter-spacing: 0.18em; text-transform: uppercase;
+        color: var(--text-lo); margin-bottom: 0.75rem; display: block;
+      }
+      .doc-title {
+        font-family: 'Syne', sans-serif;
+        font-size: 1.3rem; font-weight: 700; letter-spacing: -0.02em;
+        color: var(--text-hi); margin-bottom: 0.4rem;
+      }
+      .doc-caption {
+        font-size: 0.8rem; color: var(--text-mid);
+        max-width: 680px; line-height: 1.65; margin-bottom: 1.5rem;
+      }
+      .doc-img-wrap {
+        border-radius: 16px; border: 1px solid var(--border-std);
+        overflow: hidden; background: var(--bg-raised);
+        transition: border-color 0.25s;
+      }
+      .doc-img-wrap:hover { border-color: var(--border-emph); }
+      .doc-img-wrap img { width: 100%; height: auto; display: block; }
+      .doc-meta {
+        display: flex; align-items: center; gap: 1.5rem;
+        padding: 0.6rem 1.25rem;
+        border-top: 1px solid var(--border-sub);
+        background: rgba(8,12,22,0.7);
+        flex-wrap: wrap;
+      }
+      .doc-meta-item {
+        display: flex; align-items: center; gap: 0.4rem;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.65rem; color: var(--text-lo); letter-spacing: 0.06em;
+      }
+      .doc-meta-dot { width: 4px; height: 4px; border-radius: 50%; }
+      .doc-divider {
+        height: 1px; background: var(--border-sub);
+        margin: 3.5rem 0;
+      }
+    </style>
+
+    <!-- DIAGRAMA 1: Platform Overview -->
+    <article class="doc-item r" aria-labelledby="diag1-title">
+      <span class="doc-num">Diagrama 01 de 03</span>
+      <h3 class="doc-title" id="diag1-title">Visão geral da plataforma</h3>
+      <p class="doc-caption">Fluxo completo de eventos: endpoints com Wazuh Agent e Sysmon enviam dados para o Spoke local, que encaminha apenas alertas para o Hub SOC. O AI Agent tria cada alerta e executa a ação correspondente.</p>
+      <div class="doc-img-wrap">
+        <img
+          src="platform.png"
+          alt="Diagrama de visão geral: Endpoints → Spoke Wazuh → Hub SOC → AI Agent Gemini → Ações (FP/LOW/MED/HIGH/CRIT)"
+          loading="lazy"
+        />
+        <div class="doc-meta">
+          <div class="doc-meta-item"><span class="doc-meta-dot" style="background:var(--core)"></span>n.secops</div>
+          <div class="doc-meta-item"><span class="doc-meta-dot" style="background:var(--infra)"></span>n.infraops</div>
+          <div class="doc-meta-item"><span class="doc-meta-dot" style="background:var(--text-lo)"></span>Wazuh 4.14.6 · Shuffle SOAR · Gemini 2.0 Flash</div>
+          <div class="doc-meta-item" style="margin-left:auto">ness.OS · 2026</div>
+        </div>
+      </div>
+    </article>
+
+    <div class="doc-divider"></div>
+
+    <!-- DIAGRAMA 2: Network Architecture -->
+    <article class="doc-item r" aria-labelledby="diag2-title">
+      <span class="doc-num">Diagrama 02 de 03</span>
+      <h3 class="doc-title" id="diag2-title">Arquitetura de rede MSSP</h3>
+      <p class="doc-caption">Topologia Hub-to-Spoke multi-cloud. O Hub centraliza na Contabo Cloud. Os Spokes rodam onde o cliente já está: Contabo VLAN (rede privada), Azure, AWS ou on-premises. Todos se conectam ao Hub via 9200/HTTPS TLS.</p>
+      <div class="doc-img-wrap">
+        <img
+          src="diagram-network.png"
+          alt="Diagrama de rede: VPS 1 ness.OS, VPS 2 Wazuh Hub, VPS 3 Zabbix na Contabo Cloud. Spokes em Contabo VLAN, Azure, AWS e on-premises conectando via 9200/HTTPS."
+          loading="lazy"
+        />
+        <div class="doc-meta">
+          <div class="doc-meta-item"><span class="doc-meta-dot" style="background:var(--sec)"></span>VPS 2 · Wazuh Hub SOC</div>
+          <div class="doc-meta-item"><span class="doc-meta-dot" style="background:var(--infra)"></span>VPS 1 · ness.OS Platform · 144.91.115.242</div>
+          <div class="doc-meta-item"><span class="doc-meta-dot" style="background:var(--gold)"></span>Spoke: Contabo VLAN · Azure · AWS · On-premises</div>
+          <div class="doc-meta-item" style="margin-left:auto">Contabo Cloud · VLAN privada</div>
+        </div>
+      </div>
+    </article>
+
+    <div class="doc-divider"></div>
+
+    <!-- DIAGRAMA 3: Agentic Data Flow -->
+    <article class="doc-item r" aria-labelledby="diag3-title">
+      <span class="doc-num">Diagrama 03 de 03</span>
+      <h3 class="doc-title" id="diag3-title">Fluxo de dados agêntico</h3>
+      <p class="doc-caption">Pipeline de triage automatizado. Cada alerta do Wazuh passa por enriquecimento (VirusTotal, AbuseIPDB, MITRE ATT&amp;CK), análise pelo AI Agent em português e execução da ação correspondente — tudo em menos de 2 segundos, sem intervenção humana.</p>
+      <div class="doc-img-wrap">
+        <img
+          src="diagram-dataflow.png"
+          alt="Diagrama de fluxo agêntico: Wazuh Alert → Shuffle SOAR → Enriquecimento → AI Agent Gemini → Decisão (FP auto-silence, LOW log, MED ticket, HIGH WhatsApp, CRIT resposta ativa)"
+          loading="lazy"
+        />
+        <div class="doc-meta">
+          <div class="doc-meta-item"><span class="doc-meta-dot" style="background:var(--core)"></span>AI Agent · Gemini 2.0 Flash · PydanticAI</div>
+          <div class="doc-meta-item"><span class="doc-meta-dot" style="background:#8B5CF6"></span>Shuffle SOAR CE</div>
+          <div class="doc-meta-item"><span class="doc-meta-dot" style="background:var(--text-lo)"></span>VirusTotal · AbuseIPDB · MITRE ATT&amp;CK</div>
+          <div class="doc-meta-item" style="margin-left:auto">&lt; 2s latência</div>
+        </div>
+      </div>
+    </article>
+
+  </div>
+</section>
+
+<hr class="sec-rule"/>
+
+<!-- ══════════ STACK ══════════ -->
+<section id="stack" aria-labelledby="stack-title">
+  <div class="container">
+    <header class="sec-header r">
+      <span class="sec-label" style="color:var(--infra)">//&nbsp;tecnologia</span>
+      <h2 class="sec-title" id="stack-title">Stack tecnológico.</h2>
+      <p class="sec-desc">Open-source e cloud-native. Zero vendor lock-in na camada de dados.</p>
+    </header>
+
+    <div class="stack-cols r" role="list" aria-label="Stack por categoria">
+      <div class="stack-col" role="listitem">
+        <div class="sc-cat">Backend &amp; DB</div>
+        <div class="sc-items">
+          <div class="sc-item"><span class="sc-bullet" style="background:var(--core)"></span>FastAPI (Python 3.12+)<span class="sc-version">latest</span></div>
+          <div class="sc-item"><span class="sc-bullet" style="background:#F97316"></span>TimescaleDB + pgvector<span class="sc-version">pg16</span></div>
+          <div class="sc-item"><span class="sc-bullet" style="background:#EF4444"></span>Redis 7 + Celery<span class="sc-version">7.x</span></div>
+          <div class="sc-item"><span class="sc-bullet" style="background:var(--text-lo)"></span>Pydantic Settings v2</div>
+          <div class="sc-item"><span class="sc-bullet" style="background:var(--text-lo)"></span>JWT + bcrypt auth</div>
+        </div>
+      </div>
+
+      <div class="stack-col" role="listitem">
+        <div class="sc-cat">Frontend &amp; Deploy</div>
+        <div class="sc-items">
+          <div class="sc-item"><span class="sc-bullet" style="background:var(--infra)"></span>React 18 + TypeScript<span class="sc-version">18.x</span></div>
+          <div class="sc-item"><span class="sc-bullet" style="background:var(--infra)"></span>Vite + Tailwind CSS<span class="sc-version">5.x</span></div>
+          <div class="sc-item"><span class="sc-bullet" style="background:#F97316"></span>Docker + Compose<span class="sc-version">latest</span></div>
+          <div class="sc-item"><span class="sc-bullet" style="background:var(--text-lo)"></span>Caddy (TLS automático)</div>
+          <div class="sc-item"><span class="sc-bullet" style="background:var(--text-lo)"></span>GitHub Actions CI/CD</div>
+        </div>
+      </div>
+
+      <div class="stack-col" role="listitem">
+        <div class="sc-cat">SIEM / XDR</div>
+        <div class="sc-items">
+          <div class="sc-item"><span class="sc-bullet" style="background:var(--sec)"></span>Wazuh SIEM/XDR<span class="sc-version">4.14.6</span></div>
+          <div class="sc-item"><span class="sc-bullet" style="background:var(--sec)"></span>OpenSearch (Indexer)<span class="sc-version">2.x</span></div>
+          <div class="sc-item"><span class="sc-bullet" style="background:var(--gold)"></span>Sysmon v15 (Windows)</div>
+          <div class="sc-item"><span class="sc-bullet" style="background:var(--text-lo)"></span>Filebeat (shipper)</div>
+          <div class="sc-item"><span class="sc-bullet" style="background:var(--text-lo)"></span>CIS Benchmarks + LGPD</div>
+        </div>
+      </div>
+
+      <div class="stack-col" role="listitem">
+        <div class="sc-cat">SOAR &amp; IA</div>
+        <div class="sc-items">
+          <div class="sc-item"><span class="sc-bullet" style="background:#8B5CF6"></span>Shuffle CE (SOAR)<span class="sc-version">latest</span></div>
+          <div class="sc-item"><span class="sc-bullet" style="background:var(--core)"></span>Gemini 2.0 Flash</div>
+          <div class="sc-item"><span class="sc-bullet" style="background:var(--core)"></span>PydanticAI (agents)</div>
+          <div class="sc-item"><span class="sc-bullet" style="background:var(--text-lo)"></span>VirusTotal API v3</div>
+          <div class="sc-item"><span class="sc-bullet" style="background:var(--text-lo)"></span>AbuseIPDB + MITRE</div>
+        </div>
+      </div>
+
+      <div class="stack-col" role="listitem">
+        <div class="sc-cat">Integrações</div>
+        <div class="sc-items">
+          <div class="sc-item"><span class="sc-bullet" style="background:var(--gold)"></span>Zabbix (JSONRPC)</div>
+          <div class="sc-item"><span class="sc-bullet" style="background:var(--green)"></span>Atera PSA (REST)</div>
+          <div class="sc-item"><span class="sc-bullet" style="background:#60A5FA"></span>Microsoft Graph API</div>
+          <div class="sc-item"><span class="sc-bullet" style="background:var(--green)"></span>WhatsApp (Evolution API)</div>
+          <div class="sc-item"><span class="sc-bullet" style="background:var(--text-lo)"></span>Contabo API</div>
+        </div>
+      </div>
+
+      <div class="stack-col" role="listitem">
+        <div class="sc-cat">Infraestrutura</div>
+        <div class="sc-items">
+          <div class="sc-item"><span class="sc-bullet" style="background:var(--gold)"></span>Contabo Cloud (VLAN privada)</div>
+          <div class="sc-item"><span class="sc-bullet" style="background:var(--text-lo)"></span>3 VPS dedicados</div>
+          <div class="sc-item"><span class="sc-bullet" style="background:var(--text-lo)"></span>Spoke em qualquer nuvem</div>
+          <div class="sc-item"><span class="sc-bullet" style="background:var(--text-lo)"></span>rsync backup diário</div>
+          <div class="sc-item"><span class="sc-bullet" style="background:var(--text-lo)"></span>UFW + DLS por tenant</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ FOOTER ══════════ -->
+<footer>
+  <div class="footer-brand">ness<em>.</em>OS</div>
+  <div class="footer-meta">v1.0.0 · n.infraops + n.secops + core · 2026 · Confidencial</div>
+</footer>
+
+<script>
+  // Nav scroll
+  const nav = document.getElementById('nav');
+  window.addEventListener('scroll', () => {
+    nav.classList.toggle('scrolled', window.scrollY > 20);
+  }, { passive: true });
+
+  // Reveal on scroll
+  const ro = new IntersectionObserver((entries) => {
+    entries.forEach((e, i) => {
+      if (e.isIntersecting) {
+        setTimeout(() => e.target.classList.add('in'), i * 60);
+        ro.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.08, rootMargin: '0px 0px -30px 0px' });
+
+  document.querySelectorAll('.r').forEach(el => ro.observe(el));
+
+  // Stagger grid children
+  document.querySelectorAll('.modules-grid, .vps-list, .outcomes, .stack-cols, .spoke-grid').forEach(grid => {
+    Array.from(grid.children).forEach((child, i) => {
+      child.classList.add('r');
+      child.style.transitionDelay = `${i * 0.08}s`;
+      ro.observe(child);
+    });
+  });
+
+  // Pipeline stagger
+  document.querySelectorAll('.pipe-step').forEach((el, i) => {
+    el.classList.add('r');
+    el.style.transitionDelay = `${i * 0.1}s`;
+    ro.observe(el);
+  });
+</script>
+</body>
+</html>

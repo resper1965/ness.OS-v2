@@ -1,0 +1,31 @@
+---
+# =============================================================================
+# Role: zabbix-proxy | meta/main.yml
+# =============================================================================
+galaxy_info:
+  role_name: zabbix-proxy
+  author: ness
+  description: >
+    Instala e configura o Zabbix Proxy 7.0 LTS em modo ativo.
+    Gerencia repositório, pacotes, configuração via template e serviço systemd.
+  company: ness.
+  license: MIT
+  min_ansible_version: "2.14"
+
+  platforms:
+    - name: Ubuntu
+      versions:
+        - "22.04"
+        - "24.04"
+    - name: Debian
+      versions:
+        - "12"
+
+  galaxy_tags:
+    - zabbix
+    - monitoring
+    - proxy
+    - observability
+
+# Dependências de outras roles (nenhuma por padrão)
+dependencies: []

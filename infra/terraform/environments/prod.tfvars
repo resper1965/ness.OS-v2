@@ -22,10 +22,6 @@
 # Credenciais OAuth2 da API Contabo
 # Obtenha em: https://my.contabo.com/api/details
 # ---------------------------------------------------------------------------
-contabo_oauth2_client_id     = "SUBSTITUIR_PELO_CLIENT_ID"
-contabo_oauth2_client_secret = "SUBSTITUIR_PELO_CLIENT_SECRET"
-contabo_oauth2_user          = "SUBSTITUIR_PELO_EMAIL"
-contabo_oauth2_pass          = "SUBSTITUIR_PELA_SENHA"
 
 # ---------------------------------------------------------------------------
 # Configurações da VPS - Cloud VPS V3
@@ -65,3 +61,9 @@ ssh_public_key = "SUBSTITUIR_PELA_CHAVE_PUBLICA_SSH"
 # ---------------------------------------------------------------------------
 project_name = "zabbix-ness"
 environment  = "prod"
+
+# ---------------------------------------------------------------------------
+# Configurações do Hub AIOps / Wazuh Hub (SOC)
+# ---------------------------------------------------------------------------
+hub_display_name = "aiops-soc-hub-prod"
+hub_product_id   = "V3"

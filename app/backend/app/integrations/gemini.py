@@ -8,6 +8,7 @@ logs, métricas e contexto do incidente.
 
 Os dados passam pelo sanitizer ANTES de chegar aqui.
 """
+
 from __future__ import annotations
 
 import json
@@ -24,24 +25,84 @@ settings = get_settings()
 
 _TIMEOUT = httpx.Timeout(connect=10.0, read=120.0, write=10.0, pool=5.0)
 
+
+def generate_embedding(text: str) -> list[float]:
+    """Gera embedding de 768 dimensões usando o modelo text-embedding-004 do Gemini."""
+    if not settings.gemini_api_key:
+        logger.warning("Gemini API key não configurada. Retornando embedding zerado.")
+        return [0.0] * 768
+
+    api_url = "https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent"
+    headers = {"Content-Type": "application/json"}
+    body = {
+        "model": "models/text-embedding-004",
+        "content": {"parts": [{"text": text}]},
+    }
+    try:
+        with httpx.Client(timeout=_TIMEOUT) as client:
+            response = client.post(
+                api_url,
+                json=body,
+                params={"key": settings.gemini_api_key},
+                headers=headers,
+            )
+            response.raise_for_status()
+            result = response.json()
+            return result.get("embedding", {}).get("values", [0.0] * 768)
+    except Exception as exc:
+        logger.error("Falha ao gerar embedding via Gemini: %s", exc)
+        return [0.0] * 768
+
+
 # Prompt estruturado para o Gemini
 _POSTMORTEM_SYSTEM_PROMPT = """\
-Você é um engenheiro SRE sênior da ness. gerando um relatório pós-incidente.
-Analise os dados do incidente e produza um relatório DENSO em Markdown com:
+Você é um engenheiro SRE sênior da ness. gerando um relatório pós-incidente baseado nos padrões da indústria (Google SRE Book, PagerDuty Post-Mortem).
+Analise os dados do incidente e produza um relatório DENSO e PROFISSIONAL em Markdown com as seguintes seções.
 
 ## Estrutura obrigatória:
-1. **Resumo Executivo** — 2-3 frases sobre o que aconteceu
-2. **Linha do Tempo** — Tabela cronológica dos eventos (timestamp | evento)
-3. **Causa Raiz** — Análise técnica detalhada
-4. **Blast Radius** — Serviços e hosts afetados
-5. **Logs Relevantes** — Trechos de log que sustentam a conclusão
-6. **Ações Corretivas** — O que deve ser feito para evitar recorrência
-7. **Métricas Analisadas** — Dados numéricos que apoiam a análise
+
+1. **Metadados do Incidente**
+   - Severidade: [Severidade do Incidente]
+   - MTTR (Tempo Médio de Resolução): [Duração Estimada]
+   - Lead SRE: ness. AIOps Agent
+
+2. **Resumo Executivo**
+   - Escreva 2-3 frases resumidas sobre o que aconteceu, o impacto comercial e como foi mitigado.
+
+3. **Linha do Tempo**
+   - Apresente uma tabela cronológica detalhada dos eventos no formato:
+     | Timestamp | Evento |
+     |---|---|
+     | [Horário] | Detecção do incidente via Zabbix |
+     | [Horário] | Triage e escalonamento |
+     | [Horário] | Aplicação da mitigação |
+     | [Horário] | Resolução e validação |
+
+4. **Causa Raiz**
+   - **Análise Técnica Detalhada**: Explicação técnica aprofundada de por que a falha ocorreu.
+   - **Os 5 Porquês (5 Whys)**: Aplique a técnica dos 5 Porquês sequenciais para investigar as causas sistêmicas subjacentes (Por que aconteceu? -> Por que X ocorreu? -> etc. até o 5º nível).
+
+5. **Blast Radius**
+   - Apresente como lista de itens os serviços, portas, bancos de dados, hosts ou clientes diretamente afetados.
+
+6. **Logs Relevantes**
+   - Apresente trechos de log que explicam e comprovam a conclusão da causa raiz.
+
+7. **Ações Corretivas**
+   - Apresente como lista de itens contendo ações corretivas de curto prazo (mitigações) e longo prazo (melhorias de arquitetura para prevenir reincidência), cada uma com prioridade indicada (P0, P1, P2).
+
+8. **Métricas Analisadas**
+   - Dados numéricos das métricas que apoiam a análise.
+
+9. **Lições Aprendidas (Lessons Learned)**
+   - O que funcionou bem no processo de resposta.
+   - O que deu errado ou poderia ter sido melhor.
+   - Onde tivemos sorte.
 
 ## Regras:
-- Seja objetivo e técnico.
+- Seja extremamente objetivo, analítico e técnico.
 - NÃO invente dados. Se não houver informação suficiente, diga explicitamente.
-- Todos os IPs e credenciais já foram sanitizados. Use [IP_REDACTED] onde necessário.
+- Todos os IPs e credenciais sensíveis devem ser sanitizados para [IP_REDACTED].
 - Formato de saída: Markdown válido.
 - Responda em Português (Brasil).
 """
@@ -102,9 +163,7 @@ def generate_postmortem(
 
     Usa a API REST do Google AI Studio (generateContent).
     """
-    prompt = build_postmortem_prompt(
-        incident, metrics, related_logs, similar_incidents
-    )
+    prompt = build_postmortem_prompt(incident, metrics, related_logs, similar_incidents)
 
     api_url = (
         f"https://generativelanguage.googleapis.com/v1beta/models/"
@@ -153,12 +212,15 @@ def generate_postmortem(
         return PostMortemReport(
             incident_fingerprint=incident.get("fingerprint", ""),
             deskmanager_ticket_id=incident.get("deskmanager_ticket_id"),
+            host_name=incident.get("host_name"),
+            customer_name=incident.get("customer_name") or incident.get("client"),
             markdown_report=markdown,
             summary=_extract_section(markdown, "Resumo Executivo"),
             root_cause=_extract_section(markdown, "Causa Raiz"),
             blast_radius=_extract_list_section(markdown, "Blast Radius"),
             corrective_actions=_extract_list_section(markdown, "Ações Corretivas"),
             timeline=_extract_timeline(markdown),
+            embedding=generate_embedding(markdown),
             gemini_model_used=settings.gemini_model,
             prompt_tokens=usage.get("promptTokenCount", 0),
             completion_tokens=usage.get("candidatesTokenCount", 0),
@@ -169,6 +231,8 @@ def generate_postmortem(
         # Fallback: relatório mínimo sem IA
         return PostMortemReport(
             incident_fingerprint=incident.get("fingerprint", ""),
+            host_name=incident.get("host_name"),
+            customer_name=incident.get("customer_name") or incident.get("client"),
             markdown_report=(
                 "# Relatório Pós-Incidente\n\n"
                 "> ⚠️ Geração automática falhou. Análise manual necessária.\n\n"

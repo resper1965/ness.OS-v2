@@ -141,6 +141,8 @@ class PostMortemReport(BaseModel):
 
     incident_fingerprint: str
     deskmanager_ticket_id: str | None = None
+    host_name: str | None = None
+    customer_name: str | None = None
     generated_at: datetime = Field(default_factory=datetime.utcnow)
 
     # Conteúdo Markdown gerado pelo Gemini
@@ -165,6 +167,7 @@ class PostMortemReport(BaseModel):
     )
 
     # Controle
+    embedding: list[float] | None = None
     gemini_model_used: str = ""
     prompt_tokens: int = 0
     completion_tokens: int = 0
@@ -181,3 +184,41 @@ class WhatsAppAlertMessage(BaseModel):
     group_id: str = Field(description="ID do grupo WhatsApp do NOC")
     message: str = Field(description="Mensagem formatada pronta para envio")
 
+
+# --- Solicitação de análise de incidente (RCA) ---
+class IncidentAnalyzeRequest(BaseModel):
+    """Payload recebido pela API para gerar PostMortem."""
+
+    incident_data: dict[str, Any] = Field(
+        description="Dados sanitizados do incidente consolidado"
+    )
+    ticket_id: str | None = Field(
+        default=None, description="ID do ticket no DeskManager (se já criado pelo n8n)"
+    )
+
+
+class GlpiWebhookPayload(BaseModel):
+    """Payload recebido do webhook do GLPI ao resolver um ticket."""
+
+    ticket_id: str = Field(..., description="ID do ticket no GLPI")
+    status: str = Field(
+        ..., description="Status do ticket no GLPI (ex: solved, closed)"
+    )
+    solution: str = Field(
+        default="", description="Texto de solução preenchido pelo técnico"
+    )
+
+
+# --- PWA Push Notifications ---
+class PushKeysSchema(BaseModel):
+    p256dh: str
+    auth: str
+
+
+class PushSubscribeRequest(BaseModel):
+    endpoint: str
+    keys: PushKeysSchema
+
+
+class PushUnsubscribeRequest(BaseModel):
+    endpoint: str

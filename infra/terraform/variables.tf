@@ -76,10 +76,10 @@ variable "hub_display_name" {
 variable "hub_product_id" {
   description = <<-EOT
     ID do produto VPS na Contabo para o Hub AIOps.
-    Recomendado: "V2" = Cloud VPS 2 (6 vCPU, 16 GB RAM, 400 GB SSD)
+    Recomendado: "V3" = Cloud VPS 3 (8 vCPU, 30 GB RAM, 800 GB SSD)
   EOT
   type        = string
-  default     = "V2"
+  default     = "V3"
 }
 variable "vps_image_id" {
   description = <<-EOT
@@ -202,3 +202,32 @@ variable "environment" {
     error_message = "O ambiente deve ser: prod, staging ou dev."
   }
 }
+
+# ---------------------------------------------------------------------------
+# Configurações do Wazuh Hub (SOC) e Wazuh Spoke (Clientes)
+# ---------------------------------------------------------------------------
+
+variable "wazuh_hub_display_name" {
+  description = "Nome de exibição da instância Wazuh Hub SOC no painel Contabo"
+  type        = string
+  default     = "wazuh-hub-soc-prod"
+}
+
+variable "wazuh_hub_product_id" {
+  description = "ID do produto VPS na Contabo para o Wazuh Hub. Recomendado: V3 (8 vCPU, 30 GB RAM)"
+  type        = string
+  default     = "V3"
+}
+
+variable "wazuh_spoke_display_name" {
+  description = "Nome de exibição da instância Wazuh Spoke no painel Contabo"
+  type        = string
+  default     = "wazuh-spoke-piloto-prod"
+}
+
+variable "wazuh_spoke_product_id" {
+  description = "ID do produto VPS na Contabo para o Wazuh Spoke. Recomendado: V2 (6 vCPU, 16 GB RAM)"
+  type        = string
+  default     = "V2"
+}
+

@@ -341,7 +341,7 @@ RSYNC_OPTS=(
     --partial-dir=".rsync-partial" # Diretório para parciais
     --stats                        # Mostra estatísticas
     --human-readable               # Tamanhos legíveis
-    -e "ssh -i ${SSH_KEY} -p ${SSH_PORT} -o StrictHostKeyChecking=no"
+    -e "ssh -i ${SSH_KEY} -p ${SSH_PORT} -o BatchMode=yes -o StrictHostKeyChecking=yes"
 )
 
 # Adiciona limite de banda se especificado

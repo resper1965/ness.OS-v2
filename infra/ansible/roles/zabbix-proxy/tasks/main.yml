@@ -1,0 +1,212 @@
+---
+# =============================================================================
+# Role: zabbix-proxy | tasks/main.yml
+# =============================================================================
+# Descrição: Tasks para instalação e configuração do Zabbix Proxy 7.0 LTS.
+#
+# Fluxo:
+#   1. Verifica se o proxy já está instalado
+#   2. Se não instalado: adiciona repositório oficial e instala o pacote
+#   3. Garante que os diretórios necessários existem com permissões corretas
+#   4. Gera o arquivo de configuração a partir do template Jinja2
+#   5. Habilita e inicia o serviço zabbix-proxy
+#
+# Compatibilidade testada:
+#   - Debian 12 (Bookworm)
+#   - Ubuntu 22.04 (Jammy)
+#   - Ubuntu 24.04 (Noble)
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Bloco 1: Verificação de instalação prévia
+# -----------------------------------------------------------------------------
+- name: "Verificar se zabbix-proxy já está instalado"
+  ansible.builtin.stat:
+    path: /usr/sbin/zabbix_proxy
+  register: zabbix_proxy_binary
+  tags:
+    - zabbix_proxy
+    - zabbix_proxy_install
+
+# -----------------------------------------------------------------------------
+# Bloco 2: Instalação do Zabbix Proxy (apenas se não instalado)
+# -----------------------------------------------------------------------------
+- name: "Bloco de instalação do Zabbix Proxy {{ zabbix_version }}"
+  when: not zabbix_proxy_binary.stat.exists
+  tags:
+    - zabbix_proxy
+    - zabbix_proxy_install
+  block:
+
+    - name: "Detectar distribuição e versão do SO"
+      ansible.builtin.setup:
+        filter:
+          - ansible_distribution
+          - ansible_distribution_release
+          - ansible_architecture
+      register: os_facts
+
+    - name: "Baixar pacote de repositório Zabbix {{ zabbix_version }} LTS"
+      ansible.builtin.get_url:
+        url: "https://repo.zabbix.com/zabbix/{{ zabbix_version }}/release/{{ ansible_distribution | lower }}{{ ansible_distribution_version | regex_replace('\\.', '') }}/pool/main/z/zabbix-release/zabbix-release_latest_{{ ansible_distribution | lower }}{{ ansible_distribution_version | regex_replace('\\.', '') }}_all.deb"
+        dest: "/tmp/zabbix-release-{{ zabbix_version }}.deb"
+        mode: "0644"
+        validate_certs: true
+      register: zabbix_repo_download
+      retries: 3
+      delay: 5
+
+    - name: "Instalar pacote do repositório Zabbix"
+      ansible.builtin.apt:
+        deb: "/tmp/zabbix-release-{{ zabbix_version }}.deb"
+        state: present
+      become: true
+
+    - name: "Atualizar cache apt após adicionar repositório Zabbix"
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 0
+      become: true
+
+    - name: "Instalar zabbix-proxy"
+      ansible.builtin.apt:
+        name:
+          - "zabbix-proxy-sqlite3"   # SQLite3 é o padrão para proxies
+          - "zabbix-sql-scripts"     # Scripts de inicialização do banco
+        state: present
+        update_cache: false
+      become: true
+      notify: restart zabbix-proxy
+
+    - name: "Inicializar banco de dados SQLite do proxy (se não existir)"
+      ansible.builtin.command:
+        cmd: >
+          zabbix_proxy --config /etc/zabbix/zabbix_proxy.conf
+          --runtime-control config_cache_reload
+        creates: "{{ zabbix_proxy_db_name }}"
+      become: true
+      ignore_errors: true   # Ignora erros pois o serviço pode não estar rodando ainda
+
+    - name: "Limpar pacote .deb temporário do repositório"
+      ansible.builtin.file:
+        path: "/tmp/zabbix-release-{{ zabbix_version }}.deb"
+        state: absent
+
+# -----------------------------------------------------------------------------
+# Bloco 3: Garantir estrutura de diretórios com permissões corretas
+# -----------------------------------------------------------------------------
+- name: "Garantir diretório de PID /run/zabbix"
+  ansible.builtin.file:
+    path: /run/zabbix
+    state: directory
+    owner: zabbix
+    group: zabbix
+    mode: "0755"
+  become: true
+  tags:
+    - zabbix_proxy
+    - zabbix_proxy_dirs
+
+- name: "Garantir diretório de log /var/log/zabbix"
+  ansible.builtin.file:
+    path: /var/log/zabbix
+    state: directory
+    owner: zabbix
+    group: zabbix
+    mode: "0755"
+  become: true
+  tags:
+    - zabbix_proxy
+    - zabbix_proxy_dirs
+
+- name: "Garantir diretório do banco de dados SQLite"
+  ansible.builtin.file:
+    path: "{{ zabbix_proxy_db_name | dirname }}"
+    state: directory
+    owner: zabbix
+    group: zabbix
+    mode: "0750"
+  become: true
+  when: zabbix_proxy_db_type == "SQLite3"
+  tags:
+    - zabbix_proxy
+    - zabbix_proxy_dirs
+
+- name: "Garantir diretório de scripts externos"
+  ansible.builtin.file:
+    path: "{{ zabbix_proxy_external_scripts }}"
+    state: directory
+    owner: root
+    group: zabbix
+    mode: "0755"
+  become: true
+  tags:
+    - zabbix_proxy
+    - zabbix_proxy_dirs
+
+- name: "Garantir diretório /etc/zabbix existe"
+  ansible.builtin.file:
+    path: /etc/zabbix
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  become: true
+  tags:
+    - zabbix_proxy
+    - zabbix_proxy_dirs
+
+# -----------------------------------------------------------------------------
+# Bloco 4: Geração do arquivo de configuração via template
+# -----------------------------------------------------------------------------
+- name: "Gerar /etc/zabbix/zabbix_proxy.conf a partir do template"
+  ansible.builtin.template:
+    src: zabbix_proxy.conf.j2
+    dest: /etc/zabbix/zabbix_proxy.conf
+    owner: root
+    group: zabbix
+    mode: "0640"
+    backup: true           # Mantém backup do arquivo anterior (.bak)
+    validate: "/usr/sbin/zabbix_proxy --config %s -T"  # Valida config antes de aplicar
+  become: true
+  notify: restart zabbix-proxy
+  tags:
+    - zabbix_proxy
+    - zabbix_proxy_config
+
+# -----------------------------------------------------------------------------
+# Bloco 5: Gerenciamento do serviço systemd
+# -----------------------------------------------------------------------------
+- name: "Habilitar e iniciar serviço zabbix-proxy"
+  ansible.builtin.systemd:
+    name: zabbix-proxy
+    state: started
+    enabled: true
+    daemon_reload: true
+  become: true
+  tags:
+    - zabbix_proxy
+    - zabbix_proxy_service
+
+# -----------------------------------------------------------------------------
+# Bloco 6: Verificação pós-configuração
+# -----------------------------------------------------------------------------
+- name: "Verificar se o serviço zabbix-proxy está ativo"
+  ansible.builtin.systemd:
+    name: zabbix-proxy
+  register: zabbix_proxy_service_status
+  become: true
+  tags:
+    - zabbix_proxy
+    - zabbix_proxy_verify
+
+- name: "Exibir status do serviço zabbix-proxy"
+  ansible.builtin.debug:
+    msg: >
+      Proxy '{{ inventory_hostname }}' ({{ zabbix_proxy_name | default(inventory_hostname) }})
+      → Serviço: {{ zabbix_proxy_service_status.status.ActiveState }}
+      → PID: {{ zabbix_proxy_service_status.status.MainPID | default('N/A') }}
+      → Server: {{ zabbix_proxy_server }}:{{ zabbix_proxy_server_port }}
+  tags:
+    - zabbix_proxy
+    - zabbix_proxy_verify

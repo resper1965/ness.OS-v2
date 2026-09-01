@@ -11,6 +11,7 @@ O n8n é o "edge orchestrator" — o backend Python NÃO chama
 DeskManager ou Evolution diretamente. Isso isola a lógica de
 integração no n8n (visual, editável, sem deploy).
 """
+
 from __future__ import annotations
 
 import logging
@@ -173,4 +174,23 @@ def notify_postmortem_ready(
 
     except httpx.HTTPError as exc:
         logger.error("Falha ao enviar post-mortem ao n8n: %s", exc)
+        return {"error": str(exc)}
+
+
+def notify_soc_triage_decision(decision_data: dict[str, Any]) -> dict[str, Any]:
+    """Dispara webhook do n8n para nova decisão de triagem do SOC.
+
+    O n8n então:
+      1. Abre chamado de segurança no GLPI (ou DeskManager).
+      2. Envia alerta no WhatsApp se a severidade for HIGH ou CRIT.
+    """
+    url = f"{settings.n8n_base_url}{settings.n8n_webhook_soc}"
+
+    try:
+        with httpx.Client(timeout=_TIMEOUT) as client:
+            response = client.post(url, json=decision_data)
+            response.raise_for_status()
+            return response.json()
+    except httpx.HTTPError as exc:
+        logger.error("Falha ao enviar decisão de triagem SOC ao n8n: %s", exc)
         return {"error": str(exc)}

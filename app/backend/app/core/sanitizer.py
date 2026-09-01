@@ -9,6 +9,7 @@ Limpa PII, credenciais e tokens antes que qualquer string seja:
 
 Roda ANTES da serialização, nunca depois.
 """
+
 from __future__ import annotations
 
 import re
@@ -34,8 +35,7 @@ _PATTERNS: Final[list[tuple[re.Pattern[str], str]]] = [
     # Passwords em key=value ou key:value
     (
         re.compile(
-            r"(?i)(password|passwd|pwd|pass|db_pass|db_password)"
-            r"\s*[=:]\s*\S+",
+            r"(?i)(password|passwd|pwd|pass|db_pass|db_password)" r"\s*[=:]\s*\S+",
         ),
         r"\1=[REDACTED]",
     ),
@@ -82,7 +82,15 @@ def sanitize(text: str) -> str:
 
 def sanitize_dict(data: dict) -> dict:
     """Sanitiza recursivamente todos os valores string de um dict, redigindo chaves sensíveis."""
-    sensitive_keys = {"password", "passwd", "pwd", "secret", "api_key", "token", "private_key"}
+    sensitive_keys = {
+        "password",
+        "passwd",
+        "pwd",
+        "secret",
+        "api_key",
+        "token",
+        "private_key",
+    }
     result: dict = {}
     for key, value in data.items():
         is_sensitive = any(sk in key.lower() for sk in sensitive_keys)
@@ -98,9 +106,7 @@ def sanitize_dict(data: dict) -> dict:
             if is_sensitive:
                 result[key] = ["[REDACTED]" if isinstance(v, str) else v for v in value]
             else:
-                result[key] = [
-                    sanitize(v) if isinstance(v, str) else v for v in value
-                ]
+                result[key] = [sanitize(v) if isinstance(v, str) else v for v in value]
         else:
             if is_sensitive and value is not None:
                 result[key] = "[REDACTED]"

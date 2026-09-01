@@ -22,12 +22,12 @@ LogFileSize=100
 # ---------------------------------------------------------------------------
 
 # Endereço(s) do servidor Zabbix para verificações passivas
-# Separar múltiplos servidores por vírgula
-Server=127.0.0.1
+# Separa múltiplos servidores por vírgula
+Server={{ zabbix_monitoring_domain | default('127.0.0.1') }}
 
 # Endereço(s) do servidor Zabbix para verificações ativas
-# Separar múltiplos servidores por vírgula
-ServerActive=127.0.0.1
+# Separa múltiplos servidores por vírgula
+ServerActive={{ zabbix_monitoring_domain | default('127.0.0.1') }}
 
 # Nome do host conforme cadastrado no frontend do Zabbix
 # Deve coincidir exatamente com o nome configurado no servidor

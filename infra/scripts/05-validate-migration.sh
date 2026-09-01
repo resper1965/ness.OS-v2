@@ -27,8 +27,9 @@ readonly LOG_FILE="${LOG_DIR}/validate_$(date +%Y%m%d_%H%M%S).log"
 
 # Zabbix API
 ZABBIX_API_URL="${ZABBIX_API_URL:-http://localhost/api_jsonrpc.php}"
-ZABBIX_USER="${ZABBIX_USER:-Admin}"
-ZABBIX_PASSWORD="${ZABBIX_PASSWORD:-zabbix}"
+ZABBIX_API_TOKEN="${ZABBIX_API_TOKEN:-}"
+ZABBIX_USER="${ZABBIX_USER:-}"
+ZABBIX_PASSWORD="${ZABBIX_PASSWORD:-}"
 ZABBIX_FRONTEND_URL="${ZABBIX_FRONTEND_URL:-https://localhost}"
 
 # Valores esperados da migração
@@ -85,8 +86,10 @@ ${BOLD}OPÇÕES:${NC}
 
 ${BOLD}VARIÁVEIS DE AMBIENTE:${NC}
     ZABBIX_API_URL      URL da API (padrão: http://localhost/api_jsonrpc.php)
-    ZABBIX_USER         Usuário da API (padrão: Admin)
-    ZABBIX_PASSWORD     Senha da API (padrão: zabbix)
+    ZABBIX_API_TOKEN    Token da API (preferencial; obrigatório se não houver
+                        usuário e senha)
+    ZABBIX_USER         Usuário da API (somente com ZABBIX_PASSWORD)
+    ZABBIX_PASSWORD     Senha da API (somente com ZABBIX_USER)
     EXPECTED_HOSTS      Número esperado de hosts (padrão: 374)
     EXPECTED_ITEMS      Número esperado de items (padrão: 59031)
     EXPECTED_TRIGGERS   Número esperado de triggers (padrão: 25716)
@@ -98,7 +101,7 @@ ${BOLD}CÓDIGOS DE SAÍDA:${NC}
 
 ${BOLD}EXEMPLOS:${NC}
     ./${SCRIPT_NAME}
-    ZABBIX_PASSWORD=minha_senha ./${SCRIPT_NAME}
+    ZABBIX_API_TOKEN='token-protegido' ./${SCRIPT_NAME}
     ./${SCRIPT_NAME} --json > resultado.json
 
 EOF
@@ -246,22 +249,27 @@ else
     check_result "API HTTP Status" "FAIL" "HTTP ${API_RESPONSE}"
 fi
 
-# Autentica na API
+# Autentica na API. Nunca assume credenciais padrão.
 AUTH_TOKEN=""
 if [[ "${API_RESPONSE}" == "200" ]]; then
-    login_response=$(zabbix_api_call "{
-        \"jsonrpc\": \"2.0\",
-        \"method\": \"user.login\",
-        \"params\": {\"username\": \"${ZABBIX_USER}\", \"password\": \"${ZABBIX_PASSWORD}\"},
-        \"id\": 1
-    }")
-    
-    AUTH_TOKEN=$(echo "${login_response}" | python3 -c "import sys,json; print(json.load(sys.stdin).get('result',''))" 2>/dev/null || echo "")
-    
-    if [[ -n "${AUTH_TOKEN}" ]]; then
-        check_result "API Autenticação" "PASS" "token obtido"
+    if [[ -n "${ZABBIX_API_TOKEN}" ]]; then
+        AUTH_TOKEN="${ZABBIX_API_TOKEN}"
+        check_result "API Autenticação" "PASS" "token fornecido pelo ambiente"
+    elif [[ -n "${ZABBIX_USER}" && -n "${ZABBIX_PASSWORD}" ]]; then
+        login_response=$(zabbix_api_call "{
+            \"jsonrpc\": \"2.0\",
+            \"method\": \"user.login\",
+            \"params\": {\"username\": \"${ZABBIX_USER}\", \"password\": \"${ZABBIX_PASSWORD}\"},
+            \"id\": 1
+        }")
+        AUTH_TOKEN=$(echo "${login_response}" | python3 -c "import sys,json; print(json.load(sys.stdin).get('result',''))" 2>/dev/null || echo "")
+        if [[ -n "${AUTH_TOKEN}" ]]; then
+            check_result "API Autenticação" "PASS" "login por variáveis de ambiente"
+        else
+            check_result "API Autenticação" "FAIL" "falha no login"
+        fi
     else
-        check_result "API Autenticação" "FAIL" "falha no login"
+        check_result "API Autenticação" "WARN" "token ou credenciais não fornecidos"
     fi
 fi
 
@@ -329,9 +337,9 @@ if [[ -n "${AUTH_TOKEN}" ]]; then
         check_result "Triggers" "FAIL" "${ACTUAL_TRIGGERS} (esperado: ${EXPECTED_TRIGGERS}, diff: ${TRIGGERS_DIFF}%)"
     fi
 else
-    check_result "Hosts" "FAIL" "Não foi possível contar (sem autenticação)"
-    check_result "Items" "FAIL" "Não foi possível contar (sem autenticação)"
-    check_result "Triggers" "FAIL" "Não foi possível contar (sem autenticação)"
+    check_result "Hosts" "WARN" "Não foi possível contar (sem autenticação)"
+    check_result "Items" "WARN" "Não foi possível contar (sem autenticação)"
+    check_result "Triggers" "WARN" "Não foi possível contar (sem autenticação)"
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────

@@ -1,0 +1,211 @@
+---
+# =============================================================================
+# Playbook: reconnect-proxies.yml
+# =============================================================================
+# Descrição: Playbook para reconectar e reconfigurar os proxies Zabbix.
+#
+# O playbook realiza duas etapas:
+#
+#   PLAY 1 → Nos proxies remotos:
+#     - Aplica a role zabbix-proxy para garantir instalação e configuração
+#     - Garante que o serviço está rodando com a config correta
+#
+#   PLAY 2 → No localhost (máquina de controle Ansible):
+#     - Via API REST do Zabbix Server, atualiza o campo 'allowed_addresses'
+#       de cada proxy com o IP real da máquina (ansible_host)
+#     - Isso é necessário quando os IPs dos proxies mudam e o Server
+#       rejeita conexões por segurança
+#
+# Uso:
+#   # Execução completa (instala + atualiza API):
+#   ansible-playbook -i inventory/proxies.yml playbooks/reconnect-proxies.yml
+#
+#   # Apenas atualizar allowed_addresses na API (sem tocar nos proxies):
+#   ansible-playbook -i inventory/proxies.yml playbooks/reconnect-proxies.yml \
+#     --tags zabbix_api_update
+#
+#   # Apenas configurar um proxy específico:
+#   ansible-playbook -i inventory/proxies.yml playbooks/reconnect-proxies.yml \
+#     --limit alpcolprx
+#
+# Variáveis requeridas (em inventory/proxies.yml ou group_vars):
+#   ansible_host      → IP real do proxy (PLACEHOLDER_IP deve ser preenchido)
+#   zabbix_proxyid    → ID numérico do proxy no Zabbix Server
+#
+# Pré-requisitos:
+#   - Chave SSH configurada e acessível: /root/.ssh/id_ed25519
+#   - Token de API válido do Zabbix Server
+#   - IPs dos proxies preenchidos no inventário
+# =============================================================================
+
+# =============================================================================
+# PLAY 1: Configuração dos proxies Zabbix remotos
+# =============================================================================
+- name: "Play 1/2 — Configurar e garantir serviço nos proxies Zabbix"
+  hosts: zabbix_proxies
+  gather_facts: true
+  any_errors_fatal: false    # Continua mesmo se um proxy falhar
+  serial: 5                  # Processa 5 proxies por vez (evita sobrecarga)
+
+  pre_tasks:
+    - name: "Exibir informações do proxy sendo configurado"
+      ansible.builtin.debug:
+        msg: >
+          Configurando proxy: {{ inventory_hostname }}
+          | Nome Zabbix: {{ zabbix_proxy_name | default(inventory_hostname) }}
+          | IP: {{ ansible_host }}
+          | ProxyID: {{ zabbix_proxyid | default('NÃO DEFINIDO') }}
+      tags: always
+
+    - name: "Validar que ansible_host não é PLACEHOLDER_IP"
+      ansible.builtin.assert:
+        that:
+          - ansible_host != "PLACEHOLDER_IP"
+          - ansible_host is match("^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$")
+        fail_msg: >
+          ERRO: O host '{{ inventory_hostname }}' ainda tem IP como PLACEHOLDER.
+          Edite inventory/proxies.yml e defina ansible_host com o IP real.
+        success_msg: "IP válido: {{ ansible_host }}"
+      tags: always
+
+  roles:
+    - role: zabbix-proxy
+      tags:
+        - zabbix_proxy
+        - zabbix_proxy_install
+        - zabbix_proxy_config
+
+  post_tasks:
+    - name: "Confirmar que zabbix-proxy está ativo após configuração"
+      ansible.builtin.systemd:
+        name: zabbix-proxy
+      register: proxy_svc
+      become: true
+      tags: always
+
+    - name: "Resultado: {{ inventory_hostname }}"
+      ansible.builtin.debug:
+        msg: >
+          ✓ Proxy '{{ zabbix_proxy_name | default(inventory_hostname) }}'
+          → Status: {{ proxy_svc.status.ActiveState }}
+          → Uptime: {{ proxy_svc.status.ActiveEnterTimestamp | default('N/A') }}
+      tags: always
+
+# =============================================================================
+# PLAY 2: Atualizar allowed_addresses via API REST do Zabbix Server
+# =============================================================================
+- name: "Play 2/2 — Atualizar allowed_addresses dos proxies via API Zabbix"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    # -------------------------------------------------------------------------
+    # Configurações da API Zabbix
+    # Ajuste a URL e o token conforme necessário.
+    # ATENÇÃO: Em produção, mova o auth_token para ansible-vault!
+    # -------------------------------------------------------------------------
+    zabbix_api_url: "https://zabbix.ness.com.br/api_jsonrpc.php"
+    zabbix_api_auth_token: "{{ lookup('env', 'ZABBIX_API_TOKEN') }}"
+    zabbix_api_headers:
+      Content-Type: "application/json"
+
+  tasks:
+
+    - name: "Exigir token Zabbix fornecido pelo ambiente"
+      ansible.builtin.assert:
+        that:
+          - zabbix_api_auth_token | length > 0
+        fail_msg: "Defina ZABBIX_API_TOKEN no ambiente antes de executar este playbook."
+
+    - name: "Exibir proxies que serão atualizados via API"
+      ansible.builtin.debug:
+        msg: >
+          Proxies no inventário: {{ groups['zabbix_proxies'] | length }}
+          Proxies com IP válido: {{ groups['zabbix_proxies'] |
+            map('extract', hostvars, 'ansible_host') |
+            select('ne', 'PLACEHOLDER_IP') | list | length }}
+      tags:
+        - zabbix_api_update
+
+    # -------------------------------------------------------------------------
+    # Loop por cada proxy do grupo zabbix_proxies
+    # Apenas atualiza proxies com IP real (não-PLACEHOLDER) e proxyid > 0
+    # -------------------------------------------------------------------------
+    - name: "Atualizar allowed_addresses do proxy '{{ item }}' via API Zabbix"
+      ansible.builtin.uri:
+        url: "{{ zabbix_api_url }}"
+        method: POST
+        headers: "{{ zabbix_api_headers }}"
+        body_format: json
+        body:
+          jsonrpc: "2.0"
+          method: "proxy.update"
+          params:
+            proxyid: "{{ hostvars[item]['zabbix_proxyid'] | string }}"
+            # allowed_addresses: IPs autorizados a conectar no Server com este proxy
+            # Pode ser IP único, range CIDR ou lista separada por vírgula
+            allowed_addresses: "{{ hostvars[item]['ansible_host'] }}"
+          auth: "{{ zabbix_api_auth_token }}"
+          id: "{{ loop_idx + 1 }}"
+        validate_certs: true
+        status_code: 200
+        timeout: 30
+      register: api_response
+      loop: "{{ groups['zabbix_proxies'] }}"
+      loop_control:
+        index_var: loop_idx
+        label: "{{ item }} (ID: {{ hostvars[item]['zabbix_proxyid'] | default('N/A') }})"
+      # Pula proxies com IP placeholder ou proxyid não definido/zero
+      when:
+        - hostvars[item]['ansible_host'] is defined
+        - hostvars[item]['ansible_host'] != 'PLACEHOLDER_IP'
+        - hostvars[item]['zabbix_proxyid'] is defined
+        - hostvars[item]['zabbix_proxyid'] | int > 0
+      tags:
+        - zabbix_api_update
+
+    # -------------------------------------------------------------------------
+    # Verificação de erros nas respostas da API
+    # -------------------------------------------------------------------------
+    - name: "Verificar resultados das chamadas à API"
+      ansible.builtin.debug:
+        msg: >
+          Proxy '{{ item.item }}':
+          {% if item.skipped is defined and item.skipped %}
+          ⚠ PULADO (IP placeholder ou proxyid=0 — preencha o inventário)
+          {% elif item.json.error is defined %}
+          ✗ ERRO API: {{ item.json.error.data | default(item.json.error.message) }}
+          {% elif item.json.result is defined %}
+          ✓ OK — allowed_addresses atualizado para {{ hostvars[item.item]['ansible_host'] }}
+          {% else %}
+          ? Resposta inesperada: {{ item | to_json }}
+          {% endif %}
+      loop: "{{ api_response.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+      when: api_response.results is defined
+      tags:
+        - zabbix_api_update
+
+    # -------------------------------------------------------------------------
+    # Resumo final
+    # -------------------------------------------------------------------------
+    - name: "Resumo da atualização via API"
+      ansible.builtin.debug:
+        msg: |
+          ============================================================
+          Resumo da atualização de allowed_addresses — Proxies Zabbix
+          ============================================================
+          Total de proxies no inventário : {{ groups['zabbix_proxies'] | length }}
+          Proxies com IP definido        : {{ api_response.results |
+            selectattr('skipped', 'undefined') | list | length }}
+          Proxies pulados (placeholder)  : {{ api_response.results |
+            selectattr('skipped', 'defined') | list | length }}
+          ============================================================
+          Verifique a interface web do Zabbix Server em:
+          {{ zabbix_api_url | replace('/api_jsonrpc.php', '') }}
+          ============================================================
+      when: api_response.results is defined
+      tags:
+        - zabbix_api_update

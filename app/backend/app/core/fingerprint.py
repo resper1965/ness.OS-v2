@@ -5,6 +5,7 @@
 Gera um hash determinístico a partir dos campos-chave do alerta.
 Alertas com mesmo fingerprint pertencem ao mesmo incidente.
 """
+
 from __future__ import annotations
 
 import hashlib
