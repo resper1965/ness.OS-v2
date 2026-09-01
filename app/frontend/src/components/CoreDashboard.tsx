@@ -1,372 +1,98 @@
-/**
- * ness.OS — Core Dashboard
- * Visão global executiva: todos os módulos consolidados em uma tela.
- * Módulo: core — cor índigo #6366F1
- */
-import React, { useState, useEffect, useCallback } from 'react';
-import {
-  Globe, Server, Shield, Activity, AlertTriangle,
-  CheckCircle, RefreshCw, TrendingUp, Cpu, Users,
-} from 'lucide-react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { ArrowUpRight, Check, CircleAlert, Database, RefreshCw, Server, Shield, Ticket } from 'lucide-react';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
-
-interface ModuleStatus {
-  id: string; label: string; description: string;
-  color: string; configured: boolean; route: string;
-}
-
-interface KPI {
-  id: string; label: string; value: number; unit: string;
-  module: string; color: string; alert?: boolean;
-}
+type ModuleStatus = 'ok' | 'degraded' | 'not_configured' | 'unknown';
 
 interface Overview {
-  health_score: number;
   modules: {
-    infraops: { status: string; metrics: Record<string, number> };
-    secops:   { status: string; metrics: Record<string, number> };
+    infraops: { status: ModuleStatus; metrics: Record<string, number> };
+    secops: { status: ModuleStatus; metrics: Record<string, number> };
   };
 }
-
-// ── Score Ring ──────────────────────────────────────────────────────────────
-function HealthRing({ score }: { score: number }) {
-  const r = 52;
-  const circ = 2 * Math.PI * r;
-  const filled = (score / 100) * circ;
-  const color = score >= 80 ? '#10B981' : score >= 60 ? '#F59E0B' : '#EF4444';
-
-  return (
-    <div className="relative flex items-center justify-center" style={{ width: 140, height: 140 }}>
-      <svg width={140} height={140} style={{ transform: 'rotate(-90deg)' }}>
-        <circle cx={70} cy={70} r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={10} />
-        <circle
-          cx={70} cy={70} r={r} fill="none"
-          stroke={color} strokeWidth={10}
-          strokeDasharray={`${filled} ${circ}`}
-          strokeLinecap="round"
-          style={{ filter: `drop-shadow(0 0 8px ${color}99)`, transition: 'stroke-dasharray 1s ease' }}
-        />
-      </svg>
-      <div className="absolute flex flex-col items-center">
-        <span className="text-3xl font-bold text-white tabular-nums" style={{ color }}>{score}</span>
-        <span className="text-[10px] text-white/40 uppercase tracking-widest mt-0.5">health</span>
-      </div>
-    </div>
-  );
+interface KPI {
+  id: string; label: string; value: number; unit: string;
+  status: 'ok' | 'partial' | 'provisional' | 'unavailable';
 }
 
-// ── Module Status Card ───────────────────────────────────────────────────────
-function ModuleCard({
-  mod, metrics, status, onClick,
-}: {
-  mod: { id: string; label: string; color: string; description: string };
-  metrics: Record<string, number>;
-  status: string;
-  onClick: () => void;
+function state(status: ModuleStatus) {
+  if (status === 'ok') return { label: 'conectado', tone: 'text-emerald-300', dot: 'bg-emerald-400' };
+  if (status === 'degraded') return { label: 'degradado', tone: 'text-amber-300', dot: 'bg-amber-400' };
+  if (status === 'not_configured') return { label: 'não integrado', tone: 'text-white/40', dot: 'bg-white/30' };
+  return { label: 'em verificação', tone: 'text-white/40', dot: 'bg-white/30' };
+}
+
+function Metric({ kpi }: { kpi: KPI }) {
+  const unavailable = kpi.status === 'unavailable';
+  return <div className="border-l border-white/[0.10] px-4 first:border-l-0 first:pl-0">
+    <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-white/40">{kpi.label}</p>
+    <div className="mt-1 flex items-baseline gap-1.5">
+      <span className="text-2xl font-semibold tabular-nums text-white">{unavailable ? '—' : kpi.value}</span>
+      <span className="text-[11px] text-white/35">{kpi.unit}</span>
+    </div>
+    <span className={`mt-1.5 inline-flex text-[10px] ${unavailable ? 'text-amber-200/70' : 'text-white/35'}`}>
+      {unavailable ? 'fonte indisponível' : kpi.status === 'provisional' ? 'fonte em homologação' : 'fonte conectada'}
+    </span>
+  </div>;
+}
+
+function SourceLine({ icon: Icon, title, detail, status, onOpen }: {
+  icon: React.ElementType; title: string; detail: string; status: ModuleStatus; onOpen?: () => void;
 }) {
-  const isOk = status === 'ok';
-  const metricEntries = Object.entries(metrics).slice(0, 3);
-
-  return (
-    <button
-      onClick={onClick}
-      className="text-left w-full rounded-2xl p-5 border transition-all duration-300 group"
-      style={{
-        background: `linear-gradient(135deg, ${mod.color}12 0%, ${mod.color}06 100%)`,
-        borderColor: `${mod.color}30`,
-      }}
-    >
-      <div className="flex items-start justify-between mb-4">
-        <div>
-          <div className="text-xs font-mono uppercase tracking-widest mb-1" style={{ color: mod.color }}>
-            {mod.id === 'infraops' ? 'n.infraops' : mod.id === 'secops' ? 'n.secops' : 'core'}
-          </div>
-          <div className="text-white font-semibold text-base">{mod.description}</div>
-        </div>
-        <div
-          className="w-2.5 h-2.5 rounded-full mt-1"
-          style={{
-            background: isOk ? '#10B981' : '#EF4444',
-            boxShadow: `0 0 8px ${isOk ? '#10B98180' : '#EF444480'}`,
-          }}
-        />
-      </div>
-      <div className="grid grid-cols-3 gap-2">
-        {metricEntries.map(([key, val]) => (
-          <div key={key} className="rounded-lg p-2.5" style={{ background: 'rgba(255,255,255,0.04)' }}>
-            <div className="text-lg font-bold text-white tabular-nums">{val}</div>
-            <div className="text-[10px] text-white/40 capitalize mt-0.5 leading-tight">
-              {key.replace(/_/g, ' ')}
-            </div>
-          </div>
-        ))}
-      </div>
-      <div
-        className="mt-4 text-xs font-medium flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity"
-        style={{ color: mod.color }}
-      >
-        Abrir módulo →
-      </div>
-    </button>
-  );
-}
-
-// ── KPI Bar ─────────────────────────────────────────────────────────────────
-function KpiCard({ kpi }: { kpi: KPI }) {
-  return (
-    <div
-      className="rounded-xl p-4 border flex items-center gap-4 transition-all duration-200"
-      style={{
-        background: kpi.alert ? 'rgba(239,68,68,0.08)' : 'rgba(255,255,255,0.03)',
-        borderColor: kpi.alert ? 'rgba(239,68,68,0.3)' : 'rgba(255,255,255,0.07)',
-      }}
-    >
-      <div
-        className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-        style={{ background: `${kpi.color}20` }}
-      >
-        <Activity size={18} style={{ color: kpi.color }} />
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="text-xs text-white/40 truncate">{kpi.label}</div>
-        <div className="flex items-baseline gap-1.5">
-          <span className="text-2xl font-bold text-white tabular-nums">{kpi.value}</span>
-          <span className="text-xs text-white/30">{kpi.unit}</span>
-        </div>
-      </div>
-      {kpi.alert && (
-        <AlertTriangle size={16} className="text-red-400 flex-shrink-0 animate-pulse" />
-      )}
+  const current = state(status);
+  return <div className="grid grid-cols-[28px_1fr_auto] items-center gap-3 border-b border-white/[0.06] py-4 last:border-b-0">
+    <div className="flex h-7 w-7 items-center justify-center rounded-md bg-white/[0.05] text-[#00ADE8]"><Icon size={14} strokeWidth={1.8} /></div>
+    <div className="min-w-0"><p className="text-sm font-medium text-white">{title}</p><p className="mt-0.5 truncate text-xs text-white/40">{detail}</p></div>
+    <div className="flex items-center gap-3">
+      <span className={`hidden items-center gap-1.5 text-[11px] sm:flex ${current.tone}`}><span className={`h-1.5 w-1.5 rounded-full ${current.dot}`} />{current.label}</span>
+      {onOpen && <button onClick={onOpen} className="rounded-md p-1.5 text-white/35 transition-colors hover:bg-white/[0.06] hover:text-white" aria-label={`Abrir ${title}`}><ArrowUpRight size={14} /></button>}
     </div>
-  );
+  </div>;
 }
 
-// ── Core Dashboard ───────────────────────────────────────────────────────────
-export default function CoreDashboard({
-  authHeader,
-  onModuleSwitch,
-}: {
-  authHeader: Record<string, string>;
-  onModuleSwitch: (module: 'infraops' | 'secops') => void;
+export default function CoreDashboard({ authHeader, onModuleSwitch }: {
+  authHeader: Record<string, string>; onModuleSwitch: (module: 'infraops' | 'secops') => void;
 }) {
   const [overview, setOverview] = useState<Overview | null>(null);
   const [kpis, setKpis] = useState<KPI[]>([]);
   const [loading, setLoading] = useState(true);
-  const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
-
-  const fetchAll = useCallback(async () => {
+  const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
+  const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const [ovRes, kpiRes] = await Promise.all([
+      const [overviewResponse, kpisResponse] = await Promise.all([
         fetch(`${API_BASE}/api/core/overview`, { headers: authHeader }),
         fetch(`${API_BASE}/api/core/kpis`, { headers: authHeader }),
       ]);
-      if (ovRes.ok) setOverview(await ovRes.json());
-      if (kpiRes.ok) {
-        const data = await kpiRes.json();
-        setKpis(data.kpis ?? []);
-      }
-      setLastRefresh(new Date());
-    } finally {
-      setLoading(false);
-    }
+      if (overviewResponse.ok) setOverview(await overviewResponse.json());
+      if (kpisResponse.ok) setKpis((await kpisResponse.json()).kpis ?? []);
+      setUpdatedAt(new Date());
+    } finally { setLoading(false); }
   }, [authHeader]);
+  useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => { const interval = window.setInterval(refresh, 60_000); return () => window.clearInterval(interval); }, [refresh]);
+  const infra = overview?.modules.infraops;
+  const secops = overview?.modules.secops;
 
-  useEffect(() => { fetchAll(); }, [fetchAll]);
-  useEffect(() => {
-    const t = setInterval(fetchAll, 60_000);
-    return () => clearInterval(t);
-  }, [fetchAll]);
+  return <div className="min-h-full bg-[#090c13] px-5 py-6 text-white sm:px-8 lg:px-10"><div className="w-full">
+    <header className="flex flex-wrap items-end justify-between gap-4 border-b border-white/[0.08] pb-5">
+      <div><h1 className="text-2xl font-semibold tracking-[-0.02em]">Visão geral</h1><p className="mt-1 text-sm text-white/45">Fontes, capacidade e pendências da operação.</p></div>
+      <button onClick={refresh} disabled={loading} className="inline-flex items-center gap-2 rounded-md border border-white/[0.10] px-3 py-2 text-xs font-medium text-white/70 transition-colors hover:border-[#00ADE8]/50 hover:text-white disabled:opacity-50"><RefreshCw size={13} className={loading ? 'animate-spin' : ''} />Atualizar</button>
+    </header>
 
-  const MODULES = [
-    {
-      id: 'infraops', label: 'n.infraops', color: '#3B82F6',
-      description: 'Operação de Infraestrutura e NOC',
-    },
-    {
-      id: 'secops', label: 'n.secops', color: '#EF4444',
-      description: 'Operação de Segurança e SOC',
-    },
-  ];
-
-  return (
-    <div className="flex-1 overflow-y-auto p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">
-            ness<span style={{ color: '#6366F1' }}>.</span>OS
-          </h1>
-          <p className="text-sm text-white/40 mt-0.5">
-            Visão global consolidada · {lastRefresh.toLocaleTimeString('pt-BR')}
-          </p>
-        </div>
-        <button
-          onClick={fetchAll}
-          disabled={loading}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white/60 hover:text-white border border-white/10 hover:border-white/20 transition-all"
-        >
-          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-          Atualizar
-        </button>
+    <section className="mt-7 grid items-stretch gap-6 xl:grid-cols-[minmax(0,2.7fr)_minmax(19rem,0.7fr)]">
+      <div className="min-h-[23rem] border border-white/[0.09] bg-white/[0.02] p-5 sm:p-6">
+        <div className="flex items-start justify-between gap-4 border-b border-white/[0.07] pb-4"><div><h2 className="text-sm font-semibold">Pulso operacional</h2><p className="mt-1 text-xs text-white/40">Estado das fontes que formam o painel.</p></div><span className="flex shrink-0 items-center gap-1.5 text-[11px] text-white/40"><span className="h-1.5 w-1.5 rounded-full bg-[#00ADE8]" />{updatedAt ? `atualizado ${updatedAt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}` : 'carregando'}</span></div>
+        <SourceLine icon={Server} title="InfraOps" detail="Zabbix, capacidade e eventos de infraestrutura" status={infra?.status ?? 'unknown'} onOpen={() => onModuleSwitch('infraops')} />
+        <SourceLine icon={Shield} title="SecOps" detail="Curadoria de vulnerabilidades e incidentes de segurança" status={secops?.status ?? 'not_configured'} onOpen={() => onModuleSwitch('secops')} />
+        <SourceLine icon={Ticket} title="ITSM e inventário" detail="GLPI em estruturação; catálogo e SLA ainda não publicados" status="not_configured" />
+        <SourceLine icon={Database} title="Histórico e indicadores" detail="Score executivo depende da homologação de serviços e metas" status="not_configured" />
       </div>
+      <aside className="flex min-h-[23rem] flex-col justify-between border border-[#00ADE8]/25 bg-[#00ADE8]/[0.045] p-5 sm:p-6"><div><p className="text-[11px] font-medium uppercase tracking-[0.14em] text-[#00ADE8]">Integridade da visão</p><p className="mt-3 text-xl font-semibold tracking-[-0.02em]">Sem score sintético.</p><p className="mt-2 text-sm leading-6 text-white/55">A saúde executiva só será calculada quando catálogo, SLOs, fontes e regras de correlação estiverem homologados.</p></div><div className="border-t border-[#00ADE8]/20 pt-4 text-xs leading-5 text-white/55"><span className="mr-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-[#00ADE8]/15 text-[#00ADE8]"><Check size={12} /></span>O painel prioriza evidência sobre aparência.</div></aside>
+    </section>
 
-      {/* Health Score + KPIs */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Score */}
-        <div
-          className="rounded-2xl p-6 border flex flex-col items-center justify-center gap-3 animate-fade-in"
-          style={{
-            background: 'linear-gradient(135deg, rgba(99,102,241,0.12) 0%, rgba(99,102,241,0.04) 100%)',
-            borderColor: 'rgba(99,102,241,0.25)',
-          }}
-        >
-          <HealthRing score={overview?.health_score ?? 0} />
-          <div className="text-center">
-            <div className="text-sm font-medium text-white/70">Score Global</div>
-            <div className="text-xs text-white/30 mt-0.5">Infraestrutura + Segurança</div>
-          </div>
-        </div>
+    <section className="mt-6 border border-white/[0.09] bg-white/[0.02] p-5 sm:p-6"><div className="mb-5 flex items-center justify-between gap-4"><div><h2 className="text-sm font-semibold">Leituras disponíveis</h2><p className="mt-1 text-xs text-white/40">Indicadores apresentados com o estado da respectiva fonte.</p></div><CircleAlert size={16} className="text-amber-300/80" aria-label="Dados em homologação" /></div><div className="grid gap-y-6 sm:grid-cols-2 lg:grid-cols-4">{loading && !kpis.length ? Array.from({ length: 4 }).map((_, index) => <div key={index} className="h-16 animate-pulse border-l border-white/[0.08] bg-white/[0.03] first:border-l-0" />) : kpis.map((kpi) => <Metric key={kpi.id} kpi={kpi} />)}</div></section>
 
-        {/* KPIs */}
-        <div className="lg:col-span-2 grid grid-cols-2 gap-3">
-          {loading
-            ? Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="rounded-xl p-4 border border-white/5 bg-white/[0.02] animate-pulse h-20" />
-              ))
-            : kpis.map(kpi => <KpiCard key={kpi.id} kpi={kpi} />)
-          }
-        </div>
-      </div>
-
-      {/* ── ITIL Service Desk & CMDB (GLPI) ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* CMDB Assets Summary */}
-        <div
-          className="rounded-2xl p-5 border flex flex-col justify-between gap-4 transition-all hover:border-blue-500/30"
-          style={{
-            background: 'linear-gradient(135deg, rgba(59,130,246,0.08) 0%, rgba(59,130,246,0.03) 100%)',
-            borderColor: 'rgba(59,130,246,0.15)',
-          }}
-        >
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <Server size={16} className="text-blue-400" />
-              <h3 className="text-sm font-semibold text-white">Inventário CMDB (Zabbix)</h3>
-            </div>
-            <p className="text-xs text-white/40">Ativos sincronizados, normalizados por fabricante/modelo e distribuídos por tenant no GLPI.</p>
-          </div>
-          
-          <div className="grid grid-cols-3 gap-2">
-            <div className="bg-white/[0.02] border border-white/[0.04] rounded-xl p-3 text-center">
-              <span className="text-xl font-bold text-white block">85</span>
-              <span className="text-[10px] text-white/40 block mt-0.5">Servidores</span>
-            </div>
-            <div className="bg-white/[0.02] border border-white/[0.04] rounded-xl p-3 text-center">
-              <span className="text-xl font-bold text-white block">155</span>
-              <span className="text-[10px] text-white/40 block mt-0.5">Equip. Rede</span>
-            </div>
-            <div className="bg-white/[0.02] border border-white/[0.04] rounded-xl p-3 text-center">
-              <span className="text-xl font-bold text-white block">11</span>
-              <span className="text-[10px] text-white/40 block mt-0.5">Clientes</span>
-            </div>
-          </div>
-        </div>
-
-        {/* SLA Compliance */}
-        <div
-          className="lg:col-span-2 rounded-2xl p-5 border flex flex-col justify-between gap-4 transition-all hover:border-emerald-500/30"
-          style={{
-            background: 'linear-gradient(135deg, rgba(16,185,129,0.08) 0%, rgba(16,185,129,0.03) 100%)',
-            borderColor: 'rgba(16,185,129,0.15)',
-          }}
-        >
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <CheckCircle size={16} className="text-emerald-400" />
-                <h3 className="text-sm font-semibold text-white">Acordos de Nível de Serviço (SLA)</h3>
-              </div>
-              <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/25">97.8% Global</span>
-            </div>
-            <p className="text-xs text-white/40">Status de cumprimento de metas de SLA (Bronze, Silver, Gold, Platinum) em tempo limite (TTO/TTR).</p>
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-            {[
-              { name: 'Platinum', sla: '4h TTR', compliance: '100%', color: '#8B5CF6' },
-              { name: 'Gold', sla: '24h TTR', compliance: '98.2%', color: '#F59E0B' },
-              { name: 'Silver', sla: '2d TTR', compliance: '96.5%', color: '#3B82F6' },
-              { name: 'Bronze', sla: '5d TTR', compliance: '95.0%', color: '#94A3B8' },
-            ].map(item => (
-              <div key={item.name} className="bg-white/[0.01] border border-white/[0.04] rounded-xl p-3 relative overflow-hidden group hover:border-white/10 transition-all">
-                <div className="absolute top-0 left-0 w-[3px] h-full" style={{ backgroundColor: item.color }} />
-                <span className="text-[10px] font-bold text-white/60 block ml-1">{item.name}</span>
-                <span className="text-[10px] text-white/30 block ml-1">{item.sla}</span>
-                <span className="text-base font-bold text-white block mt-1 ml-1" style={{ color: item.color }}>{item.compliance}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* ITIL Service Catalog */}
-      <div className="border border-white/[0.05] bg-white/[0.01] rounded-2xl p-5 space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-sm font-bold text-white">Catálogo de Serviços TI (GLPI)</h3>
-            <p className="text-xs text-white/40 mt-0.5">Formulários oficiais parametrizados para requisição e suporte aos usuários.</p>
-          </div>
-          <span className="text-[10px] font-semibold text-white/30 bg-white/5 px-2 py-0.5 rounded-full">ITIL v4</span>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-          {[
-            { id: 'onboarding', label: 'Novo Colaborador', desc: 'Provisionamento de AD, hardware e e-mail.', color: '#10B981', action: 'Abrir' },
-            { id: 'access', label: 'Solicitar Acesso', desc: 'Acessos de VPN, pastas de rede e sistemas.', color: '#3B82F6', action: 'Abrir' },
-            { id: 'software', label: 'Instalar Software', desc: 'Instalação e licença de softwares homologados.', color: '#8B5CF6', action: 'Abrir' },
-            { id: 'reset', label: 'Reset de Senha / MFA', desc: 'Desbloqueio de conta e MFA de forma rápida.', color: '#F59E0B', action: 'Abrir' },
-            { id: 'offboarding', label: 'Desligamento', desc: 'Revogação de acessos e recuperação de hardware.', color: '#EF4444', action: 'Abrir' },
-          ].map(form => (
-            <button
-              key={form.id}
-              onClick={() => alert(`Direcionando para o formulário GLPI: ${form.label}`)}
-              className="text-left bg-white/[0.01] border border-white/[0.04] hover:bg-white/[0.03] hover:border-white/10 rounded-xl p-4 flex flex-col justify-between gap-3 transition-all duration-200 group hover:-translate-y-0.5"
-            >
-              <div>
-                <span className="w-2 h-2 rounded-full block mb-2" style={{ backgroundColor: form.color }} />
-                <h4 className="text-xs font-bold text-white group-hover:text-white/90">{form.label}</h4>
-                <p className="text-[10px] text-white/30 mt-1 leading-tight">{form.desc}</p>
-              </div>
-              <span className="text-[10px] font-semibold mt-2 group-hover:underline" style={{ color: form.color }}>
-                {form.action} →
-              </span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Module Cards */}
-      <div>
-        <h2 className="text-xs font-semibold uppercase tracking-widest text-white/30 mb-3">
-          Módulos Operacionais
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {MODULES.map(mod => {
-            const modData = overview?.modules?.[mod.id as keyof typeof overview.modules];
-            return (
-              <ModuleCard
-                key={mod.id}
-                mod={mod}
-                metrics={modData?.metrics ?? {}}
-                status={modData?.status ?? 'unknown'}
-                onClick={() => onModuleSwitch(mod.id as 'infraops' | 'secops')}
-              />
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
+    <section className="mt-6 grid gap-3 md:grid-cols-3">{[['Zabbix', 'Dados são de uma cópia restaurada em UAT; a coleta de produção permanece protegida.'], ['GLPI', 'Inventário, catálogo e SLA aguardam a fonte canônica e a homologação do processo.'], ['SecOps', 'A base de CVEs é referência estática até a coleta e a curadoria entrarem em operação.']].map(([title, body]) => <div key={title} className="border-t border-white/[0.12] pt-3"><h3 className="text-xs font-semibold text-white/80">{title}</h3><p className="mt-1.5 text-xs leading-5 text-white/40">{body}</p></div>)}</section>
+  </div></div>;
 }

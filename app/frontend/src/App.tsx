@@ -1,6 +1,6 @@
-import { Activity, ShieldAlert, Users, Server, Settings, Cloud, RefreshCw,
-         Wifi, WifiOff, Monitor, AlertTriangle, CheckCircle, BarChart3,
-         Layers, Cpu, LogOut, Globe, Shield, BookOpen } from 'lucide-react';
+import { Activity, ShieldAlert, Settings, Cloud, RefreshCw,
+         WifiOff, Monitor, AlertTriangle, CheckCircle, BarChart3,
+         Cpu, LogOut, BookOpen } from 'lucide-react';
 import React, { useState, useEffect, useCallback } from 'react';
 import CloudManagement from './components/CloudManagement';
 import PipelineStrip from './components/PipelineStrip';
@@ -13,18 +13,11 @@ import ModuleSwitcher, { type NessModule } from './components/ModuleSwitcher';
 import CoreDashboard from './components/CoreDashboard';
 import { useAuth } from './hooks/useAuth';
 import PushNotificationToggle from './components/PushNotificationToggle';
+import BrandMark from './components/BrandMark';
+import PricingModule from './components/PricingModule';
 
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
-
-const PAGE_TITLES: Record<string, string> = {
-  dashboard: 'Dashboard',
-  cloud: 'Nuvem',
-  infrastructure: 'Infraestrutura',
-  incidents: 'Incidentes',
-  tenants: 'Clientes',
-  settings: 'Configurações',
-};
 
 const SEVERITY_BG: Record<string, string> = {
   disaster:       'bg-red-500/15 border-red-500/30 text-red-400',
@@ -76,37 +69,6 @@ function formatNumber(n: number): string {
   if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
   if (n >= 1000) return `${(n / 1000).toFixed(0)}k`;
   return String(n);
-}
-
-// ── Brand Logo ───────────────────────────────────────────────────────────────────────
-function BrandLogo({ activeModule }: { activeModule: NessModule }) {
-  const MODULE_COLOR: Record<NessModule, string> = {
-    core: '#6366F1',
-    infraops: '#3B82F6',
-    secops: '#EF4444',
-  };
-  const MODULE_SUB: Record<NessModule, string> = {
-    core: 'core',
-    infraops: 'n.infraops',
-    secops: 'n.secops',
-  };
-  const color = MODULE_COLOR[activeModule];
-  return (
-    <div className="flex flex-col items-start px-1">
-      <div
-        style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 500 }}
-        className="text-[24px] tracking-tight text-white leading-none select-none"
-      >
-        ness<span style={{ color, textShadow: `0 0 12px ${color}99` }}>.</span>OS
-      </div>
-      <div
-        style={{ fontFamily: "'Fira Code', monospace", fontWeight: 500, color }}
-        className="text-[10px] tracking-[0.1em] lowercase leading-none mt-1 opacity-90 select-none transition-colors duration-300"
-      >
-        {MODULE_SUB[activeModule]}
-      </div>
-    </div>
-  );
 }
 
 // ─── Sidebar Item ────────────────────────────────────────────────────────────
@@ -280,6 +242,10 @@ function AppShellBody({ AUTH, logout, user }: {
   logout: () => void;
   user: import('./hooks/useAuth').User | null;
 }) {
+  // O token é mantido no cabeçalho de autenticação. Derivá-lo aqui evita uma
+  // segunda fonte de estado e garante que o componente de Web Push só exista
+  // quando há sessão autenticada.
+  const token = AUTH.Authorization?.replace('Bearer ', '') ?? '';
   const [activeModule, setActiveModule] = useState<NessModule>('core');
   const [currentView, setCurrentView] = useState<View>('dashboard');
   const [selectedTenant, setSelectedTenant] = useState<string | null>(null);
@@ -314,7 +280,7 @@ function AppShellBody({ AUTH, logout, user }: {
       setLoading(false);
       setPipelineLoading(false);
     }
-  }, []);
+  }, [AUTH, selectedTenant]);
 
   const fetchIncidents = useCallback(async () => {
     setIncidentsLoading(true);
@@ -328,7 +294,7 @@ function AppShellBody({ AUTH, logout, user }: {
     } finally {
       setIncidentsLoading(false);
     }
-  }, []);
+  }, [AUTH]);
 
   useEffect(() => {
     fetchData();
@@ -386,6 +352,7 @@ function AppShellBody({ AUTH, logout, user }: {
   }, [AUTH.Authorization, fetchData]);
 
   const hasCritical = summary && summary.problems_critical > 0;
+  const canAccessPricing = user?.role === 'platform_admin' || user?.role === 'admin' || user?.role === 'gestao';
 
   return (
     <div className="min-h-screen bg-[var(--color-brand-base)] text-[var(--color-brand-text)] flex">
@@ -395,7 +362,8 @@ function AppShellBody({ AUTH, logout, user }: {
         <div className="absolute top-0 left-0 right-0 h-40 bg-[var(--color-brand-primary)] opacity-[0.03] blur-3xl pointer-events-none" />
 
         <div className="px-2 py-1">
-          <BrandLogo activeModule={activeModule} />
+          <BrandMark size="md" />
+          <p className="mt-1 text-[10px] font-medium tracking-wide text-white/40">operações de tecnologia</p>
         </div>
 
         <div className="px-2">
@@ -493,14 +461,15 @@ function AppShellBody({ AUTH, logout, user }: {
           style={{ background: `radial-gradient(ellipse at 50% -20%, ${
             activeModule === 'core'     ? 'rgba(99,102,241,0.07)' :
             activeModule === 'infraops' ? 'rgba(59,130,246,0.06)' :
-                                          'rgba(239,68,68,0.06)'
+            activeModule === 'secops'   ? 'rgba(239,68,68,0.06)' :
+                                          'rgba(16,185,129,0.06)'
           } 0%, transparent 70%)` }} />
 
         {/* ── Header ── */}
         <header className="h-14 border-b border-white/[0.05] flex items-center justify-between px-8 z-10 shrink-0"
           style={{ background: 'rgba(8,8,16,0.7)', backdropFilter: 'blur(12px)' }}>
           <div className="flex items-center gap-3">
-            <ModuleSwitcher active={activeModule} onChange={setActiveModule} />
+            <ModuleSwitcher active={activeModule} onChange={setActiveModule} showPricing={canAccessPricing} />
             {activeModule !== 'core' && hasCritical && activeModule === 'infraops' && (
               <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-red-500/15 border border-red-500/30 text-red-400">
                 <AlertTriangle size={9} /> {summary!.problems_critical} {summary!.problems_critical === 1 ? 'alerta crítico' : 'alertas críticos'}
@@ -611,6 +580,11 @@ function AppShellBody({ AUTH, logout, user }: {
             <SecopsModule />
           )}
 
+          {/* ── Precificação ── */}
+          {activeModule === 'pricing' && canAccessPricing && (
+            <PricingModule />
+          )}
+
         </div>
       </main>
     </div>
@@ -626,7 +600,7 @@ export default function App() {
       <div className="min-h-screen bg-[#08111f] flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-2 border-[#00ADE8]/30 border-t-[#00ADE8] rounded-full animate-spin" />
-          <span className="text-white/30 text-sm">ness.OS</span>
+          <BrandMark size="sm" className="opacity-60" />
         </div>
       </div>
     );
@@ -648,6 +622,6 @@ function AppShell({
   logout: () => void;
   user: import('./hooks/useAuth').User | null;
 }) {
-  const AUTH = authHeader();
+  const AUTH = React.useMemo(() => authHeader(), [authHeader]);
   return <AppShellBody AUTH={AUTH} logout={logout} user={user} />;
 }

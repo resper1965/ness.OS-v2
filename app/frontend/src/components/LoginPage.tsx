@@ -4,6 +4,7 @@
  */
 import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
+import BrandMark from './BrandMark';
 
 export default function LoginPage() {
   const { login, loginWithSSO, exchangeCodeForToken } = useAuth();
@@ -19,10 +20,18 @@ export default function LoginPage() {
     // Interceptar callback do Authentik SSO na URL
     const params = new URLSearchParams(window.location.search);
     const code = params.get('code');
+    const returnedState = params.get('state');
+    const oidcError = params.get('error');
+    if (oidcError) {
+      sessionStorage.removeItem('oidc_state');
+      setError('O provedor de identidade recusou a autenticação. Tente novamente.');
+      window.history.replaceState({}, document.title, '/');
+      return;
+    }
     if (code) {
       setSsoLoading(true);
       setError('');
-      exchangeCodeForToken(code)
+      exchangeCodeForToken(code, returnedState ?? '')
         .then(() => {
           // Limpa os parâmetros da URL redirecionando para a raiz de forma limpa
           window.history.replaceState({}, document.title, window.location.pathname.replace('/callback', '/'));
@@ -70,18 +79,7 @@ export default function LoginPage() {
         >
           {/* Logo */}
           <div className="mb-8 text-center">
-            <div
-              style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 500 }}
-              className="text-4xl tracking-tight text-white leading-none select-none"
-            >
-              ness<span className="text-[#00ADE8] drop-shadow-[0_0_12px_rgba(0,173,232,0.9)]">.</span>
-            </div>
-            <div
-              style={{ fontFamily: "'Fira Code', monospace", fontWeight: 500 }}
-              className="text-xs tracking-[0.15em] lowercase mt-1.5 text-[#00ADE8]/80 select-none"
-            >
-              n.infraops
-            </div>
+            <BrandMark size="lg" />
             <p className="mt-4 text-sm text-white/40">
               Acesse o painel de operações
             </p>
@@ -233,7 +231,7 @@ export default function LoginPage() {
 
           {/* Footer */}
           <p className="mt-6 text-center text-xs text-white/20">
-            ness. infraops © {new Date().getFullYear()}
+            © {new Date().getFullYear()} ness.
           </p>
         </div>
       </div>

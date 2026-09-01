@@ -1,45 +1,39 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Server, HardDrive, RefreshCw, AlertTriangle, 
-  Search, Power, LayoutGrid, List, MoreVertical,
-  Activity, Shield, Network, Lock, Cpu, Database,
-  ArrowUpRight, Clock, Trash2, Camera, Key, 
-  Globe, ShieldAlert, Zap, Terminal, Plus
+  Search,
+  Shield, Network, Cpu, Database,
+  Camera, Globe, ShieldAlert
 } from 'lucide-react';
+import { useAuth } from '../hooks/useAuth';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
-const AUTH = { Authorization: 'Basic ' + btoa('admin:Nessnet@436!') };
 
-type Tab = 'compute' | 'snapshots' | 'storage' | 'networks' | 'firewall' | 'secrets';
+type Tab = 'compute' | 'snapshots' | 'storage' | 'networks' | 'firewall';
 
 export default function CloudManagement({ selectedTenant }: { selectedTenant: string | null }) {
+  const { authHeader } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>('compute');
   const [summary, setSummary] = useState<any>(null);
   const [instances, setInstances] = useState<any[]>([]);
   const [storage, setStorage] = useState<any[]>([]);
-  const [snapshots, setSnapshots] = useState<any[]>([]);
   const [firewalls, setFirewalls] = useState<any[]>([]);
   const [networks, setNetworks] = useState<any[]>([]);
-  const [secrets, setSecrets] = useState<any[]>([]);
   const [healthAlerts, setHealthAlerts] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   
-  // Action state
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
-
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const query = selectedTenant ? `?customer_id=${selectedTenant}` : '';
-      const res = await fetch(`${API_BASE}/api/contabo/dashboard-full${query}`, { headers: AUTH });
+      const res = await fetch(`${API_BASE}/api/contabo/dashboard-full${query}`, { headers: authHeader() });
       if (res.ok) {
         const data = await res.json();
         setSummary(data.summary);
         setStorage(data.storage);
         setFirewalls(data.firewalls);
         setNetworks(data.networks);
-        setSecrets(data.secrets);
         
         const instData = data.instances;
         setInstances(instData);
@@ -65,28 +59,11 @@ export default function CloudManagement({ selectedTenant }: { selectedTenant: st
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [authHeader, selectedTenant]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData, selectedTenant]);
-
-  const handleAction = async (instanceId: number, action: string) => {
-    setActionLoading(`${instanceId}-${action}`);
-    try {
-      const res = await fetch(`${API_BASE}/api/contabo/compute/${instanceId}/actions/${action}`, {
-        method: 'POST',
-        headers: AUTH,
-      });
-      if (res.ok) {
-        setTimeout(fetchData, 2000);
-      }
-    } catch (e) {
-      console.error(`Failed to ${action} instance`, e);
-    } finally {
-      setActionLoading(null);
-    }
-  };
 
   const filteredInstances = instances.filter(i => 
     i.displayName.toLowerCase().includes(search.toLowerCase()) ||
@@ -169,7 +146,6 @@ export default function CloudManagement({ selectedTenant }: { selectedTenant: st
             { id: 'storage', label: 'Storage', icon: HardDrive },
             { id: 'networks', label: 'Redes VPC', icon: Globe },
             { id: 'firewall', label: 'Segurança', icon: ShieldAlert },
-            { id: 'secrets', label: 'SSH Keys', icon: Key },
           ].map(tab => (
             <button
               key={tab.id}
@@ -232,10 +208,7 @@ export default function CloudManagement({ selectedTenant }: { selectedTenant: st
                       <div className="text-right"><p className="text-[10px] font-bold text-[var(--color-brand-muted)] uppercase">vCPU/RAM</p><p className="text-xs font-semibold text-white">{instance.vCpu} / {instance.ramMb/1024}GB</p></div>
                       <div className="text-right"><p className="text-[10px] font-bold text-[var(--color-brand-muted)] uppercase">Disco</p><p className="text-xs font-semibold text-white">{instance.diskMb/1024}GB</p></div>
                     </div>
-                    <div className="flex gap-2">
-                      <button onClick={() => handleAction(instance.instanceId, 'restart')} className="p-2 rounded-lg bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-all"><RefreshCw size={14}/></button>
-                      <button className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[var(--color-brand-primary-dim)] border border-[var(--color-brand-primary)]/20 text-xs font-bold text-[var(--color-brand-primary)]"><Terminal size={14}/> Console</button>
-                    </div>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-brand-muted)]">Somente leitura</span>
                   </div>
                 </div>
               </div>
@@ -247,9 +220,7 @@ export default function CloudManagement({ selectedTenant }: { selectedTenant: st
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="md:col-span-2 flex justify-between items-center mb-2">
               <h2 className="text-lg font-bold text-white">Firewalls Ativos</h2>
-              <button className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--color-brand-primary)] text-black font-bold text-xs hover:opacity-90 transition-all">
-                <Plus size={16} /> Criar Novo Firewall
-              </button>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-brand-muted)]">Somente leitura</span>
             </div>
             {firewalls.length === 0 ? (
               <div className="md:col-span-2 py-20 glass rounded-2xl flex flex-col items-center justify-center opacity-40">
@@ -267,7 +238,6 @@ export default function CloudManagement({ selectedTenant }: { selectedTenant: st
                   <div className="flex justify-between text-xs text-[var(--color-brand-muted)]"><span>Instâncias</span><span className="text-white font-mono">{fw.instanceIds?.length || 0}</span></div>
                   <div className="flex justify-between text-xs text-[var(--color-brand-muted)]"><span>Regras Inbound</span><span className="text-white font-mono">{fw.rules?.inbound?.length || 0}</span></div>
                 </div>
-                <button className="w-full py-2 bg-white/5 border border-white/10 rounded-xl text-xs font-bold text-white hover:bg-white/10 transition-all">Gerenciar Regras</button>
               </div>
             ))}
           </div>
@@ -293,32 +263,6 @@ export default function CloudManagement({ selectedTenant }: { selectedTenant: st
                     <span className="text-[var(--color-brand-muted)]">Instâncias Conectadas</span>
                     <span className="text-white font-bold">{net.instanceIds?.length || 0}</span>
                   </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {activeTab === 'secrets' && (
-          <div className="space-y-4">
-            <div className="flex justify-between items-center px-2">
-              <h2 className="text-lg font-bold text-white">Chaves SSH & Segredos</h2>
-              <button className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--color-brand-primary)] text-black font-bold text-xs">
-                <Plus size={16} /> Adicionar Chave
-              </button>
-            </div>
-            {secrets.map(sec => (
-              <div key={sec.secretId} className="glass rounded-2xl p-5 flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="p-2 rounded-lg bg-white/5 text-[var(--color-brand-muted)]"><Key size={20}/></div>
-                  <div>
-                    <h4 className="font-bold text-white">{sec.name}</h4>
-                    <p className="text-[10px] text-[var(--color-brand-muted)] uppercase tracking-widest">{sec.type}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-[10px] text-[var(--color-brand-muted)] font-mono">ID: {sec.secretId}</span>
-                  <button className="p-2 text-red-400/60 hover:text-red-400 transition-all"><Trash2 size={16}/></button>
                 </div>
               </div>
             ))}

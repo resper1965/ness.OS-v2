@@ -2,8 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Shield, ShieldAlert, ShieldCheck, ShieldX,
   AlertTriangle, CheckCircle2, XCircle, Clock,
-  Zap, Server, Wifi, Activity, ChevronDown, ChevronUp,
-  ExternalLink, RefreshCw, Bug, Eye, Lock, Cpu, Globe,
+  Zap, Activity, ChevronDown, ChevronUp,
+  ExternalLink, RefreshCw, Bug, Eye, Globe,
 } from 'lucide-react';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
@@ -388,8 +388,8 @@ export default function SecopsModule() {
             <ShieldAlert size={20} className="text-red-400" />
           </div>
           <div>
-            <h1 className="text-lg font-black text-white">n.secops</h1>
-            <p className="text-[11px] text-white/30">CVE Intelligence · Zabbix Health · Risk Matrix</p>
+            <h1 className="text-lg font-semibold text-white">Segurança</h1>
+            <p className="text-[11px] text-white/40">Vulnerabilidades, monitoramento e risco</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -407,7 +407,12 @@ export default function SecopsModule() {
 
       {/* ── Summary Cards ──────────────────────────────────────────────────── */}
       {!cveLoading && summary && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div>
+          <div className="mb-3 flex items-center gap-2 text-[11px] text-amber-200/80">
+            <span className="h-1.5 w-1.5 rounded-full bg-amber-300" />
+            Base de referência estática — atualização e aplicabilidade por cliente pendentes.
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
             { icon: Bug,         label: 'CVEs Mapeados',    value: summary.total,              color: 'text-white/60',   bg: 'bg-white/[0.04]',     border: 'border-white/[0.06]' },
             { icon: ShieldX,     label: 'Críticos',         value: summary.critical,           color: 'text-red-400',    bg: 'bg-red-500/10',        border: 'border-red-500/20' },
@@ -422,6 +427,7 @@ export default function SecopsModule() {
               </div>
             </div>
           ))}
+          </div>
         </div>
       )}
 
@@ -429,7 +435,7 @@ export default function SecopsModule() {
       <div>
         <div className="flex items-center gap-2 mb-3">
           <Activity size={13} className="text-[#00ADE8]" />
-          <p className="text-xs font-bold text-white/50 uppercase tracking-wider">Saúde do Zabbix (Tempo Real)</p>
+          <p className="text-xs font-bold text-white/50 uppercase tracking-wider">Saúde do Zabbix</p>
         </div>
         <ZabbixHealthPanel health={health} loading={healthLoading} />
       </div>
@@ -439,7 +445,7 @@ export default function SecopsModule() {
         <div>
           <div className="flex items-center gap-2 mb-3">
             <Eye size={13} className="text-[#00ADE8]" />
-            <p className="text-xs font-bold text-white/50 uppercase tracking-wider">Exposição por Cliente</p>
+          <p className="text-xs font-bold text-white/50 uppercase tracking-wider">Matriz de referência por cliente</p>
           </div>
           <ClientRiskMatrix cves={cveIntel.items} />
         </div>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, BellOff, BellRing, Loader2 } from 'lucide-react';
+import { Bell, BellRing, Loader2 } from 'lucide-react';
 
 interface PushNotificationToggleProps {
   token: string;

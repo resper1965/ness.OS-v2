@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, ShieldAlert, ShieldCheck, Info, X } from 'lucide-react';
+import { ShieldAlert, X } from 'lucide-react';
+import { useAuth } from '../hooks/useAuth';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
-const AUTH = { Authorization: 'Basic ' + btoa('admin:Nessnet@436!') };
 
 interface AuditItem {
   check: string;
@@ -12,6 +12,7 @@ interface AuditItem {
 }
 
 export default function SecurityAlerts() {
+  const { authHeader } = useAuth();
   const [audits, setAudits] = useState<AuditItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [visible, setVisible] = useState(true);
@@ -19,7 +20,7 @@ export default function SecurityAlerts() {
   useEffect(() => {
     const fetchAudits = async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/tenants/security-audit`, { headers: AUTH });
+        const res = await fetch(`${API_BASE}/api/tenants/security-audit`, { headers: authHeader() });
         if (res.ok) {
           const data = await res.json();
           setAudits(data);
@@ -31,7 +32,7 @@ export default function SecurityAlerts() {
       }
     };
     fetchAudits();
-  }, []);
+  }, [authHeader]);
 
   const issues = audits.filter(a => a.status === 'warning' || a.status === 'danger');
   if (loading || issues.length === 0 || !visible) return null;

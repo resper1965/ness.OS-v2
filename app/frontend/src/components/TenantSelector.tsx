@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Users, ChevronDown, Check, Building2 } from 'lucide-react';
+import { useAuth } from '../hooks/useAuth';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
-const AUTH = { Authorization: 'Basic ' + btoa('admin:Nessnet@436!') };
 
 interface Tenant {
   id: string;
@@ -15,6 +15,7 @@ interface Props {
 }
 
 export default function TenantSelector({ selectedTenant, onSelect }: Props) {
+  const { authHeader } = useAuth();
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -23,7 +24,7 @@ export default function TenantSelector({ selectedTenant, onSelect }: Props) {
     const fetchTenants = async () => {
       setLoading(true);
       try {
-        const res = await fetch(`${API_BASE}/api/tenants/list`, { headers: AUTH });
+        const res = await fetch(`${API_BASE}/api/tenants/list`, { headers: authHeader() });
         if (res.ok) {
           const data = await res.json();
           setTenants(data);
@@ -35,7 +36,7 @@ export default function TenantSelector({ selectedTenant, onSelect }: Props) {
       }
     };
     fetchTenants();
-  }, []);
+  }, [authHeader]);
 
   const currentTenant = tenants.find(t => t.id === selectedTenant);
 
@@ -43,6 +44,7 @@ export default function TenantSelector({ selectedTenant, onSelect }: Props) {
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
+        disabled={loading}
         className="w-full flex items-center gap-3 px-3 py-2 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.06] transition-all group"
       >
         <div className="p-2 rounded-lg bg-[var(--color-brand-primary-dim)] text-[var(--color-brand-primary)]">
@@ -51,7 +53,7 @@ export default function TenantSelector({ selectedTenant, onSelect }: Props) {
         <div className="flex-1 text-left">
           <p className="text-[9px] font-bold text-[var(--color-brand-muted)] uppercase tracking-wider">Contexto</p>
           <p className="text-sm font-bold text-white truncate">
-            {currentTenant ? currentTenant.name : 'Todos os Clientes'}
+            {loading ? 'Carregando…' : currentTenant ? currentTenant.name : 'Todos os Clientes'}
           </p>
         </div>
         <ChevronDown size={14} className={`text-[var(--color-brand-muted)] transition-transform ${isOpen ? 'rotate-180' : ''}`} />
