@@ -1,0 +1,114 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+runner="${repo_root}/infra/scripts/aiops-runtime-readiness.sh"
+tmpdir="$(mktemp -d)"
+trap 'rm -rf -- "${tmpdir}"' EXIT
+
+env_file="${tmpdir}/runtime.env"
+fake_bin="${tmpdir}/bin"
+docker_log="${tmpdir}/docker.log"
+mkdir -p "${fake_bin}"
+
+cat >"${env_file}" <<'EOF'
+NINF_AUTHENTIK_SECRET_KEY=runner-secret-authentik
+NINF_DB_PASSWORD=runner-secret-database
+NINF_EVOLUTION_API_KEY=runner-secret-evolution
+NINF_GLPI_DB_PASSWORD=runner-secret-glpi-db
+NINF_GLPI_DB_ROOT_PASSWORD=runner-secret-glpi-root
+NINF_JWT_SECRET=runner-secret-jwt
+NINF_ZABBIX_API_TOKEN=runner-secret-zabbix
+NINF_GLPI_APP_TOKEN=runner-secret-glpi-app
+NINF_GLPI_USER_TOKEN=runner-secret-glpi-user
+EOF
+
+cat >"${fake_bin}/docker" <<'EOF'
+#!/usr/bin/env bash
+set -Eeuo pipefail
+printf '%s\n' "$*" >>"${AIOPS_TEST_DOCKER_LOG}"
+
+[[ "${1-}" == compose ]] || exit 90
+if [[ "${2-}" == version ]]; then
+  exit 0
+fi
+
+arguments=" $* "
+if [[ "${arguments}" == *' config --quiet --no-env-resolution '* ]]; then
+  exit 0
+fi
+for forbidden in up start run create pull restart down rm stop kill; do
+  [[ "${arguments}" != *" ${forbidden} "* ]] || exit 91
+done
+
+module="${*: -1}"
+case "${module}" in
+  app.integrations.zabbix_readiness)
+    [[ "${AIOPS_TEST_ZABBIX_FAIL:-0}" == 0 ]] || {
+      echo 'runner-secret-zabbix' >&2
+      exit 92
+    }
+    printf '%s\n' "${AIOPS_TEST_ZABBIX_OUTPUT:-status=ready mode=read-only transport=json-rpc version=7.0.0 authenticated=True visible_hosts=1 writes=0}"
+    ;;
+  app.integrations.glpi_readiness)
+    printf '%s\n' 'status=ready mode=dry-run transport=private entities=2 categories=3 writes=0 session_closed=True'
+    ;;
+  *) exit 93 ;;
+esac
+EOF
+chmod +x "${fake_bin}/docker"
+
+run_isolated() {
+  env -u AIOPS_READONLY_EXECUTE \
+    PATH="${fake_bin}:${PATH}" \
+    AIOPS_TEST_DOCKER_LOG="${docker_log}" \
+    "$@"
+}
+
+assert_no_secrets() {
+  ! grep -q 'runner-secret-' <<<"$1"
+}
+
+bash -n "${runner}"
+
+static_output="$(run_isolated bash "${runner}" --env-file "${env_file}" 2>&1)"
+grep -q '^preflight=PASS$' <<<"${static_output}"
+grep -q '^probe_static_validation=PASS$' <<<"${static_output}"
+grep -q '^probes_executed=0$' <<<"${static_output}"
+grep -q '^AIOps runtime readiness: PASS (static)$' <<<"${static_output}"
+assert_no_secrets "${static_output}"
+! grep -q ' exec ' "${docker_log}"
+
+if guard_output="$(run_isolated bash "${runner}" --env-file "${env_file}" --execute-read-only 2>&1)"; then
+  echo 'runner unexpectedly executed probes without the environment guard' >&2
+  exit 1
+fi
+grep -q 'live probes require AIOPS_READONLY_EXECUTE=1' <<<"${guard_output}"
+assert_no_secrets "${guard_output}"
+! grep -q ' exec ' "${docker_log}"
+
+live_output="$(run_isolated env AIOPS_READONLY_EXECUTE=1 bash "${runner}" --env-file "${env_file}" --execute-read-only 2>&1)"
+grep -q '^zabbix_readiness=PASS writes=0$' <<<"${live_output}"
+grep -q '^glpi_readiness=PASS writes=0$' <<<"${live_output}"
+grep -q '^containers_started=0$' <<<"${live_output}"
+grep -q '^AIOps runtime readiness: PASS (live read-only)$' <<<"${live_output}"
+assert_no_secrets "${live_output}"
+grep -q 'exec -T api python -m app.integrations.zabbix_readiness' "${docker_log}"
+grep -q 'exec -T api python -m app.integrations.glpi_readiness' "${docker_log}"
+! grep -Eq '(^| )(up|start|run|create|pull|restart|down|rm|stop|kill)( |$)' "${docker_log}"
+
+if bad_output="$(run_isolated env AIOPS_TEST_ZABBIX_OUTPUT=runner-secret-zabbix AIOPS_READONLY_EXECUTE=1 bash "${runner}" --env-file "${env_file}" --execute-read-only 2>&1)"; then
+  echo 'runner unexpectedly accepted malformed probe output' >&2
+  exit 1
+fi
+grep -q 'zabbix probe returned an invalid result (details suppressed)' <<<"${bad_output}"
+assert_no_secrets "${bad_output}"
+
+if failed_output="$(run_isolated env AIOPS_TEST_ZABBIX_FAIL=1 AIOPS_READONLY_EXECUTE=1 bash "${runner}" --env-file "${env_file}" --execute-read-only 2>&1)"; then
+  echo 'runner unexpectedly accepted a failed probe' >&2
+  exit 1
+fi
+grep -q 'zabbix probe failed (details suppressed)' <<<"${failed_output}"
+assert_no_secrets "${failed_output}"
+
+echo 'AIOps runtime readiness runner checks: PASS'
