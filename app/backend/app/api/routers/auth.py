@@ -9,22 +9,25 @@ import secrets
 from datetime import datetime, timezone
 
 import bcrypt as _bcrypt
-from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from jose import JWTError
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
-from app.core.jwt import create_access_token, verify_token
+from app.core.dependencies import get_current_user
+from app.core.jwt import create_access_token
 from app.core.oidc import exchange_oidc_code, verify_oidc_token
+from app.core.session import (
+    clear_session_cookie,
+    require_trusted_origin,
+    set_session_cookie,
+)
 from app.database import get_db
 from app.models.users import User, UserRole
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/auth", tags=["auth"])
-bearer_scheme = HTTPBearer(auto_error=False)
 
 
 # ── Schemas ──────────────────────────────────────────────────────────────────
@@ -98,52 +101,30 @@ def map_authentik_role(claims: dict) -> UserRole:
     return UserRole.cliente
 
 
-async def _get_current_user(
-    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
-    db: AsyncSession = Depends(get_db),
-) -> User:
-    """Dependency: extrai e valida o Bearer token, retorna o User."""
-    if not credentials:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token de autenticação ausente",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    try:
-        payload = verify_token(credentials.credentials)
-        user_id = int(payload["sub"])
-    except (JWTError, KeyError, ValueError):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token inválido ou expirado",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    result = await db.execute(select(User).where(User.id == user_id))
-    user = result.scalar_one_or_none()
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Usuário não encontrado",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    return user
-
-
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
 
-@router.post("/login", response_model=TokenResponse, summary="Login com e-mail e senha")
+@router.post(
+    "/login",
+    response_model=MeResponse | TokenResponse,
+    summary="Login com e-mail e senha",
+)
 async def login(
     body: LoginRequest,
+    request: Request,
+    response: Response,
     db: AsyncSession = Depends(get_db),
-) -> TokenResponse:
+) -> MeResponse | TokenResponse:
     """
-    Autentica um usuário e retorna um JWT de acesso.
+    Inicia uma sessão segura para o Hub. Clientes não-browser sem cabeçalho
+    ``Origin`` mantêm a resposta Bearer para compatibilidade com automações.
 
     - **401** se e-mail não encontrado ou senha incorreta
     - **403** se conta inativa
     """
+    browser_request = request.headers.get("origin") is not None
+    if browser_request:
+        require_trusted_origin(request)
     result = await db.execute(select(User).where(User.email == body.email))
     user: User | None = result.scalar_one_or_none()
 
@@ -164,11 +145,19 @@ async def login(
     await db.commit()
 
     token = create_access_token(user_id=user.id, role=user.role.value)
+    if not browser_request:
+        return TokenResponse(
+            access_token=token,
+            role=user.role.value,
+            full_name=user.full_name,
+        )
+
+    set_session_cookie(response, token)
     logger.info("Login bem-sucedido: user_id=%s email=%s", user.id, user.email)
 
-    return TokenResponse(
-        access_token=token,
-        token_type="bearer",
+    return MeResponse(
+        id=user.id,
+        email=user.email,
         role=user.role.value,
         full_name=user.full_name,
     )
@@ -178,10 +167,10 @@ async def login(
     "/me", response_model=MeResponse, summary="Retorna dados do usuário autenticado"
 )
 async def me(
-    current_user: User = Depends(_get_current_user),
+    current_user: User = Depends(get_current_user),
 ) -> MeResponse:
     """
-    Retorna os dados do usuário autenticado via Bearer token.
+    Retorna os dados do usuário autenticado via cookie ou Bearer token.
 
     - **401** se token ausente, inválido ou expirado
     """
@@ -191,6 +180,15 @@ async def me(
         full_name=current_user.full_name,
         role=current_user.role.value,
     )
+
+
+@router.post(
+    "/logout", status_code=status.HTTP_204_NO_CONTENT, summary="Encerra a sessão"
+)
+async def logout(request: Request, response: Response) -> None:
+    """Remove a sessão local do navegador; o frontend encerra o SSO em seguida."""
+    require_trusted_origin(request)
+    clear_session_cookie(response)
 
 
 @router.post(
@@ -258,13 +256,16 @@ class OidcCallbackRequest(BaseModel):
 
 @router.post(
     "/oidc/callback",
-    response_model=TokenResponse,
+    response_model=MeResponse,
     summary="Callback OIDC para troca de tokens com Authentik (BFF)",
 )
 async def oidc_callback(
-    request: OidcCallbackRequest,
+    body: OidcCallbackRequest,
+    request: Request,
+    response: Response,
     db: AsyncSession = Depends(get_db),
-):
+) -> MeResponse:
+    require_trusted_origin(request)
     settings = get_settings()
     if not settings.oidc_enabled:
         raise HTTPException(
@@ -275,7 +276,7 @@ async def oidc_callback(
     # 1. Trocar código OIDC no Authentik
     try:
         token_payload = await exchange_oidc_code(
-            request.code, request.redirect_uri, request.code_verifier
+            body.code, body.redirect_uri, body.code_verifier
         )
     except Exception as e:
         logger.error(f"Erro na troca do código OIDC: {e}")
@@ -348,9 +349,11 @@ async def oidc_callback(
         role=user.role.value,
         extra_claims={"tenant_id": user.tenant_id},
     )
+    set_session_cookie(response, local_token)
 
-    return TokenResponse(
-        access_token=local_token,
+    return MeResponse(
+        id=user.id,
+        email=user.email,
         role=user.role.value,
         full_name=user.full_name,
     )

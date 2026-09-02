@@ -239,13 +239,9 @@ function SectionCard({ title, count, children, loading }: {
 // ─── App Shell Body ──────────────────────────────────────────────────────────
 function AppShellBody({ AUTH, logout, user }: {
   AUTH: Record<string, string>;
-  logout: () => void;
+  logout: () => Promise<void>;
   user: import('./hooks/useAuth').User | null;
 }) {
-  // O token é mantido no cabeçalho de autenticação. Derivá-lo aqui evita uma
-  // segunda fonte de estado e garante que o componente de Web Push só exista
-  // quando há sessão autenticada.
-  const token = AUTH.Authorization?.replace('Bearer ', '') ?? '';
   const [activeModule, setActiveModule] = useState<NessModule>('core');
   const [currentView, setCurrentView] = useState<View>('dashboard');
   const [selectedTenant, setSelectedTenant] = useState<string | null>(null);
@@ -308,12 +304,10 @@ function AppShellBody({ AUTH, logout, user }: {
 
   // Escuta SSE para incidentes em tempo real
   useEffect(() => {
-    if (!AUTH.Authorization) return;
-    const tokenStr = AUTH.Authorization.replace('Bearer ', '');
-    if (!tokenStr) return;
+    if (!user) return;
 
-    const sseUrl = `${API_BASE}/api/incidents/stream?token=${encodeURIComponent(tokenStr)}`;
-    const eventSource = new EventSource(sseUrl);
+    const sseUrl = `${API_BASE}/api/incidents/stream`;
+    const eventSource = new EventSource(sseUrl, { withCredentials: true });
 
     eventSource.addEventListener('incident', (event) => {
       try {
@@ -349,7 +343,7 @@ function AppShellBody({ AUTH, logout, user }: {
     return () => {
       eventSource.close();
     };
-  }, [AUTH.Authorization, fetchData]);
+  }, [user, fetchData]);
 
   const hasCritical = summary && summary.problems_critical > 0;
   const canAccessPricing = user?.role === 'platform_admin' || user?.role === 'admin' || user?.role === 'gestao';
@@ -402,7 +396,7 @@ function AppShellBody({ AUTH, logout, user }: {
         {/* ── User card + Logout ── */}
         <div className="px-2 space-y-2">
           {/* Ativação do Web Push */}
-          {token && <PushNotificationToggle token={token} />}
+          {user && <PushNotificationToggle />}
 
           {/* Status de conexão */}
           <div role="status" aria-live="polite">
@@ -619,7 +613,7 @@ function AppShell({
   user,
 }: {
   authHeader: () => Record<string, string>;
-  logout: () => void;
+  logout: () => Promise<void>;
   user: import('./hooks/useAuth').User | null;
 }) {
   const AUTH = React.useMemo(() => authHeader(), [authHeader]);

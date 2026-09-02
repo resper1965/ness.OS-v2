@@ -1,10 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Bell, BellRing, Loader2 } from 'lucide-react';
 
-interface PushNotificationToggleProps {
-  token: string;
-}
-
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
 
 function urlBase64ToUint8Array(base64String: string) {
@@ -22,7 +18,7 @@ function urlBase64ToUint8Array(base64String: string) {
   return outputArray;
 }
 
-export default function PushNotificationToggle({ token }: PushNotificationToggleProps) {
+export default function PushNotificationToggle() {
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [support, setSupport] = useState(true);
@@ -57,9 +53,9 @@ export default function PushNotificationToggle({ token }: PushNotificationToggle
         if (subscription) {
           await fetch(`${API_BASE}/api/v1/push/unsubscribe`, {
             method: 'POST',
+            credentials: 'include',
             headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${token}`
+              'Content-Type': 'application/json'
             },
             body: JSON.stringify({ endpoint: subscription.endpoint })
           });
@@ -72,7 +68,7 @@ export default function PushNotificationToggle({ token }: PushNotificationToggle
         
         // Buscar chave VAPID pública do backend
         const configRes = await fetch(`${API_BASE}/api/v1/push/config`, {
-          headers: { Authorization: `Bearer ${token}` }
+          credentials: 'include'
         });
         if (!configRes.ok) throw new Error();
         const { public_key } = await configRes.json();
@@ -94,9 +90,9 @@ export default function PushNotificationToggle({ token }: PushNotificationToggle
         // Registrar no backend
         const subRes = await fetch(`${API_BASE}/api/v1/push/subscribe`, {
           method: 'POST',
+          credentials: 'include',
           headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`
+            'Content-Type': 'application/json'
           },
           body: JSON.stringify(subscription)
         });

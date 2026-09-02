@@ -8,17 +8,17 @@ import asyncio
 import json
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
 from redis.asyncio import Redis
 from sqlalchemy import desc, select
 
 from app.config import get_settings
-from app.core.dependencies import is_noc_role, require_noc
-from app.core.jwt import verify_token
+from app.core.dependencies import get_current_user, is_noc_role, require_noc
 from app.database import SessionLocal
 from app.models import Incident
 from app.models.schemas import IncidentAnalyzeRequest
+from app.models.users import User
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -128,18 +128,11 @@ async def analyze_incident(
 
 @router.get("/api/incidents/stream", tags=["incidents"])
 async def stream_incidents(
-    token: str = Query(..., description="JWT Token de acesso para autenticação"),
+    current_user: User = Depends(get_current_user),
 ):
     """Canal SSE (Server-Sent Events) para stream de novos incidentes em tempo real."""
-    try:
-        payload = verify_token(token)
-        user_role = payload.get("role")
-        user_tenant_id = payload.get("tenant_id")
-    except Exception:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token de acesso inválido ou expirado.",
-        )
+    user_role = current_user.role
+    user_tenant_id = current_user.tenant_id
 
     async def event_generator():
         settings = get_settings()

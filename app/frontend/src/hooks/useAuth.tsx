@@ -1,11 +1,10 @@
 /**
- * useAuth — Hook de autenticação JWT para n.infraops
- * Persiste token no localStorage, expõe user + login/logout
+ * useAuth — sessão segura de navegador para n.infraops
+ * O JWT permanece somente no cookie HttpOnly emitido pelo backend.
  */
 import { useState, useEffect, useCallback, createContext, useContext } from 'react';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
-const TOKEN_KEY = 'ninf_token';
 const OIDC_STATE_KEY = 'oidc_state';
 const OIDC_VERIFIER_KEY = 'oidc_code_verifier';
 
@@ -30,7 +29,6 @@ export interface User {
 
 interface AuthState {
   user: User | null;
-  token: string | null;
   loading: boolean;
 }
 
@@ -38,7 +36,7 @@ interface AuthContextValue extends AuthState {
   login: (email: string, password: string) => Promise<void>;
   loginWithSSO: () => void;
   exchangeCodeForToken: (code: string, returnedState: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   isAuthenticated: boolean;
   authHeader: () => Record<string, string>;
 }
@@ -49,31 +47,23 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<AuthState>({
     user: null,
-    token: localStorage.getItem(TOKEN_KEY),
     loading: true,
   });
 
-  // Verificar token existente no mount
+  // Recuperar a sessão existente sem expor o token ao JavaScript.
   useEffect(() => {
-    const token = localStorage.getItem(TOKEN_KEY);
-    if (!token) {
-      setState({ user: null, token: null, loading: false });
-      return;
-    }
     fetch(`${API_BASE}/api/auth/me`, {
-      headers: { Authorization: `Bearer ${token}` },
+      credentials: 'include',
     })
       .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then((user: User) => setState({ user, token, loading: false }))
-      .catch(() => {
-        localStorage.removeItem(TOKEN_KEY);
-        setState({ user: null, token: null, loading: false });
-      });
+      .then((user: User) => setState({ user, loading: false }))
+      .catch(() => setState({ user: null, loading: false }));
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
     const r = await fetch(`${API_BASE}/api/auth/login`, {
       method: 'POST',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
     });
@@ -82,8 +72,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw new Error(err.detail ?? 'Credenciais inválidas');
     }
     const data = await r.json();
-    localStorage.setItem(TOKEN_KEY, data.access_token);
-    setState({ user: data, token: data.access_token, loading: false });
+    setState({ user: data, loading: false });
   }, []);
 
   const loginWithSSO = useCallback(async () => {
@@ -111,6 +100,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const redirectUri = `${window.location.origin}/callback`;
     const r = await fetch(`${API_BASE}/api/auth/oidc/callback`, {
       method: 'POST',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ code, redirect_uri: redirectUri, code_verifier: codeVerifier }),
     });
@@ -121,23 +111,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     
     const data = await r.json();
-    localStorage.setItem(TOKEN_KEY, data.access_token);
-    setState({ user: data, token: data.access_token, loading: false });
+    setState({ user: data, loading: false });
   }, []);
 
-  const logout = useCallback(() => {
-    localStorage.removeItem(TOKEN_KEY);
-    setState({ user: null, token: null, loading: false });
-    
-    // Redirecionamento de saída do Authentik
-    const clientId = "hub-ness";
-    const postLogoutRedirectUri = encodeURIComponent(window.location.origin);
-    window.location.href = `https://sso.ness.com.br/application/o/hub/end-session/?client_id=${clientId}&post_logout_redirect_uri=${postLogoutRedirectUri}`;
+  const logout = useCallback(async () => {
+    setState({ user: null, loading: false });
+    try {
+      await fetch(`${API_BASE}/api/auth/logout`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+    } finally {
+      const clientId = "hub-ness";
+      const postLogoutRedirectUri = encodeURIComponent(window.location.origin);
+      window.location.href = `https://sso.ness.com.br/application/o/hub/end-session/?client_id=${clientId}&post_logout_redirect_uri=${postLogoutRedirectUri}`;
+    }
   }, []);
 
-  const authHeader = useCallback(() =>
-    state.token ? { Authorization: `Bearer ${state.token}` } : {},
-  [state.token]);
+  // Mantém a interface dos consumidores enquanto a autenticação via cookie
+  // é enviada automaticamente pelo navegador nas chamadas same-origin.
+  const authHeader = useCallback(() => ({}), []);
 
   return (
     <AuthContext.Provider

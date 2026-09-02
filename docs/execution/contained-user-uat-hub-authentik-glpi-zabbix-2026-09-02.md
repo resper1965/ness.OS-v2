@@ -20,7 +20,7 @@ O estado abaixo vem do repositório e deve ser confirmado pelo precheck; não é
 | Componente | Fluxo a testar | Estado documentado |
 | --- | --- | --- |
 | Authentik | identidade central, grupos e MFA | baseline de grupos existe; acesso externo exige aprovação e grupo próprio por aplicação |
-| Hub | OIDC authorization code + PKCE S256; JIT local | código e testes locais presentes; sessão ainda usa JWT em `localStorage`, portanto não promover para BYOD/produção sem gate de sessão seguro |
+| Hub | OIDC authorization code + PKCE S256; JIT local | implementação local usa cookie host-only `Secure`, `HttpOnly`, `SameSite=Strict`, valida `Origin` em mutações e não envia JWT ao JavaScript/SSE; ainda exige deploy e prova no navegador antes de promover |
 | GLPI 11.0.8 | `forward_auth` temporário + usuário preexistente/plugin | parcial; entidade, logout, revogação, spoofing de cabeçalho e acesso direto ainda precisam de prova |
 | Zabbix UAT | SAML; usuário preexistente | login ponta a ponta já observado; JIT/SCIM e SLO estão desligados; `zabbix-server` deve continuar `inactive/masked` |
 
@@ -56,6 +56,7 @@ Executar primeiro fora de qualquer sistema real, a partir da raiz do repositóri
 bash infra/tests/test-authentik-readiness.sh
 cd app/backend
 pytest -q \
+  tests/test_browser_session_security.py \
   tests/test_oidc_pkce.py \
   tests/test_authentik_rbac.py \
   tests/test_core_auth.py \
@@ -63,7 +64,7 @@ pytest -q \
   tests/test_dashboard_auth.py
 ```
 
-Baseline local em 2026-09-02: `authentik readiness static checks: PASS` e `41 passed`. Qualquer regressão é `NO-GO` antes do teste humano.
+Baseline local em 2026-09-02: `authentik readiness static checks: PASS` e `49 passed`. Qualquer regressão é `NO-GO` antes do teste humano.
 
 No runner autorizado de UAT, com `set +x` e credenciais injetadas pelo cofre sem impressão:
 
@@ -196,7 +197,7 @@ Declarar `GO` somente para a aplicação que cumprir todos os itens aplicáveis:
 
 É `NO-GO` imediato para a aplicação afetada se houver acesso cross-tenant, elevação de papel, header spoofing, callback OIDC aceito com `state`/PKCE inválido, usuário desativado obtendo nova sessão, ausência de recuperação administrativa, efeito real em ticket/monitoramento/notificação ou vazamento de segredo. Falha de logout/revogação, duplicata de identidade/perfil ou divergência entre grupo e papel também bloqueia promoção até correção ou exceção formal aprovada.
 
-O resultado global é `GO` apenas quando as quatro aplicações estão `GO`. Caso contrário, registrar `NO-GO parcial`, manter somente as aplicações já aprovadas e não ampliar público/tenant. Em particular, a sessão do Hub em `localStorage`, a ausência de SLO do Zabbix e o `forward_auth` temporário do GLPI são gates explícitos a observar, não itens implicitamente aceitos.
+O resultado global é `GO` apenas quando as quatro aplicações estão `GO`. Caso contrário, registrar `NO-GO parcial`, manter somente as aplicações já aprovadas e não ampliar público/tenant. Em particular, a sessão segura do Hub precisa ser comprovada após deploy (atributos do cookie, ausência de token na URL/armazenamento e logout), enquanto a ausência de SLO do Zabbix e o `forward_auth` temporário do GLPI continuam gates explícitos a observar, não itens implicitamente aceitos.
 
 ## Rollback e encerramento (máximo 15 minutos)
 

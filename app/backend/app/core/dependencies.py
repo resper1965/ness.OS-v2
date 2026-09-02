@@ -14,13 +14,14 @@ Exemplos:
 
 from __future__ import annotations
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.jwt import verify_token
+from app.core.session import SESSION_COOKIE_NAME, require_trusted_origin
 from app.database import get_db
 from app.models.users import User, UserRole
 
@@ -62,18 +63,26 @@ def resolve_tenant_scope(user: User, requested_tenant_id: str | None) -> str | N
 
 
 async def get_current_user(
+    request: Request,
     credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
     db: AsyncSession = Depends(get_db),
 ) -> User:
-    """Dependency base: valida Bearer JWT e retorna o User. Levanta 401 se inválido."""
-    if not credentials:
+    """Validate a Bearer token or the Hub's HttpOnly session cookie."""
+    token: str | None
+    if credentials is not None:
+        token = credentials.credentials
+    else:
+        token = request.cookies.get(SESSION_COOKIE_NAME)
+        if token:
+            require_trusted_origin(request)
+    if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token de autenticacao ausente",
             headers={"WWW-Authenticate": "Bearer"},
         )
     try:
-        payload = verify_token(credentials.credentials)
+        payload = verify_token(token)
         user_id = int(payload["sub"])
     except (JWTError, KeyError, ValueError):
         raise HTTPException(
