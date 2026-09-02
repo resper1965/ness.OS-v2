@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     # --- Zabbix API ---
     zabbix_url: str = "https://zabbix.ness.com.br/api_jsonrpc.php"
     zabbix_api_token: str = ""
+    zabbix_verify_cert: bool = True
 
     # --- Gemini API ---
     gemini_api_key: str = ""
