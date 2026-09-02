@@ -53,6 +53,8 @@ Antes de iniciar, garanta que o servidor possui os seguintes requisitos instalad
    - `NINF_EVOLUTION_API_KEY` e `NINF_WHATSAPP_NOC_GROUP_ID`: Credenciais do WhatsApp.
    - `NINF_AUTHENTIK_SECRET_KEY`: Segredo criptograficamente aleatório do Authentik.
    - `NINF_GLPI_DB_ROOT_PASSWORD` e `NINF_GLPI_DB_PASSWORD`: Credenciais exclusivas do MariaDB/GLPI.
+   - `NINF_DASHBOARD_BASE_URL=https://hub.ness.com.br`: origem autorizada para mutações da sessão do Hub.
+   - `NINF_SESSION_COOKIE_SECURE=true`: obrigatório em produção; use `false` somente no desenvolvimento local sem HTTPS.
 
    Não dependa de valores padrão presentes nos arquivos Compose. Em produção, todas as variáveis de segredo devem estar explicitamente definidas e armazenadas fora do Git.
 
@@ -95,6 +97,25 @@ Antes de iniciar, garanta que o servidor possui os seguintes requisitos instalad
 ---
 
 ## Passo 4: Verificação da API e Saúde
+
+Antes do deploy, execute o gate estático, que não abre conexões de rede:
+
+```bash
+bash infra/scripts/hub-session-readiness.sh
+```
+
+Após o deploy, o facilitador pode executar a prova contida com uma conta UAT
+descartável. As variáveis devem ser injetadas pelo cofre/runner, com `set +x`; não
+digite a senha na linha de comando e não preserve o diretório temporário do script:
+
+```bash
+HUB_SESSION_EXECUTE=1 \
+  bash infra/scripts/hub-session-readiness.sh --execute-contained
+```
+
+O gate confirma login por cookie, atributos seguros, `/me`, SSE sem token na URL,
+logout e rejeição da sessão encerrada. Ele não cria objetos operacionais nem acessa
+Zabbix, GLPI ou KVM8.
 
 1. Faça uma requisição para o endpoint de health check da API:
    ```bash

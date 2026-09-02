@@ -54,6 +54,7 @@ Executar primeiro fora de qualquer sistema real, a partir da raiz do repositóri
 
 ```bash
 bash infra/tests/test-authentik-readiness.sh
+bash infra/scripts/hub-session-readiness.sh
 cd app/backend
 pytest -q \
   tests/test_browser_session_security.py \
@@ -64,7 +65,7 @@ pytest -q \
   tests/test_dashboard_auth.py
 ```
 
-Baseline local em 2026-09-02: `authentik readiness static checks: PASS` e `49 passed`. Qualquer regressão é `NO-GO` antes do teste humano.
+Baseline local em 2026-09-02: gates estáticos de Authentik e sessão do Hub em `PASS`, além de `49 passed`. Qualquer regressão é `NO-GO` antes do teste humano.
 
 No runner autorizado de UAT, com `set +x` e credenciais injetadas pelo cofre sem impressão:
 
@@ -73,6 +74,11 @@ RUN_ID="$(date +%Y%m%dT%H%M%S%z)"
 export AUTHENTIK_URL='https://sso.ness.com.br'
 # AUTHENTIK_TOKEN deve ser injetado pelo runner, nunca digitado na linha de comando.
 bash infra/scripts/authentik-readiness-report.sh > "authentik-readiness-${RUN_ID}.txt"
+
+# Conta UAT descartável e segredo devem vir do cofre/runner.
+HUB_SESSION_EXECUTE=1 \
+  bash infra/scripts/hub-session-readiness.sh --execute-contained \
+  > "hub-session-readiness-${RUN_ID}.txt"
 
 for url in \
   'https://sso.ness.com.br/-/health/live/' \

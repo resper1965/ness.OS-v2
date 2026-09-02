@@ -17,6 +17,8 @@ services:
     environment:
       # JWT secret fixo — tokens sobrevivem restarts do container
       NINF_JWT_SECRET: ${NINF_JWT_SECRET:?NINF_JWT_SECRET is required}
+      NINF_DASHBOARD_BASE_URL: ${NINF_DASHBOARD_BASE_URL:-https://hub.ness.com.br}
+      NINF_SESSION_COOKIE_SECURE: ${NINF_SESSION_COOKIE_SECURE:-true}
     volumes:
       - ./backend/app:/app/app:ro   # bind-mount: codigo atualizado sem rebuild
     depends_on:
@@ -183,14 +185,12 @@ services:
     depends_on:
       - evolution-api
 
-  # --- Frontend (Next.js/React App) ---
+  # --- Frontend (React/Vite, API same-origin via Caddy) ---
   frontend:
     build:
       context: ./frontend
     container_name: ninf-frontend
     restart: unless-stopped
-    environment:
-      - VITE_API_URL=http://localhost:8000
     depends_on:
       - api
     networks:
