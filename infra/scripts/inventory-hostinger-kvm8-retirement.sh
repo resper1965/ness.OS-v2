@@ -2,6 +2,12 @@
 # Fail-closed, read-only retirement inventory for the temporary Hostinger KVM8.
 set -Eeuo pipefail
 
+retired_asset_guard() {
+  echo "ERROR: Hostinger KVM8 retired and outside the authorized asset scope" >&2
+  exit 64
+}
+retired_asset_guard
+
 readonly TARGET_HOST="148.230.77.242"
 readonly TARGET_PORT="22"
 readonly TARGET_USER="ness_admin"

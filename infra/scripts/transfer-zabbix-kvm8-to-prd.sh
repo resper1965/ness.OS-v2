@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+retired_asset_guard() {
+  echo "ERROR: Hostinger KVM8 retired and outside the authorized asset scope" >&2
+  exit 64
+}
+retired_asset_guard
+
 readonly SOURCE_HOST="${SOURCE_HOST:-148.230.77.242}"
 readonly SOURCE_USER="${SOURCE_USER:-ness_admin}"
 readonly SOURCE_KEY="${SOURCE_KEY:-/home/resper/.ssh/ness_os_hostinger_kvm8}"
