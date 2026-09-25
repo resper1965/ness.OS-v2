@@ -18,7 +18,7 @@ escopo.
 
 ## Ações necessárias para reavaliar
 
-1. Na janela, listar o repositório existente (não executar `init`), revisar orget --dry-run com a política configurada, instalar o script revisado e deixar Persistent=true disparar um único catch-up. Verificar snapshot, estic check, restauração isolada e checksums do conjunto local atual.
+1. Na janela, listar o repositório existente (não executar `init`), revisar `forget --dry-run` com a política configurada, instalar o script revisado e deixar `Persistent=true` disparar um único catch-up. Verificar snapshot, `restic check`, restauração isolada e checksums do conjunto local atual.
 2. Revisar e agrupar as mudanças pendentes por domínio; comparar todos os hashes
    e imagens reais com a versão consolidada, publicar imagens próprias com digest
    imutável e ensaiar rollback.
