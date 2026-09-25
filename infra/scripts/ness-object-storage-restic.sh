@@ -100,10 +100,9 @@ mapfile -t completed_sets < <(
 readonly backup_set="${completed_sets[-1]}"
 [[ -f "${backup_set}/SHA256SUMS" ]] || \
   fail "completed set has no SHA256SUMS: ${backup_set}"
-if [[ "${dataset}" == aiops ]]; then
-  command -v python3 >/dev/null || fail "missing command: python3"
-  [[ -f "${backup_set}/backup-set-manifest.json" ]] || \
-    fail "AIOps backup set has no backup-set-manifest.json: ${backup_set}"
+command -v python3 >/dev/null || fail "missing command: python3"
+[[ -f "${backup_set}/backup-set-manifest.json" ]] || \
+  fail "backup set has no backup-set-manifest.json: ${backup_set}"
 readonly backup_set_id="$(python3 - "${backup_set}/backup-set-manifest.json" <<'PY'
 import json, sys
 with open(sys.argv[1], encoding="utf-8") as manifest:
@@ -116,16 +115,9 @@ PY
   fail "manifest backup_set_id does not match local set directory"
 grep -Fq -- './backup-set-manifest.json' "${backup_set}/SHA256SUMS" || \
   fail "backup_set_id manifest is absent from SHA256SUMS"
-  readonly set_tag="ness-backup-set-${backup_set_id}"
-else
-  readonly backup_set_id="$(basename "${backup_set}")"
-fi
+readonly set_tag="ness-backup-set-${backup_set_id}"
 
-if [[ "${dataset}" == aiops ]]; then
-  (cd "${backup_set}" && sha256sum -c SHA256SUMS)
-else
-  sha256sum -c "${backup_set}/SHA256SUMS"
-fi
+(cd "${backup_set}" && sha256sum -c SHA256SUMS)
 
 # A repository is initialized deliberately with the 'init' action. Any other
 # repository/authentication/network failure stops the scheduled copy closed.
@@ -133,19 +125,11 @@ restic --retry-lock 30m cat config >/dev/null
 
 (
   cd "${backup_set}"
-  if [[ "${dataset}" == aiops ]]; then
-    restic --retry-lock 30m backup \
-      --host "${NESS_BACKUP_HOST_ID}" \
-      --tag "${snapshot_tag}" \
-      --tag "${set_tag}" \
-      .
-  else
-    restic --retry-lock 30m backup \
-      --host "${NESS_BACKUP_HOST_ID}" \
-      --tag "${snapshot_tag}" \
-      --skip-if-unchanged \
-      .
-  fi
+  restic --retry-lock 30m backup \
+    --host "${NESS_BACKUP_HOST_ID}" \
+    --tag "${snapshot_tag}" \
+    --tag "${set_tag}" \
+    .
 )
 
 restic --retry-lock 30m check \
@@ -161,16 +145,8 @@ restic --retry-lock 30m forget \
   --prune
 
 restic --retry-lock 30m check
-if [[ "${dataset}" == aiops ]]; then
-  restic snapshots \
-    --host "${NESS_BACKUP_HOST_ID}" \
-    --tag "${snapshot_tag},${set_tag}" \
-    --latest 1
-  echo "Object-storage backup verified: dataset=${dataset} backup_set_id=${backup_set_id}"
-else
-  restic snapshots \
-    --host "${NESS_BACKUP_HOST_ID}" \
-    --tag "${snapshot_tag}" \
-    --latest 1
-  echo "Object-storage backup verified: dataset=${dataset} set=${backup_set_id}"
-fi
+restic snapshots \
+  --host "${NESS_BACKUP_HOST_ID}" \
+  --tag "${snapshot_tag},${set_tag}" \
+  --latest 1
+echo "Object-storage backup verified: dataset=${dataset} backup_set_id=${backup_set_id}"

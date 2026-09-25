@@ -6,7 +6,7 @@ Description=Copy the completed Zabbix backup to Object Storage after the local b
 # uploading yesterday's backup while today's dump is still running.
 OnCalendar=*-*-* 05:30:00 America/Sao_Paulo
 Persistent=true
-AccuracySec=5min
+AccuracySec=1min
 Unit=ness-zabbix-object-storage-backup.service
 
 [Install]
