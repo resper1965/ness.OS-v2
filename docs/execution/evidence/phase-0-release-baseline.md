@@ -42,6 +42,11 @@ ser regenerado após reconciliar e revisar as mudanças locais.
   por digest no runtime.
 - O Compose Psono foi identificado em `/opt/ness-os-psono/docker-compose.yml`.
   O Psono tem timer local de backup e timer de verificação de restauração ativos.
+- Restauração isolada Psono executada em `2026-09-25 18:04:13–18:04:53 -03`, a
+  partir do snapshot do conjunto `20260925T013239-0300`: checksums aprovados,
+  51 tabelas restauradas, endpoint HTTP 200, assinatura válida e chave pública
+  correspondente. Containers/volume temporários foram limpos e produção ficou
+  saudável.
 - Zabbix canônico usa MariaDB `10.11.18-MariaDB`. O comando `docker` não está
   instalado nesse host, consistente com a implantação nativa usada pelo teste de
   restauração isolada. `ness-zabbix-backup.timer` está habilitado. A execução
