@@ -39,9 +39,10 @@ e revisar as mudanças locais.
   O Psono tem timer local de backup e timer de verificação de restauração ativos.
 - Zabbix canônico usa MariaDB `10.11.18-MariaDB`. O comando `docker` não está
   instalado nesse host, consistente com a implantação nativa usada pelo teste de
-  restauração isolada. `ness-zabbix-backup.timer` está habilitado; sua execução
-  de 2026-09-25 16:23 -03 ainda estava ativa às 16:33, sem horário de término
-  disponível nessa consulta.
+  restauração isolada. `ness-zabbix-backup.timer` está habilitado. A execução
+  catch-up de 16:23 -03 terminou às 17:02:33 com sucesso; o conjunto
+  `20260925T162305-0300` teve os sete checksums aprovados e os serviços
+  registrados ativos antes e depois. Próxima execução: 22:00 -03.
 - `ness-zabbix-object-storage-backup.timer` está desabilitado. Portanto não há
   snapshot externo recente do Zabbix comprovado nesta evidência. Não habilite o
   timer até resolver a rotação pendente das credenciais do object storage e
@@ -58,8 +59,8 @@ e revisar as mudanças locais.
 2. Publicar e fixar por digest as imagens próprias do projeto.
 3. Coletar e comparar hashes executáveis completos da produção com uma revisão
    consolidada do repositório.
-4. Concluir uma execução de backup local Zabbix, exportar e verificar o conjunto
-   correspondente no object storage depois da rotação autorizada das credenciais.
+4. Exportar e verificar no object storage o conjunto Zabbix atual
+   `20260925T162305-0300` depois da rotação autorizada das credenciais.
 5. Reconciliar o estado do destino Zabbix `169.58.234.9` antes de qualquer
    cutover; esta evidência não o promove a origem canônica.
 
