@@ -18,6 +18,7 @@ NINF_EVOLUTION_API_KEY=runner-secret-evolution
 NINF_GLPI_DB_PASSWORD=runner-secret-glpi-db
 NINF_GLPI_DB_ROOT_PASSWORD=runner-secret-glpi-root
 NINF_JWT_SECRET=runner-secret-jwt
+NINF_RESEND_API_KEY=runner-secret-resend
 NINF_ZABBIX_API_TOKEN=runner-secret-zabbix
 NINF_GLPI_APP_TOKEN=runner-secret-glpi-app
 NINF_GLPI_USER_TOKEN=runner-secret-glpi-user
@@ -66,7 +67,10 @@ run_isolated() {
 }
 
 assert_no_secrets() {
-  ! grep -q 'runner-secret-' <<<"$1"
+  if grep -q 'runner-secret-' <<<"$1"; then
+    echo 'readiness output exposed a test secret' >&2
+    return 1
+  fi
 }
 
 bash -n "${runner}"
@@ -77,7 +81,10 @@ grep -q '^probe_static_validation=PASS$' <<<"${static_output}"
 grep -q '^probes_executed=0$' <<<"${static_output}"
 grep -q '^AIOps runtime readiness: PASS (static)$' <<<"${static_output}"
 assert_no_secrets "${static_output}"
-! grep -q ' exec ' "${docker_log}"
+if grep -q ' exec ' "${docker_log}"; then
+  echo 'static readiness executed a container command' >&2
+  exit 1
+fi
 
 if guard_output="$(run_isolated bash "${runner}" --env-file "${env_file}" --execute-read-only 2>&1)"; then
   echo 'runner unexpectedly executed probes without the environment guard' >&2
@@ -85,7 +92,10 @@ if guard_output="$(run_isolated bash "${runner}" --env-file "${env_file}" --exec
 fi
 grep -q 'live probes require AIOPS_READONLY_EXECUTE=1' <<<"${guard_output}"
 assert_no_secrets "${guard_output}"
-! grep -q ' exec ' "${docker_log}"
+if grep -q ' exec ' "${docker_log}"; then
+  echo 'guarded readiness executed a container command' >&2
+  exit 1
+fi
 
 live_output="$(run_isolated env AIOPS_READONLY_EXECUTE=1 bash "${runner}" --env-file "${env_file}" --execute-read-only 2>&1)"
 grep -q '^zabbix_readiness=PASS writes=0$' <<<"${live_output}"
@@ -95,7 +105,10 @@ grep -q '^AIOps runtime readiness: PASS (live read-only)$' <<<"${live_output}"
 assert_no_secrets "${live_output}"
 grep -q 'exec -T api python -m app.integrations.zabbix_readiness' "${docker_log}"
 grep -q 'exec -T api python -m app.integrations.glpi_readiness' "${docker_log}"
-! grep -Eq '(^| )(up|start|run|create|pull|restart|down|rm|stop|kill)( |$)' "${docker_log}"
+if grep -Eq '(^| )(up|start|run|create|pull|restart|down|rm|stop|kill)( |$)' "${docker_log}"; then
+  echo 'read-only readiness executed a mutating Docker command' >&2
+  exit 1
+fi
 
 if bad_output="$(run_isolated env AIOPS_TEST_ZABBIX_OUTPUT=runner-secret-zabbix AIOPS_READONLY_EXECUTE=1 bash "${runner}" --env-file "${env_file}" --execute-read-only 2>&1)"; then
   echo 'runner unexpectedly accepted malformed probe output' >&2

@@ -1,0 +1,10 @@
+[Unit]
+Description=Reconcile existing GLPI assets into ness.OS hub
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/ness-hub-cmdb-sync
+TimeoutStartSec=300
+UMask=0077

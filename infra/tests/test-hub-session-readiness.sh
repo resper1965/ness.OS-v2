@@ -33,7 +33,10 @@ if guard_output="$(env -u HUB_SESSION_EXECUTE \
   exit 1
 fi
 grep -q 'contained probe requires HUB_SESSION_EXECUTE=1' <<<"${guard_output}"
-! grep -q 'not-a-real-secret' <<<"${guard_output}"
+if grep -q 'not-a-real-secret' <<<"${guard_output}"; then
+  echo 'guard output exposed the supplied test secret' >&2
+  exit 1
+fi
 [[ ! -e "${curl_log}" ]]
 
 printf 'Hub session readiness runner checks: PASS\n'
