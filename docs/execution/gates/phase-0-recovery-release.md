@@ -14,7 +14,7 @@ escopo.
 | Restaurações isoladas Hub, Zabbix e Psono | FAIL | Hub e Zabbix passaram. A última validação isolada Psono ocorreu em 20/09 e não está associada ao backup Psono atual de 25/09. |
 | Timers habilitados, última execução aprovada e próxima execução | FAIL | Timers Hub/Psono estão ativos. O backup local Zabbix catch-up terminou com sucesso e o próximo está marcado para 22:00; o timer externo Zabbix continua desabilitado. |
 | Produção ligada a commit e imagens imutáveis; rollback ensaiado | FAIL | A árvore contém mudanças pendentes; API/frontend/workers não têm digest publicado; 41 arquivos backend, Compose Hub e Caddy Psono divergem dos arquivos locais. Há 71 arquivos sem hash de produção e não há ensaio de rollback associado à release. Consulte `../evidence/phase-0-production-manifest.json`. |
-| `git diff --check` e testes desta fase | FAIL | Os cinco testes do manifesto passaram e os arquivos staged da Task 4 passaram no diff check. A árvore completa ainda acusa whitespace em `infra/tests/test-object-storage-restic-tooling.sh:76`; as demais mudanças preexistentes não foram consolidadas nem testadas como grupos. |
+| `git diff --check` e testes desta fase | PASS | `git diff --check` na árvore completa terminou com código zero. Os seis testes do manifesto, testes de backup/Restic/Zabbix/AIOps/Auth/Hub/Psono e verificações `bash -n` passaram. Os testes de grupos backend ainda pendentes não alteram este resultado de escopo da Fase 0; eles continuam bloqueando CI/reconciliação ampla. |
 
 ## Ações necessárias para reavaliar
 
@@ -24,8 +24,8 @@ escopo.
 3. Revisar e agrupar as mudanças pendentes por domínio; comparar todos os hashes
    e imagens reais com a versão consolidada, publicar imagens próprias com digest
    imutável e ensaiar rollback.
-4. Corrigir o whitespace apontado, executar os testes e CI aplicáveis, confirmar
-   árvore limpa e só então reavaliar o gate.
+4. Executar o CI dos grupos pendentes, consolidar os arquivos por domínio e
+   confirmar árvore limpa antes de reavaliar o gate.
 
 Nenhum corte para `169.58.234.9`, tag de release ou trabalho dependente está
 autorizado por este resultado.
