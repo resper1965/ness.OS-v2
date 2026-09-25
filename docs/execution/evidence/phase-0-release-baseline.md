@@ -32,6 +32,11 @@ e revisar as mudanças locais.
   `app-frontend` e `app-worker-*`); os IDs de imagem observados não são digests de
   release publicados. O Compose em produção foi identificado em
   `/opt/n-infraops/app/docker-compose.yml`.
+- O código Python montado do host para o Hub teve hashes coletados para 75
+  arquivos. 41 divergem do workspace local. A comparação também encontrou
+  divergências no Compose do Hub e no Caddy do Psono; 71 outros arquivos
+  implantados ainda não têm hash de produção coletado. O manifesto lista cada
+  caminho divergente e cada caminho não observado.
 - Postgres/Timescale, Redis, Evolution API/Manager, Authentik, Caddy, GLPI e Psono
   estavam ativos na coleta. As imagens externas inspecionadas estavam fixadas
   por digest no runtime.
@@ -57,8 +62,8 @@ e revisar as mudanças locais.
 1. Consolidar os arquivos locais e confirmar o commit de release; há mudanças
    preexistentes na árvore que não foram agrupadas nem revisadas nesta evidência.
 2. Publicar e fixar por digest as imagens próprias do projeto.
-3. Coletar e comparar hashes executáveis completos da produção com uma revisão
-   consolidada do repositório.
+3. Revisar os 41 arquivos de backend divergentes e coletar hashes de produção
+   para os 71 arquivos implantados que ainda não foram observados.
 4. Exportar e verificar no object storage o conjunto Zabbix atual
    `20260925T162305-0300` depois da rotação autorizada das credenciais.
 5. Reconciliar o estado do destino Zabbix `169.58.234.9` antes de qualquer

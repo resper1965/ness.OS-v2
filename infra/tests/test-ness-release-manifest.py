@@ -75,6 +75,22 @@ def test_git_state_reports_clean_then_dirty_repository(tmp_path: Path) -> None:
     assert dirty["git_dirty"] is True
 
 
+def test_hashes_cover_source_mounted_into_production_containers(tmp_path: Path) -> None:
+    root = write_fixture_repo(
+        tmp_path / "repo",
+        "services:\n  db:\n    image: postgres:17@sha256:" + "a" * 64 + "\n",
+    )
+    source = root / "app/backend/app/main.py"
+    source.parent.mkdir(parents=True)
+    source.write_text("app_version = 'fixture'\n", encoding="utf-8")
+    initialize_git(root)
+
+    manifest = generate(root, tmp_path / "manifest.json")
+
+    expected_hash = hashlib.sha256(source.read_bytes()).hexdigest()
+    assert manifest["deployed_file_hashes"]["app/backend/app/main.py"] == expected_hash
+
+
 def test_unpinned_image_is_reported_as_a_release_blocker(tmp_path: Path) -> None:
     root = write_fixture_repo(
         tmp_path / "repo",

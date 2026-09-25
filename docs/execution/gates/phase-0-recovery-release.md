@@ -13,7 +13,7 @@ escopo.
 | Cópia externa correspondente aos conjuntos atuais | FAIL | Hub tem snapshot Restic verificado ligado a `20260925T122220-0300`; snapshot do Zabbix não foi comprovado. Timer externo do Zabbix está desabilitado. |
 | Restaurações isoladas Hub, Zabbix e Psono | FAIL | Hub e Zabbix passaram. A última validação isolada Psono ocorreu em 20/09 e não está associada ao backup Psono atual de 25/09. |
 | Timers habilitados, última execução aprovada e próxima execução | FAIL | Timers Hub/Psono estão ativos. O backup local Zabbix catch-up terminou com sucesso e o próximo está marcado para 22:00; o timer externo Zabbix continua desabilitado. |
-| Produção ligada a commit e imagens imutáveis; rollback ensaiado | FAIL | A árvore contém mudanças pendentes; API/frontend/workers não têm digest publicado; Compose Hub e Caddy Psono divergem. Não há ensaio de rollback associado à release. Consulte `../evidence/phase-0-production-manifest.json`. |
+| Produção ligada a commit e imagens imutáveis; rollback ensaiado | FAIL | A árvore contém mudanças pendentes; API/frontend/workers não têm digest publicado; 41 arquivos backend, Compose Hub e Caddy Psono divergem dos arquivos locais. Há 71 arquivos sem hash de produção e não há ensaio de rollback associado à release. Consulte `../evidence/phase-0-production-manifest.json`. |
 | `git diff --check` e testes desta fase | FAIL | Os cinco testes do manifesto passaram e os arquivos staged da Task 4 passaram no diff check. A árvore completa ainda acusa whitespace em `infra/tests/test-object-storage-restic-tooling.sh:76`; as demais mudanças preexistentes não foram consolidadas nem testadas como grupos. |
 
 ## Ações necessárias para reavaliar

@@ -21,6 +21,14 @@ VERSION_KEYS = ("zabbix_version", "mariadb_version", "php_version", "wazuh_versi
 DEPLOYED_NAMES = {
     "app/docker-compose.yml",
     "app/Caddyfile",
+    "app/backend/Dockerfile",
+    "app/backend/requirements.txt",
+    "app/backend/pyproject.toml",
+    "app/backend/postgresql.conf",
+    "app/frontend/package.json",
+    "app/frontend/package-lock.json",
+    "app/frontend/index.html",
+    "app/frontend/vite.config.ts",
     "infra/psono/docker-compose.yml",
     "infra/psono/Caddyfile",
     "infra/scripts/aiops-nightly-backup.sh",
@@ -30,6 +38,13 @@ DEPLOYED_NAMES = {
     "infra/scripts/zabbix-isolated-restore-test.sh",
     "infra/scripts/verify-zabbix-restic-restore.sh",
 }
+DEPLOYED_TREE_ROOTS = (
+    "app/backend/app",
+    "app/backend/sql",
+    "app/frontend/src",
+    "app/frontend/public",
+    "infra/psono/branding",
+)
 
 
 def run_git(root: Path, *args: str) -> str:
@@ -134,6 +149,18 @@ def deployed_paths(root: Path, compose: list[Path]) -> list[Path]:
         path = root / relative
         if path.is_file():
             selected.add(path)
+
+    for relative in DEPLOYED_TREE_ROOTS:
+        tree = root / relative
+        if tree.is_dir():
+            selected.update(
+                path
+                for path in tree.rglob("*")
+                if path.is_file()
+                and "__pycache__" not in path.parts
+                and path.suffix != ".pyc"
+                and not path.name.startswith(".env")
+            )
 
     for units_root in (root / "infra/systemd", root / "infra/psono/systemd"):
         if units_root.is_dir():
