@@ -53,13 +53,16 @@ const MODULES: ModuleDef[] = [
 ];
 
 export default function ModuleSwitcher({
-  active, onChange, showPricing = false,
+  active, onChange, showPricing = false, scoped = false,
 }: {
   active: NessModule;
   onChange: (mod: NessModule) => void;
   showPricing?: boolean;
+  scoped?: boolean;
 }) {
-  const visibleModules = showPricing ? MODULES : MODULES.filter((module) => module.id !== 'pricing');
+  const visibleModules = MODULES.filter((module) =>
+    module.id === 'pricing' ? showPricing : !scoped || module.id === 'infraops'
+  );
   return (
     <div
       className="flex items-center gap-1 px-2 py-1.5 rounded-2xl border"

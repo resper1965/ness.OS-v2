@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Shield, ShieldAlert, ShieldCheck, ShieldX,
   AlertTriangle, CheckCircle2, XCircle, Clock,

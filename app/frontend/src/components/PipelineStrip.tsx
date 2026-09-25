@@ -2,14 +2,14 @@ import React from 'react';
 import { Zap, Cpu, GitBranch, Ticket, MessageCircle, CheckCircle2, AlertCircle, Minus } from 'lucide-react';
 
 interface NodeStatus {
-  status: 'ok' | 'error' | 'unconfigured';
+  status: 'ok' | 'error' | 'unconfigured' | 'degraded' | 'disabled';
   detail?: string;
 }
 
 interface PipelineData {
   zabbix?:      NodeStatus;
   workers?:     NodeStatus;
-  n8n?:         NodeStatus;
+  delivery?:    NodeStatus;
   deskmanager?: NodeStatus;
   whatsapp?:    NodeStatus;
 }
@@ -21,8 +21,8 @@ const NODES: {
   description: string;
 }[] = [
   { key: 'zabbix',      label: 'Monitoramento', icon: Zap,           description: 'Coleta de alertas' },
-  { key: 'workers',     label: 'Processamento',  icon: Cpu,           description: 'Processamento IA' },
-  { key: 'n8n',         label: 'Orquestração',   icon: GitBranch,     description: 'Automação' },
+  { key: 'workers',     label: 'Processamento',  icon: Cpu,           description: 'Workers e filas de incidentes' },
+  { key: 'delivery',    label: 'Entregas',       icon: GitBranch,     description: 'Tickets e resoluções pendentes' },
   { key: 'deskmanager', label: 'Helpdesk',        icon: Ticket,        description: 'Abertura de ticket' },
   { key: 'whatsapp',    label: 'Mensageria',      icon: MessageCircle, description: 'Notificação' },
 ];
@@ -39,7 +39,8 @@ function PipelineNode({
   label: string; description: string; icon: React.ElementType;
   data?: NodeStatus; isLast: boolean;
 }) {
-  const st = data?.status ?? 'unconfigured';
+  const rawStatus = data?.status ?? 'unconfigured';
+  const st = rawStatus === 'disabled' ? 'unconfigured' : rawStatus === 'degraded' ? 'error' : rawStatus;
 
   const styles = {
     ok:           { ring: 'ring-emerald-500/30', bg: 'bg-emerald-500/10', icon: 'text-emerald-400', text: 'text-emerald-400', dot: 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]' },
@@ -105,8 +106,8 @@ export default function PipelineStrip({
   data, loading,
 }: { data: PipelineData | null; loading: boolean }) {
 
-  const allOk = data && Object.values(data).every(n => n?.status === 'ok');
-  const hasError = data && Object.values(data).some(n => n?.status === 'error');
+  const allOk = data && NODES.every(n => ['ok', 'disabled'].includes(data[n.key]?.status ?? ''));
+  const hasError = data && NODES.some(n => ['error', 'degraded'].includes(data[n.key]?.status ?? ''));
 
   return (
     <div className="
@@ -117,7 +118,7 @@ export default function PipelineStrip({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[var(--color-brand-muted)]">
-            Pipeline AIOps
+            Fluxo de incidentes
           </span>
           {!loading && data && (
             <span className={`text-[9px] font-semibold px-2 py-0.5 rounded-full

@@ -242,8 +242,9 @@ function AppShellBody({ AUTH, logout, user }: {
   logout: () => Promise<void>;
   user: import('./hooks/useAuth').User | null;
 }) {
-  const [activeModule, setActiveModule] = useState<NessModule>('core');
-  const [currentView, setCurrentView] = useState<View>('dashboard');
+  const isOperator = ['platform_admin', 'admin', 'noc', 'soc'].includes(user?.role ?? '');
+  const [activeModule, setActiveModule] = useState<NessModule>(isOperator ? 'core' : 'infraops');
+  const [currentView, setCurrentView] = useState<View>(isOperator ? 'dashboard' : 'incidents');
   const [selectedTenant, setSelectedTenant] = useState<string | null>(null);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [problems, setProblems] = useState<Problem[]>([]);
@@ -257,6 +258,11 @@ function AppShellBody({ AUTH, logout, user }: {
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
 
   const fetchData = useCallback(async () => {
+    if (!isOperator) {
+      setLoading(false);
+      setPipelineLoading(false);
+      return;
+    }
     try {
       const query = selectedTenant ? `?customer_id=${selectedTenant}` : '';
       const [summaryRes, problemsRes, pipelineRes] = await Promise.all([
@@ -276,21 +282,23 @@ function AppShellBody({ AUTH, logout, user }: {
       setLoading(false);
       setPipelineLoading(false);
     }
-  }, [AUTH, selectedTenant]);
+  }, [AUTH, selectedTenant, isOperator]);
 
   const fetchIncidents = useCallback(async () => {
     setIncidentsLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/incidents?limit=20`, { headers: AUTH });
+      const scope = isOperator && selectedTenant ? `&tenant_id=${encodeURIComponent(selectedTenant.trim().toLowerCase())}` : '';
+      const res = await fetch(`${API_BASE}/api/incidents?limit=20${scope}`, { headers: AUTH });
       if (!res.ok) throw new Error();
       setIncidents((await res.json()).incidents || []);
       setIncidentsError(null);
+      if (!isOperator) setLastUpdate(new Date());
     } catch {
       setIncidentsError('Não foi possível carregar incidentes');
     } finally {
       setIncidentsLoading(false);
     }
-  }, [AUTH]);
+  }, [AUTH, selectedTenant, isOperator]);
 
   useEffect(() => {
     fetchData();
@@ -312,6 +320,7 @@ function AppShellBody({ AUTH, logout, user }: {
     eventSource.addEventListener('incident', (event) => {
       try {
         const newIncident = JSON.parse(event.data);
+        if (selectedTenant && newIncident.tenant_id !== selectedTenant.trim().toLowerCase()) return;
         console.log('Novo incidente recebido via SSE:', newIncident);
 
         // 1. Atualizar lista de incidentes
@@ -343,10 +352,11 @@ function AppShellBody({ AUTH, logout, user }: {
     return () => {
       eventSource.close();
     };
-  }, [user, fetchData]);
+  }, [user, fetchData, selectedTenant]);
 
   const hasCritical = summary && summary.problems_critical > 0;
   const canAccessPricing = user?.role === 'platform_admin' || user?.role === 'admin' || user?.role === 'gestao';
+  const connectionError = isOperator ? error : incidentsError;
 
   return (
     <div className="min-h-screen bg-[var(--color-brand-base)] text-[var(--color-brand-text)] flex">
@@ -361,7 +371,7 @@ function AppShellBody({ AUTH, logout, user }: {
         </div>
 
         <div className="px-2">
-          <TenantSelector selectedTenant={selectedTenant} onSelect={setSelectedTenant} />
+          {isOperator ? <TenantSelector selectedTenant={selectedTenant} onSelect={setSelectedTenant} /> : <p className="text-xs text-white/60">Minha empresa</p>}
         </div>
 
         <nav className="flex flex-col gap-1 flex-1" aria-label="Navegação principal">
@@ -369,9 +379,9 @@ function AppShellBody({ AUTH, logout, user }: {
           <p className="px-3 mb-1 text-[9px] font-semibold uppercase tracking-[0.15em] text-white/20 select-none">
             Principal
           </p>
-          <SidebarItem icon={Activity}    label="Dashboard"       active={currentView === 'dashboard'} onClick={() => setCurrentView('dashboard')} />
-          <SidebarItem icon={Cloud}       label="Nuvem"          active={currentView === 'cloud'}     onClick={() => setCurrentView('cloud')} />
-          <SidebarItem icon={ShieldAlert} label="Incidentes"      active={currentView === 'incidents'} onClick={() => setCurrentView('incidents')} />
+          {isOperator && <SidebarItem icon={Activity} label="Dashboard" active={activeModule === 'infraops' && currentView === 'dashboard'} onClick={() => { setActiveModule('infraops'); setCurrentView('dashboard'); }} />}
+          {isOperator && <SidebarItem icon={Cloud} label="Nuvem" active={activeModule === 'infraops' && currentView === 'cloud'} onClick={() => { setActiveModule('infraops'); setCurrentView('cloud'); }} />}
+          <SidebarItem icon={ShieldAlert} label="Incidentes"      active={activeModule === 'infraops' && currentView === 'incidents'} onClick={() => { setActiveModule('infraops'); setCurrentView('incidents'); }} />
 
           <div className="my-3 border-t border-white/[0.04]" />
 
@@ -401,9 +411,9 @@ function AppShellBody({ AUTH, logout, user }: {
           {/* Status de conexão */}
           <div role="status" aria-live="polite">
             <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs
-              ${error ? 'bg-red-500/10 text-red-400' : 'bg-white/[0.03] text-[var(--color-brand-muted)]'}`}
+              ${connectionError ? 'bg-red-500/10 text-red-400' : 'bg-white/[0.03] text-[var(--color-brand-muted)]'}`}
             >
-              {error
+              {connectionError
                 ? <><WifiOff size={11} /> Sem conexão</>
                 : <><div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                     {lastUpdate
@@ -463,7 +473,7 @@ function AppShellBody({ AUTH, logout, user }: {
         <header className="h-14 border-b border-white/[0.05] flex items-center justify-between px-8 z-10 shrink-0"
           style={{ background: 'rgba(8,8,16,0.7)', backdropFilter: 'blur(12px)' }}>
           <div className="flex items-center gap-3">
-            <ModuleSwitcher active={activeModule} onChange={setActiveModule} showPricing={canAccessPricing} />
+            <ModuleSwitcher active={activeModule} onChange={setActiveModule} showPricing={canAccessPricing} scoped={!isOperator} />
             {activeModule !== 'core' && hasCritical && activeModule === 'infraops' && (
               <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-red-500/15 border border-red-500/30 text-red-400">
                 <AlertTriangle size={9} /> {summary!.problems_critical} {summary!.problems_critical === 1 ? 'alerta crítico' : 'alertas críticos'}
@@ -472,7 +482,7 @@ function AppShellBody({ AUTH, logout, user }: {
           </div>
 
           <button
-            onClick={fetchData}
+            onClick={currentView === 'incidents' ? fetchIncidents : fetchData}
             aria-label="Atualizar dados"
             className="p-1.5 rounded-lg hover:bg-white/[0.06] text-[var(--color-brand-muted)] hover:text-white transition-all duration-200"
             style={{ transitionProperty: 'color, background, transform', transitionDuration: '300ms' }}

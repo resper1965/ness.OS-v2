@@ -20,8 +20,7 @@ const STAGES = [
   { key: 'detected',         label: 'Detectado',  shortLabel: 'D' },
   { key: 'incident_created', label: 'Incidente',  shortLabel: 'I' },
   { key: 'ticket_opened',    label: 'Ticket',     shortLabel: 'T' },
-  { key: 'notified',         label: 'Notificado', shortLabel: 'N' },
-  { key: 'postmortem',       label: 'Pós-mortem', shortLabel: 'P' },
+  { key: 'resolved',        label: 'Resolvido',  shortLabel: 'R' },
 ];
 const STAGE_ORDER = STAGES.map(s => s.key);
 
@@ -83,6 +82,9 @@ interface Incident {
   severity_level: number; host_name: string; status: string;
   alert_count: number; first_seen: string | null;
   last_seen: string | null; pipeline_stage: string;
+  client?: string; ticket_id?: string | null;
+  solution?: string | null;
+  asset?: { name: string; glpi_itemtype?: string; glpi_item_id?: number; owner?: string; owner_group_id?: number } | null;
 }
 
 interface Props { incidents: Incident[]; loading: boolean; error: string | null; }
@@ -169,6 +171,19 @@ export default function IncidentsPage({ incidents, loading, error }: Props) {
                       </span>
                     )}
                   </div>
+                  {inc.client && <p className="mt-1 text-[11px] text-[var(--color-brand-muted)]">{inc.client}</p>}
+                  {inc.asset && <p className="mt-1 text-[11px] text-[var(--color-brand-muted)]">Ativo: {inc.asset.name} · Responsável: {inc.asset.owner || (inc.asset.owner_group_id ? `Equipe GLPI #${inc.asset.owner_group_id}` : 'Não cadastrado')}</p>}
+                  {inc.solution && <p className="mt-2 whitespace-pre-wrap text-xs text-white/70">Solução: {inc.solution}</p>}
+                  {inc.ticket_id && (
+                    <a
+                      href={`https://n-ticket.ness.com.br/front/ticket.form.php?id=${encodeURIComponent(inc.ticket_id)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-2 inline-block text-xs text-[var(--color-brand-primary)] hover:underline"
+                    >
+                      Abrir chamado GLPI #{inc.ticket_id}
+                    </a>
+                  )}
                 </div>
               </div>
 

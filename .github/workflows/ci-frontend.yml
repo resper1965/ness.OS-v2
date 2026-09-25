@@ -36,6 +36,9 @@ jobs:
       
     - name: Lint (Oxlint/ESLint)
       run: npm run lint
+
+    - name: Check TypeScript project references
+      run: npm run typecheck
       
     - name: Build for production
       run: npm run build

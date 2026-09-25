@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { 
   Server, HardDrive, RefreshCw, AlertTriangle, 
   Search,
@@ -10,6 +10,7 @@ import { useAuth } from '../hooks/useAuth';
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
 
 type Tab = 'compute' | 'snapshots' | 'storage' | 'networks' | 'firewall';
+type HealthAlert = { type: 'danger'; title: string; message: string; icon: typeof AlertTriangle };
 
 export default function CloudManagement({ selectedTenant }: { selectedTenant: string | null }) {
   const { authHeader } = useAuth();
@@ -19,7 +20,7 @@ export default function CloudManagement({ selectedTenant }: { selectedTenant: st
   const [storage, setStorage] = useState<any[]>([]);
   const [firewalls, setFirewalls] = useState<any[]>([]);
   const [networks, setNetworks] = useState<any[]>([]);
-  const [healthAlerts, setHealthAlerts] = useState<any[]>([]);
+  const [healthAlerts, setHealthAlerts] = useState<HealthAlert[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   
@@ -38,7 +39,7 @@ export default function CloudManagement({ selectedTenant }: { selectedTenant: st
         const instData = data.instances;
         setInstances(instData);
         
-        const alerts = [];
+        const alerts: HealthAlert[] = [];
         instData.forEach((inst: any) => {
           if (inst.status === 'running') {
             if (inst.imageId && (inst.imageId.includes('ubuntu-18') || inst.imageId.includes('debian-9'))) {

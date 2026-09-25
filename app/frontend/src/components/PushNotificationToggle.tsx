@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Bell, BellRing, Loader2 } from 'lucide-react';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
