@@ -105,9 +105,11 @@ restart_stopped_containers
 stopped_containers=()
 trap - EXIT
 
-find "${destination}" -type f ! -name SHA256SUMS -print0 \
-  | sort -z \
-  | xargs -0 sha256sum > "${destination}/SHA256SUMS"
+printf '{"backup_set_id":"%s"}\n' "${stamp}" > "${destination}/backup-set-manifest.json"
+(
+  cd "${destination}"
+  find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum
+) > "${destination}/SHA256SUMS"
 
 required_artifacts=(
   postgres/globals.sql.gz
@@ -119,6 +121,7 @@ required_artifacts=(
   deployment-images.json
   deployment-local-images.tar.gz
   deployment-hub-database.tar.gz
+  backup-set-manifest.json
 )
 for artifact in "${required_artifacts[@]}" SHA256SUMS; do
   [[ -s "${destination}/${artifact}" ]] || {
@@ -127,7 +130,7 @@ for artifact in "${required_artifacts[@]}" SHA256SUMS; do
   }
 done
 for artifact in "${required_artifacts[@]}"; do
-  grep -Fq -- "${destination}/${artifact}" "${destination}/SHA256SUMS" || {
+  grep -Fq -- "./${artifact}" "${destination}/SHA256SUMS" || {
     echo "required backup artifact is absent from checksum manifest: ${artifact}" >&2
     exit 1
   }
@@ -140,7 +143,7 @@ done
 for archive in "${destination}"/*.tar.gz "${destination}"/volumes/*.tar.gz; do
   tar -tzf "${archive}" >/dev/null
 done
-sha256sum -c "${destination}/SHA256SUMS"
+(cd "${destination}" && sha256sum -c SHA256SUMS)
 
 chmod -R go-rwx "${destination}"
 touch "${destination}/COMPLETED"

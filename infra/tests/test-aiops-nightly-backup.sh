@@ -182,12 +182,14 @@ backup_dir="${test_backup}/fixture-success"
 [[ -f "${backup_dir}/COMPLETED" ]]
 for artifact in postgres/globals.sql.gz postgres/nessops.dump glpi-all-databases.sql.gz \
   app-config.tar.gz deployment-app.tar.gz deployment-runtime.tar.gz deployment-images.json \
-  deployment-local-images.tar.gz deployment-hub-database.tar.gz SHA256SUMS; do
+  deployment-local-images.tar.gz deployment-hub-database.tar.gz backup-set-manifest.json SHA256SUMS; do
   [[ -s "${backup_dir}/${artifact}" ]] || {
     echo "successful backup omitted or emptied ${artifact}" >&2
     exit 1
   }
 done
+grep -q '"backup_set_id":"fixture-success"' "${backup_dir}/backup-set-manifest.json"
+grep -Fq './backup-set-manifest.json' "${backup_dir}/SHA256SUMS"
 grep -q '^network inspect app_ninf-net$' "${docker_log}"
 grep -q '^run --rm --network app_ninf-net ' "${docker_log}"
 
