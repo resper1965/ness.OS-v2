@@ -18,6 +18,12 @@
 - O commit `fdb4442` alterou o script após esses deploys, mas essa versão ainda não está instalada em nenhuma das duas VPS.
 - Units do serviço e timer Zabbix já conferidas anteriormente e correspondem ao repositório.- As units e timers de produção correspondem ao repositório. O script instalado no Zabbix está `root:root/0755`; no AIOps, `root:root/0700`. O instalador de UAT versionado define `root:root/0750`. Na reconciliação do Zabbix, instalar com `0750` para remover leitura/execução por outros usuários e manter execução para root/grupo; manter AIOps em `0700`.
 
+## Revalidação em 19:14 BRT
+
+- Conjunto local mais recente do Zabbix: `20260925T162305-0300`; todos os arquivos de `SHA256SUMS`, incluindo `db/dbzabbix.sql.gz` (5,1 GB), passaram em nova validação. O manifesto corresponde ao ID do diretório.
+- O EnvironmentFile define `NESS_BACKUP_HOST_ID=zabbix-prod`, `RESTIC_KEEP_LAST=14` e `RESTIC_CHECK_PERCENT=5`.
+- AIOps define `NESS_BACKUP_HOST_ID=aiops-prod` e a mesma política de retenção/check. Os namespaces por host são distintos; `npentest` não foi consultada.
+- O timer externo Zabbix segue `disabled/inactive`; não houve consulta nem operação Restic antes da janela.
 ## Diferenças funcionais relevantes
 
 O script no Zabbix canônico ainda valida apenas os checksums listados e envia o backup com `--skip-if-unchanged`, sem a tag `ness-backup-set-<backup_set_id>`. A versão atual em `HEAD` também valida presença e sintaxe do ID, correspondência com o diretório e inclusão do manifesto em `SHA256SUMS`; a cópia recebe uma tag única do conjunto. Isso dá ao processo de restauração uma referência inequívoca ao backup local que originou o snapshot.
