@@ -11,6 +11,22 @@ usada e nenhuma configuração ou dado foi alterado.
 | `https://zabbix.ness.com.br/api_jsonrpc.php` — `apiinfo.version` | Zabbix `7.0.27`. |
 | SSH direto para `144.91.72.202:22` deste ambiente | Timeout de conexão. |
 
+## Verificação somente leitura na VPS UAT
+
+O acesso SSH à UAT `169.58.234.9` funcionou com a chave local específica do
+host e o usuário `ness_admin`. A coleta confirmou:
+
+- hostname `zbx-prd-01`;
+- `apache2` ativo;
+- `zabbix-server` inativo e mascarado;
+- listeners em `127.0.0.1:8080` e `*:443`; nenhum listener em `10051`;
+- a partir da UAT, TCP/443 da origem canônica `144.91.72.202` está acessível,
+  mas TCP/22 não está acessível.
+
+O estado do serviço UAT coincide com o desenho de cópia restaurada isolada.
+Isso não habilita a UAT para piloto de coleta nem substitui acesso autenticado
+de leitura à API.
+
 ## Interpretação e limite
 
 A raiz do domínio UAT não é o caminho da aplicação; o frontend e a API estão
