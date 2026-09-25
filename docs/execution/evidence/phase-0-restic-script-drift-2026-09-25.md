@@ -26,9 +26,8 @@ A versão AIOps já grava a tag por conjunto e validava seu manifesto, mas a ver
 
 ## Decisão operacional
 
-1. Não substituir o script em produção às cegas nem executar a cópia enquanto o delta e o destino Restic não forem conciliados.
-2. Na janela registrada de 22:00–00:00 BRT, validar o repositório exato e o estado do último snapshot; instalar a versão de `HEAD` somente após conferir que o caminho do repositório preserva o histórico esperado.
-3. Executar uma única cópia correspondente ao conjunto local Zabbix vigente; verificar tag e `backup_set_id`, executar `restic check` e restauração isolada com checksums.
-4. Só então habilitar o timer persistente, considerando o catch-up do `Persistent=true` e seu horário de calendário 05:30 BRT.
-
+1. Na janela registrada de 22:00–00:00 BRT, confirmar o repositório exato e ler o inventário de snapshots; anotar quantidade, snapshot mais recente, tags e host antes de qualquer escrita. Confirmar que a retenção de 14 snapshots tem margem para a nova execução.
+2. Instalar a versão atual de `HEAD` somente depois de confirmar que o caminho corresponde ao repositório Zabbix esperado e preserva o histórico existente.
+3. Habilitar o timer persistente uma única vez para o catch-up. Não iniciar o serviço manualmente em paralelo. A execução espera o lock do backup local e então seleciona o conjunto concluído mais recente.
+4. Verificar snapshot, tag e `backup_set_id`; executar `restic check` e restauração isolada com checksums. Manter o gate FAIL até todos passarem.
 A credencial não foi lida nem exibida; nenhum valor secreto foi registrado. Nenhum arquivo em produção foi alterado.
