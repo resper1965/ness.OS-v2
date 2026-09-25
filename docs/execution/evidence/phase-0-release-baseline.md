@@ -37,6 +37,13 @@ ser regenerado após reconciliar e revisar as mudanças locais.
   divergências no Compose do Hub e no Caddy do Psono; 71 outros arquivos
   implantados ainda não têm hash de produção coletado. O manifesto lista cada
   caminho divergente e cada caminho não observado.
+- Classificação dos mesmos 75 arquivos comparando produção, workspace e Git
+  HEAD: 14 coincidem nos três; 15 têm alterações locais não commitadas que já
+  coincidem com produção; 5 arquivos locais ainda não rastreados também
+  coincidem com produção; 33 arquivos locais estão iguais ao HEAD, mas divergem
+  da produção; 6 divergem nos três estados; 2 arquivos locais não rastreados
+  divergem da produção. Isso confirma que o HEAD atual não representa todo o
+  código em execução.
 - Postgres/Timescale, Redis, Evolution API/Manager, Authentik, Caddy, GLPI e Psono
   estavam ativos na coleta. As imagens externas inspecionadas estavam fixadas
   por digest no runtime.
