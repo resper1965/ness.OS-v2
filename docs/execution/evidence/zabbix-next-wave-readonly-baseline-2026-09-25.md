@@ -74,5 +74,14 @@ IDs/statuses antes de qualquer escrita. Se aprovado nessa etapa, limitar o
 piloto inicial a esse host e observar por 24–72 horas, conforme
 `../decisions/zabbix-polish-wave-strategy-2026-09-25.md`.
 
+## Revalidação do candidato em 19:18 BRT
+
+Consulta somente leitura à API Zabbix pela integração existente no Hub; token não exibido. Os IDs continuam válidos e sem alteração desde o baseline:
+
+- Host `10977` (`cavan-matriz-fgt40f`), habilitado, com tags de tenant/site/environment/scope/owner/role/technology iguais às listadas acima.
+- Item `115583` (`vfs.fs.pfree`), habilitado e não suportado pela mesma divisão por zero em `fgSysDiskCapacity.0`.
+- Triggers `49797` e `49798`, habilitadas, `value=0`, `state=1` (unknown), sem evento ativo confirmado.
+
+Esta revalidação atualiza a identidade/status do candidato, mas não resolve visibilidade de templates, vínculo do ativo no GLPI, UAT ou Gate da Fase 0. Nenhuma escrita foi feita.
 As chamadas de API foram consultas `get` de leitura segundo a
 [documentação Zabbix 7.0](https://www.zabbix.com/documentation/7.0/en/manual/api).
