@@ -5,6 +5,7 @@ umask 077
 
 backup_root="/opt/n-infraops/backups/nightly"
 app_dir="/opt/n-infraops/app"
+compose=(docker compose -f "${app_dir}/docker-compose.yml" -f "${app_dir}/docker-compose.tickets.yml")
 stamp="$(date +%Y%m%dT%H%M%S%z)"
 destination="${backup_root}/${stamp}"
 lock_file="/run/lock/ness-aiops-backup.lock"
@@ -25,27 +26,29 @@ fi
 
 install -d -m 700 "${destination}/postgres" "${destination}/volumes"
 
-docker exec ninf-postgres sh -lc \
+"${compose[@]}" exec -T postgres sh -lc \
   'pg_dumpall --globals-only -U "$POSTGRES_USER"' \
   | gzip -9 > "${destination}/postgres/globals.sql.gz"
 
 mapfile -t databases < <(
-  docker exec ninf-postgres sh -lc \
+  "${compose[@]}" exec -T postgres sh -lc \
     'psql -At -U "$POSTGRES_USER" -d postgres -c "SELECT datname FROM pg_database WHERE datallowconn AND NOT datistemplate ORDER BY datname"'
 )
 
 for database in "${databases[@]}"; do
-  docker exec ninf-postgres sh -lc \
+  "${compose[@]}" exec -T postgres sh -lc \
     'pg_dump -Fc -U "$POSTGRES_USER" "$1"' sh "${database}" \
     > "${destination}/postgres/${database}.dump"
 done
 
-docker exec ninf-glpi-db sh -lc \
+"${compose[@]}" exec -T glpi-db sh -lc \
   'mariadb-dump -u root -p"$MYSQL_ROOT_PASSWORD" --single-transaction --routines --events --all-databases' \
   | gzip -9 > "${destination}/glpi-all-databases.sql.gz"
 
 tar -czf "${destination}/app-config.tar.gz" -C "${app_dir}" \
   .env Caddyfile docker-compose.yml docker-compose.tickets.yml
+
+/usr/local/sbin/ness-aiops-deployment-backup "${destination}"
 
 stopped_containers=()
 restart_stopped_containers() {
@@ -70,6 +73,20 @@ mapfile -t volumes < <(
     | sed '/^$/d' | sort -u
 )
 
+compose_api_id="$("${compose[@]}" ps -q api)"
+[[ -n "${compose_api_id}" ]] || {
+  echo 'could not resolve the running API container from Compose' >&2
+  exit 1
+}
+compose_network="$(docker inspect --format \
+  '{{range $name, $network := .NetworkSettings.Networks}}{{println $name}}{{end}}' \
+  "${compose_api_id}" | sed -n '1p' | tr -d '\r')"
+[[ -n "${compose_network}" ]] || {
+  echo 'could not resolve the Compose project network' >&2
+  exit 1
+}
+docker network inspect "${compose_network}" >/dev/null
+
 for volume in "${volumes[@]}"; do
   case "${volume}" in
     app_pg-data|app_glpi-db-data)
@@ -77,7 +94,7 @@ for volume in "${volumes[@]}"; do
       ;;
   esac
   safe_name="${volume//[^a-zA-Z0-9_.-]/_}"
-  docker run --rm \
+  docker run --rm --network "${compose_network}" \
     -v "${volume}:/source:ro" \
     -v "${destination}/volumes:/backup" \
     caddy:2-alpine sh -c \
@@ -92,9 +109,33 @@ find "${destination}" -type f ! -name SHA256SUMS -print0 \
   | sort -z \
   | xargs -0 sha256sum > "${destination}/SHA256SUMS"
 
+required_artifacts=(
+  postgres/globals.sql.gz
+  postgres/nessops.dump
+  glpi-all-databases.sql.gz
+  app-config.tar.gz
+  deployment-app.tar.gz
+  deployment-runtime.tar.gz
+  deployment-images.json
+  deployment-local-images.tar.gz
+  deployment-hub-database.tar.gz
+)
+for artifact in "${required_artifacts[@]}" SHA256SUMS; do
+  [[ -s "${destination}/${artifact}" ]] || {
+    echo "required backup artifact missing or empty: ${artifact}" >&2
+    exit 1
+  }
+done
+for artifact in "${required_artifacts[@]}"; do
+  grep -Fq -- "${destination}/${artifact}" "${destination}/SHA256SUMS" || {
+    echo "required backup artifact is absent from checksum manifest: ${artifact}" >&2
+    exit 1
+  }
+done
+
 gzip -t "${destination}/postgres/globals.sql.gz" "${destination}/glpi-all-databases.sql.gz"
 for dump in "${destination}"/postgres/*.dump; do
-  docker exec -i ninf-postgres pg_restore -l < "${dump}" >/dev/null
+  "${compose[@]}" exec -T postgres pg_restore -l < "${dump}" >/dev/null
 done
 for archive in "${destination}"/*.tar.gz "${destination}"/volumes/*.tar.gz; do
   tar -tzf "${archive}" >/dev/null

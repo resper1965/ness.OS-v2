@@ -19,6 +19,7 @@ NINF_EVOLUTION_API_KEY=do-not-print-evolution
 NINF_GLPI_DB_PASSWORD=do-not-print-glpi
 NINF_GLPI_DB_ROOT_PASSWORD=do-not-print-glpi-root
 NINF_JWT_SECRET=do-not-print-jwt
+NINF_RESEND_API_KEY=do-not-print-resend
 EOF
 
 cat >"${missing_env}" <<'EOF'
@@ -28,6 +29,7 @@ NINF_EVOLUTION_API_KEY=do-not-print-evolution
 NINF_GLPI_DB_PASSWORD=do-not-print-glpi
 NINF_GLPI_DB_ROOT_PASSWORD=
 NINF_JWT_SECRET=do-not-print-jwt
+NINF_RESEND_API_KEY=do-not-print-resend
 EOF
 
 cat >"${fake_bin}/docker" <<'EOF'
@@ -56,6 +58,7 @@ unset_required=(
   NINF_GLPI_DB_PASSWORD
   NINF_GLPI_DB_ROOT_PASSWORD
   NINF_JWT_SECRET
+  NINF_RESEND_API_KEY
 )
 
 run_isolated() {
@@ -71,26 +74,38 @@ run_isolated() {
 bash -n "${preflight}"
 
 success_output="$(run_isolated bash "${preflight}" --env-file "${complete_env}" 2>&1)"
-grep -q '^required_variables=6$' <<<"${success_output}"
+grep -q '^required_variables=7$' <<<"${success_output}"
 grep -q '^compose_files=2$' <<<"${success_output}"
 grep -q '^containers_started=0$' <<<"${success_output}"
 grep -q '^AIOps runtime preflight: PASS$' <<<"${success_output}"
-! grep -q 'do-not-print' <<<"${success_output}"
+if grep -q 'do-not-print' <<<"${success_output}"; then
+  echo 'successful preflight exposed a test secret' >&2
+  exit 1
+fi
 grep -q 'config --quiet --no-env-resolution' "${docker_log}"
-! grep -Eq '(^| )(up|start|run|create|pull|exec|restart|down)( |$)' "${docker_log}"
+if grep -Eq '(^| )(up|start|run|create|pull|exec|restart|down)( |$)' "${docker_log}"; then
+  echo 'preflight executed a mutating Docker command' >&2
+  exit 1
+fi
 
 if missing_output="$(run_isolated bash "${preflight}" --env-file "${missing_env}" 2>&1)"; then
   echo 'preflight unexpectedly accepted a blank required variable' >&2
   exit 1
 fi
 grep -q 'missing required variables: NINF_GLPI_DB_ROOT_PASSWORD' <<<"${missing_output}"
-! grep -q 'do-not-print' <<<"${missing_output}"
+if grep -q 'do-not-print' <<<"${missing_output}"; then
+  echo 'missing-variable failure exposed a test secret' >&2
+  exit 1
+fi
 
 if failure_output="$(AIOPS_TEST_CONFIG_FAIL=1 run_isolated bash "${preflight}" --env-file "${complete_env}" 2>&1)"; then
   echo 'preflight unexpectedly accepted an invalid Compose model' >&2
   exit 1
 fi
 grep -q 'Compose structure or merged configuration is invalid (details suppressed)' <<<"${failure_output}"
-! grep -q 'do-not-print' <<<"${failure_output}"
+if grep -q 'do-not-print' <<<"${failure_output}"; then
+  echo 'Compose failure exposed a test secret' >&2
+  exit 1
+fi
 
 echo 'AIOps runtime preflight checks: PASS'
