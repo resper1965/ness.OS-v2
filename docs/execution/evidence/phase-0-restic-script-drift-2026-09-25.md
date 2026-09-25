@@ -26,7 +26,7 @@ A versão AIOps já grava a tag por conjunto e validava seu manifesto, mas a ver
 
 ## Decisão operacional
 
-1. Na janela registrada de 22:00–00:00 BRT, confirmar o repositório exato e ler o inventário de snapshots; anotar quantidade, snapshot mais recente, tags e host antes de qualquer escrita. Confirmar que a retenção de 14 snapshots tem margem para a nova execução.
+1. Na janela registrada de 22:00–00:00 BRT, confirmar o repositório exato e ler o inventário de snapshots; anotar quantidade, snapshot mais recente, tags e host antes de qualquer escrita. Executar `forget --dry-run` com os mesmos filtros e política de 14; revisar a lista `remove` antes de permitir que o serviço aplique retenção/prune.
 2. Instalar a versão atual de `HEAD` somente depois de confirmar que o caminho corresponde ao repositório Zabbix esperado e preserva o histórico existente.
 3. Habilitar o timer persistente uma única vez para o catch-up. Não iniciar o serviço manualmente em paralelo. A execução espera o lock do backup local e então seleciona o conjunto concluído mais recente.
 4. Verificar snapshot, tag e `backup_set_id`; executar `restic check` e restauração isolada com checksums. Manter o gate FAIL até todos passarem.
