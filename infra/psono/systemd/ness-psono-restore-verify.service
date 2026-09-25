@@ -1,0 +1,15 @@
+[Unit]
+Description=NESS Psono isolated remote backup and application restoration
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+UMask=0077
+ExecStart=/opt/ness-os-psono/scripts/restore-verify.sh
+TimeoutStartSec=30min
+TimeoutStopSec=120
+Nice=15
+IOSchedulingClass=idle

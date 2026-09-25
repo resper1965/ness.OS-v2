@@ -9,7 +9,7 @@
         -Server
     }
 
-    @runtime_branding path / /index.html /config.json /css/custom.css /service-worker.js /js/service-worker-load.js
+    @runtime_branding path / /index.html /config.json /css/custom.css /service-worker.js /js/service-worker-load.js /js/language-default.js /portal /portal/ /portal/index.html /portal/config.json
     header @runtime_branding {
         >Cache-Control "private, max-age=0, no-cache, no-store, must-revalidate"
         >Pragma "no-cache"

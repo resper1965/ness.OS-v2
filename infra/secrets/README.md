@@ -12,6 +12,12 @@ root-only para os consumidores legados (`env_file` e `EnvironmentFile`).
 4. `sops` e `age` são instalados por versão/checksum aprovado.
 5. Um arquivo de staging é cifrado, decifrado sem eco e validado por dois custodians.
 
+O host x86_64 pode receber as versões aprovadas com
+`sudo ./install-sops-age.sh`. O instalador fixa SOPS `3.13.3` e age `1.3.2`,
+valida SHA-256 antes de instalar e recusa sobrescrever qualquer binário
+existente divergente. A instalação não cria identidades age nem altera
+segredos/consumidores.
+
 Até esse gate, `.sops.yaml.example` permanece um template e nenhum recipient
 fictício pode ser promovido.
 

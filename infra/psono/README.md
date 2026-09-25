@@ -17,6 +17,10 @@ O favicon original do Psono permanece ativo até existir um favicon oficial
 aprovado. Não substituir os ativos por imagens geradas, redesenhadas ou com
 fontes substitutas.
 
+O idioma inicial do cliente e do portal é `pt-BR`. A preferência é gravada
+somente quando ainda não existe `i18nextLng`, portanto uma seleção anterior do
+usuário continua prevalecendo.
+
 O serviço web também participa da rede externa indicada por
 `PSONO_SHARED_EDGE_NETWORK`. Essa rede é administrada pelo stack do proxy e
 precisa existir antes de executar o Compose.
@@ -53,6 +57,19 @@ a entrada de credenciais reais antes dos gates da PoC.
 7. Subir banco e Psono; somente depois subir Caddy.
 8. Criar quatro usuários descartáveis e executar todo o checklist da PoC.
 9. Executar backup, restore em host vazio e teste de atualização/rollback.
+
+`PSONO_MULTIFACTOR_ENABLED` permanece `false` durante a matrícula. Depois que os
+dois custodians tiverem ao menos um fator e recovery codes testados, altere-o
+para `true`, renderize a configuração e revalide ambos os logins antes de
+encerrar as sessões administrativas anteriores. Os fatores oferecidos ficam
+limitados a TOTP (`google_authenticator`) e WebAuthn.
+
+## Evidência F2 sem segredos
+
+Execute `sudo scripts/f2-readiness-report.sh` no host do Psono para registrar,
+em modo somente leitura, saúde, último backup, SMTP e o estado de MFA,
+recuperação e emergency access dos dois custodians. O relatório não imprime
+credenciais, chaves, seeds TOTP nem conteúdo do cofre.
 
 Não há contração automática: arquivos root-only antigos e credenciais existentes
 somente serão revogados depois que dois custodians comprovarem recuperação e o

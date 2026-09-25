@@ -1,0 +1,10 @@
+[Unit]
+Description=Weekly NESS Psono remote backup restoration verification
+
+[Timer]
+OnCalendar=Sun *-*-* 05:15:00
+RandomizedDelaySec=10min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

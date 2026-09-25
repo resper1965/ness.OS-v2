@@ -41,6 +41,7 @@ services:
       - ./branding/portal-index.html:/usr/share/nginx/html/portal/index.html:ro
       - ./branding/service-worker.js:/usr/share/nginx/html/service-worker.js:ro
       - ./branding/service-worker-load.js:/usr/share/nginx/html/js/service-worker-load.js:ro
+      - ./branding/language-default.js:/usr/share/nginx/html/js/language-default.js:ro
     healthcheck:
       test: ["CMD-SHELL", "curl --fail --silent --header \"Host: $${PSONO_DOMAIN}\" http://127.0.0.1/server/info/ >/dev/null"]
       interval: 30s

@@ -8,6 +8,8 @@ caixa baixa, com lettering preto ou branco e BlueDot `#00ade8`.
 - `logo-inverse.png`: assinatura branca para a barra superior escura;
 - `custom.css`: tokens, easing e fallback de movimento reduzido.
 - `index.html` e `portal-index.html`: título da aba `vault ness.`.
+- `language-default.js`: usa `pt-BR` na primeira visita, sem sobrescrever o
+  idioma que o usuário já escolheu.
 - `service-worker.js` e `service-worker-load.js`: removem somente o precache do
   cliente, sem apagar cookies, sessão ou armazenamento local criptográfico.
 

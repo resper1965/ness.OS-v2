@@ -16,6 +16,8 @@ ALLOWED_DOMAINS: ['ness.com.br']
 ALLOW_REGISTRATION: true
 ALLOW_LOST_PASSWORD: true
 MANAGEMENT_ENABLED: true
+MULTIFACTOR_ENABLED: false
+ALLOWED_SECOND_FACTORS: ['google_authenticator', 'webauthn']
 
 DATABASES:
   default:

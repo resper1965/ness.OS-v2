@@ -54,6 +54,12 @@ if [[ ${smtp_enabled} == true && -z ${RESEND_API_KEY:-} ]]; then
   exit 9
 fi
 
+multifactor_enabled="${PSONO_MULTIFACTOR_ENABLED:-false}"
+[[ ${multifactor_enabled} == true || ${multifactor_enabled} == false ]] || {
+  echo 'PSONO_MULTIFACTOR_ENABLED must be true or false' >&2
+  exit 10
+}
+
 readonly logo_file="${branding_dir}/logo.png"
 readonly logo_inverse_file="${branding_dir}/logo-inverse.png"
 for asset in "${logo_file}" "${logo_inverse_file}"; do
@@ -84,6 +90,8 @@ ALLOWED_DOMAINS: ['${PSONO_ALLOWED_DOMAIN}']
 ALLOW_REGISTRATION: ${allow_registration}
 ALLOW_LOST_PASSWORD: ${allow_lost_password}
 MANAGEMENT_ENABLED: true
+MULTIFACTOR_ENABLED: ${multifactor_enabled}
+ALLOWED_SECOND_FACTORS: ['google_authenticator', 'webauthn']
 DATABASES:
   default:
     ENGINE: 'django.db.backends.postgresql_psycopg2'

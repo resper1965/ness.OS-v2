@@ -52,6 +52,7 @@ PSONO_EMAIL_FROM='ness. cofre <cofre@ness.com.br>'
 PSONO_SMTP_ENABLED=false
 PSONO_ALLOW_REGISTRATION=false
 PSONO_ALLOW_LOST_PASSWORD=false
+PSONO_MULTIFACTOR_ENABLED=false
 EOF
 
 chmod 0600 "${env_file}"
