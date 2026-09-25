@@ -1,0 +1,495 @@
+{
+  "blockers": [
+    {
+      "code": "image_digest_missing",
+      "service": "app/docker-compose.yml:api"
+    },
+    {
+      "code": "image_digest_missing",
+      "service": "app/docker-compose.yml:frontend"
+    },
+    {
+      "code": "image_digest_missing",
+      "service": "app/docker-compose.yml:worker-alerts"
+    },
+    {
+      "code": "image_digest_missing",
+      "service": "app/docker-compose.yml:worker-ml"
+    },
+    {
+      "code": "image_digest_missing",
+      "service": "docker-compose.yml:api"
+    },
+    {
+      "code": "image_digest_missing",
+      "service": "docker-compose.yml:caddy"
+    },
+    {
+      "code": "image_digest_missing",
+      "service": "docker-compose.yml:evolution-api"
+    },
+    {
+      "code": "image_digest_missing",
+      "service": "docker-compose.yml:postgres"
+    },
+    {
+      "code": "image_digest_missing",
+      "service": "app/docker-compose.yml:api"
+    },
+    {
+      "code": "image_digest_missing",
+      "service": "app/docker-compose.yml:frontend"
+    },
+    {
+      "code": "image_digest_missing",
+      "service": "app/docker-compose.yml:worker-alerts"
+    },
+    {
+      "code": "image_digest_missing",
+      "service": "app/docker-compose.yml:worker-ml"
+    },
+    {
+      "code": "image_digest_missing",
+      "service": "docker-compose.yml:api"
+    },
+    {
+      "code": "image_digest_missing",
+      "service": "docker-compose.yml:caddy"
+    },
+    {
+      "code": "image_digest_missing",
+      "service": "docker-compose.yml:evolution-api"
+    },
+    {
+      "code": "image_digest_missing",
+      "service": "docker-compose.yml:postgres"
+    },
+    {
+      "code": "production_image_divergence"
+    },
+    {
+      "code": "production_file_divergence"
+    },
+    {
+      "code": "production_unit_divergence"
+    },
+    {
+      "code": "production_file_facts_missing",
+      "count": 26
+    }
+  ],
+  "deployed_file_hashes": {
+    "app/Caddyfile": "9969174781724155323d7a996beb6bcf58422deb83fe3f503140606ff30ff3b5",
+    "app/docker-compose.yml": "400f1546a36d92e2436b44e79441c4b49f7635c335a1d128344792d43c643233",
+    "docker-compose.yml": "65286723487f148509b2de642f7ed73669fb8d7cbd2134ad00b2128b910d79e8",
+    "infra/psono/Caddyfile": "e7331f476e3d953a94bbb1d9628f09dfced40d180f85c97ff326b13e0b1a726f",
+    "infra/psono/docker-compose.yml": "1499a4100bedd2da2e004dfe8be91feaaa1a951393fd238f799593c28769f3f9",
+    "infra/psono/systemd/ness-psono-backup.service": "21a03b199a5affdbc1cc9e080a9572004240d319e691803ae1fb419e967b7f01",
+    "infra/psono/systemd/ness-psono-backup.timer": "9749d212ed24399ca690650c7447ecdaa367d179d9917df7931078008c6b03f3",
+    "infra/psono/systemd/ness-psono-restore-verify.service": "47de32cabe081266262c9a3fb85e2c64aaeed7bf913e34e8fe0e341273eb6f7e",
+    "infra/psono/systemd/ness-psono-restore-verify.timer": "0949662aa67ea5d4ac74ee032813ca3a575ccd2c928b024d26dd7917bec4994b",
+    "infra/scripts/aiops-deployment-backup.sh": "c06e193974938b3ae82c6835fa581301956505c166e9e86e6e6fa355ea7f4a68",
+    "infra/scripts/aiops-nightly-backup.sh": "85a5da0ef9ea8a8aeb51fd7b95ffac9d6a4d90a12e716c8dc676bd1c7b845c88",
+    "infra/scripts/ness-object-storage-restic.sh": "afa3f1df214df849b35fe9dbf9a945415d8138083da845596c34e5be49c6727c",
+    "infra/scripts/verify-zabbix-restic-restore.sh": "243bf43572492123160e0992ccedf3eda726ee16b74ff53dbead49c35d8330ab",
+    "infra/scripts/zabbix-isolated-restore-test.sh": "8720b791fb84f7f137ace056d6402c5f35dcd0b0a9041b0e2677d22a04a3b0a0",
+    "infra/scripts/zabbix-nightly-backup.sh": "764578bcb4801464913e7eddd978115962f8f3e562c70f48f9a309cd6bc71623",
+    "infra/systemd/ness-aiops-backup.service": "cc9201caecd578d4c278f9c5669812e91b7bc009828efec9e856aa6f85041a01",
+    "infra/systemd/ness-aiops-backup.timer": "2c3ddf0c6fdde5434787cbc03ab4205f26da7d43e49d3749a2d0249331d75aa5",
+    "infra/systemd/ness-aiops-object-storage-backup.service": "afa873b7981187395047ff9acc540c96a0578fbffb8593f4a34b88eab5c3ffd1",
+    "infra/systemd/ness-aiops-object-storage-backup.timer": "cdb7e875af44d5d57882e678bf4dbfa4cd37e130163b1b61e1db6010095ed661",
+    "infra/systemd/ness-aiops-restore-verify.service": "069a18c39b982e5b6c3bb2dc74b8148a96d645defb86d1a26b16ccda3aea2412",
+    "infra/systemd/ness-aiops-restore-verify.timer": "b5a15b3f34c4ada047214243fb2cf0cd48095508acf90f5f5c3bdcbfdb3b0b4e",
+    "infra/systemd/ness-hub-cmdb-sync.service": "8edb8fe86e4e0771e872bd860f46cb55f204a6f75043c060877e27253e4e8702",
+    "infra/systemd/ness-hub-cmdb-sync.timer": "6c60dbb3be020e0a75a3e684044746f9f2a8cb9299346fdbde9116064b9ce4cb",
+    "infra/systemd/ness-hub-integration-monitor.service": "27874ac93a5175986e3e8c40189706d3bc1a72dfe6c861df0615fe41f78845a7",
+    "infra/systemd/ness-hub-integration-monitor.timer": "95892b5d8fe3d6857ba3488354bbbbc39e4d27ff5685eb9460669fe24c1b447a",
+    "infra/systemd/ness-zabbix-backup.service": "c5f45a9448c432c5bd1e88c964f86618b66ef091d97f4f932c0dd7ed7b2e431e",
+    "infra/systemd/ness-zabbix-backup.timer": "a550a8792d4f543d5fcb2e0522c10d36065b204149dba7544cf86b60c35dafbe",
+    "infra/systemd/ness-zabbix-cutover-bridge.service": "9e595981733ab565c5e95c8cb719186b0cb9d652c8aeb4c7b4ebbe1a9cde83f8",
+    "infra/systemd/ness-zabbix-object-storage-backup.service": "081b9ab71983db33cd089b743bf06ab449ab54a5fad23848a394d261d968b0ce",
+    "infra/systemd/ness-zabbix-object-storage-backup.timer": "5bf524e5974ec1442ed086a4fe35badba349fa27a53c68a4a847b0bf8b5d89ad"
+  },
+  "divergences": {
+    "files": [
+      "app/docker-compose.yml",
+      "infra/psono/Caddyfile"
+    ],
+    "images": [
+      "app/docker-compose.yml:api",
+      "app/docker-compose.yml:frontend",
+      "app/docker-compose.yml:glpi",
+      "app/docker-compose.yml:glpi-db",
+      "app/docker-compose.yml:worker-alerts",
+      "app/docker-compose.yml:worker-ml",
+      "docker-compose.yml:api",
+      "docker-compose.yml:caddy",
+      "docker-compose.yml:evolution-api",
+      "docker-compose.yml:postgres"
+    ],
+    "systemd_units": [
+      "ness-zabbix-cutover-bridge.service"
+    ],
+    "versions": []
+  },
+  "git_commit": "fdb44425b88b3ee6609cb02a464d4048bf81e713",
+  "git_dirty": true,
+  "images": [
+    {
+      "compose_file": "app/docker-compose.yml",
+      "digest": null,
+      "immutable": false,
+      "reference": null,
+      "service": "api",
+      "source": "build"
+    },
+    {
+      "compose_file": "app/docker-compose.yml",
+      "digest": "sha256:ed120caf710ccf82ef0026f0bc74e51615bc95ebff228a7a2d6fc60c441c3868",
+      "immutable": true,
+      "reference": "ghcr.io/goauthentik/server:2026.5.6@sha256:ed120caf710ccf82ef0026f0bc74e51615bc95ebff228a7a2d6fc60c441c3868",
+      "service": "authentik-server",
+      "source": "registry"
+    },
+    {
+      "compose_file": "app/docker-compose.yml",
+      "digest": "sha256:ed120caf710ccf82ef0026f0bc74e51615bc95ebff228a7a2d6fc60c441c3868",
+      "immutable": true,
+      "reference": "ghcr.io/goauthentik/server:2026.5.6@sha256:ed120caf710ccf82ef0026f0bc74e51615bc95ebff228a7a2d6fc60c441c3868",
+      "service": "authentik-worker",
+      "source": "registry"
+    },
+    {
+      "compose_file": "app/docker-compose.yml",
+      "digest": "sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648",
+      "immutable": true,
+      "reference": "caddy:2-alpine@sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648",
+      "service": "caddy",
+      "source": "registry"
+    },
+    {
+      "compose_file": "app/docker-compose.yml",
+      "digest": "sha256:966625532d9076a2381e973a271307d107e6f070450de3abeeea8bd18be07252",
+      "immutable": true,
+      "reference": "evoapicloud/evolution-api:latest@sha256:966625532d9076a2381e973a271307d107e6f070450de3abeeea8bd18be07252",
+      "service": "evolution-api",
+      "source": "registry"
+    },
+    {
+      "compose_file": "app/docker-compose.yml",
+      "digest": "sha256:cbfeb314afb9d380068c86151fbfa9fd7905d0ad74da77fad01f2c85d01a025a",
+      "immutable": true,
+      "reference": "evoapicloud/evolution-manager:latest@sha256:cbfeb314afb9d380068c86151fbfa9fd7905d0ad74da77fad01f2c85d01a025a",
+      "service": "evolution-manager",
+      "source": "registry"
+    },
+    {
+      "compose_file": "app/docker-compose.yml",
+      "digest": null,
+      "immutable": false,
+      "reference": null,
+      "service": "frontend",
+      "source": "build"
+    },
+    {
+      "compose_file": "app/docker-compose.yml",
+      "digest": "sha256:4b0b4a48faeaa5e17ea57a578a53078fb6c9b8eb65d1573eb68d8ce8f6022da0",
+      "immutable": true,
+      "reference": "docker.n8n.io/n8nio/n8n:latest@sha256:4b0b4a48faeaa5e17ea57a578a53078fb6c9b8eb65d1573eb68d8ce8f6022da0",
+      "service": "n8n",
+      "source": "registry"
+    },
+    {
+      "compose_file": "app/docker-compose.yml",
+      "digest": "sha256:ba149561ad4ddff5940d6eb0a0df60aefd1355cee1a450928f271267038fc888",
+      "immutable": true,
+      "reference": "timescale/timescaledb:latest-pg16@sha256:ba149561ad4ddff5940d6eb0a0df60aefd1355cee1a450928f271267038fc888",
+      "service": "postgres",
+      "source": "registry"
+    },
+    {
+      "compose_file": "app/docker-compose.yml",
+      "digest": "sha256:6ab0b6e7381779332f97b8ca76193e45b0756f38d4c0dcda72dbb3c32061ab99",
+      "immutable": true,
+      "reference": "redis:7-alpine@sha256:6ab0b6e7381779332f97b8ca76193e45b0756f38d4c0dcda72dbb3c32061ab99",
+      "service": "redis",
+      "source": "registry"
+    },
+    {
+      "compose_file": "app/docker-compose.yml",
+      "digest": null,
+      "immutable": false,
+      "reference": null,
+      "service": "worker-alerts",
+      "source": "build"
+    },
+    {
+      "compose_file": "app/docker-compose.yml",
+      "digest": null,
+      "immutable": false,
+      "reference": null,
+      "service": "worker-ml",
+      "source": "build"
+    },
+    {
+      "compose_file": "docker-compose.yml",
+      "digest": null,
+      "immutable": false,
+      "reference": null,
+      "service": "api",
+      "source": "build"
+    },
+    {
+      "compose_file": "docker-compose.yml",
+      "digest": null,
+      "immutable": false,
+      "reference": "caddy:2-alpine",
+      "service": "caddy",
+      "source": "registry"
+    },
+    {
+      "compose_file": "docker-compose.yml",
+      "digest": null,
+      "immutable": false,
+      "reference": "evoapicloud/evolution-api:latest",
+      "service": "evolution-api",
+      "source": "registry"
+    },
+    {
+      "compose_file": "docker-compose.yml",
+      "digest": null,
+      "immutable": false,
+      "reference": "ankane/pgvector:v0.5.1",
+      "service": "postgres",
+      "source": "registry"
+    },
+    {
+      "compose_file": "infra/psono/docker-compose.yml",
+      "digest": "sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648",
+      "immutable": true,
+      "reference": "caddy:2-alpine@sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648",
+      "service": "caddy",
+      "source": "registry"
+    },
+    {
+      "compose_file": "infra/psono/docker-compose.yml",
+      "digest": "sha256:18cfe3ef5e6815560c98237d6216d1e5119702fb0f3894c8785dd58b8bbe5d73",
+      "immutable": true,
+      "reference": "postgres:17-alpine@sha256:18cfe3ef5e6815560c98237d6216d1e5119702fb0f3894c8785dd58b8bbe5d73",
+      "service": "database",
+      "source": "registry"
+    },
+    {
+      "compose_file": "infra/psono/docker-compose.yml",
+      "digest": "sha256:0266a866addd08e7ad364ffe457bb499815a6941744251012a0e2eae506575fd",
+      "immutable": true,
+      "reference": "psono/psono-combo:latest@sha256:0266a866addd08e7ad364ffe457bb499815a6941744251012a0e2eae506575fd",
+      "service": "psono",
+      "source": "registry"
+    }
+  ],
+  "production": {
+    "deployed_files": {
+      "app/Caddyfile": "9969174781724155323d7a996beb6bcf58422deb83fe3f503140606ff30ff3b5",
+      "app/docker-compose.yml": "7371b66eca657ebef78679228a544ca2a4f66b3dcc025f0f0cb2c4c0acab9f33",
+      "infra/psono/Caddyfile": "61cd7f4d52809ab7550536d6bdbb4aa1b19003f2e9751e1ba2c573beef6ebe0f",
+      "infra/psono/docker-compose.yml": "1499a4100bedd2da2e004dfe8be91feaaa1a951393fd238f799593c28769f3f9"
+    },
+    "host": "Hub + Zabbix can\u00f4nico (captura somente leitura)",
+    "hosts": [
+      {
+        "address": "144.91.115.242",
+        "name": "aiops",
+        "role": "Hub e Psono"
+      },
+      {
+        "address": "144.91.72.202",
+        "name": "infra-zabbix",
+        "role": "Zabbix can\u00f4nico"
+      },
+      {
+        "address": "169.58.234.9",
+        "name": "nes-os-zabbix-pr-01",
+        "role": "destino UAT/cutover pendente; n\u00e3o coletado"
+      }
+    ],
+    "images": [
+      {
+        "compose_file": "app/docker-compose.yml",
+        "digest": null,
+        "runtime_image_id": "sha256:8ba815b794f6e7d9c3e47fd6e28c77d27b2cc37f9d4fd7d38395d37712a9b790",
+        "service": "api"
+      },
+      {
+        "compose_file": "app/docker-compose.yml",
+        "digest": null,
+        "runtime_image_id": "sha256:5e2bd94558c8df394f0d27fd4d3ab22495453a7b7be2316b442d6b0e4f13da25",
+        "service": "frontend"
+      },
+      {
+        "compose_file": "app/docker-compose.yml",
+        "digest": null,
+        "runtime_image_id": "sha256:b0e135bae1a4ca18efc732f99bf9e49c05340809732772a4c4d0a631b743c52c",
+        "service": "worker-alerts"
+      },
+      {
+        "compose_file": "app/docker-compose.yml",
+        "digest": null,
+        "runtime_image_id": "sha256:bda7b2fb8bb731d538c3da969785d363c55f3fdc469c326f0e9f799a3218dd61",
+        "service": "worker-ml"
+      },
+      {
+        "compose_file": "app/docker-compose.yml",
+        "digest": "sha256:ba149561ad4ddff5940d6eb0a0df60aefd1355cee1a450928f271267038fc888",
+        "service": "postgres"
+      },
+      {
+        "compose_file": "app/docker-compose.yml",
+        "digest": "sha256:6ab0b6e7381779332f97b8ca76193e45b0756f38d4c0dcda72dbb3c32061ab99",
+        "service": "redis"
+      },
+      {
+        "compose_file": "app/docker-compose.yml",
+        "digest": "sha256:966625532d9076a2381e973a271307d107e6f070450de3abeeea8bd18be07252",
+        "service": "evolution-api"
+      },
+      {
+        "compose_file": "app/docker-compose.yml",
+        "digest": "sha256:cbfeb314afb9d380068c86151fbfa9fd7905d0ad74da77fad01f2c85d01a025a",
+        "service": "evolution-manager"
+      },
+      {
+        "compose_file": "app/docker-compose.yml",
+        "digest": "sha256:ed120caf710ccf82ef0026f0bc74e51615bc95ebff228a7a2d6fc60c441c3868",
+        "service": "authentik-server"
+      },
+      {
+        "compose_file": "app/docker-compose.yml",
+        "digest": "sha256:ed120caf710ccf82ef0026f0bc74e51615bc95ebff228a7a2d6fc60c441c3868",
+        "service": "authentik-worker"
+      },
+      {
+        "compose_file": "app/docker-compose.yml",
+        "digest": "sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648",
+        "service": "caddy"
+      },
+      {
+        "compose_file": "app/docker-compose.yml",
+        "digest": "sha256:4b0b4a48faeaa5e17ea57a578a53078fb6c9b8eb65d1573eb68d8ce8f6022da0",
+        "service": "n8n"
+      },
+      {
+        "compose_file": "app/docker-compose.yml",
+        "digest": "sha256:48ec3ce559fda9eaf73c6fe2f0fc2dd382ef013f2dda14004f34ee88ec17c8b8",
+        "service": "glpi"
+      },
+      {
+        "compose_file": "app/docker-compose.yml",
+        "digest": "sha256:be981e4113326ada8d6004174dd09eeaefc03094037f811182a52d4f2e737350",
+        "service": "glpi-db"
+      },
+      {
+        "compose_file": "infra/psono/docker-compose.yml",
+        "digest": "sha256:0266a866addd08e7ad364ffe457bb499815a6941744251012a0e2eae506575fd",
+        "service": "psono"
+      },
+      {
+        "compose_file": "infra/psono/docker-compose.yml",
+        "digest": "sha256:18cfe3ef5e6815560c98237d6216d1e5119702fb0f3894c8785dd58b8bbe5d73",
+        "service": "database"
+      },
+      {
+        "compose_file": "infra/psono/docker-compose.yml",
+        "digest": "sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648",
+        "service": "caddy"
+      }
+    ],
+    "systemd_units": [
+      "ness-aiops-backup.service",
+      "ness-aiops-backup.timer",
+      "ness-aiops-object-storage-backup.service",
+      "ness-aiops-object-storage-backup.timer",
+      "ness-aiops-restore-verify.service",
+      "ness-aiops-restore-verify.timer",
+      "ness-psono-backup.service",
+      "ness-psono-backup.timer",
+      "ness-psono-restore-verify.service",
+      "ness-psono-restore-verify.timer",
+      "ness-hub-cmdb-sync.service",
+      "ness-hub-cmdb-sync.timer",
+      "ness-hub-integration-monitor.service",
+      "ness-hub-integration-monitor.timer",
+      "ness-zabbix-backup.service",
+      "ness-zabbix-backup.timer",
+      "ness-zabbix-object-storage-backup.service",
+      "ness-zabbix-object-storage-backup.timer"
+    ],
+    "versions": {
+      "mariadb": "10.11.18-MariaDB",
+      "zabbix_server": "7.0.27"
+    }
+  },
+  "release_ready": false,
+  "schema_version": 1,
+  "secret_presence": {
+    "app/.env": false,
+    "infra/psono/.env": false
+  },
+  "systemd_units": [
+    "ness-aiops-backup.service",
+    "ness-aiops-backup.timer",
+    "ness-aiops-object-storage-backup.service",
+    "ness-aiops-object-storage-backup.timer",
+    "ness-aiops-restore-verify.service",
+    "ness-aiops-restore-verify.timer",
+    "ness-hub-cmdb-sync.service",
+    "ness-hub-cmdb-sync.timer",
+    "ness-hub-integration-monitor.service",
+    "ness-hub-integration-monitor.timer",
+    "ness-psono-backup.service",
+    "ness-psono-backup.timer",
+    "ness-psono-restore-verify.service",
+    "ness-psono-restore-verify.timer",
+    "ness-zabbix-backup.service",
+    "ness-zabbix-backup.timer",
+    "ness-zabbix-cutover-bridge.service",
+    "ness-zabbix-object-storage-backup.service",
+    "ness-zabbix-object-storage-backup.timer"
+  ],
+  "target": "production",
+  "unobserved": {
+    "files": [
+      "docker-compose.yml",
+      "infra/psono/systemd/ness-psono-backup.service",
+      "infra/psono/systemd/ness-psono-backup.timer",
+      "infra/psono/systemd/ness-psono-restore-verify.service",
+      "infra/psono/systemd/ness-psono-restore-verify.timer",
+      "infra/scripts/aiops-deployment-backup.sh",
+      "infra/scripts/aiops-nightly-backup.sh",
+      "infra/scripts/ness-object-storage-restic.sh",
+      "infra/scripts/verify-zabbix-restic-restore.sh",
+      "infra/scripts/zabbix-isolated-restore-test.sh",
+      "infra/scripts/zabbix-nightly-backup.sh",
+      "infra/systemd/ness-aiops-backup.service",
+      "infra/systemd/ness-aiops-backup.timer",
+      "infra/systemd/ness-aiops-object-storage-backup.service",
+      "infra/systemd/ness-aiops-object-storage-backup.timer",
+      "infra/systemd/ness-aiops-restore-verify.service",
+      "infra/systemd/ness-aiops-restore-verify.timer",
+      "infra/systemd/ness-hub-cmdb-sync.service",
+      "infra/systemd/ness-hub-cmdb-sync.timer",
+      "infra/systemd/ness-hub-integration-monitor.service",
+      "infra/systemd/ness-hub-integration-monitor.timer",
+      "infra/systemd/ness-zabbix-backup.service",
+      "infra/systemd/ness-zabbix-backup.timer",
+      "infra/systemd/ness-zabbix-cutover-bridge.service",
+      "infra/systemd/ness-zabbix-object-storage-backup.service",
+      "infra/systemd/ness-zabbix-object-storage-backup.timer"
+    ]
+  },
+  "versions": {
+    "mariadb_version": "10.11",
+    "php_version": "8.1",
+    "zabbix_version": "7.0"
+  }
+}

@@ -1,0 +1,66 @@
+# Evidência do baseline de release da Fase 0
+
+Data da coleta: 2026-09-25 (America/Sao_Paulo).
+
+## Escopo de produção
+
+- Hub/AIOps: `144.91.115.242` (`aiops`).
+- Zabbix canônico: `144.91.72.202` (`infra-zabbix`).
+- VPS `169.58.234.9` (`nes-os-zabbix-pr-01`): infraestrutura do projeto, mas
+  registrada no plano de migração como destino de UAT/cutover pendente; não é a
+  origem canônica usada para a recuperação nesta fase.
+- `169.58.178.187` (`npentest`): excluída do escopo deste projeto.
+
+## Manifesto local
+
+O gerador e seus testes estão sendo adicionados nesta fase. Execute depois da
+consolidação da árvore:
+
+```bash
+python3 infra/scripts/ness-release-manifest.py --output release-manifest.json
+python3 -m pytest infra/tests/test-ness-release-manifest.py -q
+```
+
+O resultado observado antes da consolidação é `release_ready=false`: a árvore
+está suja, e as imagens construídas para API, frontend e workers não possuem
+digest de registry no Compose. O manifesto deve ser regenerado após reconciliar
+e revisar as mudanças locais.
+
+## Observações em produção
+
+- A VPS AIOps executa API, frontend e workers com imagens locais (`app-api`,
+  `app-frontend` e `app-worker-*`); os IDs de imagem observados não são digests de
+  release publicados. O Compose em produção foi identificado em
+  `/opt/n-infraops/app/docker-compose.yml`.
+- Postgres/Timescale, Redis, Evolution API/Manager, Authentik, Caddy, GLPI e Psono
+  estavam ativos na coleta. As imagens externas inspecionadas estavam fixadas
+  por digest no runtime.
+- O Compose Psono foi identificado em `/opt/ness-os-psono/docker-compose.yml`.
+  O Psono tem timer local de backup e timer de verificação de restauração ativos.
+- Zabbix canônico usa MariaDB `10.11.18-MariaDB`. O comando `docker` não está
+  instalado nesse host, consistente com a implantação nativa usada pelo teste de
+  restauração isolada. `ness-zabbix-backup.timer` está habilitado; sua execução
+  de 2026-09-25 16:23 -03 ainda estava ativa às 16:33, sem horário de término
+  disponível nessa consulta.
+- `ness-zabbix-object-storage-backup.timer` está desabilitado. Portanto não há
+  snapshot externo recente do Zabbix comprovado nesta evidência. Não habilite o
+  timer até resolver a rotação pendente das credenciais do object storage e
+  executar a validação externa correspondente.
+- Na VPS AIOps, `ness-aiops-backup.timer`,
+  `ness-aiops-object-storage-backup.timer` e `ness-psono-backup.timer` estavam
+  habilitados. A execução do object storage mais recente listada era
+  2026-09-25 00:30 -03.
+
+## Bloqueios
+
+1. Consolidar os arquivos locais e confirmar o commit de release; há mudanças
+   preexistentes na árvore que não foram agrupadas nem revisadas nesta evidência.
+2. Publicar e fixar por digest as imagens próprias do projeto.
+3. Coletar e comparar hashes executáveis completos da produção com uma revisão
+   consolidada do repositório.
+4. Concluir uma execução de backup local Zabbix, exportar e verificar o conjunto
+   correspondente no object storage depois da rotação autorizada das credenciais.
+5. Reconciliar o estado do destino Zabbix `169.58.234.9` antes de qualquer
+   cutover; esta evidência não o promove a origem canônica.
+
+Até resolver esses pontos, não criar tag nem declarar a release pronta.
