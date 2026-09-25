@@ -16,7 +16,7 @@
 - Zabbix instalado `/usr/local/sbin/ness-object-storage-restic`: `1fe4ddf226084fc7817fe0f57da32a024466c9d5f7f3a3356adbb4da85efc3de`, idêntico ao pai do commit `78b365a` (mesmo blob de script presente em `bfe3d6d`).
 - AIOps instalado no mesmo caminho: `2e968b34b5afed771566d8576544adf0bf05a9fdd7df44e248073f16a016a200`, idêntico ao script do commit `78b365a`.
 - O commit `fdb4442` alterou o script após esses deploys, mas essa versão ainda não está instalada em nenhuma das duas VPS.
-- Units do serviço e timer Zabbix já conferidas anteriormente e correspondem ao repositório.
+- Units do serviço e timer Zabbix já conferidas anteriormente e correspondem ao repositório.- As units e timers de produção correspondem ao repositório. O script instalado no Zabbix está `root:root/0755`; no AIOps, `root:root/0700`. O instalador de UAT versionado define `root:root/0750`. Na reconciliação do Zabbix, instalar com `0750` para remover leitura/execução por outros usuários e manter execução para root/grupo; manter AIOps em `0700`.
 
 ## Diferenças funcionais relevantes
 
