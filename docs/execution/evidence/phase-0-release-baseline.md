@@ -13,18 +13,18 @@ Data da coleta: 2026-09-25 (America/Sao_Paulo).
 
 ## Manifesto local
 
-O gerador e seus testes estão sendo adicionados nesta fase. Execute depois da
-consolidação da árvore:
+O gerador determinístico e seus seis testes foram adicionados e estão no
+repositório. Para atualizar o snapshot após a consolidação da árvore, execute:
 
 ```bash
 python3 infra/scripts/ness-release-manifest.py --output release-manifest.json
 python3 -m pytest infra/tests/test-ness-release-manifest.py -q
 ```
 
-O resultado observado antes da consolidação é `release_ready=false`: a árvore
-está suja, e as imagens construídas para API, frontend e workers não possuem
-digest de registry no Compose. O manifesto deve ser regenerado após reconciliar
-e revisar as mudanças locais.
+O snapshot registrado em `phase-0-production-manifest.json` marca
+`release_ready=false`: a árvore está suja, e as imagens construídas para API,
+frontend e workers não possuem digest de registry no Compose. O manifesto deve
+ser regenerado após reconciliar e revisar as mudanças locais.
 
 ## Observações em produção
 

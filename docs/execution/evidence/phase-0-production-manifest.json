@@ -233,6 +233,7 @@
   "divergences": {
     "files": [
       "app/backend/app/api/routers/atera.py",
+      "app/backend/app/api/routers/auth.py",
       "app/backend/app/api/routers/contabo.py",
       "app/backend/app/api/routers/contabo_mgmt.py",
       "app/backend/app/api/routers/core.py",
@@ -245,6 +246,7 @@
       "app/backend/app/core/locks.py",
       "app/backend/app/core/security.py",
       "app/backend/app/core/vapid.py",
+      "app/backend/app/core/webhook_auth.py",
       "app/backend/app/database.py",
       "app/backend/app/integrations/__init__.py",
       "app/backend/app/integrations/atera.py",
@@ -291,7 +293,7 @@
     ],
     "versions": []
   },
-  "git_commit": "29fecca727b453d93d57b10453ae6d0f3d2c56f1",
+  "git_commit": "05335559c47c2fefe134e3bf45ff75f01a0472ef",
   "git_dirty": true,
   "images": [
     {
