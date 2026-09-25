@@ -18,6 +18,11 @@
 - O commit `fdb4442` alterou o script após esses deploys, mas essa versão ainda não está instalada em nenhuma das duas VPS.
 - Units do serviço e timer Zabbix já conferidas anteriormente e correspondem ao repositório.- As units e timers de produção correspondem ao repositório. O script instalado no Zabbix está `root:root/0755`; no AIOps, `root:root/0700`. O instalador de UAT versionado define `root:root/0750`. Na reconciliação do Zabbix, instalar com `0750` para remover leitura/execução por outros usuários e manter execução para root/grupo; manter AIOps em `0700`.
 
+## Último histórico externo encontrado no journal
+
+Leitura somente do journal do Zabbix canônico, sem executar Restic: em 30/08/2026 o serviço concluiu com sucesso, `restic check` reportou nenhum erro e a listagem continha cinco snapshots `ness-dataset-zabbix` do host `zabbix-prod`. O mais recente era `30c8f2d8`, criado em 30/08 05:31:25 BRT, ligado ao conjunto local `20260829T220005-0300` (5,609 GiB). Portanto o repositório já existe e o comando `init` não deve ser usado; a cópia atual ainda não está comprovada.
+
+O arquivo `stamp-ness-zabbix-object-storage-backup.timer` tinha mtime de 30/08 05:30 BRT. O timer usa `Persistent=true`; a página man local de systemd 252 confirma que ativar um timer com execuções calendarizadas perdidas inicia o serviço imediatamente. Na janela, esperar esse catch-up; o serviço fará lock/wait pelo backup local de 22:00. Não iniciar o serviço manualmente em paralelo.
 ## Revalidação em 19:14 BRT
 
 - Conjunto local mais recente do Zabbix: `20260925T162305-0300`; todos os arquivos de `SHA256SUMS`, incluindo `db/dbzabbix.sql.gz` (5,1 GB), passaram em nova validação. O manifesto corresponde ao ID do diretório.
