@@ -35,6 +35,13 @@ O script no Zabbix canônico ainda valida apenas os checksums listados e envia o
 
 A versão AIOps já grava a tag por conjunto e validava seu manifesto, mas a versão corrente unifica e exige essas validações para ambos os datasets. As versões instaladas também executam retenção `forget --keep-last 14 --prune`; isso pode remover snapshots antigos quando a cópia for executada. O repositório/destino e o histórico de snapshots devem ser confirmados antes de iniciar a operação.
 
+## Defeito na política de retenção, reproduzido em 26/09
+
+O primeiro `restic forget --dry-run` com a política do script vigente (`--host zabbix-prod --tag ness-dataset-zabbix --group-by host,paths --keep-last 14`) separou cada snapshot porque cada caminho contém um `backup_set_id` diferente; o resultado marcou todos os seis como `last snapshot`, tornando a retenção ineficaz.
+
+Corrigi `infra/scripts/ness-object-storage-restic.sh` para agrupar somente por host. O filtro explícito de host e a tag `ness-dataset-zabbix` mantêm a política restrita ao dataset Zabbix. A nova prévia agrupou os seis snapshots juntos e manteve os seis sob `keep 14`; nenhum seria removido nesta execução. Após o upload do conjunto atual serão sete, ainda sem remoções. Essa correção passa a limitar o histórico aos últimos 14 snapshots quando o limite for alcançado.
+
+Base documental do agrupamento e do `--dry-run`: [Restic `forget`](https://github.com/restic/restic/blob/master/doc/060_forget.rst).
 ## Decisão operacional
 
 1. Na janela registrada de 22:00–00:00 BRT, confirmar o repositório exato e ler o inventário de snapshots; anotar quantidade, snapshot mais recente, tags e host antes de qualquer escrita. Executar `forget --dry-run` com os mesmos filtros e política de 14; revisar a lista `remove` antes de permitir que o serviço aplique retenção/prune.

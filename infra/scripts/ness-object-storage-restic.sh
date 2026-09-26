@@ -135,12 +135,13 @@ restic --retry-lock 30m cat config >/dev/null
 restic --retry-lock 30m check \
   --read-data-subset="${check_percent}%"
 
-# keep_last cannot be zero. Restic also refuses to remove the final snapshot
-# in a group, adding a second guard against retention deleting the last copy.
+# Each backup path includes its backup_set_id, so grouping by paths would put
+# every snapshot in its own retention group. The dataset tag above scopes this
+# policy; group only by host to retain the newest snapshots across backup sets.
 restic --retry-lock 30m forget \
   --host "${NESS_BACKUP_HOST_ID}" \
   --tag "${snapshot_tag}" \
-  --group-by host,paths \
+  --group-by host \
   --keep-last "${keep_last}" \
   --prune
 
