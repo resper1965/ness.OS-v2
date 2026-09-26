@@ -60,6 +60,43 @@ Durante a verificação local do arquivo, o shell expandiu indevidamente os prim
 
 O teste sem escrita contra `https://n-ticket.ness.com.br/apirest.php/initSession` não alcançou a API: o proxy Authentik respondeu `302` para seu fluxo OIDC. Assim, os tokens existem, mas a integração ainda não está funcional e nenhuma categoria/projeto foi criado. A correção preferida é expor a API por rota privada entre AIOps e GLPI; uma exceção pública no proxy só pode ser aceita se limitada estritamente ao caminho da API e combinada com tokens, controle de origem efetivo, rate limit e logs. Depois da correção, testar da VPS AIOps: `initSession`, leituras mínimas, `killSession`, origem negativa, dry-run remoto e somente então `--apply`.
 
+## API privada e taxonomia implantadas — 02/09/2026
+
+O Hub passou a consumir `http://ninf-glpi/apirest.php` pela rede Docker interna.
+O cliente de API ID 2 foi limitado ao subnet `172.18.0.0/16` pela camada de
+modelo do GLPI, mantendo a exigência conjunta de `app_token` e `user_token`.
+O arquivo de credenciais foi instalado fora do repositório em
+`/etc/ness-os/glpi-integration.env`, proprietário `root:root`, modo `0600`, e é
+carregado somente pelo serviço de API. O endpoint público continua protegido
+pelo Authentik e não foi aberto como exceção.
+
+A prova de prontidão abriu uma sessão privada, leu uma entidade e a taxonomia,
+executou zero escritas e encerrou a sessão. Depois do dry-run aprovado, o
+importador criou as oito categorias do manifesto por API suportada; a segunda
+execução retornou `missing=0 unchanged=8 created=0`. A grafia histórica da
+primeira categoria foi reconciliada administrativamente para
+`Operação interna ness.` pela camada `KnowbaseItemCategory`, sem ampliar o
+perfil técnico, que continua sem direito permanente de atualização.
+
+Evidências e snapshots de rollback estão em:
+
+- `/opt/n-infraops/rollback/glpi-api-client-network-20260902T182927-0300`;
+- `/opt/n-infraops/rollback/glpi-private-api-20260902T183038-0300`;
+- `/opt/n-infraops/rollback/glpi-runbook-categories-20260902T183245-0300`;
+- `/opt/n-infraops/rollback/glpi-brand-category-20260902T183726-0300`.
+
+Projetos, conteúdo de runbooks, inventário Cavan, GLPI Agent e o ciclo completo
+de ticket continuam nos próximos gates da F3; nenhuma dessas etapas foi
+inferida a partir da criação da taxonomia.
+
+A reconciliação subsequente do piloto está registrada em
+[`glpi-cavan-reconciliation-2026-09-02.md`](glpi-cavan-reconciliation-2026-09-02.md).
+Os metadados inequívocos da matriz foram aplicados, mas a consolidação do
+firewall, a correção de três VMs classificadas como equipamento de rede e o
+piloto autenticado do GLPI Agent permanecem abertos. O recebimento de
+inventário foi desabilitado preventivamente após a identificação de registros
+históricos de scanner sem ativo vinculado.
+
 ## Evidência reutilizável
 
 - [`../../infra/scripts/glpi-access-state-report.sh`](../../infra/scripts/glpi-access-state-report.sh): identidades e perfis, somente leitura e sem segredos.
