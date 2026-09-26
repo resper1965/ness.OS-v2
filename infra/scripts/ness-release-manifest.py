@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
 import subprocess
 import sys
@@ -21,16 +22,15 @@ VERSION_KEYS = ("zabbix_version", "mariadb_version", "php_version", "wazuh_versi
 DEPLOYED_NAMES = {
     "app/docker-compose.yml",
     "app/Caddyfile",
-    "app/backend/Dockerfile",
-    "app/backend/requirements.txt",
-    "app/backend/pyproject.toml",
     "app/backend/postgresql.conf",
-    "app/frontend/package.json",
-    "app/frontend/package-lock.json",
-    "app/frontend/index.html",
-    "app/frontend/vite.config.ts",
     "infra/psono/docker-compose.yml",
     "infra/psono/Caddyfile",
+    "infra/psono/branding/custom.css",
+    "infra/psono/branding/index.html",
+    "infra/psono/branding/language-default.js",
+    "infra/psono/branding/portal-index.html",
+    "infra/psono/branding/service-worker-load.js",
+    "infra/psono/branding/service-worker.js",
     "infra/scripts/aiops-nightly-backup.sh",
     "infra/scripts/aiops-deployment-backup.sh",
     "infra/scripts/ness-object-storage-restic.sh",
@@ -41,9 +41,6 @@ DEPLOYED_NAMES = {
 DEPLOYED_TREE_ROOTS = (
     "app/backend/app",
     "app/backend/sql",
-    "app/frontend/src",
-    "app/frontend/public",
-    "infra/psono/branding",
 )
 
 
@@ -70,11 +67,35 @@ def redact_secrets(value: Any) -> Any:
 
 
 def compose_files(root: Path) -> list[Path]:
-    candidates = set(root.rglob("docker-compose.yml"))
-    candidates.update(root.rglob("docker-compose.yaml"))
-    candidates.update(root.rglob("compose.yml"))
-    candidates.update(root.rglob("compose.yaml"))
-    return sorted(path for path in candidates if ".git" not in path.parts)
+    ignored_directories = {
+        ".git",
+        ".next",
+        ".nuxt",
+        ".pytest_cache",
+        ".superpowers",
+        ".turbo",
+        ".venv",
+        ".yarn",
+        "__pycache__",
+        "build",
+        "coverage",
+        "dist",
+        "node_modules",
+        "target",
+        "venv",
+        "vendor",
+    }
+    compose_names = {"docker-compose.yml", "docker-compose.yaml", "compose.yml", "compose.yaml"}
+    candidates: list[Path] = []
+    for current, directories, filenames in os.walk(root, topdown=True, followlinks=False):
+        directories[:] = sorted(
+            directory
+            for directory in directories
+            if directory not in ignored_directories and not directory.endswith(".egg-info")
+        )
+        current_path = Path(current)
+        candidates.extend(current_path / filename for filename in compose_names.intersection(filenames))
+    return sorted(candidates, key=lambda path: path.relative_to(root).as_posix())
 
 
 def parse_images(root: Path, paths: list[Path]) -> list[dict[str, Any]]:

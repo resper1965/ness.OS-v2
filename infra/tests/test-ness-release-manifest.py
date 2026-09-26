@@ -83,12 +83,44 @@ def test_hashes_cover_source_mounted_into_production_containers(tmp_path: Path) 
     source = root / "app/backend/app/main.py"
     source.parent.mkdir(parents=True)
     source.write_text("app_version = 'fixture'\n", encoding="utf-8")
+    frontend_source = root / "app/frontend/src/main.tsx"
+    frontend_source.parent.mkdir(parents=True)
+    frontend_source.write_text("export {}\n", encoding="utf-8")
+    dockerfile = root / "app/backend/Dockerfile"
+    dockerfile.parent.mkdir(parents=True, exist_ok=True)
+    dockerfile.write_text("FROM python:3.13\n", encoding="utf-8")
     initialize_git(root)
 
     manifest = generate(root, tmp_path / "manifest.json")
 
     expected_hash = hashlib.sha256(source.read_bytes()).hexdigest()
     assert manifest["deployed_file_hashes"]["app/backend/app/main.py"] == expected_hash
+    assert "app/frontend/src/main.tsx" not in manifest["deployed_file_hashes"]
+    assert "app/backend/Dockerfile" not in manifest["deployed_file_hashes"]
+
+
+def test_compose_discovery_skips_dependency_and_build_directories(tmp_path: Path) -> None:
+    root = write_fixture_repo(
+        tmp_path / "repo",
+        "services:\n  db:\n    image: postgres:17@sha256:" + "a" * 64 + "\n",
+    )
+    ignored_compose_files = [
+        root / "app/node_modules/package/docker-compose.yml",
+        root / "app/.next/cache/docker-compose.yml",
+        root / "app/.venv/share/docker-compose.yml",
+    ]
+    for compose in ignored_compose_files:
+        compose.parent.mkdir(parents=True, exist_ok=True)
+        compose.write_text(
+            "services:\n  decoy:\n    image: ignored:latest\n", encoding="utf-8"
+        )
+    initialize_git(root)
+
+    manifest = generate(root, tmp_path / "manifest.json")
+
+    assert [(row["compose_file"], row["service"]) for row in manifest["images"]] == [
+        ("app/docker-compose.yml", "db")
+    ]
 
 
 def test_unpinned_image_is_reported_as_a_release_blocker(tmp_path: Path) -> None:
