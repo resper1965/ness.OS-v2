@@ -1,8 +1,10 @@
 import asyncio
 import json
 import logging
+import re
 from datetime import datetime, timezone
 from typing import Any, Dict
+from uuid import uuid4
 
 from redis import Redis
 from sqlalchemy import select
@@ -12,6 +14,7 @@ from app.database import SessionLocal
 from app.integrations.glpi import GLPIClient
 from app.integrations.loki import LokiClient
 from app.integrations.whatsapp import WhatsAppClient
+from app.integrations.zabbix import ZabbixClient
 from app.ml.analyzer import analyze_incident
 from app.models import Asset, Incident
 from app.workers.celery_app import celery_app
@@ -60,26 +63,32 @@ def resolve_customer_name(h_name: str, tags_dict: dict[str, str]) -> str:
 
 def resolve_glpi_entity_id(customer_name: str) -> int:
     """Mapeia o nome do cliente para o ID da entidade GLPI."""
-    name_lower = customer_name.lower()
-    if "alupar" in name_lower:
+    name_lower = customer_name.lower().strip()
+    if name_lower in ("alupar pe", "alupar-pe"):
+        return 5
+    if name_lower in ("alupar co", "alupar-co"):
+        return 6
+    if name_lower in ("alupar", "alupar investimento s.a."):
         return 1
-    if "tbe" in name_lower:
+    if name_lower == "tbe":
         return 2
-    if "target" in name_lower:
+    if name_lower in ("target", "target trading"):
         return 3
-    if "ltb" in name_lower or "tosto" in name_lower:
+    if name_lower in ("ltb", "leite tosto", "leite tosto e barros adv ass"):
         return 4
-    if "bichara" in name_lower:
+    if name_lower == "bichara":
         return 7
-    if "cavan" in name_lower:
+    if name_lower == "cavan":
         return 8
-    if "nova energia" in name_lower or "novaenergia" in name_lower:
+    if name_lower in ("nova energia", "novaenergia"):
         return 9
-    if "numen" in name_lower:
+    if name_lower in ("numen", "numen it"):
         return 10
-    if "tne" in name_lower:
+    if name_lower == "tne":
         return 11
-    return 0  # Root Entity (Ness)
+    if name_lower in ("ness", "ness processos e tecnologia ltda."):
+        return 0
+    raise ValueError("Cliente sem entidade GLPI mapeada; ticket recusado")
 
 
 def resolve_glpi_category_id(alert_data: Dict[str, Any]) -> int:
@@ -133,14 +142,112 @@ def resolve_glpi_category_id(alert_data: Dict[str, Any]) -> int:
     return settings.glpi_infra_category_id
 
 
+def customer_from_hostgroups(groups: list[dict[str, str]]) -> str | None:
+    candidates = {}
+    for group in groups:
+        name = group.get("name", "")
+        match = re.match(r"^\[\s*([^\]]+?)\s*\]", name)
+        customer = match.group(1).strip() if match else None
+        if name in ("Zabbix servers", "UAT sintético"):
+            customer = "Ness"
+        if customer:
+            try:
+                candidates[resolve_glpi_entity_id(customer)] = customer
+            except ValueError:
+                continue
+    if len(candidates) > 1:
+        candidates.pop(0, None)  # Generic monitoring group is not a customer.
+    if set(candidates) in ({1, 5}, {1, 6}):
+        candidates.pop(1)
+    if len(candidates) > 1:
+        raise ValueError("Host associado a clientes distintos; ticket recusado")
+    return next(iter(candidates.values()), None)
+
+
+async def resolve_alert_customer(alert_data: Dict[str, Any]) -> str:
+    host_id = alert_data.get("host_id")
+    if host_id:
+        hosts = await ZabbixClient()._call(
+            "host.get",
+            {"hostids": [host_id], "output": ["hostid"], "selectHostGroups": ["name"]},
+        )
+        if len(hosts) != 1:
+            raise ValueError("Host Zabbix não encontrado ou não autorizado")
+        customer = customer_from_hostgroups(hosts[0].get("hostgroups", []))
+        if customer:
+            return customer
+    return resolve_customer_name(
+        alert_data.get("host_name", ""), alert_data.get("tags", {})
+    )
+
+
+async def ensure_glpi_ticket(
+    glpi: GLPIClient,
+    *,
+    fingerprint: str,
+    entity_id: int,
+    category_id: int,
+    title: str,
+    content: str,
+    linked_item: dict | None = None,
+) -> tuple[int, bool]:
+    """Return the single GLPI ticket for a fingerprint, creating it if absent."""
+    marker = f"[n.infraops:{fingerprint}]"
+    await glpi.change_active_entity(entity_id)
+    existing_id = await glpi.find_ticket_by_name_marker(marker, entity_id)
+    if existing_id is not None:
+        return existing_id, False
+
+    response = await glpi.create_ticket(
+        title=f"{marker} {title}",
+        content=content,
+        entity_id=entity_id,
+        itilcategories_id=category_id,
+        **({"linked_item": linked_item} if linked_item else {}),
+    )
+    if isinstance(response, list) and response:
+        ticket_id = response[0].get("id")
+    elif isinstance(response, dict):
+        ticket_id = response.get("id")
+    else:
+        ticket_id = None
+    if not isinstance(ticket_id, int) or ticket_id <= 0:
+        raise RuntimeError("GLPI não retornou um ID de ticket válido")
+
+    await glpi.add_comment(
+        ticket_id=ticket_id,
+        content="Chamado gerado automaticamente pela plataforma n.infraops AIOps.",
+        private=True,
+    )
+    return ticket_id, True
+
+
+async def lookup_glpi_asset(host_id: str, customer: str) -> dict | None:
+    async with SessionLocal() as session:
+        asset = (
+            await session.execute(
+                select(Asset).where(
+                    Asset.zabbix_host_id == host_id,
+                    Asset.customer_id == customer.lower().strip(),
+                )
+            )
+        ).scalar_one_or_none()
+        if asset and asset.tags.get("glpi_item_id"):
+            return {
+                "itemtype": asset.tags["glpi_itemtype"],
+                "id": asset.tags["glpi_item_id"],
+            }
+    return None
+
+
 async def _async_process_alert_v1(
     alert_data: Dict[str, Any], fingerprint: str
 ) -> Dict[str, Any]:
     # 1. Resolver o cliente do ativo
     host_name = alert_data.get("host_name", "")
-    tags = alert_data.get("tags", {})
-    customer_name = resolve_customer_name(host_name, tags)
+    customer_name = await resolve_alert_customer(alert_data)
     entity_id = resolve_glpi_entity_id(customer_name)
+    linked_item = await lookup_glpi_asset(alert_data.get("host_id", ""), customer_name)
 
     logger.info(
         "Processando alerta v1 | Cliente: %s | Entity ID: %d", customer_name, entity_id
@@ -175,31 +282,27 @@ async def _async_process_alert_v1(
 """
 
     ticket_id = None
+    glpi_error = None
     try:
         await glpi.init_session()
         category_id = resolve_glpi_category_id(alert_data)
-        glpi_res = await glpi.create_ticket(
+        ticket_id, ticket_created = await ensure_glpi_ticket(
+            glpi,
+            fingerprint=fingerprint,
+            entity_id=entity_id,
+            category_id=category_id,
             title=ticket_title,
             content=ticket_content,
-            entity_id=entity_id,
-            itilcategories_id=category_id,
+            linked_item=linked_item,
         )
-        if isinstance(glpi_res, list) and len(glpi_res) > 0:
-            ticket_id = glpi_res[0].get("id")
-        elif isinstance(glpi_res, dict):
-            ticket_id = glpi_res.get("id")
-
         logger.info(
-            "Ticket GLPI criado com ID: %s | Categoria ID: %s", ticket_id, category_id
+            "Ticket GLPI %s com ID: %s | Categoria ID: %s",
+            "criado" if ticket_created else "reutilizado",
+            ticket_id,
+            category_id,
         )
-
-        if ticket_id:
-            await glpi.add_comment(
-                ticket_id=int(ticket_id),
-                content="Chamado gerado automaticamente pela plataforma n.infraops AIOps.",
-                private=True,
-            )
     except Exception as e:
+        glpi_error = e
         logger.error(
             "Erro ao criar ticket no GLPI durante o processamento do alerta: %s", e
         )
@@ -207,7 +310,13 @@ async def _async_process_alert_v1(
         await glpi.kill_session()
 
     # 4. WhatsApp: Notificar NOC
-    if analysis.urgency in ("HIGH", "CRITICAL") or analysis.isolation_required:
+    notify = (
+        settings.alert_notifications_enabled
+        and glpi_error is None
+        and (analysis.urgency in ("HIGH", "CRITICAL") or analysis.isolation_required)
+    )
+    whatsapp_sent = False
+    if notify:
         whatsapp = WhatsAppClient()
         recipient = settings.whatsapp_noc_group_id
 
@@ -230,6 +339,7 @@ async def _async_process_alert_v1(
 """
             try:
                 await whatsapp.send_text_message(recipient=recipient, text=wa_message)
+                whatsapp_sent = True
             except Exception as e:
                 logger.error(
                     "Erro ao disparar mensagem de WhatsApp via Evolution API: %s", e
@@ -269,16 +379,18 @@ async def _async_process_alert_v1(
             now = datetime.now(timezone.utc)
 
             asset_stmt = select(Asset).where(
-                (Asset.zabbix_host_id == alert_data.get("host_id"))
-                | (Asset.hostname == alert_data.get("host_name"))
-                | (Asset.ip_address == alert_data.get("host_ip"))
+                Asset.zabbix_host_id == alert_data.get("host_id", ""),
+                Asset.customer_id == customer_name.lower().strip(),
             )
             asset_result = await session.execute(asset_stmt)
             db_asset = asset_result.scalar_one_or_none()
             asset_id = db_asset.id if db_asset else None
 
             if db_incident:
-                db_incident.alert_count += 1
+                db_incident.asset_id = asset_id
+                previous_event = (db_incident.tags or {}).get("ninf_zabbix_event_id")
+                if previous_event != str(alert_data.get("event_id", "")):
+                    db_incident.alert_count += 1
                 db_incident.last_seen = now
                 db_incident.updated_at = now
                 if ticket_id:
@@ -302,54 +414,61 @@ async def _async_process_alert_v1(
                 )
                 session.add(db_incident)
 
+            db_incident.tags = {
+                **(db_incident.tags or {}),
+                "ninf_customer_name": customer_name,
+                "ninf_zabbix_event_id": str(alert_data.get("event_id", "")),
+            }
             await session.flush()
 
-            # 6. Publicar no Redis Pub/Sub para atualização em tempo real no Dashboard (SSE)
-            try:
-                severity_map = {
-                    0: "not_classified",
-                    1: "info",
-                    2: "warning",
-                    3: "average",
-                    4: "high",
-                    5: "disaster",
-                }
-                event_data = {
-                    "id": str(db_incident.id),
-                    "fingerprint": fingerprint,
-                    "title": alert_data.get("trigger_name", "Unknown"),
-                    "severity": severity_map.get(
-                        int(alert_data.get("severity", 3)), "unknown"
+            # Capture persisted values before the session closes.
+            severity_map = {
+                0: "not_classified",
+                1: "info",
+                2: "warning",
+                3: "average",
+                4: "high",
+                5: "disaster",
+            }
+            event_data = {
+                "id": str(db_incident.id),
+                "fingerprint": fingerprint,
+                "title": alert_data.get("trigger_name", "Unknown"),
+                "severity": severity_map.get(
+                    int(alert_data.get("severity", 3)), "unknown"
+                ),
+                "severity_level": int(alert_data.get("severity", 3)),
+                "host_name": host_name,
+                "client": customer_name,
+                "tenant_id": customer_name.lower().strip(),
+                "status": db_incident.status,
+                "ticket_id": db_incident.deskmanager_ticket_id,
+                "pipeline_stage": (
+                    "resolved"
+                    if db_incident.status == "resolved"
+                    else (
+                        "ticket_opened"
+                        if db_incident.deskmanager_ticket_id
+                        else "incident_created"
+                    )
+                ),
+                "alert_count": db_incident.alert_count,
+                "first_seen": db_incident.first_seen.isoformat(),
+                "last_seen": now.isoformat(),
+                "analysis": {
+                    "probable_cause": getattr(analysis, "probable_cause", ""),
+                    "urgency": getattr(analysis, "urgency", "AVERAGE"),
+                    "isolation_required": getattr(
+                        analysis, "isolation_required", False
                     ),
-                    "severity_level": int(alert_data.get("severity", 3)),
-                    "host_name": host_name,
-                    "client": customer_name,
-                    "tenant_id": customer_name.lower().strip(),
-                    "status": "open",
-                    "first_seen": now.isoformat(),
-                    "last_seen": now.isoformat(),
-                    "analysis": {
-                        "probable_cause": getattr(analysis, "probable_cause", ""),
-                        "urgency": getattr(analysis, "urgency", "AVERAGE"),
-                        "isolation_required": getattr(
-                            analysis, "isolation_required", False
-                        ),
-                        "executive_action_plan": getattr(
-                            analysis, "executive_action_plan", ""
-                        ),
-                    },
-                }
-                redis_client = _get_sync_redis()
-                redis_client.publish("ninf_incidents", json.dumps(event_data))
-                redis_client.close()
-                logger.info(
-                    "Incidente publicado com sucesso no Redis Pub/Sub para o canal ninf_incidents."
-                )
-            except Exception as e:
-                logger.error(f"Erro ao publicar incidente no Redis Pub/Sub: {e}")
+                    "executive_action_plan": getattr(
+                        analysis, "executive_action_plan", ""
+                    ),
+                },
+            }
 
             # 7. Disparar Web Push para stakeholders do tenant se for HIGH/CRITICAL ou isolamento urgente
-            if analysis.urgency in ("HIGH", "CRITICAL") or analysis.isolation_required:
+            if notify:
                 try:
                     from app.integrations.webpush import notify_tenant_stakeholders
 
@@ -386,13 +505,33 @@ async def _async_process_alert_v1(
                 except Exception as e:
                     logger.error(f"Erro ao disparar Web Push para stakeholders: {e}")
 
-            return {
+            result_data = {
                 "id": db_incident.id,
                 "fingerprint": fingerprint,
                 "ticket_id": ticket_id,
-                "whatsapp_sent": analysis.urgency in ("HIGH", "CRITICAL")
-                or analysis.isolation_required,
+                "whatsapp_sent": whatsapp_sent,
             }
+
+    # A failed commit must never announce an incident that was not persisted.
+    redis_client = None
+    try:
+        redis_client = _get_sync_redis()
+        redis_client.publish("ninf_incidents", json.dumps(event_data))
+    except Exception as exc:
+        logger.warning(
+            "Persisted incident could not be published: %s", type(exc).__name__
+        )
+    finally:
+        if redis_client is not None:
+            try:
+                redis_client.close()
+            except Exception:
+                logger.warning("Could not close incident publisher")
+
+    # Commit the local incident even when GLPI is unavailable, then let Celery retry.
+    if glpi_error is not None:
+        raise glpi_error
+    return result_data
 
 
 @celery_app.task(
@@ -412,23 +551,25 @@ def process_alert_v1(
     Implementa deduplicação/inibição com chaves SHA-256 no Redis (`ninf-redis`)
     com TTL de 300 segundos.
     """
-    redis = _get_sync_redis()
     inhibit_key = f"ninf:inhibit:{fingerprint}"
-
-    if redis.exists(inhibit_key):
-        logger.info(
-            "Alerta DEDUPLICADO / INIBIDO | fingerprint=%s host=%s trigger=%s",
-            fingerprint,
-            alert_data.get("host_name"),
-            alert_data.get("trigger_name"),
-        )
-        redis.close()
-        return {"status": "deduplicated", "fingerprint": fingerprint}
-
-    redis.set(inhibit_key, "1", ex=300)
-    redis.close()
+    inhibit_token = uuid4().hex
+    acquired = False
 
     try:
+        redis = _get_sync_redis()
+        try:
+            acquired = bool(redis.set(inhibit_key, inhibit_token, ex=300, nx=True))
+        finally:
+            redis.close()
+        if not acquired:
+            logger.info(
+                "Alerta DEDUPLICADO / INIBIDO | fingerprint=%s host=%s trigger=%s",
+                fingerprint,
+                alert_data.get("host_name"),
+                alert_data.get("trigger_name"),
+            )
+            return {"status": "deduplicated", "fingerprint": fingerprint}
+
         logger.info(
             "Iniciando processamento AIOps | fingerprint=%s host=%s trigger=%s",
             fingerprint,
@@ -441,9 +582,19 @@ def process_alert_v1(
 
     except Exception as exc:
         try:
-            redis_err = _get_sync_redis()
-            redis_err.delete(inhibit_key)
-            redis_err.close()
+            if acquired:
+                redis_err = _get_sync_redis()
+                try:
+                    # A slow attempt must not delete a newer worker's inhibition.
+                    redis_err.eval(
+                        "if redis.call('get', KEYS[1]) == ARGV[1] then "
+                        "return redis.call('del', KEYS[1]) else return 0 end",
+                        1,
+                        inhibit_key,
+                        inhibit_token,
+                    )
+                finally:
+                    redis_err.close()
         except Exception:
             pass
         logger.exception("Falha ao processar alerta v1 AIOps: %s", exc)

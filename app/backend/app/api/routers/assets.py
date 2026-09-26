@@ -10,11 +10,53 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.config import get_settings
-from app.core.dependencies import require_noc
+from app.core.dependencies import get_current_user, require_noc, resolve_tenant_scope
 from app.integrations.atera import AteraClient
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+
+@router.get("/cmdb")
+async def cmdb_assets(
+    tenant_id: str | None = None,
+    limit: int = Query(100, ge=1, le=500),
+    user=Depends(get_current_user),
+):
+    from sqlalchemy import select
+
+    from app.database import SessionLocal
+    from app.models import Asset
+
+    scope = resolve_tenant_scope(user, tenant_id)
+    async with SessionLocal() as session:
+        statement = (
+            select(Asset)
+            .where(Asset.tags["source"].astext == "zabbix+glpi")
+            .order_by(Asset.id)
+            .limit(limit)
+        )
+        if scope:
+            statement = statement.where(Asset.customer_id == scope)
+        assets = (await session.execute(statement)).scalars().all()
+        return {
+            "source": "zabbix+glpi",
+            "items": [
+                {
+                    "id": a.id,
+                    "host_id": a.zabbix_host_id,
+                    "name": a.hostname,
+                    "client": a.customer_name,
+                    "location": a.location,
+                    "glpi_itemtype": a.tags.get("glpi_itemtype"),
+                    "glpi_item_id": a.tags.get("glpi_item_id"),
+                    "owner": a.tags.get("owner"),
+                    "owner_group_id": a.tags.get("glpi_owner_group_id"),
+                }
+                for a in assets
+            ],
+            "total": len(assets),
+        }
 
 
 def _atera() -> AteraClient | None:

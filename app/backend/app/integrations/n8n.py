@@ -133,6 +133,8 @@ def notify_incident_created(incident: dict[str, Any]) -> dict[str, Any]:
 
     Retorna a resposta do n8n (contendo ticket_id do DeskManager).
     """
+    if not settings.alert_notifications_enabled:
+        return {"status": "disabled", "ticket_id": None}
     payload = build_incident_payload(incident)
     url = f"{settings.n8n_base_url}{settings.n8n_webhook_incident}"
 
@@ -164,6 +166,8 @@ def notify_postmortem_ready(
       1. Insere o Markdown como Interação Interna no DeskManager.
       2. (Opcional) Notifica no Slack com link do relatório.
     """
+    if not settings.alert_notifications_enabled:
+        return {"status": "disabled"}
     url = f"{settings.n8n_base_url}{settings.n8n_webhook_postmortem}"
 
     try:
@@ -184,6 +188,8 @@ def notify_soc_triage_decision(decision_data: dict[str, Any]) -> dict[str, Any]:
       1. Abre chamado de segurança no GLPI (ou DeskManager).
       2. Envia alerta no WhatsApp se a severidade for HIGH ou CRIT.
     """
+    if not settings.alert_notifications_enabled:
+        return {"status": "disabled"}
     url = f"{settings.n8n_base_url}{settings.n8n_webhook_soc}"
 
     try:

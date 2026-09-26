@@ -14,7 +14,12 @@ from redis.asyncio import Redis
 from sqlalchemy import desc, select
 
 from app.config import get_settings
-from app.core.dependencies import get_current_user, is_noc_role, require_noc
+from app.core.dependencies import (
+    get_current_user,
+    is_noc_role,
+    require_noc,
+    resolve_tenant_scope,
+)
 from app.database import SessionLocal
 from app.models import Incident
 from app.models.schemas import IncidentAnalyzeRequest
@@ -39,7 +44,9 @@ def _pipeline_stage(incident: Incident) -> str:
     # Por enquanto derivado dos campos existentes.
     # Quando DeskManager e n8n forem integrados, estes campos serão persistidos.
     if incident.status == "resolved":
-        return "postmortem"
+        return "resolved"
+    if incident.deskmanager_ticket_id:
+        return "ticket_opened"
     if incident.alert_count and incident.alert_count > 0:
         # TODO: verificar se ticket_id existe (campo futuro)
         return "incident_created"
@@ -49,15 +56,17 @@ def _pipeline_stage(incident: Incident) -> str:
 @router.get(
     "/api/incidents",
     tags=["incidents"],
-    dependencies=[Depends(require_noc)],
 )
 async def list_incidents(
     limit: int = Query(default=20, le=100),
     status: str | None = Query(default=None),
+    tenant_id: str | None = Query(default=None),
+    current_user: User = Depends(get_current_user),
 ):
     """Retorna lista de incidentes com stage do pipeline."""
     from sqlalchemy.orm import selectinload
 
+    scope = resolve_tenant_scope(current_user, tenant_id)
     async with SessionLocal() as session:
         stmt = (
             select(Incident)
@@ -67,6 +76,12 @@ async def list_incidents(
         )
         if status:
             stmt = stmt.where(Incident.status == status)
+        if scope:
+            from sqlalchemy import func
+
+            stmt = stmt.where(
+                func.lower(Incident.tags["ninf_customer_name"].astext) == scope
+            )
         result = await session.execute(stmt)
         incidents = result.scalars().all()
 
@@ -74,11 +89,30 @@ async def list_incidents(
             "incidents": [
                 {
                     "id": str(inc.id),
+                    "fingerprint": inc.fingerprint,
+                    "ticket_id": inc.deskmanager_ticket_id,
+                    "solution": (inc.tags or {}).get("glpi_solution"),
+                    "resolution_sync_status": (inc.tags or {}).get(
+                        "resolution_sync_status"
+                    ),
+                    "asset_id": inc.asset_id,
+                    "asset": (
+                        {
+                            "name": inc.asset.hostname,
+                            "glpi_itemtype": inc.asset.tags.get("glpi_itemtype"),
+                            "glpi_item_id": inc.asset.tags.get("glpi_item_id"),
+                            "owner": inc.asset.tags.get("owner"),
+                            "owner_group_id": inc.asset.tags.get("glpi_owner_group_id"),
+                        }
+                        if inc.asset
+                        else None
+                    ),
                     "title": inc.title,
                     "severity": SEVERITY_LABEL.get(inc.severity or 0, "unknown"),
                     "severity_level": inc.severity or 0,
                     "host_name": inc.host_name or "unknown",
-                    "client": inc.asset.customer_name if inc.asset else "Ness",
+                    "client": (inc.tags or {}).get("ninf_customer_name")
+                    or (inc.asset.customer_name if inc.asset else "Não identificado"),
                     "status": inc.status,
                     "alert_count": inc.alert_count or 1,
                     "first_seen": (

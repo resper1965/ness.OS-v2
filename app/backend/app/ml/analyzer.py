@@ -1,16 +1,20 @@
 import json
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 import httpx
 from pydantic import BaseModel, Field
 
 from app.config import get_settings
+from app.core.ai_context import incident_prompt_data
+from app.core.sanitizer import sanitize_value
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
 
-_TIMEOUT = httpx.Timeout(connect=10.0, read=120.0, write=10.0, pool=5.0)
+_TIMEOUT = httpx.Timeout(connect=10.0, read=20.0, write=10.0, pool=5.0)
+Urgency = Literal["LOW", "MEDIUM", "HIGH", "CRITICAL"]
+URGENCY_ORDER = ("LOW", "MEDIUM", "HIGH", "CRITICAL")
 
 
 class AIAnalysisResult(BaseModel):
@@ -21,7 +25,7 @@ class AIAnalysisResult(BaseModel):
         ...,
         description="Passo a passo técnico detalhado de mitigação para a equipe de NOC/SOC",
     )
-    urgency: str = Field(
+    urgency: Urgency = Field(
         ..., description="Grau de urgência determinado: LOW, MEDIUM, HIGH, CRITICAL"
     )
     isolation_required: bool = Field(
@@ -49,6 +53,34 @@ Sua resposta DEVE ser estritamente no formato JSON que siga o seguinte schema:
 """
 
 
+def source_urgency(incident_data: Dict[str, Any]) -> Urgency:
+    severity = incident_data.get("severity")
+    severity = getattr(severity, "value", severity)
+    value = str(severity).strip().upper()
+    if value in {"5", "DISASTER", "CRITICAL"}:
+        return "CRITICAL"
+    if value in {"4", "HIGH"}:
+        return "HIGH"
+    if value in {"1", "INFORMATION", "LOW"}:
+        return "LOW"
+    # Missing, unclassified and unknown severity require manual triage.
+    return "MEDIUM"
+
+
+def manual_triage(incident_data: Dict[str, Any]) -> AIAnalysisResult:
+    return AIAnalysisResult(
+        executive_action_plan=f"Incidente sob análise. Impacto em {incident_data.get('host_name', 'host')}.",
+        technical_action_plan=(
+            f"Investigar falha no trigger {incident_data.get('trigger_name', 'zabbix')}. "
+            "Validar impacto e causa antes de executar qualquer ação corretiva."
+        ),
+        urgency=source_urgency(incident_data),
+        isolation_required=False,
+        probable_cause="Análise IA indisponível. Triagem manual necessária.",
+        recommended_playbook="Default Troubleshooting",
+    )
+
+
 async def analyze_incident(
     incident_data: Dict[str, Any],
     customer_metadata: Optional[Dict[str, Any]] = None,
@@ -59,17 +91,8 @@ async def analyze_incident(
     Retorna um objeto Pydantic com a triagem estruturada do incidente.
     """
     if not settings.gemini_api_key:
-        logger.warning(
-            "Gemini API key não configurada. Retornando análise padrão/mock."
-        )
-        return AIAnalysisResult(
-            executive_action_plan="Sem chave Gemini. Verificação manual necessária.",
-            technical_action_plan="Verificar logs locais do Zabbix/sistema.",
-            urgency="MEDIUM",
-            isolation_required=False,
-            probable_cause="Indeterminada (Sem IA)",
-            recommended_playbook="Default Troubleshooting",
-        )
+        logger.warning("Gemini indisponível: triagem manual com severidade de origem.")
+        return manual_triage(incident_data)
 
     # Lista de playbooks padrão/disponíveis
     available_playbooks = playbooks or [
@@ -83,13 +106,12 @@ async def analyze_incident(
 
     prompt = f"""
 # Dados do Incidente:
-{json.dumps(incident_data, indent=2, ensure_ascii=False)}
+{json.dumps(incident_prompt_data(incident_data), indent=2, ensure_ascii=False)}
 
-# Metadados do Cliente:
-{json.dumps(customer_metadata or {}, indent=2, ensure_ascii=False)}
+# Escopo: somente o incidente atual; sem credenciais ou cadastro do cliente.
 
 # Playbooks Disponíveis:
-{json.dumps(available_playbooks, indent=2, ensure_ascii=False)}
+{json.dumps(sanitize_value(available_playbooks), indent=2, ensure_ascii=False)}
 
 Gere a análise estruturada em JSON correspondente ao incidente acima.
 """
@@ -135,8 +157,10 @@ Gere a análise estruturada em JSON correspondente ao incidente acima.
             res = await client.post(
                 api_url,
                 json=request_body,
-                params={"key": settings.gemini_api_key},
-                headers={"Content-Type": "application/json"},
+                headers={
+                    "Content-Type": "application/json",
+                    "x-goog-api-key": settings.gemini_api_key,
+                },
             )
             res.raise_for_status()
             result = res.json()
@@ -149,15 +173,12 @@ Gere a análise estruturada em JSON correspondente ao incidente acima.
         )
 
         data = json.loads(raw_text)
-        return AIAnalysisResult(**data)
+        analysis = AIAnalysisResult(**data)
+        minimum = source_urgency(incident_data)
+        if URGENCY_ORDER.index(analysis.urgency) < URGENCY_ORDER.index(minimum):
+            analysis.urgency = minimum
+        return analysis
 
     except Exception as exc:
-        logger.error("Falha ao rodar analisador IA: %s", exc)
-        return AIAnalysisResult(
-            executive_action_plan=f"Incidente sob análise. Impacto em {incident_data.get('host_name', 'host')}.",
-            technical_action_plan=f"Investigar falha no trigger {incident_data.get('trigger_name', 'zabbix')}.",
-            urgency="MEDIUM",
-            isolation_required=False,
-            probable_cause=f"Falha de comunicação/IA: {str(exc)}",
-            recommended_playbook="Default Troubleshooting",
-        )
+        logger.error("Falha ao rodar analisador IA: %s", type(exc).__name__)
+        return manual_triage(incident_data)

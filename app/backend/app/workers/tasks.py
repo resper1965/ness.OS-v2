@@ -558,108 +558,34 @@ def sync_assets_from_rmm() -> dict[str, Any]:
 
 
 @celery_app.task(
+    bind=True,
     name="app.workers.tasks.process_ticket_resolution",
     acks_late=True,
+    max_retries=3,
+    default_retry_delay=10,
 )
 def process_ticket_resolution(
+    self: Any,
     ticket_id: str,
     solution_text: str = "",
 ) -> dict[str, Any]:
-    """Processa a resolução do ticket vinda do GLPI.
+    """Fetch the real solution and serialize duplicate deliveries per ticket."""
+    from app.workers.resolution import resolve_ticket
 
-    1. Atualiza o status do incidente no PostgreSQL para 'resolved'.
-    2. Enriquece o Post-Mortem com a solução humana e gera novos embeddings.
-    3. Envia solicitação de fechamento/reconhecimento do alerta no Zabbix.
-    """
-    logger.info(
-        "Iniciando processamento de resolução | ticket_id=%s",
-        ticket_id,
-    )
-
-    import asyncio
-
-    from app.integrations.gemini import generate_embedding
-    from app.integrations.zabbix import ZabbixClient
-    from app.models import Incident, IncidentReport
-
-    async def _db_resolve():
-        async with SessionLocal() as session:
-            async with session.begin():
-                # 1. Localiza o incidente
-                stmt = select(Incident).where(
-                    Incident.deskmanager_ticket_id == ticket_id
-                )
-                result = await session.execute(stmt)
-                db_incident = result.scalar_one_or_none()
-
-                if not db_incident:
-                    logger.warning(
-                        "Nenhum incidente local encontrado com ticket_id=%s", ticket_id
-                    )
-                    return None
-
-                # Atualiza status
-                db_incident.status = "resolved"
-                db_incident.updated_at = datetime.now(timezone.utc)
-
-                # 2. Localiza o relatório correspondente (Post-Mortem)
-                report_stmt = select(IncidentReport).where(
-                    IncidentReport.deskmanager_ticket_id == ticket_id
-                )
-                report_result = await session.execute(report_stmt)
-                db_report = report_result.scalar_one_or_none()
-
-                if db_report:
-                    # Enriquecer markdown com a solução humana
-                    solution_md = (
-                        f"\n\n## 🛠️ Solução Realizada (Humana)\n- {solution_text}\n"
-                    )
-                    db_report.markdown_report += solution_md
-                    db_report.root_cause += f"\n\n[Solução Humana]: {solution_text}"
-                    db_report.corrective_actions.append(
-                        f"Solução aplicada: {solution_text}"
-                    )
-
-                    # Re-gerar embedding vetorial
-                    new_embed = generate_embedding(db_report.markdown_report)
-                    db_report.embedding = new_embed
-                    logger.info(
-                        "Relatório Post-Mortem enriquecido com a solução humana e re-indexado via pgvector."
-                    )
-
-                return {
-                    "fingerprint": db_incident.fingerprint,
-                    "trigger_id": db_incident.trigger_id,
-                    "host_id": db_incident.host_id,
-                    "title": db_incident.title,
-                }
-
-    result_data = asyncio.run(_db_resolve())
-
-    if not result_data:
-        return {"status": "not_found", "ticket_id": ticket_id}
-
-    # 3. Fechar alerta no Zabbix
-    trigger_id = result_data.get("trigger_id")
-    zabbix_status = "skipped"
-    if trigger_id:
-        try:
-            zabbix = ZabbixClient()
-            # Chama o método de reconhecer/fechar a trigger no Zabbix
-            z_result = asyncio.run(
-                zabbix.acknowledge_trigger(
-                    trigger_id,
-                    f"Resolvido automaticamente via GLPI Ticket {ticket_id}. Solução: {solution_text}",
-                )
-            )
-            zabbix_status = "success" if z_result else "failed"
-        except Exception as e:
-            logger.error("Falha ao reconhecer trigger no Zabbix: %s", e)
-            zabbix_status = f"failed: {str(e)}"
-
-    return {
-        "status": "success",
-        "ticket_id": ticket_id,
-        "fingerprint": result_data.get("fingerprint"),
-        "zabbix_status": zabbix_status,
-    }
+    redis = _get_sync_redis()
+    lock = redis.lock(f"ninf:resolution:{ticket_id}", timeout=240, blocking=False)
+    acquired = False
+    try:
+        acquired = lock.acquire(blocking=False)
+        if not acquired:
+            raise RuntimeError("Ticket resolution is already being processed")
+        return asyncio.run(resolve_ticket(str(ticket_id), redis))
+    except Exception as exc:
+        raise self.retry(exc=exc)
+    finally:
+        if acquired:
+            try:
+                lock.release()
+            except Exception:
+                logger.warning("Resolution lock expired for ticket %s", ticket_id)
+        redis.close()

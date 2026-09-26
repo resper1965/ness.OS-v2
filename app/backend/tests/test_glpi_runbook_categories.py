@@ -7,7 +7,7 @@ from app.integrations.glpi import GLPIClient
 from app.integrations.glpi_runbook_categories import import_runbook_categories
 
 CATEGORIES = [
-    "Operação interna Ness",
+    "Operação interna ness.",
     "Operação padrão MSP",
     "Operação específica do cliente",
     "Backup e continuidade",

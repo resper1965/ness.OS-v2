@@ -26,6 +26,7 @@ from app.database import Base
 
 
 class AssetType(str, enum.Enum):
+    UNKNOWN = "unknown"
     WINDOWS = "windows"
     LINUX = "linux"
     NETWORK_DEVICE = "network_device"

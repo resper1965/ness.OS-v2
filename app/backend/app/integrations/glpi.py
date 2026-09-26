@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from ipaddress import ip_address
 from typing import Any, Dict, Optional
@@ -54,6 +55,7 @@ class GLPIClient:
             self.headers["Authorization"] = f"user_token {self.user_token}"
 
         self.session_token: str | None = None
+        self.user_id: int | None = None
 
     async def init_session(self) -> str:
         """Inicializa sessão no GLPI e armazena o token de sessão."""
@@ -63,19 +65,37 @@ class GLPIClient:
                 timeout=10.0, follow_redirects=False
             ) as client:
                 logger.info("Inicializando sessão no GLPI em %s", url)
-                res = await client.get(url, headers=self.headers)
+                res = await client.get(
+                    url, headers=self.headers, params={"get_full_session": "true"}
+                )
                 res.raise_for_status()
                 data = res.json()
                 session_token = data.get("session_token")
                 if not isinstance(session_token, str) or not session_token:
                     raise RuntimeError("GLPI não retornou um token de sessão válido")
                 self.session_token = session_token
+                user_id = data.get("session", {}).get("glpiID")
+                self.user_id = int(user_id) if user_id else None
                 self.headers["Session-Token"] = session_token
                 logger.info("Sessão inicializada no GLPI com sucesso.")
                 return session_token
         except Exception as e:
             logger.error("Erro ao inicializar sessão no GLPI: %s", str(e))
             raise RuntimeError(f"Erro ao conectar ao GLPI: {e}") from e
+
+    async def change_active_entity(self, entity_id: int) -> None:
+        """Select exactly one authorized entity before ticket operations."""
+        if not self.session_token:
+            await self.init_session()
+        async with httpx.AsyncClient(timeout=10.0, follow_redirects=False) as client:
+            response = await client.post(
+                f"{self.base_url}/changeActiveEntities",
+                headers=self.headers,
+                json={"entities_id": entity_id, "is_recursive": False},
+            )
+            response.raise_for_status()
+            if response.json() is not True:
+                raise PermissionError("GLPI refused the requested entity")
 
     async def kill_session(self) -> bool:
         """Encerra a sessão ativa no GLPI."""
@@ -131,11 +151,19 @@ class GLPIClient:
             await self.init_session()
             entities = await self.get_my_entities()
             categories = await self.list_knowbase_item_categories()
-        except Exception:
-            await self.kill_session()
+        except BaseException:
+            # A readiness deadline cancels the read. Still close an acquired
+            # session, without letting cleanup hide the original failure.
+            try:
+                async with asyncio.timeout(5):
+                    await self.kill_session()
+            except Exception:
+                logger.warning("Readiness cleanup did not finish within its deadline")
             raise
 
-        if not await self.kill_session():
+        async with asyncio.timeout(5):
+            closed = await self.kill_session()
+        if not closed:
             raise RuntimeError("Probe falhou: sessão GLPI não foi encerrada")
 
         return {
@@ -148,12 +176,89 @@ class GLPIClient:
             "session_closed": True,
         }
 
+    async def get_item(self, itemtype: str, item_id: int) -> dict:
+        if not self.session_token:
+            await self.init_session()
+        async with httpx.AsyncClient(timeout=10, follow_redirects=False) as client:
+            response = await client.get(
+                f"{self.base_url}/{itemtype}/{int(item_id)}", headers=self.headers
+            )
+            response.raise_for_status()
+            return response.json()
+
+    async def list_items(self, path: str) -> list[dict]:
+        """Read every page; callers supply a fixed item type or sub-item path."""
+        if not self.session_token:
+            await self.init_session()
+        items = []
+        async with httpx.AsyncClient(timeout=15, follow_redirects=False) as client:
+            for start in range(0, 100000, 100):
+                response = await client.get(
+                    f"{self.base_url}/{path}",
+                    headers=self.headers,
+                    params={"range": f"{start}-{start + 99}", "get_hateoas": "false"},
+                )
+                response.raise_for_status()
+                page = response.json()
+                if not isinstance(page, list):
+                    raise ValueError("GLPI returned an invalid collection")
+                items.extend(page)
+                total = response.headers.get("Content-Range", "").rsplit("/", 1)[-1]
+                if (total.isdigit() and len(items) >= int(total)) or len(page) < 100:
+                    return items
+        raise RuntimeError("GLPI pagination limit exceeded")
+
+    async def ticket_resolution(
+        self, ticket_id: int, entity_id: int, fingerprint: str
+    ) -> dict:
+        """Validate ownership and current status before accepting a callback."""
+        from html import unescape
+        from html.parser import HTMLParser
+
+        class PlainText(HTMLParser):
+            def __init__(self):
+                super().__init__()
+                self.parts = []
+
+            def handle_data(self, data):
+                self.parts.append(data)
+
+            def handle_endtag(self, tag):
+                if tag in ("p", "div", "li"):
+                    self.parts.append("\n")
+
+            def handle_starttag(self, tag, attrs):
+                if tag == "br":
+                    self.parts.append("\n")
+
+        await self.change_active_entity(entity_id)
+        ticket = await self.get_item("Ticket", ticket_id)
+        if (
+            int(ticket["entities_id"]) != entity_id
+            or f"[n.infraops:{fingerprint}]" not in ticket["name"]
+        ):
+            raise ValueError("GLPI ticket ownership mismatch")
+        if int(ticket["status"]) not in (5, 6):
+            return {"resolved": False, "solution": "", "solution_id": None}
+        solutions = await self.list_items(f"Ticket/{ticket_id}/ITILSolution")
+        # Status 4 is a refused solution in GLPI; do not import it as applied.
+        accepted = [s for s in solutions if int(s.get("status", 0)) != 4]
+        latest = max(accepted, key=lambda s: int(s["id"]), default=None)
+        parser = PlainText()
+        parser.feed(unescape(latest.get("content", "")) if latest else "")
+        return {
+            "resolved": True,
+            "solution": "".join(parser.parts).strip(),
+            "solution_id": str(latest["id"]) if latest else None,
+        }
+
     async def create_ticket(
         self,
         title: str,
         content: str,
         entity_id: int = 0,
         itilcategories_id: Optional[int] = None,
+        linked_item: dict | None = None,
     ) -> Dict[str, Any]:
         """Cria um novo ticket no GLPI."""
         if not self.session_token:
@@ -169,6 +274,15 @@ class GLPIClient:
         }
         if itilcategories_id is not None:
             input_data["itilcategories_id"] = itilcategories_id
+        if self.user_id:
+            input_data["_users_id_requester"] = self.user_id
+        if linked_item:
+            if linked_item["itemtype"] not in ("Computer", "NetworkEquipment"):
+                raise ValueError("Unsupported GLPI asset type")
+            item = await self.get_item(linked_item["itemtype"], int(linked_item["id"]))
+            if int(item["entities_id"]) != entity_id:
+                raise ValueError("Asset and ticket must have the same entity")
+            input_data["items_id"] = {linked_item["itemtype"]: [int(linked_item["id"])]}
 
         payload = {"input": input_data}
         try:
@@ -181,6 +295,51 @@ class GLPIClient:
         except Exception as e:
             logger.error("Erro ao criar ticket no GLPI: %s", str(e))
             raise RuntimeError(f"Erro ao criar ticket no GLPI: {e}") from e
+
+    async def find_ticket_by_name_marker(
+        self, marker: str, entity_id: int
+    ) -> Optional[int]:
+        """Find one non-deleted ticket by its deterministic title marker."""
+        if not self.session_token:
+            await self.init_session()
+        if not marker or len(marker) > 96:
+            raise ValueError("Marcador de idempotência GLPI inválido")
+
+        url = f"{self.base_url}/Ticket/"
+        try:
+            async with httpx.AsyncClient(
+                timeout=10.0, follow_redirects=False
+            ) as client:
+                res = await client.get(
+                    url,
+                    headers=self.headers,
+                    params=[
+                        ("searchText[name]", marker),
+                        ("searchText[entities_id]", str(entity_id)),
+                        ("range", "0-1"),
+                        ("get_hateoas", "false"),
+                    ],
+                )
+                res.raise_for_status()
+                data = res.json()
+        except Exception as e:
+            logger.error("Erro ao localizar ticket idempotente no GLPI: %s", str(e))
+            raise RuntimeError(f"Erro ao localizar ticket no GLPI: {e}") from e
+
+        if not isinstance(data, list):
+            raise RuntimeError("GLPI retornou busca de tickets em formato inválido")
+
+        matches = [
+            item
+            for item in data
+            if isinstance(item, dict)
+            and marker in str(item.get("name", ""))
+            and int(item.get("entities_id", -1)) == entity_id
+            and isinstance(item.get("id"), int)
+        ]
+        if len(matches) > 1:
+            raise RuntimeError("GLPI retornou tickets idempotentes duplicados")
+        return matches[0]["id"] if matches else None
 
     async def add_comment(
         self, ticket_id: int, content: str, private: bool = False

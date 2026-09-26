@@ -13,7 +13,7 @@ Roda ANTES da serialização, nunca depois.
 from __future__ import annotations
 
 import re
-from typing import Final
+from typing import Any, Final
 
 # --- Padrões compilados (uma vez, no import) ---
 
@@ -90,26 +90,27 @@ def sanitize_dict(data: dict) -> dict:
         "api_key",
         "token",
         "private_key",
+        "authorization",
+        "cookie",
+        "apikey",
     }
     result: dict = {}
     for key, value in data.items():
-        is_sensitive = any(sk in key.lower() for sk in sensitive_keys)
-
-        if isinstance(value, str):
-            if is_sensitive:
-                result[key] = "[REDACTED]"
-            else:
-                result[key] = sanitize(value)
-        elif isinstance(value, dict):
-            result[key] = sanitize_dict(value)
-        elif isinstance(value, list):
-            if is_sensitive:
-                result[key] = ["[REDACTED]" if isinstance(v, str) else v for v in value]
-            else:
-                result[key] = [sanitize(v) if isinstance(v, str) else v for v in value]
-        else:
-            if is_sensitive and value is not None:
-                result[key] = "[REDACTED]"
-            else:
-                result[key] = value
+        normalized_key = key.lower().replace("-", "_")
+        is_sensitive = any(sk in normalized_key for sk in sensitive_keys)
+        result[key] = (
+            "[REDACTED]"
+            if is_sensitive and value is not None
+            else sanitize_value(value)
+        )
     return result
+
+
+def sanitize_value(value: Any) -> Any:
+    if isinstance(value, str):
+        return sanitize(value)
+    if isinstance(value, dict):
+        return sanitize_dict(value)
+    if isinstance(value, list):
+        return [sanitize_value(item) for item in value]
+    return value

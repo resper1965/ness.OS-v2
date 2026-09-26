@@ -16,6 +16,7 @@ Pipeline completo:
 """
 
 import asyncio
+import json
 import logging
 from typing import Any
 
@@ -37,121 +38,13 @@ async def _async_generate_postmortem_report(
     incident_data: dict[str, Any],
     deskmanager_ticket_id: str | None = None,
 ) -> dict[str, Any]:
-    # Resolvendo o nome do cliente
-    def resolve_customer_name(h_name: str, tags_dict: dict[str, str]) -> str:
-        for k in (
-            "cliente",
-            "client",
-            "customer",
-            "tenant",
-            "Cliente",
-            "Client",
-            "Customer",
-            "Tenant",
-        ):
-            if tags_dict and k in tags_dict and tags_dict[k]:
-                return tags_dict[k]
-        if "-" in h_name:
-            parts = h_name.split("-")
-            if len(parts) > 1:
-                first = parts[0]
-                if first.lower() not in (
-                    "wan",
-                    "lan",
-                    "srv",
-                    "web",
-                    "db",
-                    "app",
-                    "fw",
-                    "vpn",
-                    "core",
-                    "test",
-                ):
-                    return first.upper()
-        if "wan-core" in h_name.lower() or "web-server" in h_name.lower():
-            return "Ness"
-        return "Outros"
+    from app.core.ai_context import trusted_postmortem_context
 
-    fingerprint = incident_data.get("fingerprint", "?")
-
-    # Injetar ticket_id no contexto do incidente
-    incident_data["deskmanager_ticket_id"] = deskmanager_ticket_id
-
-    # Garantir que o incidente existe na tabela n_infraops_incidents antes de salvar o relatório (foreign key constraint)
-    session = SessionLocal()
-    try:
-        from sqlalchemy import select
-        from sqlalchemy.orm import selectinload
-
-        from app.models.models import Incident
-
-        stmt = (
-            select(Incident)
-            .options(selectinload(Incident.asset))
-            .where(Incident.fingerprint == fingerprint)
-        )
-        result = await session.execute(stmt)
-        db_incident = result.scalar_one_or_none()
-        if not db_incident:
-            logger.info(
-                "Criando incidente inexistente no banco de dados para postmortem | fingerprint=%s",
-                fingerprint,
-            )
-
-            raw_severity = incident_data.get("severity", 3)
-            if isinstance(raw_severity, str):
-                sev_map = {
-                    "disaster": 5,
-                    "critical": 5,
-                    "high": 4,
-                    "average": 3,
-                    "warning": 2,
-                    "information": 1,
-                    "info": 1,
-                    "not_classified": 0,
-                }
-                severity_val = sev_map.get(raw_severity.lower(), 3)
-            else:
-                try:
-                    severity_val = int(raw_severity)
-                except (ValueError, TypeError):
-                    severity_val = 3
-
-            db_incident = Incident(
-                fingerprint=fingerprint,
-                title=incident_data.get("title", "Incidente Sem Título"),
-                severity=severity_val,
-                host_id=incident_data.get("host_id", ""),
-                host_name=incident_data.get("host_name", ""),
-                trigger_id=incident_data.get("trigger_id", ""),
-                sanitized_description=incident_data.get("trigger_description", ""),
-                deskmanager_ticket_id=deskmanager_ticket_id,
-            )
-            session.add(db_incident)
-            await session.commit()
-
-        # Injetar dados do cliente e host reais do banco
-        incident_data["host_name"] = db_incident.host_name or incident_data.get(
-            "host_name", "?"
-        )
-        if db_incident.asset and db_incident.asset.customer_name:
-            incident_data["customer_name"] = db_incident.asset.customer_name
-        else:
-            incident_data["customer_name"] = resolve_customer_name(
-                incident_data["host_name"], incident_data.get("tags", {})
-            )
-    except Exception as exc:
-        await session.rollback()
-        logger.error("Falha ao garantir existencia do incidente no banco: %s", exc)
-        incident_data["customer_name"] = resolve_customer_name(
-            incident_data.get("host_name", "?"), incident_data.get("tags", {})
-        )
-    finally:
-        try:
-            await session.rollback()
-        except Exception:
-            pass
-        await session.close()
+    incident_data = await trusted_postmortem_context(
+        incident_data.get("fingerprint"), deskmanager_ticket_id
+    )
+    fingerprint = incident_data["fingerprint"]
+    deskmanager_ticket_id = incident_data["deskmanager_ticket_id"]
 
     # --- 1. Buscar métricas do TimescaleDB ---
     metrics = await _async_fetch_host_metrics(
@@ -200,7 +93,9 @@ async def _async_generate_postmortem_report(
         "summary": report.summary,
         "root_cause": report.root_cause,
         "tokens_used": report.prompt_tokens + report.completion_tokens,
-        "n8n_status": "ok" if "error" not in n8n_result else "failed",
+        "n8n_status": n8n_result.get(
+            "status", "ok" if "error" not in n8n_result else "failed"
+        ),
     }
 
 
@@ -300,11 +195,8 @@ def _fetch_related_logs(
 ) -> list[str]:
     """Busca logs sanitizados relacionados ao trigger."""
     logger.debug("Buscando logs | host_id=%s trigger_id=%s", host_id, trigger_id)
-    raw_logs = [
-        f"[{host_id}] Trigger {trigger_id} fired: threshold exceeded",
-        f"[{host_id}] Service check failed: connection refused",
-    ]
-    return [sanitize(log) for log in raw_logs]
+    # No log source is connected here. Do not invent evidence for the report.
+    return []
 
 
 async def _async_fetch_similar_incidents(
@@ -315,7 +207,7 @@ async def _async_fetch_similar_incidents(
 ) -> list[dict[str, Any]]:
     """Busca incidentes similares via pgvector (cosine similarity) baseado no novo incidente."""
     # Gera embedding do título e descrição do incidente atual
-    text_to_embed = f"{title}\n{description}"
+    text_to_embed = sanitize(f"{title}\n{description}")
     embedding = generate_embedding(text_to_embed)
     if not embedding or all(v == 0.0 for v in embedding):
         return []
@@ -324,20 +216,32 @@ async def _async_fetch_similar_incidents(
     try:
         # pgvector cosine distance operator é <=>
         similar_query = text("""
-            SELECT incident_fingerprint, summary, root_cause,
-                   1 - (embedding <=> :embedding) AS similarity
-            FROM n_infraops_incident_reports
-            WHERE incident_fingerprint != :fingerprint AND embedding IS NOT NULL
-            ORDER BY embedding <=> :embedding
+            SELECT r.incident_fingerprint, r.summary, r.root_cause,
+                   i.tags->>'ninf_customer_name' AS customer_name,
+                   1 - (r.embedding <=> CAST(:embedding AS vector)) AS similarity
+            FROM n_infraops_incident_reports r
+            JOIN n_infraops_incidents i ON i.fingerprint = r.incident_fingerprint
+            LEFT JOIN n_infraops_assets a ON a.id = i.asset_id
+            JOIN n_infraops_incidents current_incident ON current_incident.fingerprint = :fingerprint
+            WHERE r.incident_fingerprint != :fingerprint AND r.embedding IS NOT NULL
+              AND NULLIF(lower(i.tags->>'ninf_customer_name'), '') =
+                  NULLIF(lower(current_incident.tags->>'ninf_customer_name'), '')
+              AND (i.asset_id IS NULL OR lower(a.customer_name) = lower(i.tags->>'ninf_customer_name'))
+            ORDER BY r.embedding <=> CAST(:embedding AS vector)
             LIMIT :limit
         """)
         similar_result = await session.execute(
             similar_query,
-            {"embedding": embedding, "fingerprint": fingerprint, "limit": limit},
+            {
+                "embedding": json.dumps(embedding),
+                "fingerprint": fingerprint,
+                "limit": limit,
+            },
         )
         return [
             {
                 "fingerprint": r.incident_fingerprint,
+                "customer_name": r.customer_name,
                 "summary": r.summary,
                 "root_cause": r.root_cause,
                 "similarity": float(r.similarity) if r.similarity is not None else 0.0,

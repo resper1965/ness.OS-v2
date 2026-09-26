@@ -164,3 +164,46 @@ async def test_missing_tokens_are_rejected_before_http(monkeypatch):
 
     with pytest.raises(RuntimeError, match="tokens GLPI não configurados"):
         await client.readiness_probe()
+
+
+@pytest.mark.asyncio
+async def test_ticket_marker_search_returns_single_exact_entity_match(monkeypatch):
+    def handler(request):
+        assert request.url.path.endswith("/Ticket/")
+        assert request.url.params["searchText[name]"] == "[n.infraops:abc]"
+        assert request.url.params["searchText[entities_id]"] == "8"
+        return httpx.Response(
+            200,
+            json=[
+                {
+                    "id": 321,
+                    "name": "[n.infraops:abc] [AIOps] Teste",
+                    "entities_id": 8,
+                }
+            ],
+        )
+
+    client = _client(monkeypatch, handler)
+    client.session_token = "session"
+    client.headers["Session-Token"] = "session"
+
+    assert await client.find_ticket_by_name_marker("[n.infraops:abc]", 8) == 321
+
+
+@pytest.mark.asyncio
+async def test_ticket_marker_search_fails_closed_on_duplicates(monkeypatch):
+    def handler(request):
+        return httpx.Response(
+            200,
+            json=[
+                {"id": 321, "name": "[n.infraops:abc] one", "entities_id": 8},
+                {"id": 322, "name": "[n.infraops:abc] two", "entities_id": 8},
+            ],
+        )
+
+    client = _client(monkeypatch, handler)
+    client.session_token = "session"
+    client.headers["Session-Token"] = "session"
+
+    with pytest.raises(RuntimeError, match="tickets idempotentes duplicados"):
+        await client.find_ticket_by_name_marker("[n.infraops:abc]", 8)

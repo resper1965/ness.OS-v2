@@ -249,6 +249,33 @@ class ZabbixClient:
         params = {"eventids": event_id, "action": action, "message": message}
         return await self._call("event.acknowledge", params)
 
+    async def acknowledge_resolution_once(
+        self, event_id: str, ticket_id: str, solution: str
+    ) -> str:
+        marker = f"[ness-glpi-resolution:{ticket_id}]"
+        events = await self._call(
+            "event.get",
+            {
+                "eventids": [event_id],
+                "output": ["eventid"],
+                "selectAcknowledges": ["message", "action"],
+            },
+        )
+        if len(events) != 1:
+            raise ValueError("Original Zabbix event unavailable")
+        if any(
+            marker in ack.get("message", "") and int(ack.get("action", 0)) & 4
+            for ack in events[0].get("acknowledges", [])
+        ):
+            return "already_acknowledged"
+        result = await self.acknowledge_problem(
+            event_id,
+            f"{marker} Resolvido via GLPI #{ticket_id}. Solução: {solution}"[:2000],
+        )
+        if not result or str(event_id) not in map(str, result.get("eventids", [])):
+            raise RuntimeError("Zabbix did not confirm acknowledgement")
+        return "success"
+
     async def acknowledge_trigger(self, trigger_id: str, message: str) -> bool:
         """Encontra o problema ativo para a trigger_id e o reconhece/fecha (action=7)."""
         problems = await self._call(

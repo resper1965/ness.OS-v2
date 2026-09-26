@@ -18,6 +18,8 @@ from typing import Any
 import httpx
 
 from app.config import get_settings
+from app.core.ai_context import incident_prompt_data
+from app.core.sanitizer import sanitize, sanitize_value
 from app.models.schemas import PostMortemReport
 
 logger = logging.getLogger(__name__)
@@ -33,24 +35,26 @@ def generate_embedding(text: str) -> list[float]:
         return [0.0] * 768
 
     api_url = "https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent"
-    headers = {"Content-Type": "application/json"}
+    headers = {
+        "Content-Type": "application/json",
+        "x-goog-api-key": settings.gemini_api_key,
+    }
     body = {
         "model": "models/text-embedding-004",
-        "content": {"parts": [{"text": text}]},
+        "content": {"parts": [{"text": sanitize(text)}]},
     }
     try:
         with httpx.Client(timeout=_TIMEOUT) as client:
             response = client.post(
                 api_url,
                 json=body,
-                params={"key": settings.gemini_api_key},
                 headers=headers,
             )
             response.raise_for_status()
             result = response.json()
             return result.get("embedding", {}).get("values", [0.0] * 768)
     except Exception as exc:
-        logger.error("Falha ao gerar embedding via Gemini: %s", exc)
+        logger.error("Falha ao gerar embedding via Gemini: %s", type(exc).__name__)
         return [0.0] * 768
 
 
@@ -127,21 +131,28 @@ def build_postmortem_prompt(
     """
     context_parts = [
         "# Dados do Incidente",
-        f"```json\n{json.dumps(incident, indent=2, ensure_ascii=False)}\n```",
+        f"```json\n{json.dumps(incident_prompt_data(incident), indent=2, ensure_ascii=False)}\n```",
         "",
         "# Métricas Recentes (últimas 24h)",
-        f"```json\n{json.dumps(metrics[:50], indent=2, ensure_ascii=False)}\n```",
+        f"```json\n{json.dumps(sanitize_value(metrics[:50]), indent=2, ensure_ascii=False)}\n```",
         "",
         "# Logs Relacionados",
     ]
 
     for log_entry in related_logs[:100]:  # Cap para não estourar contexto
-        context_parts.append(f"- {log_entry}")
+        context_parts.append(f"- {sanitize(log_entry)}")
 
     if similar_incidents:
         context_parts.append("")
         context_parts.append("# Incidentes Similares Anteriores")
         for si in similar_incidents[:5]:
+            if (
+                not incident.get("customer_name")
+                or str(si.get("customer_name", "")).casefold()
+                != str(incident["customer_name"]).casefold()
+            ):
+                continue
+            si = sanitize_value(si)
             context_parts.append(
                 f"- [{si.get('fingerprint', '?')[:12]}] "
                 f"{si.get('title', '?')} — {si.get('root_cause', 'N/A')}"
@@ -185,8 +196,10 @@ def generate_postmortem(
             response = client.post(
                 api_url,
                 json=request_body,
-                params={"key": settings.gemini_api_key},
-                headers={"Content-Type": "application/json"},
+                headers={
+                    "Content-Type": "application/json",
+                    "x-goog-api-key": settings.gemini_api_key,
+                },
             )
             response.raise_for_status()
             result = response.json()
@@ -227,10 +240,11 @@ def generate_postmortem(
         )
 
     except httpx.HTTPError as exc:
-        logger.error("Falha na chamada ao Gemini: %s", exc)
+        logger.error("Falha na chamada ao Gemini: %s", type(exc).__name__)
         # Fallback: relatório mínimo sem IA
         return PostMortemReport(
             incident_fingerprint=incident.get("fingerprint", ""),
+            deskmanager_ticket_id=incident.get("deskmanager_ticket_id"),
             host_name=incident.get("host_name"),
             customer_name=incident.get("customer_name") or incident.get("client"),
             markdown_report=(
@@ -238,7 +252,7 @@ def generate_postmortem(
                 "> ⚠️ Geração automática falhou. Análise manual necessária.\n\n"
                 f"**Incidente:** {incident.get('title', '?')}\n"
                 f"**Host:** {incident.get('host_name', '?')}\n"
-                f"**Erro Gemini:** {exc}\n"
+                f"**Erro Gemini:** {type(exc).__name__}\n"
             ),
             summary="Geração automática falhou",
             root_cause="Análise manual necessária",

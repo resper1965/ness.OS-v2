@@ -1,10 +1,11 @@
 import logging
 
-from fastapi import APIRouter, Depends, Header, HTTPException, status
+from fastapi import APIRouter, Depends, Header, status
 from redis.asyncio import Redis
 
 from app.config import get_settings
-from app.core.fingerprint import generate_fingerprint
+from app.core.fingerprint import generate_event_fingerprint
+from app.core.webhook_auth import verify_key
 from app.dependencies import get_redis
 from app.models.schemas import AlertResponse, ZabbixAlertPayload
 from app.workers.alerts import process_alert_v1
@@ -14,15 +15,7 @@ settings = get_settings()
 
 
 async def verify_api_key(x_api_key: str = Header(None, alias="X-Api-Key")):
-    if not settings.webhook_api_key:
-        logger.warning(
-            "API key authentication is disabled (NINF_WEBHOOK_API_KEY is empty)."
-        )
-        return
-    if x_api_key != settings.webhook_api_key:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid API Key"
-        )
+    verify_key(settings.webhook_api_key, x_api_key)
 
 
 router = APIRouter(
@@ -44,7 +37,7 @@ async def receive_alert(
 
     Valida a API Key, gera o fingerprint, e enfileira no Celery para deduplicação e processamento.
     """
-    fingerprint = generate_fingerprint(payload)
+    fingerprint = generate_event_fingerprint(payload)
     alert_data = payload.model_dump(mode="json")
 
     process_alert_v1.apply_async(

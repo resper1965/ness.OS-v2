@@ -41,6 +41,14 @@ class Settings(BaseSettings):
     n8n_webhook_postmortem: str = "/webhook/postmortem-ready"
     n8n_webhook_soc: str = "/webhook/soc-triage"
 
+    # --- E-mail transacional (Resend HTTP API) ---
+    transactional_email_enabled: bool = False
+    transactional_email_from: str = "ness.OS Hub <hub@ness.com.br>"
+    resend_api_key: str = ""
+    resend_api_url: str = "https://api.resend.com"
+    email_timeout_seconds: float = 10.0
+    email_max_attempts: int = 3
+
     # --- Webhooks ---
     webhook_api_key: str = ""
 
@@ -61,6 +69,8 @@ class Settings(BaseSettings):
     evolution_instance: str = "noc-alerts"
     evolution_api_key: str = ""
     whatsapp_noc_group_id: str = ""
+    # Only controls WhatsApp and Web Push emitted by the v1 alert worker.
+    alert_notifications_enabled: bool = True
 
     # --- RMM Providers (Multi-tenant: default credentials) ---
     datto_api_key: str = ""

@@ -35,7 +35,9 @@ def _client(role: UserRole | None = None) -> tuple[FastAPI, TestClient]:
     app = FastAPI()
     app.include_router(router)
     if role is not None:
-        app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(role=role)
+        app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(
+            role=role, tenant_id=None
+        )
     return app, TestClient(app)
 
 

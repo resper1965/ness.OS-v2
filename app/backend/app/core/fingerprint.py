@@ -21,3 +21,9 @@ def generate_fingerprint(alert: ZabbixAlertPayload) -> str:
     """
     raw = f"{alert.host_id}:{alert.trigger_id}"
     return hashlib.sha256(raw.encode()).hexdigest()
+
+
+def generate_event_fingerprint(alert: ZabbixAlertPayload) -> str:
+    """One v1 incident per Zabbix problem event, including all its retries."""
+    raw = f"{alert.host_id}:{alert.trigger_id}:{alert.event_id}"
+    return hashlib.sha256(raw.encode()).hexdigest()

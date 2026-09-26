@@ -12,6 +12,12 @@ celery_app = Celery(
     "n.infraops",
     broker=settings.celery_broker_url,
     backend=settings.celery_result_backend,
+    include=[
+        "app.workers.tasks",
+        "app.workers.alerts",
+        "app.workers.postmortem",
+        "app.workers.telemetry",
+    ],
 )
 
 celery_app.conf.update(
@@ -27,6 +33,7 @@ celery_app.conf.update(
         "app.workers.tasks.process_alert": {"queue": "alerts.primary"},
         "app.workers.tasks.process_deferred_alert": {"queue": "alerts.deferred"},
         "app.workers.alerts.process_alert_v1": {"queue": "alerts.primary"},
+        "app.workers.tasks.process_ticket_resolution": {"queue": "alerts.primary"},
         "app.workers.tasks.run_anomaly_check": {"queue": "ml"},
         "app.workers.postmortem.generate_postmortem_report": {"queue": "ml"},
     },

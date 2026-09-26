@@ -10,7 +10,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 import httpx
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
@@ -524,6 +524,7 @@ async def get_triage_stats() -> dict[str, Any]:
 async def triage_alert(
     payload: dict[str, Any],
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_noc),
 ) -> dict[str, Any]:
     """
     Recebe alerta do Wazuh, executa triagem determinística (Camada 4 - Risk Engine),
@@ -599,6 +600,14 @@ async def triage_alert(
         customer_id = str(group[0])
 
     # 6. Persiste a decisão no banco de dados
+    payload = {
+        **payload,
+        "_ness_triage_request": {
+            "user_id": user.id,
+            "requested_at": datetime.now(UTC).isoformat(),
+            "corrective_action_approved": False,
+        },
+    }
     try:
         decision = SocDecision(
             wazuh_rule_id=rule_id,
@@ -614,8 +623,11 @@ async def triage_alert(
         db.add(decision)
         await db.commit()
     except Exception as e:
-        logger.error(f"Falha ao persistir SocDecision no banco: {e}")
+        logger.error("Falha ao persistir SocDecision: %s", type(e).__name__)
         await db.rollback()
+        raise HTTPException(
+            503, "Decisão não registrada; despacho não realizado"
+        ) from e
 
     # 7. Despacha para n8n apenas se não for arquivado silenciosamente
     if eval_result.action != TriageAction.ARCHIVE:
@@ -632,7 +644,15 @@ async def triage_alert(
             "threat_intel": enriched_data,
             "timestamp": datetime.utcnow().isoformat() + "Z",
         }
-        notify_soc_triage_decision(n8n_payload)
+        dispatch = notify_soc_triage_decision(n8n_payload)
+        triage_result["dispatch_status"] = dispatch.get(
+            "status", "failed" if "error" in dispatch else "sent"
+        )
+    else:
+        triage_result["dispatch_status"] = "not_requested"
+
+    triage_result["decision_id"] = decision.id
+    triage_result["corrective_action_approved"] = False
 
     return triage_result
 

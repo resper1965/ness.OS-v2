@@ -3,15 +3,16 @@ n.infraops — Contabo API Integration
 Firewall + Instance Management
 Auth: OAuth2 Bearer Token (4 credentials required)
 
-CRITICAL API NOTES (descobertas via reverse-engineering da API real):
+CRITICAL API NOTES:
 - x-request-id UUID v4 é OBRIGATÓRIO em cada request
-- Firewall rules: usa PATCH /firewalls/{id} com campo 'inboundRules'
-- Schema real de regra: {protocol, destPorts[], srcCidr:{ipv4[], ipv6[]}, action, displayName}
-- NÃO existe endpoint PUT /rules — documentação de terceiros estava errada
+- Firewall rules: usa PUT /firewalls/{id} com campo 'rules.inbound'
+- `destPorts` é uma string JSON contendo portas/faixas
+- NÃO existe endpoint PUT /rules
 - status='inactive' = firewall associado mas NÃO aplicado (ativar via painel)
 - Instances já vêm pré-associadas no objeto do firewall
 """
 
+import json
 import logging
 import uuid
 from datetime import datetime, timedelta
@@ -110,16 +111,18 @@ class ContaboFirewallClient:
     ) -> dict[str, Any]:
         """
         [HITL] Substitui TODAS as regras do firewall.
-        Formato de regra: {"name": "SSH", "protocol": "TCP", "port": "22", "action": "accept", "ipRange": "0.0.0.0/0"}
+        O payload substitui integralmente `rules.inbound`.
         """
+        if not approved_by.strip():
+            raise ValueError("approved_by é obrigatório para alterar firewall")
         logger.warning(
             f"[HITL] Replacing ALL firewall rules. fw={firewall_id} rules={len(rules)} by={approved_by}"
         )
         async with httpx.AsyncClient() as client:
             r = await client.put(
-                f"{CONTABO_API_URL}/firewalls/{firewall_id}/rules",
+                f"{CONTABO_API_URL}/firewalls/{firewall_id}",
                 headers=await self._headers(),
-                json={"inboundRules": rules},
+                json={"rules": {"inbound": rules}},
             )
             r.raise_for_status()
             return r.json()
@@ -130,25 +133,28 @@ class ContaboFirewallClient:
         """[HITL] Garante as regras padrão: SSH(22), HTTP(80), HTTPS(443)."""
         standard = [
             {
-                "name": "SSH",
-                "protocol": "TCP",
-                "port": "22",
+                "displayName": "SSH",
+                "protocol": "tcp",
+                "destPorts": '["22"]',
+                "srcCidr": {"ipv4": ["AnyIPv4"], "ipv6": []},
                 "action": "accept",
-                "ipRange": "0.0.0.0/0",
+                "status": "active",
             },
             {
-                "name": "HTTP",
-                "protocol": "TCP",
-                "port": "80",
+                "displayName": "HTTP",
+                "protocol": "tcp",
+                "destPorts": '["80"]',
+                "srcCidr": {"ipv4": ["AnyIPv4"], "ipv6": []},
                 "action": "accept",
-                "ipRange": "0.0.0.0/0",
+                "status": "active",
             },
             {
-                "name": "HTTPS",
-                "protocol": "TCP",
-                "port": "443",
+                "displayName": "HTTPS",
+                "protocol": "tcp",
+                "destPorts": '["443"]',
+                "srcCidr": {"ipv4": ["AnyIPv4"], "ipv6": []},
                 "action": "accept",
-                "ipRange": "0.0.0.0/0",
+                "status": "active",
             },
         ]
         return await self.set_firewall_rules(firewall_id, standard, approved_by)
@@ -172,24 +178,18 @@ class ContaboFirewallClient:
             f"[HITL] Opening port {port} for {source_ip}. Approved by: {approved_by}"
         )
         current = await self.get_firewall(firewall_id)
-        existing_rules = current.get("inboundRules", [])
+        existing_rules = current.get("rules", {}).get("inbound", [])
 
         allow_rule = {
             "protocol": "tcp",
             "action": "accept",
-            "sourceIp": source_ip,
-            "destinationPort": str(port),
+            "destPorts": json.dumps([str(port)]),
+            "srcCidr": {"ipv4": [source_ip], "ipv6": []},
+            "status": "active",
+            "displayName": f"Temporary TCP {port}",
         }
         updated_rules = existing_rules + [allow_rule]
-
-        async with httpx.AsyncClient() as client:
-            r = await client.put(
-                f"{CONTABO_API_URL}/firewalls/{firewall_id}",
-                headers=await self._headers(),
-                json={"inboundRules": updated_rules},
-            )
-            r.raise_for_status()
-            return r.json()
+        return await self.set_firewall_rules(firewall_id, updated_rules, approved_by)
 
     async def assign_firewall_to_instance(
         self, firewall_id: str, instance_id: str, approved_by: str
@@ -221,6 +221,7 @@ class ContaboInstanceClient:
         return {
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json",
+            "x-request-id": str(uuid.uuid4()),
         }
 
     async def list_instances(self) -> list[dict[str, Any]]:

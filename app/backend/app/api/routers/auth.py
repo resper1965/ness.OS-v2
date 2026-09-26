@@ -15,7 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_user, is_noc_role
 from app.core.jwt import create_access_token
 from app.core.oidc import exchange_oidc_code, verify_oidc_token
 from app.core.session import (
@@ -183,12 +183,17 @@ async def me(
 
 
 @router.post(
-    "/logout", status_code=status.HTTP_204_NO_CONTENT, summary="Encerra a sessão"
+    "/logout",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_model=None,
+    summary="Encerra a sessão",
 )
-async def logout(request: Request, response: Response) -> None:
+async def logout(request: Request, response: Response) -> Response:
     """Remove a sessão local do navegador; o frontend encerra o SSO em seguida."""
     require_trusted_origin(request)
     clear_session_cookie(response)
+    response.status_code = status.HTTP_204_NO_CONTENT
+    return response
 
 
 @router.post(
@@ -286,8 +291,6 @@ async def oidc_callback(
         )
 
     id_token = token_payload.get("id_token")
-    if not id_token:
-        id_token = token_payload.get("access_token")
 
     if not id_token:
         raise HTTPException(
@@ -314,7 +317,17 @@ async def oidc_callback(
 
     user_role = map_authentik_role(claims)
 
-    tenant_id = claims.get("tenant_id", "")
+    raw_tenant = claims.get("tenant_id")
+    if raw_tenant is not None and not isinstance(raw_tenant, str):
+        raise HTTPException(
+            status_code=403, detail="Cliente informado pelo SSO é inválido"
+        )
+    tenant_id = (raw_tenant or "").strip().lower()
+    if len(tenant_id) > 128 or (not is_noc_role(user_role) and not tenant_id):
+        raise HTTPException(
+            status_code=403,
+            detail="Usuário sem cliente associado no SSO. Solicite o vínculo ao administrador.",
+        )
     full_name = claims.get("name") or claims.get("given_name")
 
     # 3. Just-In-Time Provisioning
@@ -334,6 +347,11 @@ async def oidc_callback(
         )
         db.add(user)
     else:
+        if not user.is_active:
+            raise HTTPException(
+                status_code=403,
+                detail="Conta inativa. Entre em contato com o administrador.",
+            )
         logger.info(f"OIDC JIT: Atualizando usuário local existente: {email}")
         user.role = user_role
         user.tenant_id = tenant_id

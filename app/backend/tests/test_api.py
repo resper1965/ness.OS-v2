@@ -16,10 +16,13 @@ def mock_redis():
 
 
 @pytest.fixture
-def client(mock_redis):
+def client(mock_redis, monkeypatch):
+    from app.api.webhooks import settings
+
+    monkeypatch.setattr(settings, "webhook_api_key", "test-webhook-key")
     # Sobrescreve dependência do Redis para usar o mock
     app.dependency_overrides[get_redis] = lambda: mock_redis
-    with TestClient(app) as c:
+    with TestClient(app, headers={"X-Api-Key": "test-webhook-key"}) as c:
         yield c
     app.dependency_overrides.clear()
 

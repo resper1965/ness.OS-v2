@@ -17,12 +17,13 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from fastapi import APIRouter, Depends, Header, HTTPException, status
+from fastapi import APIRouter, Depends, Header, status
 from redis.asyncio import Redis
 
 from app.config import get_settings
 from app.core.fingerprint import generate_fingerprint
 from app.core.locks import try_acquire_lock
+from app.core.webhook_auth import verify_key
 from app.dependencies import get_redis
 from app.models.schemas import AlertResponse, GlpiWebhookPayload, ZabbixAlertPayload
 from app.workers.tasks import process_alert, process_deferred_alert
@@ -32,15 +33,7 @@ settings = get_settings()
 
 
 async def verify_webhook_key(x_api_key: str = Header(None, alias="X-Api-Key")):
-    if not settings.webhook_api_key:
-        logger.warning(
-            "Webhook authentication is disabled (NINF_WEBHOOK_API_KEY is empty)."
-        )
-        return
-    if x_api_key != settings.webhook_api_key:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid API Key"
-        )
+    verify_key(settings.webhook_api_key, x_api_key)
 
 
 router = APIRouter(
