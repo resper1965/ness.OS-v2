@@ -66,3 +66,22 @@ O n8n deve pegar este payload, usar o `ticket_id` para adicionar uma "Interaçã
   ]
 }
 ```
+
+## Segurança e pré-requisitos para ativação
+
+- Configure `NINF_N8N_WEBHOOK_API_KEY` com pelo menos 32 caracteres no `.env` do
+  Hub. O cliente backend envia esse segredo no header `X-Ness-Webhook-Key` e o
+  primeiro nó Code de cada workflow rejeita chamadas sem correspondência. Os
+  exports ainda não usam Header Auth nativo no nó Webhook; habilite essa proteção
+  adicional antes de expor os endpoints fora da rede privada.
+- `N8N_BLOCK_ENV_ACCESS_IN_NODE=false` é requerido pelas expressões atuais dos
+  workflows. Até mover os segredos para credenciais n8n e reativar o bloqueio,
+  somente administradores de confiança devem editar/importar workflows.
+- A credencial SMTP referenciada pelos exports é específica da instância n8n.
+  Confirme a credencial `ness.OS Resend SMTP` no destino; não presuma que o ID do
+  arquivo exista em outra instância.
+- `NINF_EVOLUTION_API_KEY` precisa estar no `.env` do Compose para envio WhatsApp.
+  O Compose a encaminha ao n8n; se estiver vazia, a Evolution deve rejeitar o
+  envio e nenhum valor de placeholder deve ser usado.
+- Conteúdo dinâmico de incidentes é escapado antes de entrar no HTML. Ainda assim,
+  valide os dois fluxos em UAT com destinatários fictícios antes de liberar envio.

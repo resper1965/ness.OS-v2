@@ -40,6 +40,7 @@ class Settings(BaseSettings):
     n8n_webhook_incident: str = "/webhook/incident-created"
     n8n_webhook_postmortem: str = "/webhook/postmortem-ready"
     n8n_webhook_soc: str = "/webhook/soc-triage"
+    n8n_webhook_api_key: str = ""
 
     # --- E-mail transacional (Resend HTTP API) ---
     transactional_email_enabled: bool = False
@@ -70,7 +71,7 @@ class Settings(BaseSettings):
     evolution_api_key: str = ""
     whatsapp_noc_group_id: str = ""
     # Only controls WhatsApp and Web Push emitted by the v1 alert worker.
-    alert_notifications_enabled: bool = True
+    alert_notifications_enabled: bool = False
 
     # --- RMM Providers (Multi-tenant: default credentials) ---
     datto_api_key: str = ""

@@ -13,7 +13,10 @@ services:
       dockerfile: Dockerfile
     container_name: ninf-api
     restart: unless-stopped
-    env_file: .env
+    env_file:
+      - .env
+      - /etc/ness-os/glpi-integration.env
+      - /etc/ness-os/zabbix-integration.env
     environment:
       # JWT secret fixo — tokens sobrevivem restarts do container
       NINF_JWT_SECRET: ${NINF_JWT_SECRET:?NINF_JWT_SECRET is required}
@@ -46,7 +49,10 @@ services:
       --concurrency=4
       --loglevel=info
       --hostname=alerts@%h
-    env_file: .env
+    env_file:
+      - .env
+      - /etc/ness-os/glpi-integration.env
+      - /etc/ness-os/zabbix-integration.env
     volumes:
       - ./backend/app:/app/app:ro
     depends_on:
@@ -236,6 +242,10 @@ services:
       - NINF_EVOLUTION_INSTANCE=${NINF_EVOLUTION_INSTANCE}
       - NINF_DESKMANAGER_API_URL=${NINF_DESKMANAGER_API_URL}
       - NINF_WHATSAPP_NOC_GROUP_ID=${NINF_WHATSAPP_NOC_GROUP_ID}
+      - NINF_EVOLUTION_API_KEY=${NINF_EVOLUTION_API_KEY:-}
+      - NINF_N8N_WEBHOOK_API_KEY=${NINF_N8N_WEBHOOK_API_KEY:-}
+      - NINF_SMTP_SENDER=${NINF_SMTP_SENDER:-noc-alerts@ness.com.br}
+      - NINF_TICKET_EMAIL=${NINF_TICKET_EMAIL:-suporte@ness.com.br}
     volumes:
       - n8n-data:/home/node/.n8n
     networks:
@@ -258,6 +268,14 @@ services:
       AUTHENTIK_POSTGRESQL__NAME: authentik
       AUTHENTIK_POSTGRESQL__PASSWORD: ${NINF_DB_PASSWORD:?NINF_DB_PASSWORD is required}
       AUTHENTIK_SECRET_KEY: ${NINF_AUTHENTIK_SECRET_KEY:?NINF_AUTHENTIK_SECRET_KEY is required}
+      AUTHENTIK_EMAIL__HOST: ${NINF_SMTP_HOST:-smtp.resend.com}
+      AUTHENTIK_EMAIL__PORT: ${NINF_SMTP_PORT:-587}
+      AUTHENTIK_EMAIL__USERNAME: ${NINF_SMTP_USERNAME:-resend}
+      AUTHENTIK_EMAIL__PASSWORD: ${NINF_RESEND_API_KEY:?NINF_RESEND_API_KEY is required}
+      AUTHENTIK_EMAIL__USE_TLS: ${NINF_SMTP_USE_TLS:-true}
+      AUTHENTIK_EMAIL__USE_SSL: ${NINF_SMTP_USE_SSL:-false}
+      AUTHENTIK_EMAIL__TIMEOUT: 10
+      AUTHENTIK_EMAIL__FROM: "${NINF_AUTHENTIK_EMAIL_FROM:-ness. identidade <identidade@ness.com.br>}"
     volumes:
       - authentik-media:/media
       - authentik-certs:/certs
@@ -287,6 +305,14 @@ services:
       AUTHENTIK_POSTGRESQL__NAME: authentik
       AUTHENTIK_POSTGRESQL__PASSWORD: ${NINF_DB_PASSWORD:?NINF_DB_PASSWORD is required}
       AUTHENTIK_SECRET_KEY: ${NINF_AUTHENTIK_SECRET_KEY:?NINF_AUTHENTIK_SECRET_KEY is required}
+      AUTHENTIK_EMAIL__HOST: ${NINF_SMTP_HOST:-smtp.resend.com}
+      AUTHENTIK_EMAIL__PORT: ${NINF_SMTP_PORT:-587}
+      AUTHENTIK_EMAIL__USERNAME: ${NINF_SMTP_USERNAME:-resend}
+      AUTHENTIK_EMAIL__PASSWORD: ${NINF_RESEND_API_KEY:?NINF_RESEND_API_KEY is required}
+      AUTHENTIK_EMAIL__USE_TLS: ${NINF_SMTP_USE_TLS:-true}
+      AUTHENTIK_EMAIL__USE_SSL: ${NINF_SMTP_USE_SSL:-false}
+      AUTHENTIK_EMAIL__TIMEOUT: 10
+      AUTHENTIK_EMAIL__FROM: "${NINF_AUTHENTIK_EMAIL_FROM:-ness. identidade <identidade@ness.com.br>}"
     volumes:
       - authentik-media:/media
       - authentik-certs:/certs

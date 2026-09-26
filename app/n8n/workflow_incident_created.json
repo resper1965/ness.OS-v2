@@ -19,7 +19,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $('Webhook').item.json.body;\nconst eventName = body.event_name || 'Incidente sem título';\nconst customerName = body.customer_name || 'Ness';\nconst hostName = body.host_name || 'unknown';\nconst severity = body.severity_label || body.severity || 'average';\nconst desc = body.clean_payload?.description || body.clean_payload?.trigger?.description || 'Sem detalhes adicionais.';\nconst fingerprint = body.fingerprint || 'N/A';\n\nconst emailSubject = `[NOC-ALERT] ${customerName} | Host: ${hostName} | Event: ${eventName} | Fingerprint: ${fingerprint}`;\nconst emailHtml = `<p><strong>Alerta NOC: Incidente Detectado</strong></p>\\n<p><strong>Cliente:</strong> ${customerName}</p>\\n<p><strong>Equipamento:</strong> ${hostName}</p>\\n<p><strong>Evento:</strong> ${eventName}</p>\\n<p><strong>Severidade:</strong> ${severity}</p>\\n<hr/>\\n<p><strong>Descrição do Ocorrido:</strong><br/>${desc}</p>\\n<hr/>\\n<p><small>Fingerprint: ${fingerprint}</small></p>`;\n\nconst whatsappText = `*Alerta NOC: Incidente Detectado*\\n\\n*Cliente:* ${customerName}\\n*Equipamento:* ${hostName}\\n*Evento:* ${eventName}\\n*Severidade:* ${severity}\\n\\n*Descrição do Ocorrido*:\\n${desc}`;\n\nreturn {\n  \"number\": $env.NINF_WHATSAPP_NOC_GROUP_ID || 'group-id',\n  \"options\": {\n    \"delay\": 1200,\n    \"presence\": \"composing\"\n  },\n  \"text\": whatsappText,\n  \"emailSubject\": emailSubject,\n  \"emailHtml\": emailHtml\n};"
+        "jsCode": "const request = $('Webhook').item.json;\nconst expectedKey = $env.NINF_N8N_WEBHOOK_API_KEY;\nconst receivedKey = request.headers?.['x-ness-webhook-key'];\nif (typeof expectedKey !== 'string' || expectedKey.length < 32 || receivedKey !== expectedKey) {\n  throw new Error('Unauthorized webhook request');\n}\nconst body = request.body;\nif (!body || typeof body !== 'object' || Array.isArray(body)) {\n  throw new Error('Invalid incident payload');\n}\nconst field = (value, fallback, maxLength = 2000) => {\n  if (typeof value !== 'string' && typeof value !== 'number') return fallback;\n  return String(value).replace(/[\\u0000-\\u001f\\u007f]/g, ' ').trim().slice(0, maxLength) || fallback;\n};\nconst escapeHtml = (value) => String(value).replace(/[&<>\\\"']/g, (char) => ({\n  '&': '&amp;', '<': '&lt;', '>': '&gt;', '\\\"': '&quot;', \"'\": '&#39;'\n}[char]));\nconst eventName = field(body.event_name, 'Incidente sem título', 160);\nconst customerName = field(body.customer_name, 'Ness', 160);\nconst hostName = field(body.host_name, 'unknown', 160);\nconst severity = field(body.severity_label ?? body.severity, 'average', 80);\nconst desc = field(body.clean_payload?.description ?? body.clean_payload?.trigger?.description, 'Sem detalhes adicionais.');\nconst fingerprint = field(body.fingerprint, 'N/A', 160);\nconst emailSubject = '[NOC-ALERT] ' + customerName + ' | Host: ' + hostName + ' | Event: ' + eventName + ' | Fingerprint: ' + fingerprint;\nconst emailHtml = '<p><strong>Alerta NOC: Incidente Detectado</strong></p>\\n' +\n  '<p><strong>Cliente:</strong> ' + escapeHtml(customerName) + '</p>\\n' +\n  '<p><strong>Equipamento:</strong> ' + escapeHtml(hostName) + '</p>\\n' +\n  '<p><strong>Evento:</strong> ' + escapeHtml(eventName) + '</p>\\n' +\n  '<p><strong>Severidade:</strong> ' + escapeHtml(severity) + '</p><hr/>\\n' +\n  '<p><strong>Descrição do Ocorrido:</strong><br/>' + escapeHtml(desc) + '</p><hr/>\\n' +\n  '<p><small>Fingerprint: ' + escapeHtml(fingerprint) + '</small></p>';\nconst whatsappText = '*Alerta NOC: Incidente Detectado*\\n\\n' +\n  '*Cliente:* ' + customerName + '\\n*Equipamento:* ' + hostName + '\\n' +\n  '*Evento:* ' + eventName + '\\n*Severidade:* ' + severity + '\\n\\n' +\n  '*Descrição do Ocorrido*:\\n' + desc;\nreturn {\n  \"options\": { \"delay\": 1200, \"presence\": \"composing\" },\n  \"text\": whatsappText,\n  \"emailSubject\": emailSubject,\n  \"emailHtml\": emailHtml\n};"
       },
       "id": "e963b652-32a2-4a0b-9dfd-b7eb5c8b7470",
       "name": "Prepare Body",
@@ -38,7 +38,6 @@
         "html": "={{ $json.emailHtml }}",
         "options": {}
       },
-      "onError": "continueRegularOutput",
       "id": "e963b652-32a2-4a0b-9dfd-b7eb5c8b7472",
       "name": "Send Email (Abrir Chamado)",
       "type": "n8n-nodes-base.emailSend",
@@ -46,7 +45,13 @@
       "position": [
         690,
         200
-      ]
+      ],
+      "credentials": {
+        "smtp": {
+          "id": "2e241b4865e9a377",
+          "name": "ness.OS Resend SMTP"
+        }
+      }
     },
     {
       "parameters": {
@@ -56,14 +61,14 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ { \"number\": $json.number, \"options\": $json.options, \"text\": $json.text } }}",
+        "jsonBody": "={{ { \"number\": $env.NINF_WHATSAPP_NOC_GROUP_ID, \"options\": $json.options, \"text\": $json.text } }}",
         "options": {},
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
               "name": "apikey",
-              "value": "={{ $env.NINF_EVOLUTION_API_KEY || 'changeme' }}"
+              "value": "={{ $env.NINF_EVOLUTION_API_KEY }}"
             }
           ]
         }
