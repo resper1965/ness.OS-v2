@@ -41,6 +41,7 @@ DEPLOYED_NAMES = {
 DEPLOYED_TREE_ROOTS = (
     "app/backend/app",
     "app/backend/sql",
+    "infra/sql",
 )
 
 

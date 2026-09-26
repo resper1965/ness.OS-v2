@@ -99,6 +99,22 @@ def test_hashes_cover_source_mounted_into_production_containers(tmp_path: Path) 
     assert "app/backend/Dockerfile" not in manifest["deployed_file_hashes"]
 
 
+def test_hashes_cover_standalone_database_migrations(tmp_path: Path) -> None:
+    root = write_fixture_repo(
+        tmp_path / "repo",
+        "services:\n  db:\n    image: postgres:17@sha256:" + "a" * 64 + "\n",
+    )
+    migration = root / "infra/sql/20260908_asset_type_unknown.sql"
+    migration.parent.mkdir(parents=True)
+    migration.write_text("ALTER TYPE asset_type ADD VALUE 'unknown';\n", encoding="utf-8")
+    initialize_git(root)
+
+    manifest = generate(root, tmp_path / "manifest.json")
+
+    expected_hash = hashlib.sha256(migration.read_bytes()).hexdigest()
+    assert manifest["deployed_file_hashes"]["infra/sql/20260908_asset_type_unknown.sql"] == expected_hash
+
+
 def test_compose_discovery_skips_dependency_and_build_directories(tmp_path: Path) -> None:
     root = write_fixture_repo(
         tmp_path / "repo",
