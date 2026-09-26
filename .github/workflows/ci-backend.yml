@@ -5,6 +5,10 @@ on:
     branches: [ "main" ]
     paths:
       - 'app/backend/**'
+      - 'infra/scripts/hub-health-history.py'
+      - 'infra/scripts/hub-integration-monitor.sh'
+      - 'infra/tests/test-hub-health-history.py'
+      - '.github/workflows/ci-backend.yml'
   pull_request:
     branches: [ "main" ]
 
@@ -50,3 +54,9 @@ jobs:
     - name: Test with pytest
       run: |
         pytest
+
+    - name: Verify health history and monitor
+      working-directory: .
+      run: |
+        python3 infra/tests/test-hub-health-history.py
+        bash -n infra/scripts/hub-integration-monitor.sh
