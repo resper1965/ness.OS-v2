@@ -47,6 +47,11 @@ Base documental do agrupamento e do `--dry-run`: [Restic `forget`](https://githu
 A execução aprovada em 26/09 registrou `no parent snapshot found`, processou 4,981 GiB e armazenou 4,907 GiB porque o caminho de origem contém um diretório diferente por `backup_set_id`, enquanto o `backup` usava o agrupamento padrão `host,paths`. A documentação do Restic confirma que esse agrupamento seleciona o parent por host e caminhos.
 
 Atualizei o script versionado para passar `--group-by host` também ao `restic backup`, coerente com `forget`; o repositório e `NESS_BACKUP_HOST_ID` são dedicados ao dataset, e as tags preservam a identificação da execução. Essa revisão ainda precisa ser instalada e confirmada no próximo backup. Referência: [Restic file change detection](https://github.com/restic/restic/blob/master/doc/040_backup.rst).
+## Falha e correção do verificador isolado em 26/09
+
+`restic restore --verify` concluiu o snapshot `15a5ef41` com 11 entradas e 4,981 GiB verificados. Em seguida, o validador falhou porque o snapshot guarda os arquivos na raiz (`restic ls` mostra `/COMPLETED` e `/backup-set-manifest.json`); a restauração os colocou diretamente em `.../restored`, cujo basename não corresponde ao `backup_set_id`. O manifesto lido diretamente do snapshot (`restic dump`) contém o ID correto `20260925T220022-0300`. O cleanup automático removeu todo o staging; `/` manteve mais de 970 GiB livres.
+
+Corrigi `infra/scripts/verify-zabbix-restic-restore.sh` para restaurar em `.../restored/<backup_set_id>`, satisfazendo também a validação do nome do conjunto. O restore completo e o teste isolado de MariaDB ainda precisam ser repetidos antes de aprovar o Gate.
 ## Decisão operacional
 
 1. Na janela registrada de 22:00–00:00 BRT, confirmar o repositório exato e ler o inventário de snapshots; anotar quantidade, snapshot mais recente, tags e host antes de qualquer escrita. Executar `forget --dry-run` com os mesmos filtros e política de 14; revisar a lista `remove` antes de permitir que o serviço aplique retenção/prune.

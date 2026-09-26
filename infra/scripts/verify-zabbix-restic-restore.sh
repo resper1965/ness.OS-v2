@@ -58,8 +58,10 @@ assert len(ids) == 1, f"expected one Zabbix snapshot for backup_set_id={set_id},
 print(ids[0])
 PY
 )"
-restic restore "${snapshot}" --target "${work}/restored" --verify
-mapfile -t markers < <(find "${work}/restored" -type f -name COMPLETED)
+restored_root="${work}/restored/${backup_set_id}"
+install -d -o root -g root -m 0700 "${restored_root}"
+restic restore "${snapshot}" --target "${restored_root}" --verify
+mapfile -t markers < <(find "${restored_root}" -type f -name COMPLETED)
 [[ ${#markers[@]} -eq 1 ]] || { echo 'snapshot must contain one completed backup set' >&2; exit 4; }
 restored_set="$(dirname "${markers[0]}")"
 restored_id="$(python3 - "${restored_set}/backup-set-manifest.json" <<'PY'
