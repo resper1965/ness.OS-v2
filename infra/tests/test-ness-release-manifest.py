@@ -115,6 +115,34 @@ def test_hashes_cover_standalone_database_migrations(tmp_path: Path) -> None:
     assert manifest["deployed_file_hashes"]["infra/sql/20260908_asset_type_unknown.sql"] == expected_hash
 
 
+def test_hashes_cover_installed_service_entrypoints_and_host_configuration(
+    tmp_path: Path,
+) -> None:
+    root = write_fixture_repo(
+        tmp_path / "repo",
+        "services:\n  db:\n    image: postgres:17@sha256:" + "a" * 64 + "\n",
+    )
+    paths = (
+        "infra/scripts/aiops-isolated-restore-test.sh",
+        "infra/scripts/hub-clean-engine-restore.sh",
+        "infra/scripts/hub-cmdb-sync.sh",
+        "infra/scripts/hub-health-history.py",
+        "infra/scripts/hub-integration-monitor.sh",
+        "infra/psono/scripts/backup.sh",
+        "infra/psono/scripts/restore-verify.sh",
+        "infra/netplan/60-ness-zabbix-route.yaml",
+    )
+    for relative in paths:
+        path = root / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("fixture\n", encoding="utf-8")
+    initialize_git(root)
+
+    manifest = generate(root, tmp_path / "manifest.json")
+
+    assert set(paths) <= set(manifest["deployed_file_hashes"])
+
+
 def test_compose_discovery_skips_dependency_and_build_directories(tmp_path: Path) -> None:
     root = write_fixture_repo(
         tmp_path / "repo",

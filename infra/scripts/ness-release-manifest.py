@@ -33,10 +33,18 @@ DEPLOYED_NAMES = {
     "infra/psono/branding/service-worker.js",
     "infra/scripts/aiops-nightly-backup.sh",
     "infra/scripts/aiops-deployment-backup.sh",
+    "infra/scripts/aiops-isolated-restore-test.sh",
+    "infra/scripts/hub-clean-engine-restore.sh",
+    "infra/scripts/hub-cmdb-sync.sh",
+    "infra/scripts/hub-health-history.py",
+    "infra/scripts/hub-integration-monitor.sh",
     "infra/scripts/ness-object-storage-restic.sh",
     "infra/scripts/zabbix-nightly-backup.sh",
     "infra/scripts/zabbix-isolated-restore-test.sh",
     "infra/scripts/verify-zabbix-restic-restore.sh",
+    "infra/netplan/60-ness-zabbix-route.yaml",
+    "infra/psono/scripts/backup.sh",
+    "infra/psono/scripts/restore-verify.sh",
 }
 DEPLOYED_TREE_ROOTS = (
     "app/backend/app",
