@@ -125,7 +125,10 @@ restic --retry-lock 30m cat config >/dev/null
 
 (
   cd "${backup_set}"
+  # backup-set paths change every run; group by the stable host so Restic can
+  # select the previous snapshot as parent and reuse unchanged data chunks.
   restic --retry-lock 30m backup \
+    --group-by host \
     --host "${NESS_BACKUP_HOST_ID}" \
     --tag "${snapshot_tag}" \
     --tag "${set_tag}" \

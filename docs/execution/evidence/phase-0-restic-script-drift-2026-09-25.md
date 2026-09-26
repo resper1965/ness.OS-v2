@@ -42,6 +42,11 @@ O primeiro `restic forget --dry-run` com a política do script vigente (`--host 
 Corrigi `infra/scripts/ness-object-storage-restic.sh` para agrupar somente por host. O filtro explícito de host e a tag `ness-dataset-zabbix` mantêm a política restrita ao dataset Zabbix. A nova prévia agrupou os seis snapshots juntos e manteve os seis sob `keep 14`; nenhum seria removido nesta execução. Após o upload do conjunto atual serão sete, ainda sem remoções. Essa correção passa a limitar o histórico aos últimos 14 snapshots quando o limite for alcançado.
 
 Base documental do agrupamento e do `--dry-run`: [Restic `forget`](https://github.com/restic/restic/blob/master/doc/060_forget.rst).
+## Seleção de parent incremental
+
+A execução aprovada em 26/09 registrou `no parent snapshot found`, processou 4,981 GiB e armazenou 4,907 GiB porque o caminho de origem contém um diretório diferente por `backup_set_id`, enquanto o `backup` usava o agrupamento padrão `host,paths`. A documentação do Restic confirma que esse agrupamento seleciona o parent por host e caminhos.
+
+Atualizei o script versionado para passar `--group-by host` também ao `restic backup`, coerente com `forget`; o repositório e `NESS_BACKUP_HOST_ID` são dedicados ao dataset, e as tags preservam a identificação da execução. Essa revisão ainda precisa ser instalada e confirmada no próximo backup. Referência: [Restic file change detection](https://github.com/restic/restic/blob/master/doc/040_backup.rst).
 ## Decisão operacional
 
 1. Na janela registrada de 22:00–00:00 BRT, confirmar o repositório exato e ler o inventário de snapshots; anotar quantidade, snapshot mais recente, tags e host antes de qualquer escrita. Executar `forget --dry-run` com os mesmos filtros e política de 14; revisar a lista `remove` antes de permitir que o serviço aplique retenção/prune.
