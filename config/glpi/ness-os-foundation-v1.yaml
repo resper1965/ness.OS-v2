@@ -107,7 +107,7 @@ work_packages:
     name: UAT, treinamento e transição operacional
 
 runbook_categories:
-  - Operação interna Ness
+  - Operação interna ness.
   - Operação padrão MSP
   - Operação específica do cliente
   - Backup e continuidade
