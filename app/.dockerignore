@@ -1,0 +1,14 @@
+*
+!backend
+!backend/**
+!cli
+!cli/**
+backend/.venv
+backend/venv
+backend/.pytest_cache
+backend/.mypy_cache
+backend/.ruff_cache
+backend/tests
+backend/tests/**
+backend/**/__pycache__
+backend/**/*.pyc
