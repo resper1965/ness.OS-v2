@@ -72,9 +72,9 @@
 - [x] Acrescentar teste de manifesto completo, checksum, versão do banco e rejeição de conjunto parcial.
 - [x] Executar `bash infra/tests/test-zabbix-upgrade-safety.sh`; esperado: falha nos requisitos ainda ausentes.
 - [x] Implementar os campos e validações mínimos e repetir o teste; esperado: aprovado.
-- [ ] Instalar as units versionadas, executar `systemctl daemon-reload` e habilitar os dois timers com `systemctl enable --now` (o timer Object Storage segue desabilitado por segurança).
-- [ ] Disparar backup local e externo; backup local PASS, externo pendente de rotação/autorização.
-- [ ] Restaurar o snapshot em instância isolada e verificar versão, contagens de hosts/templates e login técnico somente leitura (restore local PASS; API somente leitura não comprovada).
+- [x] Instalar as units versionadas, executar `systemctl daemon-reload` e habilitar os dois timers com `systemctl enable --now`; ambos estão habilitados e ativos.
+- [x] Disparar backup local e externo; cópia externa, `restic check` e associação ao conjunto local atual aprovados. A próxima execução ainda deve comprovar reutilização incremental do parent.
+- [x] Restaurar o snapshot em instância isolada e verificar versão e contagens: Zabbix 7.0.27, MariaDB 10.11.18, 203 tabelas, 685 hosts, 64.226 itens, 26.697 triggers e 362 templates. A leitura autenticada da API confirmou 260 hosts; `template.get` não é permitido ao usuário técnico e permanece blocker para a onda funcional.
 - [x] Registrar evidência e a próxima execução de cada timer, incluindo os blockers atuais.
 - [x] Commit: `git add infra/scripts/zabbix-nightly-backup.sh infra/scripts/zabbix-isolated-restore-test.sh infra/scripts/verify-zabbix-restic-restore.sh infra/systemd/ness-zabbix-backup.timer infra/systemd/ness-zabbix-object-storage-backup.timer infra/tests/test-zabbix-upgrade-safety.sh docs/execution/evidence/phase-0-zabbix-recovery.md && git commit -m "fix(recovery): restore Zabbix backup schedule"`.
 
@@ -88,11 +88,11 @@
 
 **Interfaces:** `python infra/scripts/ness-release-manifest.py --output <path>` produz JSON com `git_commit`, `git_dirty`, imagens e digests, hashes dos arquivos implantados, versões e nomes de units; valores secretos são substituídos por presença booleana.
 
-- [x] Escrever testes para repositório limpo/sujo, digest ausente, arquivo divergente e filtragem de chaves sensíveis.
+- [x] Escrever testes para repositório limpo/sujo, digest ausente, arquivo divergente, filtragem de chaves sensíveis e descoberta de Compose sem varrer dependências/builds.
 - [x] Executar `python -m pytest infra/tests/test-ness-release-manifest.py -q`; falha inicial observada antes da implementação.
-- [x] Implementar o gerador determinístico e repetir; seis testes aprovados.
-- [ ] Agrupar todas as mudanças locais existentes por domínio, executar os testes próprios de cada grupo e criar commits revisáveis sem usar `git add -A` (grupos verificados já commitados; backend/GLPI/SQL e mais de 100 caminhos ainda pendentes).
-- [ ] Gerar manifesto local e manifesto de produção; manifests gerados, mas 41 fontes backend divergem, 71 paths não têm hash remoto e imagens próprias não têm digest. Release continua bloqueada.
+- [x] Implementar o gerador determinístico; sete testes aprovados após a regressão de varredura.
+- [ ] Agrupar todas as mudanças locais por domínio, testar cada grupo e criar commits revisáveis sem usar `git add -A`. Os grupos de código verificados estão commitados, incluindo `3c8bb4d` (n8n/readiness); agora não há mudanças pendentes sob `app/` ou `infra/`. Restam 7 arquivos rastreados modificados e 40 arquivos não rastreados (documentos/evidências e `.codex-tmp-*`); classificar e revisar individualmente antes de consolidar, preservando-os.
+- [ ] Manifesto local gerado para o commit de código `3c8bb4d` e validado com 9 testes; comparar novamente após renovar os fatos de produção. A coleta remota de hashes/digests ainda é de 25/09 e registra 126 arquivos montados/instalados, 8/19 imagens sem digest, 43 divergências e 47 paths sem hash remoto. Release continua bloqueada.
 - [x] Documentar deploy por digest, migração, sonda, rollback e restauração no runbook.
 - [ ] Criar tag de release somente depois de `git status --short` vazio e dos checks de CI aprovados.
 - [x] Commits do manifesto/runbook/evidência: `b5bd4c6`, `0533555`, `6f3ebd7`.
@@ -103,9 +103,9 @@
 - Create: `docs/execution/gates/phase-0-recovery-release.md`
 
 - [x] Confirmar backup completo do Hub e Zabbix com idade inferior a 24 horas.
-- [ ] Confirmar snapshots externos correspondentes aos conjuntos locais atuais (Hub PASS; Zabbix FAIL).
+- [x] Confirmar snapshots externos correspondentes aos conjuntos locais atuais (Hub e Zabbix PASS).
 - [x] Confirmar restaurações isoladas do Hub, Zabbix e Psono.
-- [ ] Confirmar timers habilitados, última execução bem-sucedida e próxima execução agendada (timer externo Zabbix desabilitado).
+- [x] Confirmar timers habilitados, última execução bem-sucedida e próxima execução agendada.
 - [ ] Confirmar produção associada a commit e digests imutáveis, com rollback ensaiado.
 - [x] Executar `git diff --check` e os testes alterados nesta fase; saída limpa e código zero.
 - [x] Registrar `PASS` ou `FAIL` por critério. Gate geral permanece `FAIL`; mudanças dependentes não foram iniciadas.
