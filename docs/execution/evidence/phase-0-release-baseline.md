@@ -1,9 +1,9 @@
 # Evidência do baseline de release da Fase 0
 
-Baseline inicial coletado em 2026-09-25; manifesto local e backup/restore do
-AIOps atualizados em 2026-09-26 (America/Sao_Paulo). A comparação de
-código/imagens ainda usa fatos de produção coletados em 25/09 às 17:49 BRT; os
-hashes e digests remotos devem ser renovados após consolidar os arquivos locais.
+Baseline inicial coletado em 2026-09-25. Inventário Contabo, evidência AIOps e
+manifesto local foram atualizados em 2026-09-27 (America/Sao_Paulo). A comparação
+produção/código/imagens ainda usa fatos coletados em 25/09 às 17:49 BRT; hashes
+e digests remotos seguem sem atualização.
 
 ## Escopo de produção
 
@@ -16,7 +16,7 @@ hashes e digests remotos devem ser renovados após consolidar os arquivos locais
 
 ## Manifesto local
 
-O gerador determinístico e seus sete testes estão no
+O gerador determinístico e seus nove testes estão no
 repositório. Para atualizar o snapshot após a consolidação da árvore, execute:
 
 ```bash
@@ -24,11 +24,15 @@ python3 infra/scripts/ness-release-manifest.py --output release-manifest.json
 python3 -m pytest infra/tests/test-ness-release-manifest.py -q
 ```
 
-O snapshot `phase-0-production-manifest.json` foi regenerado para o commit
-`3c8bb4d` usando a árvore local e fatos de produção coletados em 25/09 às 17:49
-BRT. Marca `release_ready=false`: árvore suja, 8 de 19 imagens sem digest, 43
-divergências de arquivo e 47 arquivos montados/instalados sem hash remoto
-observado. Não representa uma nova coleta remota.
+O manifesto local-only foi gerado em 27/09 para o commit limpo `ec76784` e está
+em [`phase-0-local-release-manifest-2026-09-27.json`](phase-0-local-release-manifest-2026-09-27.json).
+Seus 9 testes passaram. Marca `release_ready=false`: 8 de 19 imagens locais não
+possuem digest.
+
+A comparação produção/local em `phase-0-production-manifest.json` continua
+baseada no snapshot do commit `3c8bb4d` e nos fatos de produção coletados em
+25/09 às 17:49 BRT: 8 de 19 imagens sem digest, 43 divergências de arquivo e 47
+arquivos sem hash remoto. Esse snapshot não prova o estado remoto atual.
 
 ## Observações em produção
 
@@ -67,34 +71,37 @@ observado. Não representa uma nova coleta remota.
   Cópia externa, `restic check` completo e restore isolado passaram; restore
   verificou Zabbix 7.0.27, MariaDB 10.11.18, 203 tabelas, 685 hosts,
   64.226 itens, 26.697 triggers, 362 templates e schema obrigatório 7000000.
-  Os timers local e externo estão habilitados/ativos; a execução externa terminou
-  em 2026-09-26 às 08:41:52 -03 e a próxima está agendada para 27/09 às 05:30 -03.
+  Essa evidência comprova o conjunto de 25/09, não o disparo seguinte. Na
+  tentativa de 27/09, SSH à porta 22 expirou e a porta documentada 2222 rejeitou
+  a chave (`Permission denied (publickey)`); backup local/externo e timers atuais
+  do Zabbix permanecem sem verificação.
 - A API do Zabbix autenticada retorna 260 hosts ao usuário técnico, mas nega
   `template.get` por falta de permissão. A validação funcional read-only permanece
   parcial e bloqueia a onda Zabbix; nenhum ajuste de permissões foi feito.
-- Na VPS AIOps, a coleta read-only de 26/09 confirmou o conjunto local
-  `20260925T230000-0300`, todas as 24 entradas de checksum e o snapshot Restic
-  associado `d66d36f3`; restore isolado com `--verify` e limpeza temporária
-  aprovados. `ness-aiops-backup.timer` e
-  `ness-aiops-object-storage-backup.timer` estão ativos. Detalhes em
-  [`phase-0-aiops-recovery-2026-09-26.md`](phase-0-aiops-recovery-2026-09-26.md).
-  A coleta atual do AIOps não renova hashes do código ou das imagens.
+- Na VPS AIOps, a coleta read-only de 27/09 confirmou o conjunto local
+  `20260926T230011-0300`, checksums e snapshot Restic `4ca60242`; restore isolado
+  de 862,761 MiB com `--verify`, 26 arquivos e limpeza temporária aprovados.
+  Os timers local e externo estão ativos e os serviços terminaram com código 0.
+  Detalhes em
+  [`phase-0-aiops-recovery-2026-09-27.md`](phase-0-aiops-recovery-2026-09-27.md).
+  Essa coleta não renova hashes do código ou das imagens.
 
 ## Bloqueios
 
-1. Consolidar os arquivos locais e confirmar o commit de release; há mudanças
-   preexistentes na árvore que não foram agrupadas nem revisadas nesta evidência.
+1. Revisar e aprovar o candidato local limpo `ec76784`; ele permanece na branch
+   local de execução e não está publicado nem associado a produção.
 2. Publicar e fixar por digest as 8 imagens sem digest identificadas no snapshot
    local atualizado.
 3. Revisar os 41 arquivos de backend divergentes e coletar hashes de produção
    para os 47 arquivos montados/instalados que ainda não foram observados.
-4. Na próxima execução, confirmar reutilização do parent incremental Restic do
-   Zabbix; o snapshot atual e sua restauração já foram comprovados.
+4. Renovar as evidências locais, externas e dos timers do Zabbix; o último
+   conjunto comprovado é de 25/09 e o acesso SSH válido ainda não foi recuperado.
 5. Reconciliar o estado do destino Zabbix `169.58.234.9` antes de qualquer
    cutover; esta evidência não o promove a origem canônica.
 6. Completar o baseline autenticado da UAT e a permissão de leitura de templates
    no Zabbix antes da onda funcional, sem ampliar privilégios sem revisão.
 
-Até resolver os bloqueios de reconciliação, digest, rollback e CI acima, não criar
-tag nem declarar a release pronta. A proteção de backup do Zabbix está ativa e
-comprovada; isso não aprova release nem cutover.
+Até resolver os bloqueios de evidência Zabbix atual, reconciliação, digest,
+rollback e CI acima, não criar tag nem declarar a release pronta. O backup AIOps
+mais recente está restaurado e verificado externamente; isso não aprova release
+nem cutover.

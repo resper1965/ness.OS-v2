@@ -1,0 +1,353 @@
+{
+  "blockers": [
+    {
+      "code": "image_digest_missing",
+      "service": "app/docker-compose.yml:api"
+    },
+    {
+      "code": "image_digest_missing",
+      "service": "app/docker-compose.yml:frontend"
+    },
+    {
+      "code": "image_digest_missing",
+      "service": "app/docker-compose.yml:worker-alerts"
+    },
+    {
+      "code": "image_digest_missing",
+      "service": "app/docker-compose.yml:worker-ml"
+    },
+    {
+      "code": "image_digest_missing",
+      "service": "docker-compose.yml:api"
+    },
+    {
+      "code": "image_digest_missing",
+      "service": "docker-compose.yml:caddy"
+    },
+    {
+      "code": "image_digest_missing",
+      "service": "docker-compose.yml:evolution-api"
+    },
+    {
+      "code": "image_digest_missing",
+      "service": "docker-compose.yml:postgres"
+    }
+  ],
+  "deployed_file_hashes": {
+    "app/Caddyfile": "914ddb5cd61e61669e7bdadc0f6e77f4410e975907b37620f3bb4bbc13066da2",
+    "app/backend/app/__init__.py": "3db6a5eaf683f9dfba17d5ccfedd427470ead2e94621d9e38350fe154536bc29",
+    "app/backend/app/api/__init__.py": "457bcc03ddeb713ad17b36a4de5af0252c18ab3981e7f2ecb2c5196057310432",
+    "app/backend/app/api/routers/assets.py": "f835378e48953216f5bcf495289ca9ea1667ff1386c56c5e484da4ee9c9b1e19",
+    "app/backend/app/api/routers/atera.py": "4226d36ac83b276a9e14f882cc46178ae1d9b48f9640ae43a360e98993eaa27d",
+    "app/backend/app/api/routers/auth.py": "ba66814688689fa820db7897c847bdf41b4b3c5b99c1756c70cd81506bf9d3bd",
+    "app/backend/app/api/routers/contabo.py": "b258d74f6772da664240db4243d03f30faa25847c910a78b8cb178e5d41f5108",
+    "app/backend/app/api/routers/contabo_mgmt.py": "4ac7dc1ad5c139700f0d22a0617b1a6b02bca322bf6c8694f42ff35485319d1f",
+    "app/backend/app/api/routers/core.py": "4284b3e26dda2b223df9c164f9c28e73d7720988dc6032d1025c9ff683fe4143",
+    "app/backend/app/api/routers/dashboard.py": "a4b8d2f522dd81c0d0110733ef7438ab060eca64a1caaa86dcfbbdbda64be5fe",
+    "app/backend/app/api/routers/incidents.py": "d384a453c7f9e29f75a2af639c027e7132770cb330a9cbfa4dbede02613eefa0",
+    "app/backend/app/api/routers/pipeline.py": "0eea4dd5215c7f76538bff9889359f9211a58fa1866085bbb046182cfb87144b",
+    "app/backend/app/api/routers/push.py": "7e9faf32baf3a1b75a6ddb1261fc0ce548338a91d665187dd8a16804012c18f2",
+    "app/backend/app/api/routers/secops.py": "7e1215ee92e6a58a2f5359bc19a3f267a8692e9d8e1c2a4d26d6c82d68b8b2a0",
+    "app/backend/app/api/routers/tenants.py": "57a49bf02f1067b2416bbee09f523f16979dd76f35cd29f76c5ffbf354bc2d00",
+    "app/backend/app/api/v1/alerts.py": "42a69268f1d0af8bded8a0ac18bfaf086e4ab627c8cb239a2d30b08042e679ec",
+    "app/backend/app/api/webhooks.py": "9b0a64e0c03986ca4dbd358ea1ab2ba0f147559e29718c6248601af1ac49f05f",
+    "app/backend/app/config.py": "615da4ff5e2579650d8813ec0dd0613d78bfead8ec528036156a9214d693ec26",
+    "app/backend/app/core/__init__.py": "00a6398895952920e3805c023afceca75492cc9607619b094b7d7cbce0cd9943",
+    "app/backend/app/core/ai_context.py": "94f2191613c02d939cd6b3353481d40704293a9f95f2e7e206732f8e165f3353",
+    "app/backend/app/core/dependencies.py": "cf01dadcbd36870984de40995eb9c4d57b5635b42c233e724ba4bd6c72217c82",
+    "app/backend/app/core/fingerprint.py": "f266fc8baf6edeb369a1d09a6b1bbfed8242d61de64e62e57c084eb2d3c50821",
+    "app/backend/app/core/jwt.py": "3ae418c13e141a653fc933b608e95ec0d8ceaa5be43f3ef65c0de6de7e2813c1",
+    "app/backend/app/core/locks.py": "607a1b2d691e57b8554b01783a452cbacc6e3e3bdfb71a37237bc52e8515d1a4",
+    "app/backend/app/core/oidc.py": "d2cf246b1f0c0ee63771215f46050c83752f3f1138312847562b78c24c6d00a4",
+    "app/backend/app/core/sanitizer.py": "0f8e670cfbb5133ea59b0c8af50d6e3a6265f01cd1ae5e68a4197540968a99e6",
+    "app/backend/app/core/security.py": "105e8ebe143c3c665c50f7c8b4f286ca158619b8bd39109adfaea2c5a52ba144",
+    "app/backend/app/core/session.py": "7f06b83e39187cd29b107b5fd003c49794ced94a790cc5346855fe8108f279cb",
+    "app/backend/app/core/triage_engine.py": "01b99b01149bfbdbe2427947a6502d6e58889f4806f873eaeddd933a8ac08e5a",
+    "app/backend/app/core/vapid.py": "d02e91b4d639bbcd342bdc14e6872493f6eaa9899aea7bcfbea1edbc2b8bda04",
+    "app/backend/app/core/webhook_auth.py": "d02aa72ee5117caa0bb508da23883c18e59f68975f9723d39e3e570825aa1a7b",
+    "app/backend/app/database.py": "5b2f77d7a7a022ddaf70e28c5ef941e5e5261e69d97cdb3373d4662131ed96d5",
+    "app/backend/app/dependencies.py": "0249fe5d4186b28181542bfa74fdd6a05cd927b7789d3bff8335764cb56e7b56",
+    "app/backend/app/integrations/__init__.py": "5dc1d6ee8c1094beac9202a37c6be681db809b65847de44a71ade1be626a9a4a",
+    "app/backend/app/integrations/atera.py": "8a0e0c82c98e17299f5aea849031d4ac9c6b8e8255f5d05c7648b0cff7c9063d",
+    "app/backend/app/integrations/cmdb_sync.py": "9a1592548ddd5a62d87a45a66ae057dbb723a09f35680dc399834f5b82ebd459",
+    "app/backend/app/integrations/contabo_firewall.py": "daae48edb3c97327f52ec7b79cb8a57d51ba215a5c24782ca7c2eefee72a66c3",
+    "app/backend/app/integrations/datto_rmm.py": "7d646e8db5f973176e0452fe06f9ed0d9a136de0f1f1bb2fe2a525b8a258d0e9",
+    "app/backend/app/integrations/email.py": "f38567d6379b211c541d85232535b644ed718b387695dbd2096e703dd750c5b1",
+    "app/backend/app/integrations/gemini.py": "5d93972a82eb169580814675a7bb8d27d8d94a4c66164b34cdba3babfa4e8111",
+    "app/backend/app/integrations/glpi.py": "e27c3237e83d487839b8092a82e8cd7b37f1a33f59cc8ac6cf52b21959e7ed66",
+    "app/backend/app/integrations/glpi_project_manifest.py": "9b016f8c9f408fb2cb10598ae1992c0cb2498d10cfb7fa65890f8e3eca92c687",
+    "app/backend/app/integrations/glpi_readiness.py": "b463609667f0f68de3823efc16d85fb344818f96774bc618fdb5fe7b0217ebcd",
+    "app/backend/app/integrations/glpi_runbook_categories.py": "3e20b6c7a0255efd1c2d38d8f7603029c64df4e4a525b200be5eeb9a3715ce28",
+    "app/backend/app/integrations/loki.py": "dbd4e5727b0f1d95619f6baded3f095524904bae01efe306808db52039245d0b",
+    "app/backend/app/integrations/misp.py": "84441500b35657a88b0494d4a5346a48a956ed84774966454d2c4ce775d72731",
+    "app/backend/app/integrations/n8n.py": "a3e20d78706961883b9c28f801583fb1008cd49780d1a7902350a75c069ca652",
+    "app/backend/app/integrations/pipeline_health.py": "18af4f91f57a28b8dfbf460f4bf0516b4e16cd8dd7d14ed49799822188acde67",
+    "app/backend/app/integrations/soc_agent.py": "1dbc71b8d57fb37b53572a8c34634a2de577726dc2d9eb879f14fdfe88938df3",
+    "app/backend/app/integrations/threat_intel.py": "7d1e22c8204a14802e507b005917648779012f3a9c7bcbbc6c2c75579f35df89",
+    "app/backend/app/integrations/webpush.py": "cceb15aab358ddc3fe501d1d4ee49cb16f0a2d5a8b3089db6df154ac7fa5b316",
+    "app/backend/app/integrations/whatsapp.py": "ac36f832439a978e158cd4d57044f3c7d7aa55954105de69110cea58b363b4d1",
+    "app/backend/app/integrations/zabbix.py": "4377fc27cf9d35d0ce1f3e904f9c2e7876255b8cd4b6580acddf46b28916f984",
+    "app/backend/app/integrations/zabbix_readiness.py": "6c7b5b423c6e769a2ad4fc1781e51aee23b417181dc5da54087a2d47c8e9205c",
+    "app/backend/app/main.py": "376306eb8ec9631276b8ba2e63eb6a73a06e31e292ca952cf5d1bd10ef6b3db3",
+    "app/backend/app/manage_tenants.py": "63823176ba51aaf9071f5707a6540bd006e277062f4673bf966708271ae58dd6",
+    "app/backend/app/migrate.py": "3b4874f95725abb14c0aea2df21147bac28f8cf9427945dcf4edf0712891d78c",
+    "app/backend/app/ml/__init__.py": "81238d7c8c5259f48857feae42f5a3d8287f706fdd65a02b59e9744321089f8a",
+    "app/backend/app/ml/analyzer.py": "909bb1fecf2d87b1efc3c86da6b371f0f4e98a33a09f6a6e71124dffc0765ca9",
+    "app/backend/app/ml/anomaly.py": "f4af63a28800495c93328eecee5b38c18e05688559b2e363dc448c3cba31b678",
+    "app/backend/app/models/__init__.py": "56534312925974ec14db9987db360a518262afa8a1b3429f447ae479fbf99f0a",
+    "app/backend/app/models/models.py": "3565f09c656485da99d0d973a8613a1f0d23417efa48c17380a2507371d2cf71",
+    "app/backend/app/models/push.py": "80fe1f11922c4dc55c4f6682cb6718f809cffd6b3e33a54f47b0e7ba1610d913",
+    "app/backend/app/models/schemas.py": "e8e833b92e7e0c75d095282ed134c011a4f78649f13c69cb621c831c2d06e408",
+    "app/backend/app/models/users.py": "b47f028bf60ea957df0a7fbabb8a0797c6ea927d95e77d0a8e3dfefaff66bf86",
+    "app/backend/app/remediators/__init__.py": "b79ccfde90af84b448e8e7cb87906c901952183a1654248c8f571569948b299e",
+    "app/backend/app/remediators/atera.py": "3f0ddf8bff85ced8534d6ce6f08ac79a83de2f97a1759ecf8017f6c6d6c6fc54",
+    "app/backend/app/remediators/base.py": "d574e055a50b7e5b2a7441b3292b95fe2e591831b907464c1e825346b6f02ff2",
+    "app/backend/app/remediators/datto.py": "2d11b4032d63332d181f0cb25d9f1323f7fcd70ff928fe46eddcd6877d16304d",
+    "app/backend/app/remediators/factory.py": "e12cb10deb799d3eb16e8011be7ecaa5fa28af1e64c6df964d47e7aa83e78761",
+    "app/backend/app/remediators/network.py": "bc21fc15fffd8234b83c4dbf3774bd84511efa8a3323253aa81a66d0339d1a50",
+    "app/backend/app/workers/__init__.py": "5ff3050caf1ce88a0c1a2058e9018a3594dbc4468a8b7c3a1cf518c533cf7e15",
+    "app/backend/app/workers/alerts.py": "518b498587c1fc5905d3970cf42807263fffbba90f80d5a31696d3f2c2eb7c6e",
+    "app/backend/app/workers/celery_app.py": "49043ecb2fca44c795c70f0b4eeba700ce3b7012d8b5b3dd5d7a3189306d2aa8",
+    "app/backend/app/workers/postmortem.py": "8e63dc6c1629c36107b8cfa358f2a855bed9ff184f1dd62914bd407c2faf1f90",
+    "app/backend/app/workers/resolution.py": "8cd12dee48f3ec5fa292775e54631a21dd00de771b6ac3196d7ed2f1c0cfbb5f",
+    "app/backend/app/workers/tasks.py": "3196af496d9a62d091afd65c2090105cdf665214378d6218af3f8b3a5adfe3ba",
+    "app/backend/app/workers/telemetry.py": "f94490392419a95de80edcf01af15ca7291779e0d2db0155145eca767cef6055",
+    "app/backend/postgresql.conf": "cd2ddefd9ce2e116584c473678743a957bcc08fb6a9eb021cd29fb87be1050a8",
+    "app/backend/sql/000_init.sql": "ced115da701580f80cc384dc1b33c12a2a109cd9c66d59553436210745bd65c1",
+    "app/backend/sql/001_schema.sql": "6b2d20f9c79ea252072b153f7cef28fb0fca0f01288253fb62ee732d365d3601",
+    "app/backend/sql/002_push_subscriptions.sql": "932dc9727f3dc6bbb208bda2c9727a074597861f54043bccd89716a85c903788",
+    "app/docker-compose.yml": "e57d315554310f83245f10820ffac91f6a3cebda4ae9025a1f0f5af59b2977fe",
+    "docker-compose.yml": "34c56a11ab328cfa794ec9318d1f9eaedd64cce344afda2415afda7daf20c2c6",
+    "infra/netplan/60-ness-zabbix-route.yaml": "35c4ca390fd4ba1ab2786f5e4b68bbadde8beab27d25c604c3685728f2f1c25d",
+    "infra/psono/Caddyfile": "0e15bec7a0ec9eca13634d9e12afabaf7715828467ff56e6e7ac7452c3ac5a26",
+    "infra/psono/branding/custom.css": "cbfa97745555e4b2e43d41f0ca6efc6b3b46b54f7a598eeb0f3e77e042470f5a",
+    "infra/psono/branding/index.html": "327f43299bec9e7906210470a60dc4f7e4d5dd91bb8dd7d860bee0bcf93418fa",
+    "infra/psono/branding/language-default.js": "58f73db8aa9ca9b76fbcb9daf55cbf4074fb1839d84377e36437fdd4a3071105",
+    "infra/psono/branding/portal-index.html": "5fc4981177f2a52a2e31bc280ee82ce36455961918db2fcd2df68825c52b958c",
+    "infra/psono/branding/service-worker-load.js": "fc7e9cc5c10ec61150c8fe902a0c5de6a7e128034708c007a067b861c1e097e8",
+    "infra/psono/branding/service-worker.js": "bb8feb2250f7634e065c877af69eee9e2f9a1bde21d33247e086b7f53f50ed97",
+    "infra/psono/docker-compose.yml": "6f90c49ff6f56ade568b935a5defc79e7221655474dad76b647e9cc2f48b2cad",
+    "infra/psono/scripts/backup.sh": "9b08872379e42061689ceec4ac12afbcf6007422c3a11e2b29a3094a9dd98241",
+    "infra/psono/scripts/restore-verify.sh": "7dae58178051a302dcaba52a8f2881171c2be26503456045c2725a4de4d10134",
+    "infra/psono/systemd/ness-psono-backup.service": "205fd52620451827265221950e798417a82d162439f412b6d0332f5066a1e045",
+    "infra/psono/systemd/ness-psono-backup.timer": "3d442b68a5ab47e0a7b375e0925246727220d3beb9bbfce67f512cc77df35767",
+    "infra/psono/systemd/ness-psono-restore-verify.service": "28e944f00db294d07e8fcd57701b75e612c11d8c3bc70bd1bb58386128e1fd34",
+    "infra/psono/systemd/ness-psono-restore-verify.timer": "77bf7a6a6a611b4285549ac902e3c81f27fc13fad81375c84a5a622a0095cb61",
+    "infra/scripts/aiops-deployment-backup.sh": "00ba34d4f038e5aa5c50600f20930281aaa9fb22f5d6ed863f76a516115bf970",
+    "infra/scripts/aiops-isolated-restore-test.sh": "8ac1ec8d9bacb8a22979421b622e05de376c9386d7fa5abe0af10af3ba99c55c",
+    "infra/scripts/aiops-nightly-backup.sh": "19a6ac73248e7b04d73870be253e8da7653284121f949b3bacb3ddea995a5616",
+    "infra/scripts/hub-clean-engine-restore.sh": "d7716b3981d90179f782640eb40d633f2b3b49b9db278e33079a3cf4e1db381e",
+    "infra/scripts/hub-cmdb-sync.sh": "903c3c99399e27837fd49a447a45d8f526ded59330cd3daef23cf40bda7c7c40",
+    "infra/scripts/hub-health-history.py": "2272f9797269c9f93dbf153a471ef627b97ec8a57dd9de413caf262fc293627e",
+    "infra/scripts/hub-integration-monitor.sh": "bb21ce0e424c963d7423d991fd701de9504c0fa1e54ae2bc37ebf624e58f8480",
+    "infra/scripts/ness-object-storage-restic.sh": "387900ff0c9c2c50137b351edcc39a9a253cb09f52723da4d58dcb8025b30eb1",
+    "infra/scripts/verify-zabbix-restic-restore.sh": "552ecdb3d27159f1abc75378af7cf51a990aa92e754e26c2ca24d02bbb1a05ba",
+    "infra/scripts/zabbix-isolated-restore-test.sh": "244d08229a4d5de55cc7fc6b71bf17baf63fc9852ac4711cac457ffb42f68975",
+    "infra/scripts/zabbix-nightly-backup.sh": "fad01437efcf4a66ae31009ed435b0692c9f13e08b76d8183b47f3b4f985dbff",
+    "infra/sql/20260908_asset_type_unknown.sql": "6d8d9d4187bdad7711b939d8048043b80e09af2bb017468d7aca5f6cfe394ff4",
+    "infra/systemd/ness-aiops-backup.service": "95059f2d02d6aaaadbbdf7b7c0a7f6a91334a60d2619efc1ea0fd291161379e9",
+    "infra/systemd/ness-aiops-backup.timer": "cfdfc398f625794ea6d3fd9a63aead37e232d2cb13527915ff167d15f41bf2f2",
+    "infra/systemd/ness-aiops-object-storage-backup.service": "ede5eb3f351c97c77aa8c30eb3d300c0cd245e72445e9b8df76f4628505efef0",
+    "infra/systemd/ness-aiops-object-storage-backup.timer": "06877ae552dbb5ee5f6d1f16cfa399bc8e144fcfa550aa29999a32dfad49eb43",
+    "infra/systemd/ness-aiops-restore-verify.service": "874f4787f6a74406e21403afe23056a3acf76297f8d7c1bc1fa395486e5ea563",
+    "infra/systemd/ness-aiops-restore-verify.timer": "dc503e605a11115b570ecdb59c95c66357ab3d278be098f06b0ecd6ef76e6cee",
+    "infra/systemd/ness-hub-cmdb-sync.service": "12c09798fb021a2edacc37d25ab2e3b738e1604512951906e466640bbcf18dd9",
+    "infra/systemd/ness-hub-cmdb-sync.timer": "05a2bff5bce15d3347a1ae4d95a8e731664d7b688fcc25feeb213f71883a72c0",
+    "infra/systemd/ness-hub-integration-monitor.service": "13e5f60a48b03f0542198679583a7f026a22585eb234d2fae5af42be8398e3f2",
+    "infra/systemd/ness-hub-integration-monitor.timer": "37239a2deab60e037153e00bc99d7e75dd4a8773316064846497227f9701dace",
+    "infra/systemd/ness-zabbix-backup.service": "c6ac88ec3325341a9e1f9bfe80f2685b6ac526b7d44f04fd47922c7ee7dd48f7",
+    "infra/systemd/ness-zabbix-backup.timer": "a6d48ad42850426ac81f10fb080d42bb994e38f02e92c8593dff25283a612b95",
+    "infra/systemd/ness-zabbix-cutover-bridge.service": "c32f7824494d14c944dc5900656e505787e5e47bbddd83315337b576ad977393",
+    "infra/systemd/ness-zabbix-object-storage-backup.service": "76b4190b95a68ccca7f67440ff6bebdbb303606093961120759181c54a213e13",
+    "infra/systemd/ness-zabbix-object-storage-backup.timer": "d36b81dc98f674830fd4af5d8941d78aad6d76d767165daba77d409b69440e67"
+  },
+  "git_commit": "ec76784d9bd7cac92206ec4c17e946af9e635c4d",
+  "git_dirty": false,
+  "images": [
+    {
+      "compose_file": "app/docker-compose.yml",
+      "digest": null,
+      "immutable": false,
+      "reference": null,
+      "service": "api",
+      "source": "build"
+    },
+    {
+      "compose_file": "app/docker-compose.yml",
+      "digest": "sha256:ed120caf710ccf82ef0026f0bc74e51615bc95ebff228a7a2d6fc60c441c3868",
+      "immutable": true,
+      "reference": "ghcr.io/goauthentik/server:2026.5.6@sha256:ed120caf710ccf82ef0026f0bc74e51615bc95ebff228a7a2d6fc60c441c3868",
+      "service": "authentik-server",
+      "source": "registry"
+    },
+    {
+      "compose_file": "app/docker-compose.yml",
+      "digest": "sha256:ed120caf710ccf82ef0026f0bc74e51615bc95ebff228a7a2d6fc60c441c3868",
+      "immutable": true,
+      "reference": "ghcr.io/goauthentik/server:2026.5.6@sha256:ed120caf710ccf82ef0026f0bc74e51615bc95ebff228a7a2d6fc60c441c3868",
+      "service": "authentik-worker",
+      "source": "registry"
+    },
+    {
+      "compose_file": "app/docker-compose.yml",
+      "digest": "sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648",
+      "immutable": true,
+      "reference": "caddy:2-alpine@sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648",
+      "service": "caddy",
+      "source": "registry"
+    },
+    {
+      "compose_file": "app/docker-compose.yml",
+      "digest": "sha256:966625532d9076a2381e973a271307d107e6f070450de3abeeea8bd18be07252",
+      "immutable": true,
+      "reference": "evoapicloud/evolution-api:latest@sha256:966625532d9076a2381e973a271307d107e6f070450de3abeeea8bd18be07252",
+      "service": "evolution-api",
+      "source": "registry"
+    },
+    {
+      "compose_file": "app/docker-compose.yml",
+      "digest": "sha256:cbfeb314afb9d380068c86151fbfa9fd7905d0ad74da77fad01f2c85d01a025a",
+      "immutable": true,
+      "reference": "evoapicloud/evolution-manager:latest@sha256:cbfeb314afb9d380068c86151fbfa9fd7905d0ad74da77fad01f2c85d01a025a",
+      "service": "evolution-manager",
+      "source": "registry"
+    },
+    {
+      "compose_file": "app/docker-compose.yml",
+      "digest": null,
+      "immutable": false,
+      "reference": null,
+      "service": "frontend",
+      "source": "build"
+    },
+    {
+      "compose_file": "app/docker-compose.yml",
+      "digest": "sha256:4b0b4a48faeaa5e17ea57a578a53078fb6c9b8eb65d1573eb68d8ce8f6022da0",
+      "immutable": true,
+      "reference": "docker.n8n.io/n8nio/n8n:latest@sha256:4b0b4a48faeaa5e17ea57a578a53078fb6c9b8eb65d1573eb68d8ce8f6022da0",
+      "service": "n8n",
+      "source": "registry"
+    },
+    {
+      "compose_file": "app/docker-compose.yml",
+      "digest": "sha256:ba149561ad4ddff5940d6eb0a0df60aefd1355cee1a450928f271267038fc888",
+      "immutable": true,
+      "reference": "timescale/timescaledb:latest-pg16@sha256:ba149561ad4ddff5940d6eb0a0df60aefd1355cee1a450928f271267038fc888",
+      "service": "postgres",
+      "source": "registry"
+    },
+    {
+      "compose_file": "app/docker-compose.yml",
+      "digest": "sha256:6ab0b6e7381779332f97b8ca76193e45b0756f38d4c0dcda72dbb3c32061ab99",
+      "immutable": true,
+      "reference": "redis:7-alpine@sha256:6ab0b6e7381779332f97b8ca76193e45b0756f38d4c0dcda72dbb3c32061ab99",
+      "service": "redis",
+      "source": "registry"
+    },
+    {
+      "compose_file": "app/docker-compose.yml",
+      "digest": null,
+      "immutable": false,
+      "reference": null,
+      "service": "worker-alerts",
+      "source": "build"
+    },
+    {
+      "compose_file": "app/docker-compose.yml",
+      "digest": null,
+      "immutable": false,
+      "reference": null,
+      "service": "worker-ml",
+      "source": "build"
+    },
+    {
+      "compose_file": "docker-compose.yml",
+      "digest": null,
+      "immutable": false,
+      "reference": null,
+      "service": "api",
+      "source": "build"
+    },
+    {
+      "compose_file": "docker-compose.yml",
+      "digest": null,
+      "immutable": false,
+      "reference": "caddy:2-alpine",
+      "service": "caddy",
+      "source": "registry"
+    },
+    {
+      "compose_file": "docker-compose.yml",
+      "digest": null,
+      "immutable": false,
+      "reference": "evoapicloud/evolution-api:latest",
+      "service": "evolution-api",
+      "source": "registry"
+    },
+    {
+      "compose_file": "docker-compose.yml",
+      "digest": null,
+      "immutable": false,
+      "reference": "ankane/pgvector:v0.5.1",
+      "service": "postgres",
+      "source": "registry"
+    },
+    {
+      "compose_file": "infra/psono/docker-compose.yml",
+      "digest": "sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648",
+      "immutable": true,
+      "reference": "caddy:2-alpine@sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648",
+      "service": "caddy",
+      "source": "registry"
+    },
+    {
+      "compose_file": "infra/psono/docker-compose.yml",
+      "digest": "sha256:18cfe3ef5e6815560c98237d6216d1e5119702fb0f3894c8785dd58b8bbe5d73",
+      "immutable": true,
+      "reference": "postgres:17-alpine@sha256:18cfe3ef5e6815560c98237d6216d1e5119702fb0f3894c8785dd58b8bbe5d73",
+      "service": "database",
+      "source": "registry"
+    },
+    {
+      "compose_file": "infra/psono/docker-compose.yml",
+      "digest": "sha256:0266a866addd08e7ad364ffe457bb499815a6941744251012a0e2eae506575fd",
+      "immutable": true,
+      "reference": "psono/psono-combo:latest@sha256:0266a866addd08e7ad364ffe457bb499815a6941744251012a0e2eae506575fd",
+      "service": "psono",
+      "source": "registry"
+    }
+  ],
+  "release_ready": false,
+  "schema_version": 1,
+  "secret_presence": {
+    "app/.env": false,
+    "infra/psono/.env": false
+  },
+  "systemd_units": [
+    "ness-aiops-backup.service",
+    "ness-aiops-backup.timer",
+    "ness-aiops-object-storage-backup.service",
+    "ness-aiops-object-storage-backup.timer",
+    "ness-aiops-restore-verify.service",
+    "ness-aiops-restore-verify.timer",
+    "ness-hub-cmdb-sync.service",
+    "ness-hub-cmdb-sync.timer",
+    "ness-hub-integration-monitor.service",
+    "ness-hub-integration-monitor.timer",
+    "ness-psono-backup.service",
+    "ness-psono-backup.timer",
+    "ness-psono-restore-verify.service",
+    "ness-psono-restore-verify.timer",
+    "ness-zabbix-backup.service",
+    "ness-zabbix-backup.timer",
+    "ness-zabbix-cutover-bridge.service",
+    "ness-zabbix-object-storage-backup.service",
+    "ness-zabbix-object-storage-backup.timer"
+  ],
+  "target": "local",
+  "versions": {
+    "mariadb_version": "10.11",
+    "php_version": "8.1",
+    "zabbix_version": "7.0"
+  }
+}
