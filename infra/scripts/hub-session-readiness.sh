@@ -113,6 +113,11 @@ grep -qi 'httponly' "${cookie_header}" || fail 'live cookie is missing HttpOnly'
 grep -qi 'secure' "${cookie_header}" || fail 'live cookie is missing Secure'
 grep -qi 'samesite=strict' "${cookie_header}" || fail 'live cookie is missing SameSite Strict'
 ! grep -qi 'domain=' "${cookie_header}" || fail 'live cookie is not host-only'
+copied_token="$(awk '$6 == "ninf_session" { value = $7 } END { print value }' "${tmpdir}/cookies")"
+[[ -n "${copied_token}" ]] || fail 'session cookie could not be captured for revocation verification'
+printf 'Authorization: Bearer %s\n' "${copied_token}" >"${tmpdir}/bearer.header"
+chmod 600 "${tmpdir}/bearer.header"
+unset copied_token
 
 me_status="$(curl --silent --show-error --connect-timeout 5 --max-time 20 \
   --cookie "${tmpdir}/cookies" \
@@ -133,6 +138,7 @@ grep -qE '^HTTP/[^ ]+ 200' "${tmpdir}/sse.headers" || \
 logout_status="$(curl --silent --show-error --connect-timeout 5 --max-time 20 \
   --request POST \
   --header "Origin: ${origin}" \
+  --header @"${tmpdir}/bearer.header" \
   --cookie "${tmpdir}/cookies" \
   --cookie-jar "${tmpdir}/cookies" \
   --output /dev/null --write-out '%{http_code}' \
@@ -144,9 +150,15 @@ after_logout_status="$(curl --silent --show-error --connect-timeout 5 --max-time
   --output /dev/null --write-out '%{http_code}' \
   "${base_url}/api/auth/me")" || fail 'post-logout request failed'
 [[ "${after_logout_status}" == 401 ]] || fail 'session remained valid after logout'
+copied_token_status="$(curl --silent --show-error --connect-timeout 5 --max-time 20 \
+  --header @"${tmpdir}/bearer.header" \
+  --output /dev/null --write-out '%{http_code}' \
+  "${base_url}/api/auth/me")" || fail 'copied-token verification request failed'
+[[ "${copied_token_status}" == 401 ]] || fail 'copied bearer token remained valid after logout'
 
 printf 'login_cookie=PASS\n'
 printf 'session_me=PASS\n'
 printf 'sse_cookie_auth=PASS token_in_url=0\n'
 printf 'logout_invalidation=PASS\n'
+printf 'copied_bearer_revocation=PASS\n'
 printf 'Hub session readiness: PASS (contained live)\n'

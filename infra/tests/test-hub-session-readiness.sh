@@ -23,6 +23,8 @@ grep -q '^cookie_controls=PASS$' <<<"${static_output}"
 grep -q '^edge_controls=PASS$' <<<"${static_output}"
 grep -q '^network_requests=0$' <<<"${static_output}"
 grep -q '^Hub session readiness: PASS (static)$' <<<"${static_output}"
+grep -q 'copied_bearer_revocation=PASS' "${runner}"
+grep -q 'copied bearer token remained valid after logout' "${runner}"
 [[ ! -e "${curl_log}" ]]
 
 if guard_output="$(env -u HUB_SESSION_EXECUTE \
