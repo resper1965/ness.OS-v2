@@ -10,15 +10,21 @@ from datetime import datetime, timezone
 
 import bcrypt as _bcrypt
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from jose import JWTError
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
-from app.core.dependencies import get_current_user, is_noc_role
-from app.core.jwt import create_access_token
+from app.core.dependencies import (
+    get_current_user,
+    is_noc_role,
+    is_session_version_current,
+)
+from app.core.jwt import create_access_token, verify_token
 from app.core.oidc import exchange_oidc_code, verify_oidc_token
 from app.core.session import (
+    SESSION_COOKIE_NAME,
     clear_session_cookie,
     require_trusted_origin,
     set_session_cookie,
@@ -163,7 +169,11 @@ async def login(
     user.last_login = datetime.now(tz=timezone.utc)
     await db.commit()
 
-    token = create_access_token(user_id=user.id, role=user.role.value)
+    token = create_access_token(
+        user_id=user.id,
+        role=user.role.value,
+        token_version=getattr(user, "token_version", 0),
+    )
     if not browser_request:
         return TokenResponse(
             access_token=token,
@@ -207,9 +217,48 @@ async def me(
     response_model=None,
     summary="Encerra a sessão",
 )
-async def logout(request: Request, response: Response) -> Response:
-    """Remove a sessão local do navegador; o frontend encerra o SSO em seguida."""
+async def logout(
+    request: Request,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+) -> Response:
+    """Revoke all local sessions for this user and clear the browser cookie."""
     require_trusted_origin(request)
+    authorization = request.headers.get("authorization", "")
+    tokens = set()
+    if authorization.lower().startswith("bearer "):
+        tokens.add(authorization[7:].strip())
+    cookie_token = request.cookies.get(SESSION_COOKIE_NAME)
+    if cookie_token:
+        tokens.add(cookie_token)
+
+    sessions: set[tuple[int, int]] = set()
+    for token in tokens:
+        try:
+            claims = verify_token(token)
+            user_id = int(claims["sub"])
+            token_version = claims.get("token_version", 0)
+            if type(token_version) is int:
+                sessions.add((user_id, token_version))
+        except (JWTError, KeyError, TypeError, ValueError):
+            continue
+
+    for user_id, token_version in sessions:
+        result = await db.execute(select(User).where(User.id == user_id))
+        user = result.scalar_one_or_none()
+        if user and user.is_active and is_session_version_current(
+            {"token_version": token_version}, user
+        ):
+            revoked = await db.execute(
+                update(User)
+                .where(
+                    User.id == user_id,
+                    User.token_version == token_version,
+                )
+                .values(token_version=User.token_version + 1)
+            )
+            if revoked.rowcount:
+                await db.commit()
     clear_session_cookie(response)
     response.status_code = status.HTTP_204_NO_CONTENT
     return response
@@ -372,6 +421,7 @@ async def oidc_callback(
     local_token = create_access_token(
         user_id=user.id,
         role=user.role.value,
+        token_version=getattr(user, "token_version", 0),
         extra_claims={"tenant_id": user.tenant_id},
     )
     set_session_cookie(response, local_token)

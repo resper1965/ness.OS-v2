@@ -51,6 +51,11 @@ async def run_migrations():
                     "CREATE INDEX IF NOT EXISTS idx_users_tenant ON n_infraops_users (tenant_id);"
                 )
             )
+            await conn.execute(
+                text(
+                    "ALTER TABLE n_infraops_users ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 0;"
+                )
+            )
             logger.info("Coluna e índice tenant_id verificados/criados com sucesso.")
         except Exception as e:
             logger.error(f"Erro ao verificar/criar coluna tenant_id: {e}")

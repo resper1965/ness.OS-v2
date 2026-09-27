@@ -57,3 +57,30 @@ def test_inactive_oidc_user_is_rejected_during_stream_revalidation():
         user = asyncio.run(_load_stream_user(_request()))
 
     assert user is None
+
+
+def test_globally_revoked_token_is_rejected_during_stream_revalidation():
+    class _Result:
+        def scalar_one_or_none(self):
+            return SimpleNamespace(id=7, is_active=True, token_version=1)
+
+    class _Session:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_):
+            return None
+
+        async def execute(self, _):
+            return _Result()
+
+    with (
+        patch(
+            "app.api.routers.incidents.verify_token",
+            return_value={"sub": "7", "token_version": 0},
+        ),
+        patch("app.api.routers.incidents.SessionLocal", return_value=_Session()),
+    ):
+        user = asyncio.run(_load_stream_user(_request()))
+
+    assert user is None

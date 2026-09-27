@@ -10,6 +10,7 @@ from sqlalchemy import (
     BigInteger,
     Boolean,
     DateTime,
+    Integer,
     String,
     func,
 )
@@ -65,6 +66,9 @@ class User(Base):
     )
     is_active: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True, server_default="true"
+    )
+    token_version: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

@@ -18,6 +18,7 @@ from app.config import get_settings
 from app.core.dependencies import (
     get_current_user,
     is_noc_role,
+    is_session_version_current,
     require_noc,
     resolve_tenant_scope,
 )
@@ -75,7 +76,11 @@ async def _load_stream_user(request: Request) -> User | None:
     async with SessionLocal() as session:
         result = await session.execute(select(User).where(User.id == user_id))
         user = result.scalar_one_or_none()
-        if not user or not user.is_active:
+        if (
+            not user
+            or not user.is_active
+            or not is_session_version_current(payload, user)
+        ):
             return None
         return user
 

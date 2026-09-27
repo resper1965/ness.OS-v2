@@ -30,6 +30,7 @@ def create_access_token(
     user_id: int,
     role: str,
     expire_hours: int | None = None,
+    token_version: int = 0,
     extra_claims: dict[str, Any] | None = None,
 ) -> str:
     """
@@ -51,6 +52,7 @@ def create_access_token(
     payload: dict[str, Any] = {
         "sub": str(user_id),
         "role": role,
+        "token_version": token_version,
         "exp": expire,
         "iat": datetime.now(tz=timezone.utc),
     }

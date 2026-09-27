@@ -62,6 +62,15 @@ def resolve_tenant_scope(user: User, requested_tenant_id: str | None) -> str | N
     return user.tenant_id
 
 
+def is_session_version_current(payload: dict, user: User) -> bool:
+    """Reject JWTs issued before the user's most recent global logout."""
+    token_version = payload.get("token_version", 0)
+    return (
+        type(token_version) is int
+        and token_version == getattr(user, "token_version", 0)
+    )
+
+
 async def get_current_user(
     request: Request,
     credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
@@ -97,6 +106,12 @@ async def get_current_user(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Usuario nao encontrado ou inativo",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    if not is_session_version_current(payload, user):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Sessao revogada",
             headers={"WWW-Authenticate": "Bearer"},
         )
     return user

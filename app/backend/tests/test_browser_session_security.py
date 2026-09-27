@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 from fastapi import Depends, FastAPI
 from fastapi.testclient import TestClient
+from sqlalchemy.sql.dml import Update
 
 from app.api.routers.auth import router as auth_router
 from app.core.dependencies import get_current_user
@@ -25,7 +26,10 @@ class _Db:
     def __init__(self, user: SimpleNamespace) -> None:
         self.user = user
 
-    async def execute(self, _: object) -> _Result:
+    async def execute(self, statement: object) -> _Result | SimpleNamespace:
+        if isinstance(statement, Update):
+            self.user.token_version += 1
+            return SimpleNamespace(rowcount=1)
         return _Result(self.user)
 
     async def commit(self) -> None:
@@ -41,6 +45,7 @@ def _user(*, active: bool = True) -> SimpleNamespace:
         role=UserRole.noc,
         tenant_id="UAT-A",
         is_active=active,
+        token_version=0,
         last_login=None,
     )
 
@@ -186,6 +191,59 @@ def test_logout_expires_cookie_with_matching_security_attributes() -> None:
     assert "httponly" in cookie
     assert "secure" in cookie
     assert "samesite=strict" in cookie
+
+
+def test_logout_revokes_the_presented_bearer_token_and_existing_copies() -> None:
+    user = _user()
+    app = FastAPI()
+    app.include_router(auth_router)
+
+    async def override_db():
+        yield _Db(user)
+
+    app.dependency_overrides[get_db] = override_db
+    client = TestClient(app, base_url="https://hub.ness.com.br")
+    token = create_access_token(
+        user_id=user.id,
+        role=user.role.value,
+        extra_claims={"token_version": user.token_version},
+    )
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Origin": "https://hub.ness.com.br",
+    }
+    client.cookies.set(SESSION_COOKIE_NAME, token)
+
+    logout_response = client.post("/api/auth/logout", headers=headers)
+    protected_response = client.get(
+        "/api/auth/me", headers={"Authorization": f"Bearer {token}"}
+    )
+
+    assert logout_response.status_code == 204
+    assert user.token_version == 1
+    assert protected_response.status_code == 401
+
+
+def test_malformed_token_version_is_rejected() -> None:
+    client = _protected_client(_user())
+    token = create_access_token(
+        user_id=42,
+        role=UserRole.noc.value,
+        extra_claims={"token_version": "0"},
+    )
+
+    response = client.get("/protected", headers={"Authorization": f"Bearer {token}"})
+
+    assert response.status_code == 401
+
+
+def test_database_migration_persists_token_version_for_existing_users() -> None:
+    migration = Path(__file__).parents[1] / "app" / "migrate.py"
+
+    assert (
+        "ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 0"
+        in migration.read_text(encoding="utf-8")
+    )
 
 
 def test_frontend_never_handles_session_token() -> None:
