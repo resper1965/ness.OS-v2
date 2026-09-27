@@ -86,11 +86,10 @@ tmpdir="$(mktemp -d)"
 chmod 700 "${tmpdir}"
 trap 'rm -rf -- "${tmpdir}"' EXIT
 
-jq -n \
-  --arg email "${HUB_UAT_EMAIL}" \
-  --arg password "${HUB_UAT_PASSWORD}" \
-  '{email: $email, password: $password}' >"${tmpdir}/login.json"
+jq -n '{email: env.HUB_UAT_EMAIL, password: env.HUB_UAT_PASSWORD}' \
+  >"${tmpdir}/login.json"
 chmod 600 "${tmpdir}/login.json"
+unset HUB_UAT_EMAIL HUB_UAT_PASSWORD
 
 login_status="$(curl --silent --show-error --connect-timeout 5 --max-time 20 \
   --request POST \

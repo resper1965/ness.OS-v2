@@ -25,6 +25,12 @@ grep -q '^network_requests=0$' <<<"${static_output}"
 grep -q '^Hub session readiness: PASS (static)$' <<<"${static_output}"
 grep -q 'copied_bearer_revocation=PASS' "${runner}"
 grep -q 'copied bearer token remained valid after logout' "${runner}"
+grep -q 'env.HUB_UAT_PASSWORD' "${runner}"
+grep -q 'unset HUB_UAT_EMAIL HUB_UAT_PASSWORD' "${runner}"
+! grep -q -- '--arg password' "${runner}" || {
+  echo 'Hub UAT password is exposed in jq process arguments' >&2
+  exit 1
+}
 [[ ! -e "${curl_log}" ]]
 
 if guard_output="$(env -u HUB_SESSION_EXECUTE \
