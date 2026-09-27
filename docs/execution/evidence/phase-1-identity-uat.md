@@ -41,6 +41,8 @@ For each app, test tenant A identity against tenant B data and the reverse. Use 
 
 Run `infra/scripts/hub-session-readiness.sh --execute-contained` with dedicated Hub UAT credentials. The probe must verify login, cookie attributes, `/me`, cookie-authenticated SSE, logout, cookie rejection, and rejection of a copied bearer token. It stores credentials and tokens only in a mode-`0600` temporary directory and removes that directory on exit.
 
+The local Authentik precheck contract test simulates unauthenticated public probes and fails if GLPI responds as though a forged identity header authenticated the request. This does not prove header replacement during an authenticated session; that remains a live UAT check.
+
 | Check | Result | Evidence reference |
 |---|---|---|
 | Login issues host-only Secure HttpOnly SameSite=Strict cookie | PENDING | PENDING |

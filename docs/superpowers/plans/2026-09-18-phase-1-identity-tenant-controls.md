@@ -82,11 +82,14 @@
 - Modify: `infra/scripts/authentik-public-precheck.sh`
 - Modify: `infra/scripts/hub-session-readiness.sh`
 - Create: `docs/execution/evidence/phase-1-identity-uat.md`
+- Test: `infra/tests/test-authentik-public-precheck.sh`
+- Test: `infra/tests/test-hub-session-readiness.sh`
 
 **Interfaces:** Matriz UAT cobre Hub, GLPI, n8n e Zabbix para login, logout, expiração, revogação, MFA, acesso direto e headers de identidade forjados.
 
 - [x] Estender o probe local do Hub para verificar que logout invalida também uma cópia do bearer JWT; adicionar evidência UAT sem credenciais ou tokens.
 - [x] Evitar expor senha UAT nos argumentos do processo `jq`; limpar variáveis após criar arquivo temporário restrito.
+- [x] Testar o precheck público com `curl` simulado: fluxo anônimo esperado passa; resposta autenticada ao header forjado falha; nenhuma rede real é acessada.
 - [ ] Automatizar os checks sem armazenar cookies ou tokens na evidência.
 - [ ] Executar contas `admin`, `operator` e `viewer` em dois tenants e uma conta desabilitada.
 - [ ] Confirmar que headers forjados não alteram identidade e que acesso entre tenants retorna 403 ou coleção vazia conforme o contrato.
