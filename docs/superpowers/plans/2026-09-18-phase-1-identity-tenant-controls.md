@@ -53,7 +53,9 @@
 
 **Files:**
 - Modify: `infra/psono/scripts/f2-readiness-report.sh`
+- Create: `infra/psono/scripts/mfa-readiness.sh` (testable fail-closed readiness rules)
 - Modify: `infra/scripts/authentik-readiness-report.sh`
+- Create: `infra/scripts/authentik_mfa_readiness.py` (read-only per-admin enrollment inventory)
 - Test: `infra/tests/test-psono-tooling.sh`
 - Test: `infra/tests/test-authentik-readiness.sh`
 - Create: `docs/runbooks/identity-break-glass.md`
@@ -66,7 +68,7 @@
 - [ ] Habilitar MFA nas contas administrativas atuais, gerar recovery codes e armazená-los no cofre seguindo dupla custódia.
 - [ ] Criar uma conta break-glass sem uso cotidiano, testar acesso e rotação e registrar apenas a evidência.
 - [ ] Documentar gatilho, autorização, auditoria e revogação do break-glass.
-- [ ] Commit: `git add infra/psono/scripts/f2-readiness-report.sh infra/scripts/authentik-readiness-report.sh infra/tests/test-psono-tooling.sh infra/tests/test-authentik-readiness.sh docs/runbooks/identity-break-glass.md && git commit -m "feat(identity): enforce MFA recovery readiness"`.
+- [ ] Commit: `git add infra/psono/scripts/f2-readiness-report.sh infra/psono/scripts/mfa-readiness.sh infra/scripts/authentik-readiness-report.sh infra/scripts/authentik_mfa_readiness.py infra/tests/test-psono-tooling.sh infra/tests/test-authentik-readiness.sh docs/runbooks/identity-break-glass.md && git commit -m "feat(identity): enforce MFA recovery readiness"`.
 
 ### Task 4: Executar UAT de identidade em todas as aplicações
 
