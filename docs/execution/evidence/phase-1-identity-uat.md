@@ -1,8 +1,8 @@
 # Phase 1 Identity UAT Evidence
 
-Status: **PENDING** — no live account session or role/tenant journey was run. A limited read-only UAT API authorization precheck is recorded below; no production request was made.
+Status: **PENDING** — no live account session or role/tenant journey was run. Limited read-only API and public SSO prechecks are recorded below; no authenticated production session or production write was used.
 
-Run only after the Phase 0 gate passes and dedicated UAT accounts are available. Record each result as `PASS` or `FAIL`; leave `PENDING` until the check runs. Never record usernames, passwords, cookies, bearer tokens, recovery codes, or raw response headers here.
+Run account-based UAT only after the Phase 0 gate passes and dedicated UAT accounts are available. Record each result as `PASS` or `FAIL`; leave `PENDING` until the check runs. Never record usernames, passwords, cookies, bearer tokens, recovery codes, or raw response headers here.
 
 ## Run metadata
 
@@ -82,3 +82,10 @@ headers were recorded.
 |---|---|---|---|
 | UAT operator | PENDING | PENDING | PENDING |
 | Security reviewer | PENDING | PENDING | PENDING |
+
+
+### Public SSO precheck — 2026-09-27 22:38 UTC
+
+`infra/scripts/authentik-public-precheck.sh` completed with `authentik_public_precheck=PASS`. Authentik health and Hub returned HTTP 200; unauthenticated GLPI, n8n and Zabbix UAT redirected to Authentik with HTTP 302. A GLPI request with forged identity headers also redirected anonymously to Authentik. These were unauthenticated, read-only public requests; no login, cookie, token, account, or configuration was used or changed.
+
+`infra/tests/test-authentik-public-precheck.sh` and `infra/tests/test-hub-session-readiness.sh` passed locally. The shell files were normalized to LF only while running under WSL and restored immediately afterward. The live role, tenant, MFA, expiration, and revocation rows above remain pending because dedicated UAT accounts are unavailable.

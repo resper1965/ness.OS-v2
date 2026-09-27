@@ -90,7 +90,7 @@
 - [x] Estender o probe local do Hub para verificar que logout invalida também uma cópia do bearer JWT; adicionar evidência UAT sem credenciais ou tokens.
 - [x] Evitar expor senha UAT nos argumentos do processo `jq`; limpar variáveis após criar arquivo temporário restrito.
 - [x] Testar o precheck público com `curl` simulado: fluxo anônimo esperado passa; resposta autenticada ao header forjado falha; nenhuma rede real é acessada.
-- [ ] Automatizar os checks sem armazenar cookies ou tokens na evidência.
+- [x] Automatizar os checks sem armazenar cookies ou tokens na evidência; precheck público e teste estático do Hub passaram, com resultados registrados em `docs/execution/evidence/phase-1-identity-uat.md`.
 - [ ] Executar contas `admin`, `operator` e `viewer` em dois tenants e uma conta desabilitada.
 - [ ] Confirmar que headers forjados não alteram identidade e que acesso entre tenants retorna 403 ou coleção vazia conforme o contrato.
 - [ ] Confirmar logout global, expiração e revogação em até o intervalo definido no runbook.
