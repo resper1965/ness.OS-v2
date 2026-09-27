@@ -46,15 +46,16 @@ The local Authentik precheck contract test simulates unauthenticated public prob
 ## Read-only Zabbix UAT API precheck — 2026-09-27
 
 SSH to UAT `169.58.234.9` as `ness_admin` succeeded. The loopback
-`apiinfo.version` request returned Zabbix `7.0.27`. The integration token was
-read inside the AIOps API container without printing or recording its value and
-used through a temporary SSH tunnel to call `template.get` on UAT. Zabbix
-returned JSON-RPC `-32602`, `Invalid params.`, with `data=Not authorized.`. The
-public UAT URL returned HTTP 403 at the edge; the tunnel result confirms the
-API permission failure independently of that edge response. The SSH tunnel was
-closed and its local listener was gone afterward. No users, tokens, permissions,
-configuration, or monitoring data were changed. This does not complete any
-account-based UAT row above.
+`apiinfo.version` request returned Zabbix `7.0.27`. The token from the AIOps
+container, which is configured for the canonical instance, was sent through a
+temporary SSH tunnel to call `template.get` on UAT. UAT returned JSON-RPC
+`-32602`, `Invalid params.`, with `data=Not authorized.`. This proves that the
+canonical token did not authenticate on UAT; it does not prove that the UAT
+user role denies `template.get`, because no UAT-specific token was tested. The
+public UAT URL returned HTTP 403 at the edge. The SSH tunnel was closed and its
+local listener was gone afterward. No users, tokens, permissions, configuration,
+or monitoring data were changed. This does not complete any account-based UAT
+row above.
 
 ### Local automation verification — 2026-09-27
 

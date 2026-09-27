@@ -14,8 +14,8 @@ e o registro anterior de 26/09 em
 [`phase-0-aiops-recovery-2026-09-26.md`](../evidence/phase-0-aiops-recovery-2026-09-26.md).
 O manifesto ainda compara arquivos/imagens aos fatos de produção de 25/09 às
 17:49 BRT. Em 27/09, a UAT respondeu por SSH com a chave própria e retornou
-Zabbix 7.0.27; o token da integração continua sem autorização para `template.get`
-na UAT em chamada via túnel. O Zabbix canônico expirou na porta 22 na
+Zabbix 7.0.27; o token do AIOps/canônico não autenticou na UAT em chamada via
+túnel. Isso não prova a permissão de um token próprio da UAT. O Zabbix canônico expirou na porta 22 na
 sonda de 27/09. Em 26/09, o OAuth da Contabo retornou
 HTTP 403; a leitura autenticada foi renovada em 27/09 e confirmou as três VPS do
 projeto em execução, com a pentest excluída. A leitura do firewall do provedor

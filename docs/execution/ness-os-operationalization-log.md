@@ -10,9 +10,10 @@ gates nem autorizam promoção sem evidência e decisão explícitas.
   chave própria como `ness_admin`, `apiinfo.version` no loopback e consulta
   `template.get` via túnel SSH usando o token instalado no container AIOps. O
   token não foi impresso ou registrado.
-- **Resultado:** UAT respondeu Zabbix `7.0.27`; `template.get` retornou
-  `-32602 Invalid params` com `data=Not authorized`. A URL pública retornou
-  HTTP 403; a chamada pelo túnel confirmou a falta de autorização na API. O
+- **Resultado:** UAT respondeu Zabbix `7.0.27`; o token do AIOps/canônico não
+  autenticou ao chamar `template.get` (`-32602`, `data=Not authorized`). A URL
+  pública retornou HTTP 403. Como não foi usado token criado na UAT, o teste não
+  determinou se a função UAT permite esse método. O
   túnel foi encerrado e o listener temporário desapareceu. Nenhuma conta,
   permissão, configuração ou dado de monitoramento foi alterado. Evidência em
   [`phase-1-identity-uat.md`](evidence/phase-1-identity-uat.md).
