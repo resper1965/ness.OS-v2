@@ -75,9 +75,9 @@ _AUTHENTIK_GROUP_ROLE_PRIORITY = (
     ({"admin"}, UserRole.admin),
     ({"noc"}, UserRole.noc),
     ({"soc"}, UserRole.soc),
-    ({"helpdesk"}, UserRole.helpdesk),
+    ({"helpdesk", "operator"}, UserRole.helpdesk),
     ({"gestao"}, UserRole.gestao),
-    ({"usuarios"}, UserRole.cliente),
+    ({"usuarios", "viewer"}, UserRole.cliente),
 )
 
 
@@ -86,7 +86,11 @@ def map_authentik_role(claims: dict) -> UserRole:
     groups = claims.get("groups", [])
     if isinstance(groups, str):
         groups = [groups]
-    normalized_groups = {str(group).strip().lower() for group in groups}
+    elif not isinstance(groups, (list, tuple, set)):
+        return UserRole.cliente
+    normalized_groups = {
+        str(group).strip().lower() for group in groups if isinstance(group, str)
+    }
 
     for aliases, role in _AUTHENTIK_GROUP_ROLE_PRIORITY:
         if normalized_groups.intersection(aliases):
@@ -99,6 +103,21 @@ def map_authentik_role(claims: dict) -> UserRole:
         except ValueError:
             pass
     return UserRole.cliente
+
+
+def normalize_authentik_identity(claims: dict) -> tuple[UserRole, str]:
+    """Normalize SSO role and tenant claims before provisioning or updating a user."""
+    user_role = map_authentik_role(claims)
+    raw_tenant = claims.get("tenant_id")
+    if raw_tenant is not None and not isinstance(raw_tenant, str):
+        raise HTTPException(status_code=403, detail="Cliente informado pelo SSO é inválido")
+    tenant_id = (raw_tenant or "").strip().lower()
+    if len(tenant_id) > 128 or (not is_noc_role(user_role) and not tenant_id):
+        raise HTTPException(
+            status_code=403,
+            detail="Usuário sem cliente associado no SSO. Solicite o vínculo ao administrador.",
+        )
+    return user_role, tenant_id
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
@@ -315,19 +334,7 @@ async def oidc_callback(
             detail="Token OIDC do Authentik não possui a claim obrigatória 'email'.",
         )
 
-    user_role = map_authentik_role(claims)
-
-    raw_tenant = claims.get("tenant_id")
-    if raw_tenant is not None and not isinstance(raw_tenant, str):
-        raise HTTPException(
-            status_code=403, detail="Cliente informado pelo SSO é inválido"
-        )
-    tenant_id = (raw_tenant or "").strip().lower()
-    if len(tenant_id) > 128 or (not is_noc_role(user_role) and not tenant_id):
-        raise HTTPException(
-            status_code=403,
-            detail="Usuário sem cliente associado no SSO. Solicite o vínculo ao administrador.",
-        )
+    user_role, tenant_id = normalize_authentik_identity(claims)
     full_name = claims.get("name") or claims.get("given_name")
 
     # 3. Just-In-Time Provisioning
