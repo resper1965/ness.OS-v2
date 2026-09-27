@@ -37,16 +37,20 @@
 ### Task 2: Tornar healthchecks de containers fail-closed
 
 **Files:**
-- Modify: `docker-compose.yml`
+- Modify: `app/docker-compose.yml`
 - Modify: `infra/scripts/aiops-runtime-readiness.sh`
 - Modify: `infra/tests/test-aiops-runtime-readiness.sh`
 
+**Ruling (2026-09-27):** Use `app/docker-compose.yml`: it defines `ninf-api` and both Celery workers, and the readiness runner already targets it. The root `docker-compose.yml` is a separate legacy stack without those workers; changing it would not harden the ness.OS Hub runtime.
+
 **Interfaces:** API e workers ficam `unhealthy` quando o processo, broker, banco ou heartbeat obrigatório falha; startup grace period evita falso negativo durante migração.
 
-- [ ] Criar teste estático que rejeite healthchecks terminados por `|| exit 0` e teste funcional com worker interrompido.
-- [ ] Executar `bash infra/tests/test-aiops-runtime-readiness.sh`; esperado: falha inicial.
-- [ ] Substituir as sondas por comandos que validem processo, dependências e heartbeat com timeout.
-- [ ] Repetir o teste e interromper um worker em ambiente de teste; esperado: container fica unhealthy e readiness retorna código não zero.
+- [x] Criar teste estático que rejeite healthchecks terminados por `|| exit 0` e valide healthchecks fail-closed no API e workers.
+- [x] Simular worker `unhealthy` no Docker inspect e confirmar que readiness falha; esse teste não substitui a interrupção real do container.
+- [x] Executar `bash infra/tests/test-aiops-runtime-readiness.sh`; a regressão inicial falhou no healthcheck fail-open e a versão corrigida passou.
+- [x] Substituir as sondas por comandos que validem processo, dependências e heartbeat com timeout; os healthchecks consultam o estado completo do pipeline e o `inspect ping` não mascara falha.
+- [ ] Interromper um worker em ambiente de teste; esperado: container fica unhealthy e readiness retorna código não zero.
+- [ ] Repetir com o worker ativo e confirmar recuperação sem reiniciar serviços não relacionados.
 - [ ] Restaurar o worker e confirmar recuperação sem reiniciar serviços não relacionados.
 - [ ] Commit: `git add docker-compose.yml infra/scripts/aiops-runtime-readiness.sh infra/tests/test-aiops-runtime-readiness.sh && git commit -m "fix(runtime): make worker health checks fail closed"`.
 

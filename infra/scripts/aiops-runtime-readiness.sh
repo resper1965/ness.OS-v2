@@ -69,6 +69,16 @@ fi
 [[ "${AIOPS_READONLY_EXECUTE:-}" == 1 ]] ||
   fail 'live probes require AIOPS_READONLY_EXECUTE=1'
 
+if ! health_output="$(docker inspect --format '{{.Name}}={{.State.Health.Status}}' \
+    ninf-api ninf-worker-alerts ninf-worker-ml 2>/dev/null)"; then
+  fail 'container health could not be inspected'
+fi
+for container in ninf-api ninf-worker-alerts ninf-worker-ml; do
+  grep -Fxq "/${container}=healthy" <<<"${health_output}" ||
+    fail "${container} healthcheck is not healthy"
+done
+printf 'container_health=PASS\n'
+
 run_probe() {
   local name="$1"
   local module="$2"

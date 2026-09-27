@@ -3,6 +3,7 @@ set -Eeuo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 runner="${repo_root}/infra/scripts/aiops-runtime-readiness.sh"
+compose_file="${repo_root}/app/docker-compose.yml"
 tmpdir="$(mktemp -d)"
 trap 'rm -rf -- "${tmpdir}"' EXIT
 
@@ -28,6 +29,15 @@ cat >"${fake_bin}/docker" <<'EOF'
 #!/usr/bin/env bash
 set -Eeuo pipefail
 printf '%s\n' "$*" >>"${AIOPS_TEST_DOCKER_LOG}"
+
+if [[ "${1-}" == inspect ]]; then
+  if [[ "${AIOPS_TEST_WORKER_UNHEALTHY:-0}" == 1 ]]; then
+    printf '%s\n' '/ninf-api=healthy' '/ninf-worker-alerts=unhealthy' '/ninf-worker-ml=healthy'
+  else
+    printf '%s\n' '/ninf-api=healthy' '/ninf-worker-alerts=healthy' '/ninf-worker-ml=healthy'
+  fi
+  exit 0
+fi
 
 [[ "${1-}" == compose ]] || exit 90
 if [[ "${2-}" == version ]]; then
@@ -75,6 +85,27 @@ assert_no_secrets() {
 
 bash -n "${runner}"
 
+service_block() {
+  awk -v target="$1" '
+    $0 == "  " target ":" { active=1; next }
+    active && /^  [[:alnum:]_-]+:/ { exit }
+    active { print }
+  ' "${compose_file}"
+}
+
+if grep -Fq '|| exit 0' "${compose_file}"; then
+  echo 'a runtime healthcheck still converts failure into success' >&2
+  exit 1
+fi
+api_health="$(service_block api)"
+grep -q 'healthcheck:' <<<"${api_health}"
+grep -q 'app.integrations.pipeline_health' <<<"${api_health}"
+for worker in worker-alerts worker-ml; do
+  worker_health="$(service_block "${worker}")"
+  grep -q 'healthcheck:' <<<"${worker_health}"
+  grep -q 'inspect ping' <<<"${worker_health}"
+done
+
 static_output="$(run_isolated bash "${runner}" --env-file "${env_file}" 2>&1)"
 grep -q '^preflight=PASS$' <<<"${static_output}"
 grep -q '^probe_static_validation=PASS$' <<<"${static_output}"
@@ -100,11 +131,13 @@ fi
 live_output="$(run_isolated env AIOPS_READONLY_EXECUTE=1 bash "${runner}" --env-file "${env_file}" --execute-read-only 2>&1)"
 grep -q '^zabbix_readiness=PASS writes=0$' <<<"${live_output}"
 grep -q '^glpi_readiness=PASS writes=0$' <<<"${live_output}"
+grep -q '^container_health=PASS$' <<<"${live_output}"
 grep -q '^containers_started=0$' <<<"${live_output}"
 grep -q '^AIOps runtime readiness: PASS (live read-only)$' <<<"${live_output}"
 assert_no_secrets "${live_output}"
 grep -q 'exec -T api python -m app.integrations.zabbix_readiness' "${docker_log}"
 grep -q 'exec -T api python -m app.integrations.glpi_readiness' "${docker_log}"
+grep -q 'inspect --format .*ninf-api ninf-worker-alerts ninf-worker-ml' "${docker_log}"
 if grep -Eq '(^| )(up|start|run|create|pull|restart|down|rm|stop|kill)( |$)' "${docker_log}"; then
   echo 'read-only readiness executed a mutating Docker command' >&2
   exit 1
@@ -123,5 +156,12 @@ if failed_output="$(run_isolated env AIOPS_TEST_ZABBIX_FAIL=1 AIOPS_READONLY_EXE
 fi
 grep -q 'zabbix probe failed (details suppressed)' <<<"${failed_output}"
 assert_no_secrets "${failed_output}"
+
+if unhealthy_output="$(run_isolated env AIOPS_TEST_WORKER_UNHEALTHY=1 AIOPS_READONLY_EXECUTE=1 bash "${runner}" --env-file "${env_file}" --execute-read-only 2>&1)"; then
+  echo 'runner unexpectedly accepted an unhealthy worker' >&2
+  exit 1
+fi
+grep -q 'ninf-worker-alerts healthcheck is not healthy' <<<"${unhealthy_output}"
+assert_no_secrets "${unhealthy_output}"
 
 echo 'AIOps runtime readiness runner checks: PASS'
