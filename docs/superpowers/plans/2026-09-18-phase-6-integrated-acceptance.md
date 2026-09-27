@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- Gates de entrada: Fases 0–4 aprovadas; Fase 5 aprovada se o Wazuh tiver sido contratado.
+- Gates de produção/aceite: Fases 0–4 aprovadas; Fase 5 aprovada se o Wazuh tiver sido contratado. Preparação e testes locais podem ocorrer antes; UAT de produção e aceite final não podem.
 - Wazuh adiado deve aparecer como `planned` e não bloqueia aceite do escopo contratado.
 - Não executar exercício destrutivo sem snapshot atual e rollback comprovado.
 

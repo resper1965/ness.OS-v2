@@ -20,7 +20,7 @@
 - Toda métrica exibida no dashboard deve trazer fonte, instante de coleta, estado de frescor e erro explícito.
 - Componentes ainda não implantados devem aparecer como `planned` ou `unavailable`, nunca como saudáveis.
 - Usar a API da Contabo inicialmente somente para inventário, estado e reconciliação. Usar Object Storage da Contabo via S3/Restic com criptografia e bucket separado por domínio.
-- Nenhuma contratação do Wazuh ocorre antes do gate de capacidade e custo da Fase 4; preparação de código e documentação pode ocorrer antes.
+- A contratação do Wazuh ocorre somente após o aceite do MVP, aprovação explícita de orçamento e gate pós-MVP de capacidade/custo; preparação local de código e documentação pode ocorrer antes.
 - Evidência operacional deve conter comandos, horários em UTC, resultado e referência da release, sem dados sensíveis.
 
 ---
@@ -73,14 +73,29 @@ flowchart LR
 | 5B | `docs/superpowers/plans/2026-09-18-wazuh-security-signal-ingestion.md` | Sinais Wazuh chegam ao Hub sem duplicação e com compatibilidade para Wazuh 5 |
 | 6 | `docs/superpowers/plans/2026-09-18-phase-6-integrated-acceptance.md` | Operação ponta a ponta aprovada e sustentada por sete dias |
 
+## Entrega do MVP
+
+O MVP é o fluxo autenticado de operação Zabbix → incidente Hub → ticket GLPI, com isolamento por tenant, saúde/frescor reais e interface do operador. O Wazuh permanece planejado e não bloqueia o aceite do MVP. O desenho e a sequência executável estão em [`2026-09-27-ness-os-mvp-delivery-and-evolution-design.md`](../specs/2026-09-27-ness-os-mvp-delivery-and-evolution-design.md) e [`2026-09-27-ness-os-mvp-delivery.md`](2026-09-27-ness-os-mvp-delivery.md).
+
+| Critério de aceite do MVP | Plano e tarefas responsáveis | Gate |
+|---|---|---|
+| Alerta Zabbix cria incidente Hub e ticket GLPI vinculado | Fase 2 Tasks 4–5; Fase 6 Tasks 2–3 | Gates 2 e 6 |
+| Redelivery e retry não duplicam incidente ou ticket | Fase 2 Task 4; Fase 3 Task 3; Fase 6 Task 3 | Gates 3 e 6 |
+| Papel/tenant bloqueia leitura ou escrita fora do escopo, também na API | Fase 1 Tasks 1, 4 e 6; Fase 6 Task 2 | Gates 1 e 6 |
+| Falha de fonte/worker/GLPI mostra erro e última coleta válida | Fase 3 Tasks 1–2; Fase 4 Tasks 1 e 3; Fase 6 Task 3 | Gates 3, 4 e 6 |
+| Mudança de estado, atribuição e ação de integração tem auditoria | Fase 2 Task 4; Fase 6 Tasks 1–3 | Gate 6 |
+| Testes críticos, build frontend e lint passam na candidata | Gates das Fases 1–4; Fase 6 Task 5 | Gates 1–4 e 6 |
+| Release identifica commit/imagens e comprova backup/restore/rollback | Fase 0 Tasks 1–5; Fase 3 Task 4; Fase 6 Task 4 | Gates 0, 3 e 6 |
+| Aceite de produção exige gates aprovados das Fases 0–4 | Fases 0–4; Fase 6 Task 5 | Gate 6 |
+
 ## Regras de execução do programa
 
 - [ ] Registrar o início de cada fase em `docs/execution/ness-os-operationalization-log.md`, com responsável, janela, release e rollback.
-- [ ] Executar Fase 0 antes de qualquer alteração de esquema, autenticação, roteamento ou provisionamento.
-- [ ] Após a Fase 0, executar Fases 1, 2 e preparação documental do Wazuh em paralelo somente quando não alterarem o mesmo serviço.
-- [ ] Iniciar Fase 4 apenas quando os contratos das Fases 1, 2 e 3 estiverem aprovados.
+- [ ] Aprovar a Fase 0 antes de qualquer alteração de produção em esquema, autenticação, roteamento, provisionamento ou release; implementação e testes locais podem avançar antes desse gate.
+- [ ] Após a Fase 0, promover Fases 1, 2 e 3 em sequência de gates; desenvolvimento local pode ocorrer em paralelo somente quando os contratos e os serviços não colidirem.
+- [ ] Desenvolver e testar localmente a Fase 4 quando os contratos locais das Fases 1, 2 e 3 estiverem estáveis; bloquear seu deploy até os três gates de produção aprovados.
 - [ ] Obter cotação da VPS e Object Storage somente após estimar retenção com dados das fontes reais.
-- [ ] Contratar a VPS do Wazuh após aprovação explícita do orçamento e do gate da Fase 4.
+- [ ] Contratar a VPS do Wazuh somente após aceite do MVP, aprovação explícita do orçamento e gate pós-MVP de capacidade/custo.
 - [ ] Executar o aceite integrado com módulos ausentes explicitamente marcados; nenhum módulo planejado bloqueia o escopo já contratado se estiver isolado e descrito.
 - [ ] Encerrar o programa somente com evidências de backup, restauração, autenticação, tenant, idempotência, observabilidade, rollback e operação por sete dias.
 

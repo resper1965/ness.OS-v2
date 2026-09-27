@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- Gate de entrada: Fase 0 aprovada.
+- Gate de produção: Fase 0 aprovada. Baselines, implementação e testes locais podem avançar; escrita ou rollout em Zabbix/GLPI de produção fica bloqueado até o gate passar.
 - Não editar tabelas do Zabbix ou GLPI diretamente.
 - Não tentar eliminar todos os alertas históricos para aprovar a fase; classificar, atribuir e reduzir o conjunto operacional prioritário.
 

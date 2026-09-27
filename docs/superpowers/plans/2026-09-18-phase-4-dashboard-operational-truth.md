@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- Gates de entrada: Fases 1, 2 e 3 aprovadas.
+- Gate de produção: Fases 1, 2 e 3 aprovadas. Desenvolvimento local pode avançar após os contratos locais de identidade, fontes e runtime ficarem estáveis; deploy da Fase 4 depende dos três gates de produção.
 - Remover dados demonstrativos e timestamps fixos das rotas usadas em produção.
 - Não atualizar `last_success_at` quando uma coleta falhar.
 - Respeitar tenant e papel em cada cartão, lista, busca, exportação e stream.
@@ -105,6 +105,8 @@
 - [ ] Commit: `git add app/frontend/src/components/CoreDashboard.tsx app/frontend/src/components/OperationalSources.tsx app/frontend/src/components/BackupStatus.tsx app/frontend/src/components/InfrastructureInventory.tsx app/frontend/src/components/OperationalJourneys.test.tsx && git commit -m "feat(ui): complete ness.OS operational journeys"`.
 
 ### Task 6: Dimensionar e aprovar a contratação do Wazuh
+
+**Escopo:** pós-MVP. Esta tarefa e seu gate não bloqueiam o aceite da Fase 4 nem do MVP; são pré-requisitos para contratar e implantar Wazuh.
 
 **Files:**
 - Create: `docs/execution/wazuh-capacity-and-cost-decision.md`

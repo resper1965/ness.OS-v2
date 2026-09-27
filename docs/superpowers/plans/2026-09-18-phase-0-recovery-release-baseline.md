@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Restabelecer backups e restaurações confiáveis do Hub e do Zabbix e criar uma release reproduzível antes de mudanças funcionais.
+**Goal:** Restabelecer backups e restaurações confiáveis do Hub e do Zabbix e criar uma release reproduzível antes de mudanças funcionais em produção.
 
 **Architecture:** Os jobs systemd chamam scripts idempotentes que produzem conjuntos locais completos, enviam snapshots criptografados ao Object Storage e verificam restauração isolada. Um manifesto associa a release local aos artefatos realmente executados em produção.
 
@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- Executar correções de backup antes das demais fases.
+- Executar correções de backup antes de mudanças funcionais em produção; desenvolvimento e testes locais das demais fases podem avançar enquanto o gate está pendente.
 - Validar caminhos resolvidos antes de qualquer limpeza; não apagar conjuntos até a nova restauração passar.
 - Separar os repositórios Restic do Hub, Zabbix, Psono e futuro Wazuh.
 - Registrar apenas presença e fingerprint de segredos, nunca seus valores.
