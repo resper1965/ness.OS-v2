@@ -74,3 +74,4 @@ docker-compose.override.yml
 # --- Agent Customizations ---
 .agents/
 .claude/
+.worktrees/
