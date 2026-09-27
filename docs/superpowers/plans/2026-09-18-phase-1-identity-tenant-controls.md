@@ -37,17 +37,23 @@
 ### Task 2: Aplicar revogação a streams e sessões longas
 
 **Files:**
+- Modify: `app/backend/app/api/routers/auth.py`
 - Modify: `app/backend/app/api/routers/incidents.py`
+- Modify: `app/backend/app/core/dependencies.py`
+- Modify: `app/backend/app/core/jwt.py`
+- Modify: `app/backend/app/migrate.py`
+- Modify: `app/backend/app/models/users.py`
+- Modify: `app/backend/tests/test_browser_session_security.py`
 - Modify: `app/backend/tests/test_incidents_auth.py`
 - Modify: `app/backend/tests/test_oidc_session_lifecycle.py`
 
-**Interfaces:** O stream SSE revalida expiração, sessão e autorização em intervalo limitado e encerra com evento de autenticação antes de desconectar quando a sessão deixa de ser válida.
+**Interfaces:** Logout incrementa `token_version` no banco e invalida imediatamente cópias de JWT. HTTP e SSE rejeitam versões antigas; o stream revalida expiração, estado, papel e tenant em intervalo limitado e encerra com evento de autenticação antes de desconectar.
 
 - [x] Criar testes para expiração durante stream, revogação, troca de papel e mudança de tenant.
 - [x] Executar os dois arquivos de teste; esperado: novos casos falham.
 - [x] Implementar revalidação periódica usando a mesma política de `auth.py`, sem confiar no papel capturado na conexão inicial.
 - [x] Repetir os testes; esperado: stream autorizado continua e cada alteração de segurança encerra o stream.
-- [x] Commit: `git add app/backend/app/api/routers/incidents.py app/backend/tests/test_incidents_auth.py app/backend/tests/test_oidc_session_lifecycle.py && git commit -m "fix(auth): revalidate long lived incident streams"`.
+- [ ] Commit: `git add app/backend/app/api/routers/auth.py app/backend/app/api/routers/incidents.py app/backend/app/core/dependencies.py app/backend/app/core/jwt.py app/backend/app/migrate.py app/backend/app/models/users.py app/backend/tests/test_browser_session_security.py app/backend/tests/test_incidents_auth.py app/backend/tests/test_oidc_session_lifecycle.py && git commit -m "feat(auth): revoke local sessions globally"`.
 
 ### Task 3: Fechar MFA e recuperação no Psono e Authentik
 
