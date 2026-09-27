@@ -1,8 +1,10 @@
 # -------------------------------------------------------
 # n.infraops — Celery App (configuração do broker)
 # -------------------------------------------------------
+from time import time
+
 from celery import Celery
-from celery.signals import worker_process_init
+from celery.signals import before_task_publish, worker_process_init
 
 from app.config import get_settings
 
@@ -19,6 +21,14 @@ celery_app = Celery(
         "app.workers.telemetry",
     ],
 )
+
+
+def add_publish_timestamp(headers=None, **_kwargs):
+    if isinstance(headers, dict):
+        headers["ninf_published_at"] = time()
+
+
+before_task_publish.connect(add_publish_timestamp, weak=False)
 
 celery_app.conf.update(
     # Serialização segura (JSON, não pickle)

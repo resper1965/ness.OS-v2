@@ -1,11 +1,15 @@
 import asyncio
-from unittest.mock import AsyncMock
+import json
+import time
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 
 from app.api.routers import pipeline
 from app.integrations import pipeline_health as health
 from app.integrations.glpi import GLPIClient
+from app.workers.celery_app import add_publish_timestamp
 
 
 @pytest.mark.asyncio
@@ -33,6 +37,121 @@ async def test_probe_deadline_cancels_stalled_dependency(monkeypatch):
     assert result["status"] == "error" and result["detail"] == "TimeoutError"
     assert cancelled.is_set()
     assert result["duration_ms"] >= 0
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    (
+        "depth",
+        "active_queues",
+        "redis_error",
+        "published_age_seconds",
+        "expected_status",
+    ),
+    [
+        (0, ("alerts.primary", "alerts.deferred", "ml"), False, None, "ok"),
+        (1, ("alerts.primary", "alerts.deferred", "ml"), False, 30, "ok"),
+        (101, ("alerts.primary", "alerts.deferred", "ml"), False, 600, "degraded"),
+        (1, ("alerts.primary", "alerts.deferred", "ml"), False, None, "degraded"),
+        (0, ("alerts.primary", "alerts.deferred"), False, None, "error"),
+        (0, ("alerts.primary", "alerts.deferred", "ml"), True, None, "error"),
+    ],
+)
+async def test_workers_health_uses_celery_broker_for_queue_depth(
+    monkeypatch,
+    depth,
+    active_queues,
+    redis_error,
+    published_age_seconds,
+    expected_status,
+):
+    broker_url = "redis://:broker-password@broker.internal:6379/1"
+    telemetry_url = "redis://redis.internal:6379/0"
+    broker_connection = Mock()
+    broker_connection.as_uri.return_value = broker_url
+    broker_connection.release = Mock()
+
+    class FakeRedis:
+        def __init__(self, url):
+            self.url = url
+            self.closed = False
+
+        async def llen(self, queue):
+            if redis_error:
+                raise ConnectionError("redis unavailable")
+            return depth if queue == "alerts.primary" else 0
+
+        async def lindex(self, queue, _index):
+            if queue != "alerts.primary" or not depth:
+                return None
+            headers = {}
+            if published_age_seconds is not None:
+                headers["ninf_published_at"] = time.time() - published_age_seconds
+            return json.dumps({"headers": headers})
+
+        async def hgetall(self, _key):
+            return {}
+
+        async def aclose(self):
+            self.closed = True
+
+    clients = []
+
+    def make_redis(url, **_kwargs):
+        client = FakeRedis(url)
+        clients.append(client)
+        return client
+
+    inspection = SimpleNamespace(
+        active_queues=Mock(
+            return_value={"worker@node": [{"name": queue} for queue in active_queues]}
+        )
+    )
+    celery = SimpleNamespace(
+        connection_for_read=Mock(return_value=broker_connection),
+        control=SimpleNamespace(inspect=Mock(return_value=inspection)),
+    )
+    monkeypatch.setattr(health, "celery_app", celery)
+    monkeypatch.setattr(health, "Redis", SimpleNamespace(from_url=make_redis))
+    monkeypatch.setattr(
+        health, "get_settings", lambda: SimpleNamespace(redis_url=telemetry_url)
+    )
+
+    result = await health.workers_health()
+
+    assert [client.url for client in clients] == [broker_url, telemetry_url]
+    assert result["status"] == expected_status
+    assert "broker-password" not in str(result)
+    if redis_error:
+        assert result["error"] == "ConnectionError"
+    else:
+        assert result["redis_db"] == 1
+        assert result["queue_health"][0]["queue"] == "alerts.primary"
+        assert result["queue_health"][0]["depth"] == depth
+        if "ml" not in active_queues:
+            assert result["queue_health"][-1]["status"] == "error"
+        else:
+            assert result["queue_health"][0]["status"] == expected_status
+        age = result["queue_health"][0]["oldest_age_seconds"]
+        if depth and published_age_seconds is not None:
+            assert abs(age - published_age_seconds) <= 2
+        elif not depth:
+            assert age == 0
+        else:
+            assert age is None
+    assert all(client.closed for client in clients)
+    broker_connection.as_uri.assert_called_once_with(include_password=True)
+    broker_connection.release.assert_called_once_with()
+
+
+def test_before_publish_adds_timestamp_to_task_headers():
+    headers = {"task": "app.workers.tasks.process_alert"}
+    before = time.time()
+
+    add_publish_timestamp(headers=headers)
+
+    assert before <= headers["ninf_published_at"] <= time.time()
+    assert headers["task"] == "app.workers.tasks.process_alert"
 
 
 @pytest.mark.asyncio

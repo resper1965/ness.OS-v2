@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- Gate de entrada: Fase 0 aprovada.
+- Gate de produção: Fase 0 aprovada. Desenvolvimento e testes locais podem avançar; deploy da Fase 3 continua bloqueado até o gate passar.
 - Uma sonda não pode usar `|| exit 0`, aceitar resposta vazia ou consultar banco Redis diferente do broker observado.
 - Rollout canário deve preservar o serviço anterior até as sondas passarem.
 
@@ -22,17 +22,17 @@
 
 **Files:**
 - Modify: `app/backend/app/integrations/pipeline_health.py`
-- Modify: `app/backend/app/api/routers/pipeline.py`
+- Modify: `app/backend/app/workers/celery_app.py`
 - Modify: `app/backend/tests/test_pipeline_health.py`
 
 **Interfaces:** Saúde de fila informa `queue`, `redis_db`, `depth`, `oldest_age_seconds`, `workers_seen`, `status`, `checked_at` e `error`; conexão deriva do broker Celery efetivo.
 
-- [ ] Criar teste com broker em DB 1 e Redis genérico em DB 0; confirmar que a implementação atual lê o banco errado.
-- [ ] Criar testes para fila vazia, backlog crescente, Redis indisponível e worker ausente.
-- [ ] Executar `python -m pytest app/backend/tests/test_pipeline_health.py -q`; esperado: novos casos falham.
-- [ ] Derivar o cliente do broker configurado e calcular estado sem converter exceção em fila vazia.
-- [ ] Repetir o teste; esperado: todos aprovados.
-- [ ] Commit: `git add app/backend/app/integrations/pipeline_health.py app/backend/app/api/routers/pipeline.py app/backend/tests/test_pipeline_health.py && git commit -m "fix(health): inspect the effective Celery broker queues"`.
+- [x] Criar teste com broker em DB 1 e Redis genérico em DB 0; confirmar que a implementação atual lê o banco errado.
+- [x] Criar testes para fila vazia, backlog crescente, Redis indisponível e worker ausente, incluindo idade da mensagem e timestamp ausente.
+- [x] Executar `python -m pytest tests/test_pipeline_health.py -q` em `app/backend`; os novos casos falharam antes da correção, depois 16 passaram.
+- [x] Derivar o cliente da conexão de leitura efetiva do Celery, separar a telemetria no Redis próprio e calcular estado sem converter exceção em fila vazia.
+- [x] Repetir o teste; todos os 16 casos passaram. Ruff check e format também passaram.
+- [x] Commit: `git add app/backend/app/integrations/pipeline_health.py app/backend/app/workers/celery_app.py app/backend/tests/test_pipeline_health.py docs/superpowers/plans/2026-09-18-phase-3-hub-runtime-reliability.md && git commit -m "fix(health): inspect the effective Celery broker queues"`.
 
 ### Task 2: Tornar healthchecks de containers fail-closed
 
