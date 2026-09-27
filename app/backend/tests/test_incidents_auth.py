@@ -1,5 +1,5 @@
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi import FastAPI
@@ -102,3 +102,51 @@ def test_incident_analysis_queues_work_for_noc():
         args=[{"fingerprint": "fp-1"}, "GLPI-1"],
         queue="ml",
     )
+
+
+@pytest.mark.parametrize(
+    "active_user",
+    (
+        None,
+        SimpleNamespace(id=1, role=UserRole.soc, tenant_id="tenant-a"),
+        SimpleNamespace(id=1, role=UserRole.noc, tenant_id="tenant-b"),
+    ),
+    ids=("revoked", "role-changed", "tenant-changed"),
+)
+def test_incident_stream_emits_auth_event_when_identity_changes(active_user):
+    class _PubSub:
+        async def subscribe(self, _: str) -> None:
+            return None
+
+        async def get_message(self, **_: object) -> None:
+            return None
+
+        async def unsubscribe(self, _: str) -> None:
+            return None
+
+        async def close(self) -> None:
+            return None
+
+    class _Redis:
+        def pubsub(self) -> _PubSub:
+            return _PubSub()
+
+        async def aclose(self) -> None:
+            return None
+
+    app, client = _client(UserRole.noc)
+    app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(
+        id=1, role=UserRole.noc, tenant_id="tenant-a"
+    )
+    with (
+        patch("app.api.routers.incidents.Redis.from_url", return_value=_Redis()),
+        patch("app.api.routers.incidents.get_settings", return_value=SimpleNamespace(redis_url="redis://")),
+        patch(
+            "app.api.routers.incidents._load_stream_user",
+            new=AsyncMock(return_value=active_user),
+        ),
+    ):
+        response = client.get("/api/incidents/stream", headers={"Authorization": "Bearer test"})
+
+    assert response.status_code == 200
+    assert 'event: auth\ndata: {"reason":"session_invalid"}' in response.text

@@ -8,8 +8,9 @@ import asyncio
 import json
 import logging
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import StreamingResponse
+from jose import JWTError
 from redis.asyncio import Redis
 from sqlalchemy import desc, select
 
@@ -20,6 +21,8 @@ from app.core.dependencies import (
     require_noc,
     resolve_tenant_scope,
 )
+from app.core.jwt import verify_token
+from app.core.session import SESSION_COOKIE_NAME
 from app.database import SessionLocal
 from app.models import Incident
 from app.models.schemas import IncidentAnalyzeRequest
@@ -51,6 +54,30 @@ def _pipeline_stage(incident: Incident) -> str:
         # TODO: verificar se ticket_id existe (campo futuro)
         return "incident_created"
     return "detected"
+
+
+async def _load_stream_user(request: Request) -> User | None:
+    """Reload the authenticated user from the current credential and database."""
+    authorization = request.headers.get("authorization", "")
+    token = (
+        authorization[7:].strip()
+        if authorization.lower().startswith("bearer ")
+        else request.cookies.get(SESSION_COOKIE_NAME)
+    )
+    if not token:
+        return None
+    try:
+        payload = verify_token(token)
+        user_id = int(payload["sub"])
+    except (JWTError, KeyError, TypeError, ValueError):
+        return None
+
+    async with SessionLocal() as session:
+        result = await session.execute(select(User).where(User.id == user_id))
+        user = result.scalar_one_or_none()
+        if not user or not user.is_active:
+            return None
+        return user
 
 
 @router.get(
@@ -162,11 +189,11 @@ async def analyze_incident(
 
 @router.get("/api/incidents/stream", tags=["incidents"])
 async def stream_incidents(
+    request: Request,
     current_user: User = Depends(get_current_user),
 ):
     """Canal SSE (Server-Sent Events) para stream de novos incidentes em tempo real."""
-    user_role = current_user.role
-    user_tenant_id = current_user.tenant_id
+    initial_identity = (current_user.id, current_user.role, current_user.tenant_id)
 
     async def event_generator():
         settings = get_settings()
@@ -175,10 +202,12 @@ async def stream_incidents(
         pubsub = client.pubsub()
         await pubsub.subscribe("ninf_incidents")
         logger.info(
-            f"Conexão SSE aberta para o usuário role={user_role} (tenant={user_tenant_id})"
+            "Conexão SSE aberta para o usuário id=%s role=%s tenant=%s",
+            *initial_identity,
         )
 
         try:
+            next_revalidation = 0.0
             # Envia ping de conexão inicial estabelecida
             yield "event: ping\ndata: {}\n\n"
 
@@ -187,6 +216,23 @@ async def stream_incidents(
                 message = await pubsub.get_message(
                     ignore_subscribe_messages=True, timeout=15.0
                 )
+                now = asyncio.get_running_loop().time()
+                if now >= next_revalidation:
+                    try:
+                        active_user = await _load_stream_user(request)
+                    except Exception:
+                        logger.exception("Falha ao revalidar sessão SSE; encerrando stream")
+                        active_user = None
+                    active_identity = (
+                        (active_user.id, active_user.role, active_user.tenant_id)
+                        if active_user
+                        else None
+                    )
+                    if active_identity != initial_identity:
+                        yield 'event: auth\ndata: {"reason":"session_invalid"}\n\n'
+                        return
+                    next_revalidation = now + 15.0
+
                 if message:
                     try:
                         data = json.loads(message["data"])
@@ -195,8 +241,9 @@ async def stream_incidents(
                         # Filtro Multi-tenant:
                         # Operadores noc/soc/admin recebem tudo.
                         # Clientes recebem apenas do próprio tenant_id.
-                        if is_noc_role(user_role) or (
-                            incident_tenant_id and incident_tenant_id == user_tenant_id
+                        if is_noc_role(active_user.role) or (
+                            incident_tenant_id
+                            and incident_tenant_id == active_user.tenant_id
                         ):
                             yield f"event: incident\ndata: {json.dumps(data)}\n\n"
                     except Exception as err:
