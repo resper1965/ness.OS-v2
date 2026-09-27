@@ -75,7 +75,7 @@
 ### Task 4: Provar alerta, incidente, ticket e resolução
 
 **Files:**
-- Modify: `app/backend/app/workers/alert_tasks.py`
+- Modify: `app/backend/app/workers/alerts.py`
 - Modify: `app/backend/app/services/triage_engine.py`
 - Modify: `app/backend/tests/test_alert_glpi_idempotency.py`
 - Modify: `app/backend/tests/test_glpi_readiness.py`
@@ -91,7 +91,7 @@
 - [ ] Confirmar um incidente, um ticket, IDs cruzados, timestamps coerentes e resolução propagada.
 - [ ] Reenviar o mesmo evento e confirmar que as contagens permanecem em um.
 - [ ] Registrar evidência e remover o artefato sintético pela API.
-- [ ] Commit: `git add app/backend/app/workers/alert_tasks.py app/backend/app/services/triage_engine.py app/backend/tests/test_alert_glpi_idempotency.py app/backend/tests/test_glpi_readiness.py infra/scripts/hub-integration-monitor.sh docs/execution/evidence/phase-2-alert-ticket-e2e.md && git commit -m "test(ops): prove idempotent alert to ticket lifecycle"`.
+- [ ] Commit: `git add app/backend/app/workers/alerts.py app/backend/app/services/triage_engine.py app/backend/tests/test_alert_glpi_idempotency.py app/backend/tests/test_glpi_readiness.py infra/scripts/hub-integration-monitor.sh docs/execution/evidence/phase-2-alert-ticket-e2e.md && git commit -m "test(ops): prove idempotent alert to ticket lifecycle"`.
 
 ### Task 5: Aprovar o gate da Fase 2
 
