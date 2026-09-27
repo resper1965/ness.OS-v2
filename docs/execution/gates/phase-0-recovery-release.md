@@ -2,31 +2,45 @@
 
 **Resultado geral: FAIL — não autoriza release nem início de fases dependentes.**
 
-Avaliação atualizada em 2026-09-26 (America/Sao_Paulo), considerando somente as VPS do
+Avaliação atualizada em 2026-09-27 (America/Sao_Paulo), considerando somente as VPS do
 projeto: AIOps `144.91.115.242`, Zabbix canônico `144.91.72.202` e o destino de
 UAT/cutover pendente `169.58.234.9`. `npentest` (`169.58.178.187`) está fora do
 escopo.
 
-**Limite da atualização:** em 26/09 foram renovadas as evidências de backup e
-restore externo do AIOps; consulte
+**Limite da atualização:** em 27/09 foram renovadas as evidências do backup
+AIOps de 26/09, do snapshot externo correspondente e do restore isolado; consulte
+[`phase-0-aiops-recovery-2026-09-27.md`](../evidence/phase-0-aiops-recovery-2026-09-27.md)
+e o registro anterior de 26/09 em
 [`phase-0-aiops-recovery-2026-09-26.md`](../evidence/phase-0-aiops-recovery-2026-09-26.md).
 O manifesto ainda compara arquivos/imagens aos fatos de produção de 25/09 às
-17:49 BRT. A UAT responde por SSH com a chave própria e continua com o servidor
-Zabbix isolado; contudo, o token da integração canônica não está autorizado na
-UAT. O Zabbix canônico expirou na porta 22. O OAuth da Contabo retornou HTTP 403
-antes de emitir token; a consulta GET sem token retornou HTTP 401, então o
-inventário do plano de controle não foi renovado. O estado recente do AIOps não
-atualiza hashes de código/imagens. Consulte
+17:49 BRT. Na coleta de 26/09, a UAT respondeu por SSH com a chave própria e o
+servidor Zabbix permaneceu isolado; nessa coleta, o token da integração
+canônica não foi autorizado na UAT. O Zabbix canônico expirou na porta 22 na
+sonda de 27/09. Em 26/09, o OAuth da Contabo retornou
+HTTP 403; a leitura autenticada foi renovada em 27/09 e confirmou as três VPS do
+projeto em execução, com a pentest excluída. A leitura do firewall do provedor
+mostrou a política `ness` inativa. SSH em `144.91.72.202:22` expira; a porta
+`2222` documentada responde, mas rejeita a chave local com
+`Permission denied (publickey)`. Na última validação Zabbix de 26/09, o token
+não estava autorizado para `template.get` na UAT nem no host canônico. Inventário
+Contabo não atualiza hashes de código/imagens. Consulte
 [`zabbix-uat-readonly-baseline-2026-09-26.md`](../evidence/zabbix-uat-readonly-baseline-2026-09-26.md).
+Para a leitura Contabo e a sonda SSH de 27/09, consulte
+[`phase-0-contabo-readonly-2026-09-27.md`](../evidence/phase-0-contabo-readonly-2026-09-27.md).
 O registro desta retomada está em
 [`ness-os-operationalization-log.md`](../ness-os-operationalization-log.md).
 
+Esta atualização não renovou backup/API do Zabbix nem hashes/digests de produção.
+O Zabbix canônico continua inacessível por SSH; por isso os critérios de backup
+recente, cópia externa atual e timers do Zabbix permanecem `FAIL` até evidência
+atual. O gate de release continua **FAIL**.
+
 | Critério | Estado | Evidência |
 |---|---|---|
-| Backup local Hub e Zabbix com menos de 24 h | PASS | Hub/AIOps `20260925T230000-0300`, `COMPLETED` presente e as 24 entradas de checksum aprovadas; Zabbix `20260925T220022-0300`, manifesto/checksums aprovados na coleta anterior. Ambos tinham menos de 24 h às 16:07 BRT de 26/09. |
-| Cópia externa correspondente aos conjuntos atuais | PASS | AIOps: Restic snapshot `d66d36f3` corresponde ao conjunto `20260925T230000-0300`; restore isolado de 860,216 MiB com `--verify`, 26 arquivos verificados e checksums aprovados. Zabbix snapshot `15a5ef41` corresponde a `20260925T220022-0300`; `restic check` completo e restore isolado aprovados na evidência de 25/09. A retenção AIOps/Zabbix não foi alterada nesta validação. |
-| Restaurações isoladas Hub, Zabbix e Psono | PASS | AIOps: snapshot atual restaurado e checksums/manifesto aprovados em 26/09; Psono restaurado em 25/09 do conjunto `20260925T013239-0300` (51 tabelas, HTTP 200, assinatura válida e chave pública correspondente); Zabbix `15a5ef41` (203 tabelas, 685 hosts, 64.226 itens, 26.697 triggers, 362 templates e `dbversion.mandatory=7000000`). Ambientes temporários removidos. |
-| Timers habilitados, última execução aprovada e próxima execução | PASS | Hoje no AIOps: timer local ativo, último disparo 25/09 23:00, próximo 26/09 23:00; timer externo ativo, última execução 26/09 00:30:50 e próxima 27/09 00:30 BRT. Zabbix externo estava ativo e com próxima execução 27/09 05:30 na coleta anterior. |
+| Backup local Hub e Zabbix com menos de 24 h | FAIL — parcial | AIOps atualizado em 27/09: conjunto `20260926T230011-0300`, `COMPLETED`, checksums aprovados; tinha 13h27 na coleta. Para Zabbix, o último conjunto comprovado segue `20260925T220022-0300`, com mais de 24 h; não foi possível renovar porque a chave SSH em `144.91.72.202:2222` foi rejeitada. |
+| Cópia externa correspondente aos conjuntos atuais | FAIL — parcial | AIOps: Restic snapshot `4ca60242` corresponde a `20260926T230011-0300`; restore isolado de 862,761 MiB com `--verify`, 26 arquivos verificados e checksums aprovados em 27/09. Para Zabbix, o último conjunto comprovado é `20260925T220022-0300`; a cópia externa mais recente não foi verificada nesta retomada. |
+| Restaurações isoladas Hub, Zabbix e Psono | PASS | AIOps: conjunto atual restaurado em 27/09; checksums/manifesto aprovados. Psono: restore de 25/09, conjunto `20260925T013239-0300` (51 tabelas, HTTP 200, assinatura válida e chave pública correspondente). Zabbix: snapshot `15a5ef41` (203 tabelas, 685 hosts, 64.226 itens, 26.697 triggers, 362 templates e `dbversion.mandatory=7000000`). Ambientes temporários removidos. |
+| Timers habilitados, última execução aprovada e próxima execução | FAIL — parcial | AIOps: ambos os timers ativos, serviços concluíram com `Result=success` e código 0; próxima execução local 27/09 23:00 e externa 28/09 00:30 BRT. Timers/resultados atuais do Zabbix não foram verificados porque a chave SSH para a porta documentada 2222 foi rejeitada; a evidência anterior não comprova o disparo seguinte. |
 | Produção ligada a commit e imagens imutáveis; rollback ensaiado | FAIL | A árvore contém mudanças pendentes; 8 de 19 imagens não têm digest; 43 arquivos montados/instalados divergem dos fatos remotos conhecidos e 47 ainda não têm hash remoto observado. Não há ensaio de rollback associado à release. Consulte `../evidence/phase-0-production-manifest.json`. |
 | `git diff --check` e verificações locais | PASS | A checagem da árvore terminou sem erros. Backend: Pytest 264 aprovados; Black 111 arquivos, Ruff check/format 77 arquivos, MyPy 77 arquivos e Flake8 E9/F63/F7/F82 sem erros. Frontend em cópia temporária limpa: Oxlint, TypeScript e build passaram; Oxlint reportou um aviso Fast Refresh. Infraestrutura: 15 testes shell, 18 testes Python (+ 3 subtests) passaram; migração SQL aplicada duas vezes em PostgreSQL 17 isolado e 16 scripts PHP passaram lint em PHP 8.1. Sete utilitários GLPI/Zabbix e o cutover Cavan abortaram em modo padrão sem `--apply`; o emissor sintético exige `--apply` e passou teste sem rede. Nesta retomada, o backend completo passou (264, 2 avisos `datetime.utcnow`), fixture Node dos workflows passou, o relatório de readiness comprovou presença/força do segredo sem exibi-lo e o manifesto passou 9 testes. O workflow completo em runner GitHub ainda não foi reexecutado. |
 
