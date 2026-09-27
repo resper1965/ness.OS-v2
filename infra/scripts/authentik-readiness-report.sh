@@ -4,6 +4,7 @@ set -Eeuo pipefail
 
 readonly base_url="${AUTHENTIK_URL:?AUTHENTIK_URL is required}"
 readonly token="${AUTHENTIK_TOKEN:?AUTHENTIK_TOKEN is required}"
+readonly script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 command -v curl >/dev/null || { echo 'curl is required' >&2; exit 1; }
 command -v python3 >/dev/null || { echo 'python3 is required' >&2; exit 1; }
 
@@ -45,4 +46,13 @@ done
 
 session_count="$(api_count '/api/v3/core/authenticated_sessions/?page_size=1')"
 printf 'authenticated_session_count=%s\n' "${session_count}"
+
+admin_mfa_report="$(AUTHENTIK_URL="${base_url}" AUTHENTIK_TOKEN="${token}" \
+  AUTHENTIK_REQUIRED_ADMIN_USERS="${AUTHENTIK_REQUIRED_ADMIN_USERS:-}" \
+  python3 "${script_dir}/authentik_mfa_readiness.py")"
+printf '%s\n' "${admin_mfa_report}"
+if ! grep -Fqx 'admin_mfa_ready=yes' <<<"${admin_mfa_report}"; then
+  echo 'authentik_readiness=FAIL'
+  exit 4
+fi
 echo 'authentik_readiness=PASS'
