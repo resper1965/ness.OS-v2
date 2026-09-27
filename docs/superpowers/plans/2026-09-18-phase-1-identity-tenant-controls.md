@@ -53,7 +53,7 @@
 - [x] Executar os dois arquivos de teste; esperado: novos casos falham.
 - [x] Implementar revalidação periódica usando a mesma política de `auth.py`, sem confiar no papel capturado na conexão inicial.
 - [x] Repetir os testes; esperado: stream autorizado continua e cada alteração de segurança encerra o stream.
-- [ ] Commit: `git add app/backend/app/api/routers/auth.py app/backend/app/api/routers/incidents.py app/backend/app/core/dependencies.py app/backend/app/core/jwt.py app/backend/app/migrate.py app/backend/app/models/users.py app/backend/tests/test_browser_session_security.py app/backend/tests/test_incidents_auth.py app/backend/tests/test_oidc_session_lifecycle.py && git commit -m "feat(auth): revoke local sessions globally"`.
+- [x] Commit: `git add app/backend/app/api/routers/auth.py app/backend/app/api/routers/incidents.py app/backend/app/core/dependencies.py app/backend/app/core/jwt.py app/backend/app/migrate.py app/backend/app/models/users.py app/backend/tests/test_browser_session_security.py app/backend/tests/test_incidents_auth.py app/backend/tests/test_oidc_session_lifecycle.py && git commit -m "feat(auth): revoke local sessions globally"` (`f4e88d6`).
 
 ### Task 3: Fechar MFA e recuperação no Psono e Authentik
 
@@ -68,8 +68,8 @@
 
 **Interfaces:** Readiness falha quando contas administrativas exigidas não têm MFA ou quando não existe mecanismo de recuperação testado; relatório exibe contagens, nunca códigos.
 
-- [ ] Criar casos de teste para administrador sem MFA, recovery codes ausentes e somente uma conta recuperável.
-- [ ] Executar os dois testes; esperado: falha inicial.
+- [x] Criar casos de teste para administrador sem MFA, recovery codes ausentes e somente uma conta recuperável.
+- [x] Executar os dois testes; esperado: falha inicial; casos implementados antes do check fail-closed.
 - [x] Implementar os checks e repetir; esperado: aprovado com fixtures conformes.
 - [ ] Habilitar MFA nas contas administrativas atuais, gerar recovery codes e armazená-los no cofre seguindo dupla custódia.
 - [ ] Criar uma conta break-glass sem uso cotidiano, testar acesso e rotação e registrar apenas a evidência.
