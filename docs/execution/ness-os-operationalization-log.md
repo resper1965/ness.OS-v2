@@ -3,6 +3,22 @@
 Registro de execução por fase conforme o plano mestre. Os eventos não alteram
 gates nem autorizam promoção sem evidência e decisão explícitas.
 
+## Fase 1 — identidade e tenants
+
+- **Registro:** 2026-09-27 15:53–15:54 UTC (12:53–12:54 BRT).
+- **Escopo:** precheck somente leitura da UAT Zabbix `169.58.234.9`; SSH com a
+  chave própria como `ness_admin`, `apiinfo.version` no loopback e consulta
+  `template.get` via túnel SSH usando o token instalado no container AIOps. O
+  token não foi impresso ou registrado.
+- **Resultado:** UAT respondeu Zabbix `7.0.27`; `template.get` retornou
+  `-32602 Invalid params` com `data=Not authorized`. A URL pública retornou
+  HTTP 403; a chamada pelo túnel confirmou a falta de autorização na API. O
+  túnel foi encerrado e o listener temporário desapareceu. Nenhuma conta,
+  permissão, configuração ou dado de monitoramento foi alterado. Evidência em
+  [`phase-1-identity-uat.md`](evidence/phase-1-identity-uat.md).
+- **Limite:** este precheck não executa jornadas de conta, MFA, logout ou tenant;
+  essas células seguem pendentes, assim como Gate 0 e o SSH ao Zabbix canônico.
+
 ## Fase 0 — retomada da recuperação e baseline de release
 
 - **Registro:** 2026-09-27 15:31–15:32 UTC (12:31–12:32 BRT).

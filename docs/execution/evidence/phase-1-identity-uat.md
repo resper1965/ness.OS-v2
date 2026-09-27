@@ -1,6 +1,6 @@
 # Phase 1 Identity UAT Evidence
 
-Status: **PENDING** — template only; no live account or production request was used.
+Status: **PENDING** — no live account session or role/tenant journey was run. A limited read-only UAT API authorization precheck is recorded below; no production request was made.
 
 Run only after the Phase 0 gate passes and dedicated UAT accounts are available. Record each result as `PASS` or `FAIL`; leave `PENDING` until the check runs. Never record usernames, passwords, cookies, bearer tokens, recovery codes, or raw response headers here.
 
@@ -42,6 +42,19 @@ For each app, test tenant A identity against tenant B data and the reverse. Use 
 Run `infra/scripts/hub-session-readiness.sh --execute-contained` with dedicated Hub UAT credentials. The probe must verify login, cookie attributes, `/me`, cookie-authenticated SSE, logout, cookie rejection, and rejection of a copied bearer token. It stores credentials and tokens only in a mode-`0600` temporary directory and removes that directory on exit.
 
 The local Authentik precheck contract test simulates unauthenticated public probes and fails if GLPI responds as though a forged identity header authenticated the request. This does not prove header replacement during an authenticated session; that remains a live UAT check.
+
+## Read-only Zabbix UAT API precheck — 2026-09-27
+
+SSH to UAT `169.58.234.9` as `ness_admin` succeeded. The loopback
+`apiinfo.version` request returned Zabbix `7.0.27`. The integration token was
+read inside the AIOps API container without printing or recording its value and
+used through a temporary SSH tunnel to call `template.get` on UAT. Zabbix
+returned JSON-RPC `-32602`, `Invalid params.`, with `data=Not authorized.`. The
+public UAT URL returned HTTP 403 at the edge; the tunnel result confirms the
+API permission failure independently of that edge response. The SSH tunnel was
+closed and its local listener was gone afterward. No users, tokens, permissions,
+configuration, or monitoring data were changed. This does not complete any
+account-based UAT row above.
 
 ### Local automation verification — 2026-09-27
 
