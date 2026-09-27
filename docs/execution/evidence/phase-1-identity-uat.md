@@ -43,6 +43,17 @@ Run `infra/scripts/hub-session-readiness.sh --execute-contained` with dedicated 
 
 The local Authentik precheck contract test simulates unauthenticated public probes and fails if GLPI responds as though a forged identity header authenticated the request. This does not prove header replacement during an authenticated session; that remains a live UAT check.
 
+### Local automation verification — 2026-09-27
+
+The Phase 1 backend gate selection passed: 39 tests. Authentik readiness,
+Psono tooling, Authentik public-precheck contract, and Hub session-readiness
+shell tests passed. These checks used static inspection and simulated `curl`;
+they made no live requests and used no real identities. The Hub test confirmed
+the default probe sends no network requests and that credentials are rejected
+unless explicit execution is enabled. This verifies test plumbing only; all
+live UAT rows above remain `PENDING`. No credentials, cookies, tokens, or raw
+headers were recorded.
+
 | Check | Result | Evidence reference |
 |---|---|---|
 | Login issues host-only Secure HttpOnly SameSite=Strict cookie | PENDING | PENDING |
