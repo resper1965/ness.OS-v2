@@ -51,13 +51,12 @@ flowchart LR
     P2 --> P4
     P3 --> P4
     P0 --> WPREP[Preparação Wazuh sem compra]
-    P4 --> P5[Fase 5<br/>Wazuh em produção]
+    P4 --> P6[Fase 6<br/>Aceite integrado do MVP]
+    P6 --> P5[Fase 5<br/>Wazuh pós-MVP]
     WPREP --> P5
-    P1 --> P6[Fase 6<br/>Aceite integrado]
+    P1 --> P6
     P2 --> P6
     P3 --> P6
-    P4 --> P6
-    P5 --> P6
 ```
 
 ## Planos por fase
@@ -69,8 +68,8 @@ flowchart LR
 | 2 | `docs/superpowers/plans/2026-09-18-phase-2-zabbix-glpi-operations.md` | Fontes confiáveis e fluxo alerta-incidente-ticket idempotente |
 | 3 | `docs/superpowers/plans/2026-09-18-phase-3-hub-runtime-reliability.md` | Saúde do runtime mede os componentes reais e rollout é reproduzível |
 | 4 | `docs/superpowers/plans/2026-09-18-phase-4-dashboard-operational-truth.md` | Dashboard completo para o escopo implantado, com erro e frescor honestos |
-| 5A | `docs/superpowers/plans/2026-09-18-wazuh-4147-production-rollout.md` | Wazuh 4.14.7 instalado, recuperável e estabilizado em ondas |
-| 5B | `docs/superpowers/plans/2026-09-18-wazuh-security-signal-ingestion.md` | Sinais Wazuh chegam ao Hub sem duplicação e com compatibilidade para Wazuh 5 |
+| 5A — pós-MVP | `docs/superpowers/plans/2026-09-18-wazuh-4147-production-rollout.md` | Após aceite do MVP e gate aprovado de capacidade/custo, Wazuh 4.14.7 instalado, recuperável e estabilizado em ondas |
+| 5B — pós-MVP | `docs/superpowers/plans/2026-09-18-wazuh-security-signal-ingestion.md` | Após aceite do MVP, sinais Wazuh chegam ao Hub sem duplicação e com compatibilidade para Wazuh 5 |
 | 6 | `docs/superpowers/plans/2026-09-18-phase-6-integrated-acceptance.md` | Operação ponta a ponta aprovada e sustentada por sete dias |
 
 ## Entrega do MVP

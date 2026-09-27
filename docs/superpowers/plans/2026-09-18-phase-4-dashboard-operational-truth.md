@@ -96,6 +96,8 @@
 
 **Interfaces:** O aplicativo cobre visão geral, fontes, incidentes, ativos/infraestrutura, tickets, backups e postura de segurança; cada área herda os estados do contrato operacional.
 
+**Gate MVP:** A Fase 4 termina com as Tasks 1–5. A Task 6 é pós-MVP e não condiciona o aceite do dashboard nem do MVP.
+
 - [ ] Criar testes de jornada para operador e viewer de tenants distintos.
 - [ ] Executar o teste; esperado: falha enquanto as áreas não estiverem disponíveis.
 - [ ] Implementar navegação e componentes usando endpoints reais existentes e o contrato agregado.
@@ -104,18 +106,18 @@
 - [ ] Executar testes, typecheck, lint e build; esperado: aprovados sem dados demo.
 - [ ] Commit: `git add app/frontend/src/components/CoreDashboard.tsx app/frontend/src/components/OperationalSources.tsx app/frontend/src/components/BackupStatus.tsx app/frontend/src/components/InfrastructureInventory.tsx app/frontend/src/components/OperationalJourneys.test.tsx && git commit -m "feat(ui): complete ness.OS operational journeys"`.
 
-### Task 6: Dimensionar e aprovar a contratação do Wazuh
+### Task 6 (pós-MVP): Dimensionar e aprovar a contratação do Wazuh
 
-**Escopo:** pós-MVP. Esta tarefa e seu gate não bloqueiam o aceite da Fase 4 nem do MVP; são pré-requisitos para contratar e implantar Wazuh.
+**Escopo:** pós-MVP. Esta tarefa e seu gate não bloqueiam o aceite da Fase 4 nem do MVP; são pré-requisitos para contratar e implantar Wazuh após o aceite do MVP.
 
 **Files:**
 - Create: `docs/execution/wazuh-capacity-and-cost-decision.md`
-- Create: `docs/execution/gates/phase-4-dashboard-and-wazuh-purchase.md`
+- Create: `docs/execution/gates/post-mvp-wazuh-capacity-and-purchase.md`
 
 - [ ] Medir volume de eventos dos 5 endpoints piloto, retenção desejada, crescimento e custo mensal de VPS, snapshots e Object Storage.
 - [ ] Comparar a medição com o baseline do desenho: nó dedicado, 8 vCPU, 8 GiB RAM e pelo menos 100 GB para 25–50 endpoints e 90 dias.
 - [ ] Registrar cotação Contabo, limite de orçamento, região, RPO/RTO e custo de saída.
-- [ ] Confirmar dashboard sem dados simulados e com todas as fontes implantadas em estado correto.
 - [ ] Confirmar que comprar, adiar ou redimensionar não degrada as frentes já operacionais.
+- [ ] Confirmar aceite do MVP antes de liberar compra ou implantação.
 - [ ] Obter aprovação explícita do orçamento antes de criar a VPS.
-- [ ] Registrar o gate e commit: `git add docs/execution/wazuh-capacity-and-cost-decision.md docs/execution/gates/phase-4-dashboard-and-wazuh-purchase.md && git commit -m "docs(gate): approve dashboard and Wazuh capacity decision"`.
+- [ ] Registrar o gate e commit: `git add docs/execution/wazuh-capacity-and-cost-decision.md docs/execution/gates/post-mvp-wazuh-capacity-and-purchase.md && git commit -m "docs(gate): approve post-MVP Wazuh capacity decision"`.
