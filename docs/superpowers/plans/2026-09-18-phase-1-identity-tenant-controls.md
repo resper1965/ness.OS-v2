@@ -27,12 +27,12 @@
 
 **Interfaces:** Papéis mínimos `admin`, `operator` e `viewer`; cada endpoint documenta ação, escopo de tenant e resposta esperada para acesso negado.
 
-- [ ] Extrair todas as rotas protegidas de `app/backend/app/api/routers` e registrar na matriz com método, papel e tenant.
-- [ ] Criar teste que falha se uma rota protegida não declarar dependência de autorização reconhecida.
-- [ ] Executar `python -m pytest app/backend/tests/test_authentik_rbac.py -q`; esperado: falha para lacunas reais.
-- [ ] Centralizar a normalização de claims e a decisão de papel/tenant em `auth.py`.
-- [ ] Repetir o teste; esperado: todas as rotas mapeadas e acessos negados com 401/403 coerente.
-- [ ] Commit: `git add docs/security/access-control-matrix.md app/backend/app/api/routers/auth.py app/backend/tests/test_authentik_rbac.py && git commit -m "feat(auth): formalize role and tenant policy"`.
+- [x] Extrair todas as rotas protegidas de `app/backend/app/api/routers` e registrar na matriz com método, papel e tenant.
+- [x] Criar teste que falha se uma rota protegida não declarar dependência de autorização reconhecida.
+- [x] Executar `python -m pytest app/backend/tests/test_authentik_rbac.py -q`; esperado: falha para lacunas reais.
+- [x] Centralizar a normalização de claims e a decisão de papel/tenant em `auth.py`.
+- [x] Repetir o teste; esperado: todas as rotas mapeadas e acessos negados com 401/403 coerente.
+- [x] Commit: `git add docs/security/access-control-matrix.md app/backend/app/api/routers/auth.py app/backend/tests/test_authentik_rbac.py && git commit -m "feat(auth): formalize role and tenant policy"`.
 
 ### Task 2: Aplicar revogação a streams e sessões longas
 
@@ -43,11 +43,11 @@
 
 **Interfaces:** O stream SSE revalida expiração, sessão e autorização em intervalo limitado e encerra com evento de autenticação antes de desconectar quando a sessão deixa de ser válida.
 
-- [ ] Criar testes para expiração durante stream, revogação, troca de papel e mudança de tenant.
-- [ ] Executar os dois arquivos de teste; esperado: novos casos falham.
-- [ ] Implementar revalidação periódica usando a mesma política de `auth.py`, sem confiar no papel capturado na conexão inicial.
-- [ ] Repetir os testes; esperado: stream autorizado continua e cada alteração de segurança encerra o stream.
-- [ ] Commit: `git add app/backend/app/api/routers/incidents.py app/backend/tests/test_incidents_auth.py app/backend/tests/test_oidc_session_lifecycle.py && git commit -m "fix(auth): revalidate long lived incident streams"`.
+- [x] Criar testes para expiração durante stream, revogação, troca de papel e mudança de tenant.
+- [x] Executar os dois arquivos de teste; esperado: novos casos falham.
+- [x] Implementar revalidação periódica usando a mesma política de `auth.py`, sem confiar no papel capturado na conexão inicial.
+- [x] Repetir os testes; esperado: stream autorizado continua e cada alteração de segurança encerra o stream.
+- [x] Commit: `git add app/backend/app/api/routers/incidents.py app/backend/tests/test_incidents_auth.py app/backend/tests/test_oidc_session_lifecycle.py && git commit -m "fix(auth): revalidate long lived incident streams"`.
 
 ### Task 3: Fechar MFA e recuperação no Psono e Authentik
 
@@ -64,11 +64,11 @@
 
 - [ ] Criar casos de teste para administrador sem MFA, recovery codes ausentes e somente uma conta recuperável.
 - [ ] Executar os dois testes; esperado: falha inicial.
-- [ ] Implementar os checks e repetir; esperado: aprovado com fixtures conformes.
+- [x] Implementar os checks e repetir; esperado: aprovado com fixtures conformes.
 - [ ] Habilitar MFA nas contas administrativas atuais, gerar recovery codes e armazená-los no cofre seguindo dupla custódia.
 - [ ] Criar uma conta break-glass sem uso cotidiano, testar acesso e rotação e registrar apenas a evidência.
-- [ ] Documentar gatilho, autorização, auditoria e revogação do break-glass.
-- [ ] Commit: `git add infra/psono/scripts/f2-readiness-report.sh infra/psono/scripts/mfa-readiness.sh infra/scripts/authentik-readiness-report.sh infra/scripts/authentik_mfa_readiness.py infra/tests/test-psono-tooling.sh infra/tests/test-authentik-readiness.sh docs/runbooks/identity-break-glass.md && git commit -m "feat(identity): enforce MFA recovery readiness"`.
+- [x] Documentar gatilho, autorização, auditoria e revogação do break-glass.
+- [x] Commit: `git add infra/psono/scripts/f2-readiness-report.sh infra/psono/scripts/mfa-readiness.sh infra/scripts/authentik-readiness-report.sh infra/scripts/authentik_mfa_readiness.py infra/tests/test-psono-tooling.sh infra/tests/test-authentik-readiness.sh docs/runbooks/identity-break-glass.md && git commit -m "feat(identity): enforce MFA recovery readiness"`.
 
 ### Task 4: Executar UAT de identidade em todas as aplicações
 
