@@ -88,8 +88,7 @@ Detailed task steps remain in the referenced plans. For each phase, load `superp
 **Interfaces:** Phase 2 produces validated source events and one stable incident/ticket relationship. Phase 3 Task 3 provides durable idempotency and owner-safe concurrency. Both consume Phase 1 tenant authorization.
 
 - [ ] Execute Phase 2 Tasks 1–5 in order, exactly as specified in its plan.
-- [ ] Execute Phase 3 Task 3 with its specified concurrent retry, lock expiry and replay tests.
-- [ ] Run each named test before its commit; repeat concurrency tests 20 times as the phase plan requires; expected: one incident and at most one GLPI ticket per tenant-scoped source event.
+- [ ] Run each named Phase 2 test before its commit; expected: the synthetic alert-to-resolution flow creates or updates one GLPI ticket and retains its Hub link.
 - [ ] Require source failure, stale data, unknown tenant, duplicate delivery and partial GLPI failure to remain visible and recoverable before marking the path complete.
 
 ### Task 4: Make Hub runtime failure visible
@@ -106,7 +105,7 @@ Detailed task steps remain in the referenced plans. For each phase, load `superp
 
 **Plan:** Tasks 1–5 in `docs/superpowers/plans/2026-09-18-phase-4-dashboard-operational-truth.md`.
 
-**Interfaces:** Consumes approved identity, source, incident and runtime contracts from Tasks 2–4. Produces authenticated incident list/detail, linked ticket, source health/freshness/error, and explicit states for unavailable modules.
+**Interfaces:** Consumes locally verified identity, source, incident and runtime contracts from Tasks 2–4. Produces authenticated incident list/detail, linked ticket, source health/freshness/error, and explicit states for unavailable modules. Production release still requires approved Phase 0–3 gates.
 
 - [ ] Execute Phase 4 Tasks 1–5 in order; do not include its Wazuh sizing/purchase task in MVP delivery.
 - [ ] Remove static security data and hard-coded timestamps from production routes; test stale, failed, empty and healthy source responses.
