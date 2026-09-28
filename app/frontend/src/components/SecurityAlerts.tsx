@@ -20,7 +20,7 @@ export default function SecurityAlerts() {
   useEffect(() => {
     const fetchAudits = async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/tenants/security-audit`, { headers: authHeader() });
+        const res = await fetch(`${API_BASE}/api/tenants/security-audit`, { credentials: 'include', headers: authHeader() });
         if (res.ok) {
           const data = await res.json();
           setAudits(data);

@@ -270,9 +270,9 @@ function AppShellBody({ AUTH, logout, user }: {
     try {
       const query = selectedTenant ? `?customer_id=${selectedTenant}` : '';
       const [summaryRes, problemsRes, pipelineRes] = await Promise.all([
-        fetch(`${API_BASE}/api/dashboard/summary${query}`, { headers: AUTH }),
-        fetch(`${API_BASE}/api/dashboard/problems${selectedTenant ? query + '&' : '?'}limit=15`, { headers: AUTH }),
-        fetch(`${API_BASE}/api/dashboard/pipeline-status${query}`, { headers: AUTH }),
+        fetch(`${API_BASE}/api/dashboard/summary${query}`, { credentials: 'include', headers: AUTH }),
+        fetch(`${API_BASE}/api/dashboard/problems${selectedTenant ? query + '&' : '?'}limit=15`, { credentials: 'include', headers: AUTH }),
+        fetch(`${API_BASE}/api/dashboard/pipeline-status${query}`, { credentials: 'include', headers: AUTH }),
       ]);
       if (!summaryRes.ok || !problemsRes.ok) throw new Error('API error');
       setSummary(await summaryRes.json());
@@ -294,7 +294,7 @@ function AppShellBody({ AUTH, logout, user }: {
     else setIncidentsMoreLoading(true);
     try {
       const scope = isOperator && selectedTenant ? `&tenant_id=${encodeURIComponent(selectedTenant.trim().toLowerCase())}` : '';
-      const res = await fetch(`${API_BASE}/api/incidents?limit=20&offset=${offset}${scope}`, { headers: AUTH });
+      const res = await fetch(`${API_BASE}/api/incidents?limit=20&offset=${offset}${scope}`, { credentials: 'include', headers: AUTH });
       if (!res.ok) throw new Error();
       const data = await res.json();
       if (requestId !== incidentsRequest.current) return;

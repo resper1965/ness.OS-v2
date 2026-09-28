@@ -28,7 +28,7 @@ export default function CloudManagement({ selectedTenant }: { selectedTenant: st
     setLoading(true);
     try {
       const query = selectedTenant ? `?customer_id=${selectedTenant}` : '';
-      const res = await fetch(`${API_BASE}/api/contabo/dashboard-full${query}`, { headers: authHeader() });
+      const res = await fetch(`${API_BASE}/api/contabo/dashboard-full${query}`, { credentials: 'include', headers: authHeader() });
       if (res.ok) {
         const data = await res.json();
         setSummary(data.summary);

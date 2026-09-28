@@ -348,13 +348,13 @@ export default function SecopsModule() {
     setHealthLoading(true);
 
     try {
-      const res = await fetch(`${API_BASE}/api/secops/cve-intel`, { headers: authHeader() });
+      const res = await fetch(`${API_BASE}/api/secops/cve-intel`, { credentials: 'include', headers: authHeader() });
       if (res.ok) setCveIntel(await res.json());
     } catch (e) { console.error('CVE intel:', e); }
     finally { setCveLoading(false); }
 
     try {
-      const res = await fetch(`${API_BASE}/api/secops/zabbix-health`, { headers: authHeader() });
+      const res = await fetch(`${API_BASE}/api/secops/zabbix-health`, { credentials: 'include', headers: authHeader() });
       if (!res.ok) throw new Error('Falha HTTP na coleta Zabbix');
       const next = await res.json() as ZabbixHealth;
       if (!next.error) setHealth(next);

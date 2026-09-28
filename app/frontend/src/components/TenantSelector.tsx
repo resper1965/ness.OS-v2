@@ -24,7 +24,7 @@ export default function TenantSelector({ selectedTenant, onSelect }: Props) {
     const fetchTenants = async () => {
       setLoading(true);
       try {
-        const res = await fetch(`${API_BASE}/api/tenants/list`, { headers: authHeader() });
+        const res = await fetch(`${API_BASE}/api/tenants/list`, { credentials: 'include', headers: authHeader() });
         if (res.ok) {
           const data = await res.json();
           setTenants(data);

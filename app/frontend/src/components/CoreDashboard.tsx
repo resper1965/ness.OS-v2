@@ -70,7 +70,7 @@ export default function CoreDashboard({ authHeader, onModuleSwitch }: {
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE}/api/dashboard/sources`, { headers: authHeader });
+      const response = await fetch(`${API_BASE}/api/dashboard/sources`, { credentials: 'include', headers: authHeader });
       if (response.status === 401 || response.status === 403) {
         setSources(null);
         throw new Error('Sessão sem acesso às fontes operacionais');
