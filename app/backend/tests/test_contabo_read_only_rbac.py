@@ -1,9 +1,10 @@
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import pytest
 from fastapi import HTTPException
 
-from app.api.routers import contabo
+from app.api.routers import contabo, contabo_mgmt
 from app.core.dependencies import require_platform_admin
 from app.main import app
 from app.models.users import UserRole
@@ -76,3 +77,18 @@ def test_contabo_failures_do_not_expose_provider_error(operation):
 
     assert error.value.status_code == 502
     assert error.value.detail == "Contabo API indisponível."
+
+
+@pytest.mark.asyncio
+async def test_unmounted_contabo_management_route_hides_provider_error(monkeypatch):
+    client = SimpleNamespace(
+        list_firewalls=AsyncMock(side_effect=RuntimeError("Bearer provider-secret"))
+    )
+    monkeypatch.setattr(contabo_mgmt, "ContaboFirewallClient", lambda _: client)
+
+    with pytest.raises(HTTPException) as error:
+        await contabo_mgmt.list_firewalls()
+
+    assert error.value.status_code == 502
+    assert error.value.detail == "Contabo API indisponível."
+    assert "provider-secret" not in str(error.value.detail)
