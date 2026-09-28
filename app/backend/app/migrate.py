@@ -63,6 +63,38 @@ async def run_migrations():
             )
         )
 
+        await conn.execute(
+            text(
+                "ALTER TABLE n_infraops_incidents "
+                "ADD COLUMN IF NOT EXISTS assigned_user_id BIGINT;"
+            )
+        )
+        await conn.execute(
+            text(
+                """
+                CREATE TABLE IF NOT EXISTS n_infraops_incident_actions (
+                    id BIGSERIAL PRIMARY KEY,
+                    incident_id BIGINT NOT NULL REFERENCES n_infraops_incidents(id),
+                    actor_user_id BIGINT,
+                    actor_source VARCHAR(32) NOT NULL,
+                    action VARCHAR(32) NOT NULL,
+                    previous_status VARCHAR(32),
+                    new_status VARCHAR(32),
+                    previous_assignee_id BIGINT,
+                    new_assignee_id BIGINT,
+                    note TEXT,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                );
+                """
+            )
+        )
+        await conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS idx_incident_actions_incident_created "
+                "ON n_infraops_incident_actions (incident_id, created_at DESC);"
+            )
+        )
+
         # 3. Criar tabela n_infraops_push_subscriptions se não existir
         logger.info("Verificando tabela n_infraops_push_subscriptions...")
         try:

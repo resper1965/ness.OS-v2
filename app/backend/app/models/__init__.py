@@ -5,6 +5,7 @@ from app.models.models import (
     AssetType,
     CustomerCredentials,
     Incident,
+    IncidentAction,
     IncidentReport,
     Metric,
     PlaybookExecution,
@@ -17,6 +18,7 @@ from app.models.users import User, UserRole
 __all__ = [
     "Asset",
     "Incident",
+    "IncidentAction",
     "IncidentReport",
     "PlaybookExecution",
     "AssetType",

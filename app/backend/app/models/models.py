@@ -146,6 +146,7 @@ class Incident(Base):
     status: Mapped[str] = mapped_column(
         String(32), nullable=False, default="open", server_default="open"
     )
+    assigned_user_id: Mapped[int | None] = mapped_column(BigInteger)
 
     # Zabbix IDs
     host_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
@@ -195,6 +196,28 @@ class Incident(Base):
     )
     playbook_executions: Mapped[list[PlaybookExecution]] = relationship(
         "PlaybookExecution", back_populates="incident"
+    )
+
+
+class IncidentAction(Base):
+    """Durable, attributable history of operator and integration actions."""
+
+    __tablename__ = "n_infraops_incident_actions"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    incident_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("n_infraops_incidents.id"), nullable=False
+    )
+    actor_user_id: Mapped[int | None] = mapped_column(BigInteger)
+    actor_source: Mapped[str] = mapped_column(String(32), nullable=False)
+    action: Mapped[str] = mapped_column(String(32), nullable=False)
+    previous_status: Mapped[str | None] = mapped_column(String(32))
+    new_status: Mapped[str | None] = mapped_column(String(32))
+    previous_assignee_id: Mapped[int | None] = mapped_column(BigInteger)
+    new_assignee_id: Mapped[int | None] = mapped_column(BigInteger)
+    note: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
 

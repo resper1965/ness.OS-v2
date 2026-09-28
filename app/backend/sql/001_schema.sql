@@ -107,6 +107,7 @@ CREATE TABLE n_infraops_incidents (
     title           VARCHAR(512)    NOT NULL,
     severity        SMALLINT        NOT NULL DEFAULT 3,
     status          VARCHAR(32)     NOT NULL DEFAULT 'open',
+    assigned_user_id BIGINT,
 
     -- Referências
     host_id         VARCHAR(64)     NOT NULL,
@@ -139,6 +140,22 @@ CREATE INDEX idx_incidents_last_seen   ON n_infraops_incidents (last_seen DESC);
 CREATE TRIGGER trg_incidents_updated_at
     BEFORE UPDATE ON n_infraops_incidents
     FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+CREATE TABLE n_infraops_incident_actions (
+    id                   BIGSERIAL PRIMARY KEY,
+    incident_id          BIGINT NOT NULL REFERENCES n_infraops_incidents(id),
+    actor_user_id        BIGINT,
+    actor_source         VARCHAR(32) NOT NULL,
+    action               VARCHAR(32) NOT NULL,
+    previous_status      VARCHAR(32),
+    new_status           VARCHAR(32),
+    previous_assignee_id BIGINT,
+    new_assignee_id      BIGINT,
+    note                 TEXT,
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX idx_incident_actions_incident_created
+    ON n_infraops_incident_actions (incident_id, created_at DESC);
 
 
 -- ---------------------------------------------------------

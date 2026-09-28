@@ -7,11 +7,13 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+from typing import Literal
 from urllib.parse import urlencode, urljoin
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from fastapi.security import HTTPBearer
+from pydantic import BaseModel, Field, field_validator
 from redis.asyncio import Redis
 from sqlalchemy import desc, func, select
 from sqlalchemy.orm import selectinload
@@ -24,7 +26,7 @@ from app.core.dependencies import (
     resolve_tenant_scope,
 )
 from app.database import SessionLocal
-from app.models import Incident
+from app.models import Incident, IncidentAction
 from app.models.schemas import IncidentAnalyzeRequest
 from app.models.users import User
 
@@ -47,7 +49,7 @@ def _pipeline_stage(incident: Incident) -> str:
     """Calcula em qual etapa do pipeline o incidente está."""
     # Por enquanto derivado dos campos existentes.
     # Quando DeskManager e n8n forem integrados, estes campos serão persistidos.
-    if incident.status == "resolved":
+    if incident.status in {"resolved", "closed"}:
         return "resolved"
     if incident.deskmanager_ticket_id:
         return "ticket_opened"
@@ -85,11 +87,27 @@ def _incident_payload(inc: Incident) -> dict:
         "client": tags.get("ninf_customer_name")
         or (inc.asset.customer_name if inc.asset else "Não identificado"),
         "status": inc.status,
+        "assigned_user_id": getattr(inc, "assigned_user_id", None),
         "alert_count": inc.alert_count or 1,
         "first_seen": inc.first_seen.isoformat() if inc.first_seen else None,
         "last_seen": inc.last_seen.isoformat() if inc.last_seen else None,
         "pipeline_stage": _pipeline_stage(inc),
     }
+
+
+class IncidentActionRequest(BaseModel):
+    action: Literal["acknowledge", "assign_self", "comment", "resolve", "close"]
+    note: str | None = Field(default=None, max_length=2000)
+
+    @field_validator("note")
+    @classmethod
+    def nonblank_note(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        value = value.strip()
+        if not value:
+            raise ValueError("O comentário não pode estar vazio")
+        return value
 
 
 @router.get(
@@ -273,6 +291,18 @@ async def get_incident_detail(
                 + "?"
                 + urlencode({"triggerid": incident.trigger_id, "eventid": event_id})
             )
+        actions = (
+            (
+                await session.execute(
+                    select(IncidentAction)
+                    .where(IncidentAction.incident_id == incident.id)
+                    .order_by(desc(IncidentAction.created_at), desc(IncidentAction.id))
+                    .limit(100)
+                )
+            )
+            .scalars()
+            .all()
+        )
         return {
             **_incident_payload(incident),
             "host_id": incident.host_id,
@@ -280,4 +310,100 @@ async def get_incident_detail(
             "source_event_id": event_id,
             "source_url": source_url,
             "description": incident.sanitized_description,
+            "actions": [
+                {
+                    "id": str(action.id),
+                    "actor_user_id": action.actor_user_id,
+                    "actor_source": action.actor_source,
+                    "action": action.action,
+                    "previous_status": action.previous_status,
+                    "new_status": action.new_status,
+                    "previous_assignee_id": action.previous_assignee_id,
+                    "new_assignee_id": action.new_assignee_id,
+                    "note": action.note,
+                    "created_at": action.created_at.isoformat(),
+                }
+                for action in actions
+            ],
+        }
+
+
+@router.post("/api/incidents/{incident_id}/actions", tags=["incidents"])
+async def act_on_incident(
+    incident_id: int,
+    body: IncidentActionRequest,
+    current_user: User = Depends(require_noc),
+):
+    """Apply an operator action and append its audit row in one transaction."""
+    if body.action in {"comment", "resolve"} and not body.note:
+        raise HTTPException(status_code=422, detail="Comentário obrigatório")
+    scope = resolve_tenant_scope(current_user, None)
+    async with SessionLocal() as session:
+        async with session.begin():
+            stmt = select(Incident).where(Incident.id == incident_id)
+            if scope:
+                stmt = stmt.where(
+                    func.lower(Incident.tags["ninf_customer_name"].astext) == scope
+                )
+            incident = (
+                await session.execute(stmt.with_for_update())
+            ).scalar_one_or_none()
+            if incident is None or (
+                scope
+                and (incident.tags or {}).get("ninf_customer_name", "").lower() != scope
+            ):
+                raise HTTPException(status_code=404, detail="Incidente não encontrado")
+
+            previous_status = incident.status
+            previous_assignee = incident.assigned_user_id
+            if body.action == "acknowledge":
+                if incident.status != "open":
+                    raise HTTPException(status_code=409, detail="Estado incompatível")
+                incident.status = "acknowledged"
+            elif body.action == "assign_self":
+                if incident.status == "closed":
+                    raise HTTPException(status_code=409, detail="Incidente encerrado")
+                if incident.assigned_user_id == current_user.id:
+                    return {
+                        "id": str(incident.id),
+                        "status": incident.status,
+                        "assigned_user_id": incident.assigned_user_id,
+                    }
+                incident.assigned_user_id = current_user.id
+            elif body.action == "resolve":
+                if incident.status not in {"open", "acknowledged"} or (
+                    incident.deskmanager_ticket_id
+                    and not (incident.tags or {}).get("glpi_resolved_at")
+                ):
+                    raise HTTPException(
+                        status_code=409, detail="Resolução GLPI pendente"
+                    )
+                incident.status = "resolved"
+            elif body.action == "close":
+                if incident.status != "resolved" or (
+                    incident.deskmanager_ticket_id
+                    and (incident.tags or {}).get("resolution_sync_status") != "synced"
+                ):
+                    raise HTTPException(
+                        status_code=409, detail="Resolução não sincronizada"
+                    )
+                incident.status = "closed"
+
+            session.add(
+                IncidentAction(
+                    incident_id=incident.id,
+                    actor_user_id=current_user.id,
+                    actor_source="user",
+                    action=body.action,
+                    previous_status=previous_status,
+                    new_status=incident.status,
+                    previous_assignee_id=previous_assignee,
+                    new_assignee_id=incident.assigned_user_id,
+                    note=body.note,
+                )
+            )
+        return {
+            "id": str(incident.id),
+            "status": incident.status,
+            "assigned_user_id": incident.assigned_user_id,
         }

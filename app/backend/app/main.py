@@ -117,6 +117,12 @@ async def ready() -> dict[str, str]:
     async def probe() -> None:
         async with SessionLocal() as session:
             await session.execute(text("SELECT 1"))
+            await session.execute(
+                text("SELECT assigned_user_id FROM n_infraops_incidents LIMIT 0")
+            )
+            await session.execute(
+                text("SELECT id FROM n_infraops_incident_actions LIMIT 0")
+            )
         for url in (settings.redis_url, settings.celery_broker_url):
             client = Redis.from_url(url, socket_connect_timeout=2, socket_timeout=2)
             try:

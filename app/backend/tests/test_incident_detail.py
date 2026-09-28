@@ -12,8 +12,9 @@ from app.models.users import UserRole
 
 
 class FakeSession:
-    def __init__(self, incident):
+    def __init__(self, incident, actions=()):
         self.incident = incident
+        self.actions = actions
         self.statement = None
 
     async def __aenter__(self):
@@ -23,8 +24,12 @@ class FakeSession:
         pass
 
     async def execute(self, statement):
-        self.statement = statement
-        return SimpleNamespace(scalar_one_or_none=lambda: self.incident)
+        if self.statement is None:
+            self.statement = statement
+            return SimpleNamespace(scalar_one_or_none=lambda: self.incident)
+        return SimpleNamespace(
+            scalars=lambda: SimpleNamespace(all=lambda: self.actions)
+        )
 
 
 def _client(role=UserRole.cliente, tenant_id="tenant-a"):
@@ -44,6 +49,7 @@ def _incident(tenant="tenant-a"):
         title="CPU elevada",
         severity=4,
         status="open",
+        assigned_user_id=None,
         host_id="101",
         host_name="host-a",
         trigger_id="202",
@@ -63,7 +69,19 @@ def _incident(tenant="tenant-a"):
 
 
 def test_detail_exposes_source_and_ticket_in_authorized_tenant():
-    session = FakeSession(_incident())
+    action = SimpleNamespace(
+        id=1,
+        actor_user_id=42,
+        actor_source="user",
+        action="acknowledge",
+        previous_status="open",
+        new_status="acknowledged",
+        previous_assignee_id=None,
+        new_assignee_id=None,
+        note=None,
+        created_at=datetime(2026, 9, 28, 11, tzinfo=timezone.utc),
+    )
+    session = FakeSession(_incident(), [action])
     with patch("app.api.routers.incidents.SessionLocal", return_value=session):
         response = _client().get("/api/incidents/7")
 
@@ -76,6 +94,7 @@ def test_detail_exposes_source_and_ticket_in_authorized_tenant():
     assert response.json()["description"] == "Descrição segura"
     assert response.json()["ticket_id"] == "404"
     assert response.json()["resolution_sync_status"] == "pending"
+    assert response.json()["actions"][0]["actor_user_id"] == 42
     params = session.statement.compile().params
     assert params["tags_1"] == "ninf_customer_name"
     assert params["lower_1"] == "tenant-a"

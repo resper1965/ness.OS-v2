@@ -7,9 +7,15 @@ from app.main import app
 
 
 class FakeSession:
-    def __init__(self, fails=False):
+    def __init__(self, fails=False, missing_schema=False):
         self.execute = AsyncMock(
-            side_effect=ConnectionError("database-secret") if fails else None
+            side_effect=(
+                ConnectionError("database-secret")
+                if fails
+                else [None, RuntimeError("missing-schema"), None]
+                if missing_schema
+                else None
+            )
         )
 
     async def __aenter__(self):
@@ -29,10 +35,14 @@ class FakeRedis:
 
 
 @pytest.mark.parametrize(
-    "failed_dependency", (None, "database", "redis", "broker", "redis_negative")
+    "failed_dependency",
+    (None, "database", "schema", "redis", "broker", "redis_negative"),
 )
 def test_api_readiness_requires_database_and_redis(failed_dependency):
-    session = FakeSession(fails=failed_dependency == "database")
+    session = FakeSession(
+        fails=failed_dependency == "database",
+        missing_schema=failed_dependency == "schema",
+    )
     redis = FakeRedis(
         fails=failed_dependency == "redis",
         returns=failed_dependency != "redis_negative",
@@ -51,10 +61,16 @@ def test_api_readiness_requires_database_and_redis(failed_dependency):
         {"detail": "unavailable"} if failed_dependency else {"status": "ready"}
     )
     assert "secret" not in response.text
-    session.execute.assert_awaited_once()
-    if failed_dependency != "database":
+    assert session.execute.await_count == (
+        1
+        if failed_dependency == "database"
+        else 2
+        if failed_dependency == "schema"
+        else 3
+    )
+    if failed_dependency not in ("database", "schema"):
         redis.ping.assert_awaited_once()
         redis.aclose.assert_awaited_once()
-    if failed_dependency not in ("database", "redis", "redis_negative"):
+    if failed_dependency not in ("database", "schema", "redis", "redis_negative"):
         broker.ping.assert_awaited_once()
         broker.aclose.assert_awaited_once()
