@@ -39,8 +39,8 @@ async def get_jwks() -> dict[str, Any]:
             _JWKS_CACHE_TIME = now
             logger.info("Chaves JWKS do Authentik atualizadas no cache com sucesso.")
             return jwks
-    except Exception as e:
-        logger.error(f"Falha ao carregar JWKS do Authentik: {e}")
+    except Exception as exc:
+        logger.error("Authentik JWKS load failed: %s", type(exc).__name__)
         if _JWKS_CACHE:
             logger.warning("Retornando JWKS expirado do cache devido a falha de rede.")
             return _JWKS_CACHE
@@ -64,8 +64,10 @@ async def verify_oidc_token(token: str) -> dict[str, Any]:
             issuer=settings.oidc_issuer,
         )
         return payload
-    except JWTError as e:
-        logger.error(f"Falha de validação do token OIDC do Authentik: {e}")
+    except JWTError as exc:
+        logger.error(
+            "Authentik identity token validation failed: %s", type(exc).__name__
+        )
         raise
 
 
@@ -91,7 +93,7 @@ async def exchange_oidc_code(
         res = await client.post(settings.oidc_token_url, data=data)
         if not res.is_success:
             logger.error(
-                f"Erro na requisição /token do Authentik: {res.status_code} - {res.text}"
+                "Authentik token exchange failed with HTTP %s", res.status_code
             )
             res.raise_for_status()
         return res.json()
