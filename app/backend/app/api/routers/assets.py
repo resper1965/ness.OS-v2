@@ -17,6 +17,11 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+def _atera_failure(operation: str, error: Exception) -> HTTPException:
+    logger.error("Atera %s failed: %s", operation, type(error).__name__)
+    return HTTPException(status_code=502, detail="Atera indisponível.")
+
+
 @router.get("/cmdb")
 async def cmdb_assets(
     tenant_id: str | None = None,
@@ -83,9 +88,8 @@ async def get_assets_summary() -> dict[str, Any]:
             },
             "datto": {"total": 0, "note": "pending credentials"},
         }
-    except Exception as e:
-        logger.error(f"Assets summary error: {e}")
-        raise HTTPException(502, str(e))
+    except Exception as error:
+        raise _atera_failure("summary", error)
 
 
 @router.get("", dependencies=[Depends(require_noc)])
@@ -140,9 +144,8 @@ async def list_assets(
             "total": len(normalized),
             "items": normalized,
         }
-    except Exception as e:
-        logger.error(f"Assets list error: {e}")
-        raise HTTPException(502, str(e))
+    except Exception as error:
+        raise _atera_failure("asset list", error)
 
 
 @router.get("/count", dependencies=[Depends(require_noc)])
@@ -159,6 +162,6 @@ async def count_assets() -> dict[str, Any]:
             "datto": 0,
             "total": atera_total,
         }
-    except Exception as e:
-        logger.error(f"Assets count error: {e}")
-        return {"atera": 0, "datto": 0, "total": 0, "error": str(e)}
+    except Exception as error:
+        logger.error("Atera asset count failed: %s", type(error).__name__)
+        return {"atera": 0, "datto": 0, "total": 0, "error": "atera_unavailable"}
