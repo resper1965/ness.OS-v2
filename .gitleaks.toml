@@ -1,0 +1,11 @@
+title = "ness.OS secret scan"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "SHA-256 file hashes in the Phase 0 production manifest"
+condition = "and"
+paths = ['''(^|/)docs/execution/evidence/phase-0-production-manifest\.json$''']
+regexTarget = "line"
+regexes = ['''^\s*"(?:app|infra)/[^"]+": "[a-f0-9]{64}",?\s*$''']
