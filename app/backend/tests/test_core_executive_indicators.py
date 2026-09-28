@@ -1,5 +1,6 @@
 import asyncio
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 from app.api.routers import core
 
@@ -79,3 +80,28 @@ def test_kpis_do_not_report_provider_failure_as_zero(monkeypatch):
     assert kpis["zabbix_hosts_active"]["value"] is None
     assert kpis["zabbix_hosts_active"]["status"] == "unavailable"
     assert kpis["zabbix_alerts_critical"]["alert"] is None
+
+
+def test_infra_summary_uses_atera_dashboard_contract(monkeypatch):
+    async def zabbix_call(method, _params):
+        return [] if method == "host.get" else []
+
+    atera_client = SimpleNamespace(
+        get_dashboard_summary=AsyncMock(
+            return_value={"agents_total": 7, "alerts_total": 2}
+        )
+    )
+    monkeypatch.setattr(
+        core, "ZabbixClient", lambda: SimpleNamespace(_call=zabbix_call)
+    )
+    monkeypatch.setattr(core, "AteraClient", lambda **_kwargs: atera_client)
+    monkeypatch.setattr(
+        core, "get_settings", lambda: SimpleNamespace(atera_api_key="key")
+    )
+
+    result = asyncio.run(core._infra_summary())
+
+    assert result["agents_rmm"] == 7
+    assert result["rmm_alerts"] == 2
+    assert result["sources"]["atera"]["status"] == "ok"
+    atera_client.get_dashboard_summary.assert_awaited_once()

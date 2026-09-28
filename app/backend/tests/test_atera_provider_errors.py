@@ -4,6 +4,7 @@ import pytest
 from fastapi import HTTPException
 
 from app.api.routers import atera
+from app.integrations.atera import AteraClient
 
 
 @pytest.mark.asyncio
@@ -33,5 +34,19 @@ async def test_atera_routes_hide_provider_errors(monkeypatch, operation):
     assert "provider-secret" not in str(error.value.detail)
 
 
-async def _raise_provider_error():
+async def _raise_provider_error(*_args, **_kwargs):
     raise RuntimeError("Bearer provider-secret")
+
+
+@pytest.mark.asyncio
+async def test_atera_dashboard_summary_hides_provider_exception(monkeypatch):
+    client = AteraClient(api_key="private-api-key")
+    monkeypatch.setattr(client, "_get_page_one", _raise_provider_error)
+
+    result = await client.get_dashboard_summary()
+
+    assert result == {
+        "source": "atera",
+        "error": "source_unavailable",
+        "degraded": True,
+    }

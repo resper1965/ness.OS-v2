@@ -180,6 +180,10 @@ class AteraClient:
                 "alerts_total": total_alerts,
                 "response_time_ms": elapsed_ms,
             }
-        except Exception as e:
-            logger.error(f"Atera summary error: {e}")
-            return {"source": "atera", "error": str(e), "degraded": True}
+        except Exception as exc:
+            logger.error("Atera summary failed: %s", type(exc).__name__)
+            return {
+                "source": "atera",
+                "error": "source_unavailable",
+                "degraded": True,
+            }

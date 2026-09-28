@@ -70,14 +70,13 @@ async def _infra_summary() -> dict:
         }
 
     async def _atera():
-        if not settings.atera_api_key:
-            return {"agents": 0, "alerts": 0}
         client = AteraClient(api_key=settings.atera_api_key)
-        summary = await client.get_summary()
+        summary = await client.get_dashboard_summary()
+        if summary.get("degraded"):
+            raise RuntimeError("Atera summary unavailable")
         return {
-            "agents": summary.get("agents_total", 0),
-            "alerts": summary.get("alerts_critical", 0)
-            + summary.get("alerts_warning", 0),
+            "agents": summary.get("agents_total"),
+            "alerts": summary.get("alerts_total"),
         }
 
     zabbix_data, atera_data = await asyncio.gather(
