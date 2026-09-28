@@ -50,7 +50,7 @@ O cliente GLPI passou a registrar somente o tipo de falha e a propagar erros ope
 
 O cliente Zabbix passou a ocultar detalhes HTTP e JSON-RPC do provedor, preservando somente a indisponibilidade identificável para seus chamadores. A suíte completa passou com 403 testes aprovados e um ignorado.
 
-As chamadas autenticadas do frontend passaram a usar `credentials: include`, permitindo que a sessão HttpOnly alcance a API quando `VITE_API_URL` usa outra origem autorizada. Typecheck, lint e build do frontend passaram.
+As chamadas autenticadas do frontend passaram a usar `credentials: include`, permitindo que a sessão HttpOnly alcance a API quando `VITE_API_URL` usa outra origem autorizada. A API também aceita a origem padrão do Vite (`http://localhost:5173`) com credenciais; a regressão cobre o preflight. Typecheck, lint e build do frontend passaram. Os cinco checks do PR rascunho #64 passaram no commit `0f87fb6`.
 
 O precheck somente leitura de 28/09 passou em 60 testes de sessão/RBAC, nos gates estáticos e nas rotas públicas Authentik, Hub, GLPI, n8n e Zabbix UAT. O Zabbix UAT permanece `inactive`, `masked` e sem escuta TCP/10051; ver `docs/execution/evidence/uat-readonly-precheck-2026-09-28.md`. Não houve login nominal nem confirmação do isolamento na aplicação implantada. O SSH de leitura à VPS AIOps foi negado pela chave disponível nesta sessão, portanto não há atualização de backups ou runtime de produção.
 
