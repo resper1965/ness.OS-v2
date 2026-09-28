@@ -1,12 +1,10 @@
 import logging
 
 from fastapi import APIRouter, Depends, Header, status
-from redis.asyncio import Redis
 
 from app.config import get_settings
 from app.core.fingerprint import generate_event_fingerprint
 from app.core.webhook_auth import verify_key
-from app.dependencies import get_redis
 from app.models.schemas import AlertResponse, ZabbixAlertPayload
 from app.workers.alerts import process_alert_v1
 
@@ -31,7 +29,6 @@ router = APIRouter(
 )
 async def receive_alert(
     payload: ZabbixAlertPayload,
-    redis: Redis = Depends(get_redis),
 ) -> AlertResponse:
     """Endpoint de ingestão de alertas v1.
 
