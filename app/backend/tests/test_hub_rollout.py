@@ -1,3 +1,5 @@
+from datetime import UTC
+
 import httpx
 import pytest
 
@@ -59,6 +61,7 @@ def test_new_problem_event_gets_new_ticket_identity():
     next_problem = first.model_copy(update={"event_id": "11"})
     assert generate_event_fingerprint(first) == generate_event_fingerprint(replay)
     assert generate_event_fingerprint(first) != generate_event_fingerprint(next_problem)
+    assert first.timestamp.tzinfo is UTC
 
 
 def test_generic_zabbix_group_does_not_override_customer():

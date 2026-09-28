@@ -642,7 +642,7 @@ async def triage_alert(
             "action_taken": triage_result["action_taken"],
             "risk_score": eval_result.risk_score,
             "threat_intel": enriched_data,
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         }
         dispatch = notify_soc_triage_decision(n8n_payload)
         triage_result["dispatch_status"] = dispatch.get(

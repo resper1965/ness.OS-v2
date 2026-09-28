@@ -24,6 +24,8 @@ A lista de incidentes agora informa o total filtrado, permite carregar páginas 
 
 As rotas de leitura da Contabo agora retornam um erro genérico ao cliente e registram somente o tipo da falha do provedor, evitando exposição acidental de detalhes de SDK, HTTP ou credenciais. A suíte completa do backend passou novamente com 383 testes aprovados e um teste opcional ignorado.
 
+Os contratos de alerta, incidente e pós-incidente agora geram timestamps UTC com fuso explícito; o despacho SecOps conserva o sufixo `Z`. A suíte completa voltou a passar com 383 testes e um ignorado, sem os avisos de `datetime.utcnow` observados antes.
+
 O precheck somente leitura de 28/09 passou em 60 testes de sessão/RBAC, nos gates estáticos e nas rotas públicas Authentik, Hub, GLPI, n8n e Zabbix UAT. O Zabbix UAT permanece `inactive`, `masked` e sem escuta TCP/10051; ver `docs/execution/evidence/uat-readonly-precheck-2026-09-28.md`. Não houve login nominal nem confirmação do isolamento na aplicação implantada. O SSH de leitura à VPS AIOps foi negado pela chave disponível nesta sessão, portanto não há atualização de backups ou runtime de produção.
 
 ## Próxima execução

@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 import enum
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -33,7 +33,7 @@ class ZabbixAlertPayload(BaseModel):
     trigger_description: str = Field(default="", description="Descrição do trigger")
     severity: ZabbixSeverity = Field(default=ZabbixSeverity.AVERAGE)
     status: str = Field(default="PROBLEM", description="PROBLEM ou RESOLVED")
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
     tags: dict[str, str] = Field(default_factory=dict)
     items: list[dict[str, Any]] = Field(
         default_factory=list,
@@ -69,8 +69,8 @@ class Incident(BaseModel):
     host_name: str
     trigger_id: str
     alert_count: int = 1
-    first_seen: datetime = Field(default_factory=datetime.utcnow)
-    last_seen: datetime = Field(default_factory=datetime.utcnow)
+    first_seen: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    last_seen: datetime = Field(default_factory=lambda: datetime.now(UTC))
     sanitized_description: str = ""
     tags: dict[str, str] = Field(default_factory=dict)
 
@@ -143,7 +143,7 @@ class PostMortemReport(BaseModel):
     deskmanager_ticket_id: str | None = None
     host_name: str | None = None
     customer_name: str | None = None
-    generated_at: datetime = Field(default_factory=datetime.utcnow)
+    generated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     # Conteúdo Markdown gerado pelo Gemini
     markdown_report: str = Field(
