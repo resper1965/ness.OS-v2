@@ -107,10 +107,10 @@
 
 **Interfaces:** Cada integração possui identidade técnica própria, escopo mínimo, consumidor conhecido, data de rotação e teste de revogação; n8n não compartilha credencial administrativa humana.
 
-- [ ] Criar fixtures para segredo ausente, compartilhado entre serviços, vencido e presente em arquivo versionado.
-- [ ] Executar `bash infra/tests/test-secrets-plumbing.sh`; esperado: novos casos falham.
-- [ ] Estender o relatório para mapear consumidor, origem segura, escopo e idade sem revelar valores.
-- [ ] Repetir o teste; esperado: aprovado.
+- [x] Criar fixtures para segredo ausente, compartilhado entre serviços, vencido e presente em arquivo versionado.
+- [x] Executar `bash infra/tests/test-secrets-plumbing.sh`; esperado: novos casos falham.
+- [x] Estender o relatório para mapear consumidor, origem segura, escopo e idade sem revelar valores.
+- [x] Repetir o teste; esperado: aprovado.
 - [ ] Inventariar identidades de Zabbix, GLPI, Authentik, Psono, n8n, Contabo e Object Storage.
 - [ ] Rotacionar uma credencial técnica não crítica, validar o consumidor e comprovar que a credencial anterior deixou de funcionar.
 - [ ] Validar no n8n que editor, executor e webhook respeitam SSO/RBAC e que workflows não expõem credenciais em exportações ou logs.
