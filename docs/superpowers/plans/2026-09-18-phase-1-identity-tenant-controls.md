@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- Gate de entrada: Fase 0 aprovada.
+- Gate de produção: Fase 0 aprovada. Matriz, código e testes locais podem avançar com o gate pendente; mudanças de identidade em produção aguardam `PASS`.
 - Nunca usar parâmetros enviados pelo cliente como autoridade de tenant.
 - Executar mudanças de MFA com duas contas administrativas testadas e procedimento de recuperação disponível.
 

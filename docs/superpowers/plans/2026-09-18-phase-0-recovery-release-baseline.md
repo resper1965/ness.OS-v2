@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Restabelecer backups e restaurações confiáveis do Hub e do Zabbix e criar uma release reproduzível antes de mudanças funcionais.
+**Goal:** Restabelecer backups e restaurações confiáveis do Hub e do Zabbix e criar uma release reproduzível antes de mudanças funcionais em produção.
 
 **Architecture:** Os jobs systemd chamam scripts idempotentes que produzem conjuntos locais completos, enviam snapshots criptografados ao Object Storage e verificam restauração isolada. Um manifesto associa a release local aos artefatos realmente executados em produção.
 
@@ -16,6 +16,7 @@
 - Validar caminhos resolvidos antes de qualquer limpeza; não apagar conjuntos até a nova restauração passar.
 - Separar os repositórios Restic do Hub, Zabbix, Psono e futuro Wazuh.
 - Registrar apenas presença e fingerprint de segredos, nunca seus valores.
+- Desenvolvimento e testes locais das Fases 1–4 podem avançar com este gate pendente; deploy, migração de esquema e mudanças de autenticação, roteamento ou provisionamento em produção ficam bloqueados até `PASS`.
 
 ---
 
@@ -108,5 +109,5 @@
 - [x] Confirmar timers habilitados, última execução bem-sucedida e próxima execução agendada.
 - [ ] Confirmar produção associada a commit e digests imutáveis, com rollback ensaiado.
 - [x] Executar `git diff --check` e os testes alterados nesta fase; saída limpa e código zero.
-- [x] Registrar `PASS` ou `FAIL` por critério. Gate geral permanece `FAIL`; mudanças dependentes não foram iniciadas.
+- [x] Registrar `PASS` ou `FAIL` por critério. Gate geral permanece `FAIL`; mudanças dependentes em produção não foram iniciadas.
 - [x] Commit de gate: `71b6ed9` (atualizações de evidência nos commits `9772e14`, `c2ab106` e `e48b176`).

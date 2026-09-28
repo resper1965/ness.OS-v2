@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- Gates de entrada: Fases 1, 2 e 3 aprovadas.
+- Gate de produção: Fases 0–3 aprovadas. Implementação e testes locais podem usar contratos das Fases 1–3 verificados antes do gate; deploy e aceite do dashboard aguardam aprovação.
 - Remover dados demonstrativos e timestamps fixos das rotas usadas em produção.
 - Não atualizar `last_success_at` quando uma coleta falhar.
 - Respeitar tenant e papel em cada cartão, lista, busca, exportação e stream.
@@ -93,6 +93,7 @@
 - Create: `app/frontend/src/components/BackupStatus.tsx`
 - Create: `app/frontend/src/components/InfrastructureInventory.tsx`
 - Create: `app/frontend/src/components/OperationalJourneys.test.tsx`
+- Create: `docs/execution/gates/phase-4-dashboard-mvp.md`
 
 **Interfaces:** O aplicativo cobre visão geral, fontes, incidentes, ativos/infraestrutura, tickets, backups e postura de segurança; cada área herda os estados do contrato operacional.
 
@@ -102,18 +103,21 @@
 - [ ] Exibir Wazuh como planejado antes da implantação e como fonte real somente após o gate da Fase 5.
 - [ ] Validar teclado, foco, contraste, telas estreitas, vazios, erros e latência simulada.
 - [ ] Executar testes, typecheck, lint e build; esperado: aprovados sem dados demo.
-- [ ] Commit: `git add app/frontend/src/components/CoreDashboard.tsx app/frontend/src/components/OperationalSources.tsx app/frontend/src/components/BackupStatus.tsx app/frontend/src/components/InfrastructureInventory.tsx app/frontend/src/components/OperationalJourneys.test.tsx && git commit -m "feat(ui): complete ness.OS operational journeys"`.
+- [ ] Registrar o gate da Fase 4: dados rastreáveis, estados de erro/frescor e jornadas do MVP aprovados; Wazuh aparece como `planned` ou `unavailable`.
+- [ ] Commit: `git add app/frontend/src/components/CoreDashboard.tsx app/frontend/src/components/OperationalSources.tsx app/frontend/src/components/BackupStatus.tsx app/frontend/src/components/InfrastructureInventory.tsx app/frontend/src/components/OperationalJourneys.test.tsx docs/execution/gates/phase-4-dashboard-mvp.md && git commit -m "feat(ui): complete ness.OS operational journeys"`.
 
-### Task 6: Dimensionar e aprovar a contratação do Wazuh
+### Task 6 (pós-MVP): Dimensionar e aprovar a contratação do Wazuh
+
+Esta tarefa não integra o gate de saída da Fase 4 para o MVP. Executá-la somente após o aceite do MVP; compra e rollout exigem aprovação explícita de capacidade e custo.
 
 **Files:**
 - Create: `docs/execution/wazuh-capacity-and-cost-decision.md`
-- Create: `docs/execution/gates/phase-4-dashboard-and-wazuh-purchase.md`
+- Create: `docs/execution/gates/wazuh-capacity-and-purchase.md`
 
 - [ ] Medir volume de eventos dos 5 endpoints piloto, retenção desejada, crescimento e custo mensal de VPS, snapshots e Object Storage.
 - [ ] Comparar a medição com o baseline do desenho: nó dedicado, 8 vCPU, 8 GiB RAM e pelo menos 100 GB para 25–50 endpoints e 90 dias.
 - [ ] Registrar cotação Contabo, limite de orçamento, região, RPO/RTO e custo de saída.
-- [ ] Confirmar dashboard sem dados simulados e com todas as fontes implantadas em estado correto.
+- [ ] Usar o gate da Fase 4 já aprovado como entrada; confirmar que a decisão sobre Wazuh não altera o estado das fontes do MVP.
 - [ ] Confirmar que comprar, adiar ou redimensionar não degrada as frentes já operacionais.
 - [ ] Obter aprovação explícita do orçamento antes de criar a VPS.
-- [ ] Registrar o gate e commit: `git add docs/execution/wazuh-capacity-and-cost-decision.md docs/execution/gates/phase-4-dashboard-and-wazuh-purchase.md && git commit -m "docs(gate): approve dashboard and Wazuh capacity decision"`.
+- [ ] Registrar a decisão pós-MVP e commit: `git add docs/execution/wazuh-capacity-and-cost-decision.md docs/execution/gates/wazuh-capacity-and-purchase.md && git commit -m "docs(gate): decide Wazuh capacity and purchase"`.

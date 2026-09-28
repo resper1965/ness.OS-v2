@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Levar o ambiente atual do ness.OS a um estado operacional comprovado, com recuperação testada, identidade e isolamento validados, Zabbix e GLPI saneados, Hub confiável, dashboard fiel às fontes e Wazuh incorporado quando o gate de contratação for atendido.
+**Goal:** Entregar e aceitar o MVP operacional Zabbix → Hub → GLPI com identidade, isolamento, recuperação e dashboard confiáveis. Wazuh entra em uma etapa posterior, após aceite do MVP e aprovação de capacidade e custo.
 
 **Architecture:** O Hub continua como plano de integração e experiência operacional. Zabbix, GLPI, Authentik, Psono, n8n, Contabo e Wazuh permanecem sistemas de registro de seus domínios; o Hub consome seus contratos, expõe saúde e frescor e nunca converte indisponibilidade em sucesso. Cada fase produz evidência, rollback e um gate que bloqueia dependências posteriores.
 
@@ -20,12 +20,15 @@
 - Toda métrica exibida no dashboard deve trazer fonte, instante de coleta, estado de frescor e erro explícito.
 - Componentes ainda não implantados devem aparecer como `planned` ou `unavailable`, nunca como saudáveis.
 - Usar a API da Contabo inicialmente somente para inventário, estado e reconciliação. Usar Object Storage da Contabo via S3/Restic com criptografia e bucket separado por domínio.
-- Nenhuma contratação do Wazuh ocorre antes do gate de capacidade e custo da Fase 4; preparação de código e documentação pode ocorrer antes.
+- Nenhuma contratação do Wazuh ocorre antes do aceite do MVP e da aprovação de capacidade e custo; preparação de código e documentação pode ocorrer antes.
+- Desenvolvimento e testes locais das Fases 1–4 podem avançar enquanto a Fase 0 está pendente. Deploy, migração de esquema e mudanças de autenticação, roteamento ou provisionamento em produção exigem Fase 0 aprovada.
 - Evidência operacional deve conter comandos, horários em UTC, resultado e referência da release, sem dados sensíveis.
 
 ---
 
 ## Estado de entrada confirmado em 2026-09-18
+
+**Atualização de planejamento em 2026-09-28:** a evidência operacional mais recente, de 26/09, mantém a Fase 0 em `FAIL`. Backups e restaurações isoladas passaram; release identificável por commit/digest, rollback ensaiado e CI completo ainda não passaram. Os números abaixo são um retrato histórico de 18/09, não uma coleta atual. Consulte `docs/execution/gates/phase-0-recovery-release.md` para o gate vigente.
 
 | Frente | Estado | Implicação |
 |---|---|---|
@@ -44,20 +47,18 @@
 
 ```mermaid
 flowchart LR
-    P0[Fase 0<br/>Recuperação e release] --> P1[Fase 1<br/>Identidade e tenants]
-    P0 --> P2[Fase 2<br/>Zabbix e GLPI]
-    P0 --> P3[Fase 3<br/>Hub confiável]
+    P0[Fase 0<br/>Gate de produção] --> P6[Fase 6<br/>Aceite integrado do MVP]
+    P1[Fase 1<br/>Identidade e tenants] --> P2[Fase 2<br/>Zabbix e GLPI]
+    P2 --> P3[Fase 3<br/>Hub confiável]
     P1 --> P4[Fase 4<br/>Dashboard operacional]
     P2 --> P4
     P3 --> P4
-    P0 --> WPREP[Preparação Wazuh sem compra]
-    P4 --> P5[Fase 5<br/>Wazuh em produção]
-    WPREP --> P5
-    P1 --> P6[Fase 6<br/>Aceite integrado]
+    WPREP[Preparação Wazuh sem compra] --> P5[Fase 5<br/>Wazuh pós-MVP]
+    P6 --> P5
+    P1 --> P6
     P2 --> P6
     P3 --> P6
     P4 --> P6
-    P5 --> P6
 ```
 
 ## Planos por fase
@@ -68,19 +69,31 @@ flowchart LR
 | 1 | `docs/superpowers/plans/2026-09-18-phase-1-identity-tenant-controls.md` | Matriz de acesso, MFA, revogação e isolamento aprovados |
 | 2 | `docs/superpowers/plans/2026-09-18-phase-2-zabbix-glpi-operations.md` | Fontes confiáveis e fluxo alerta-incidente-ticket idempotente |
 | 3 | `docs/superpowers/plans/2026-09-18-phase-3-hub-runtime-reliability.md` | Saúde do runtime mede os componentes reais e rollout é reproduzível |
-| 4 | `docs/superpowers/plans/2026-09-18-phase-4-dashboard-operational-truth.md` | Dashboard completo para o escopo implantado, com erro e frescor honestos |
-| 5A | `docs/superpowers/plans/2026-09-18-wazuh-4147-production-rollout.md` | Wazuh 4.14.7 instalado, recuperável e estabilizado em ondas |
-| 5B | `docs/superpowers/plans/2026-09-18-wazuh-security-signal-ingestion.md` | Sinais Wazuh chegam ao Hub sem duplicação e com compatibilidade para Wazuh 5 |
+| 4 | `docs/superpowers/plans/2026-09-18-phase-4-dashboard-operational-truth.md` | Jornadas do MVP com dados reais, erro e frescor honestos; Wazuh planejado/indisponível |
 | 6 | `docs/superpowers/plans/2026-09-18-phase-6-integrated-acceptance.md` | Operação ponta a ponta aprovada e sustentada por sete dias |
+| 5A (pós-MVP) | `docs/superpowers/plans/2026-09-18-wazuh-4147-production-rollout.md` | Wazuh 4.14.7 instalado, recuperável e estabilizado em ondas |
+| 5B (pós-MVP) | `docs/superpowers/plans/2026-09-18-wazuh-security-signal-ingestion.md` | Sinais Wazuh chegam ao Hub sem duplicação e com compatibilidade para Wazuh 5 |
+
+## Rastreabilidade do aceite do MVP
+
+| Critério de aceite | Tarefas responsáveis | Gate de saída |
+|---|---|---|
+| 1. Operador percorre alerta Zabbix → incidente Hub → ticket GLPI no tenant autorizado | Fase 2 Task 4; Fase 4 Task 5; Fase 6 Tasks 2–3 | Fases 2, 4 e 6 |
+| 2. Reentrega e retry não duplicam incidente ou ticket | Fase 2 Task 4; Fase 3 Task 3; Fase 6 Task 3 | Fases 2, 3 e 6 |
+| 3. API impede leitura e escrita entre tenants | Fase 1 Tasks 1, 2 e 4; Fase 6 Task 2 | Fases 1 e 6 |
+| 4. Falha de fonte, worker ou GLPI mostra último sucesso e erro | Fase 3 Tasks 1–2; Fase 4 Tasks 1 e 3; Fase 6 Tasks 2–3 | Fases 3, 4 e 6 |
+| 5. Estado, atribuição e integração são auditáveis | Fase 2 Task 4; Fase 6 Tasks 1–3 | Fases 2 e 6 |
+| 6. Testes, build e lint passam na release candidata | Fases 1–4, gates e verificações por tarefa; Fase 6 Task 5 | Fases 1–4 e 6 |
+| 7. Commit, imagens, backup/restore, rollback e canário identificam a release | Fase 0 Tasks 1–5; Fase 3 Task 4; Fase 6 Task 4 | Fases 0, 3 e 6 |
+| 8. Aceite de produção exige gates de segurança, recuperação e contratos | Fase 0 Task 5; Fases 1–4, gates; Fase 6 Task 5 | Fases 0–4 e 6 |
 
 ## Regras de execução do programa
 
 - [ ] Registrar o início de cada fase em `docs/execution/ness-os-operationalization-log.md`, com responsável, janela, release e rollback.
-- [ ] Executar Fase 0 antes de qualquer alteração de esquema, autenticação, roteamento ou provisionamento.
-- [ ] Após a Fase 0, executar Fases 1, 2 e preparação documental do Wazuh em paralelo somente quando não alterarem o mesmo serviço.
-- [ ] Iniciar Fase 4 apenas quando os contratos das Fases 1, 2 e 3 estiverem aprovados.
+- [ ] Permitir implementação e testes locais das Fases 1–4 enquanto a Fase 0 está pendente; exigir Fase 0 aprovada antes de alterações de esquema, autenticação, roteamento, provisionamento ou deploy em produção.
+- [ ] Executar a Fase 4 localmente sobre contratos das Fases 1–3 verificados; exigir os gates dessas fases antes da promoção em produção.
 - [ ] Obter cotação da VPS e Object Storage somente após estimar retenção com dados das fontes reais.
-- [ ] Contratar a VPS do Wazuh após aprovação explícita do orçamento e do gate da Fase 4.
+- [ ] Contratar a VPS do Wazuh somente após aceite do MVP e aprovação explícita de capacidade e orçamento.
 - [ ] Executar o aceite integrado com módulos ausentes explicitamente marcados; nenhum módulo planejado bloqueia o escopo já contratado se estiver isolado e descrito.
 - [ ] Encerrar o programa somente com evidências de backup, restauração, autenticação, tenant, idempotência, observabilidade, rollback e operação por sete dias.
 

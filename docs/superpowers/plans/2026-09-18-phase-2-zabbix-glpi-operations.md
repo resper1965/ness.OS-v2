@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- Gate de entrada: Fase 0 aprovada.
+- Gate de produção: Fase 0 aprovada. Relatórios somente leitura, código e testes locais podem avançar; ondas de escrita, migração e deploy em produção aguardam `PASS`.
 - Não editar tabelas do Zabbix ou GLPI diretamente.
 - Não tentar eliminar todos os alertas históricos para aprovar a fase; classificar, atribuir e reduzir o conjunto operacional prioritário.
 
@@ -84,11 +84,12 @@
 
 **Interfaces:** Um `source_event_id` gera no máximo um incidente e um ticket GLPI; replays atualizam o registro existente; recuperação fecha ou resolve conforme a política documentada.
 
-- [ ] Criar testes para entrega inicial, três replays, erro transitório, retry e evento de recuperação.
+- [ ] Criar testes para entrega inicial, três replays, erro transitório, retry, evento de recuperação e histórico atribuível das ações de estado, atribuição e integração.
 - [ ] Executar os testes; esperado: falha nos comportamentos ausentes.
 - [ ] Ajustar apenas o código necessário ao contrato e repetir; esperado: aprovado.
 - [ ] Com notificações externas desligadas, gerar um alerta sintético nomeado e rastreável em host piloto.
 - [ ] Confirmar um incidente, um ticket, IDs cruzados, timestamps coerentes e resolução propagada.
+- [ ] Confirmar auditoria atribuível de mudança de estado, atribuição e tentativa/resultado da integração GLPI.
 - [ ] Reenviar o mesmo evento e confirmar que as contagens permanecem em um.
 - [ ] Registrar evidência e remover o artefato sintético pela API.
 - [ ] Commit: `git add app/backend/app/workers/alert_tasks.py app/backend/app/services/triage_engine.py app/backend/tests/test_alert_glpi_idempotency.py app/backend/tests/test_glpi_readiness.py infra/scripts/hub-integration-monitor.sh docs/execution/evidence/phase-2-alert-ticket-e2e.md && git commit -m "test(ops): prove idempotent alert to ticket lifecycle"`.

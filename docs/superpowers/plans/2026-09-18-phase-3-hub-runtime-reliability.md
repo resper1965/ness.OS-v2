@@ -20,6 +20,8 @@
 
 ### Task 1: Corrigir o contrato de saúde das filas
 
+**Concluída no commit `342a817`; não repetir a implementação.**
+
 **Files:**
 - Modify: `app/backend/app/integrations/pipeline_health.py`
 - Modify: `app/backend/app/workers/celery_app.py`

@@ -8,11 +8,11 @@
 
 **Tech Stack:** Toda a stack do ness.OS, scripts de readiness, pytest, testes frontend, systemd, Docker Compose e Restic.
 
-**Spec:** `docs/architecture/ness-os-official-architecture.md` e todos os gates das Fases 0–5.
+**Spec:** `docs/superpowers/specs/2026-09-27-ness-os-mvp-delivery-and-evolution-design.md`, `docs/architecture/ness-os-official-architecture.md` e gates das Fases 0–4. Fase 5 é pós-MVP.
 
 ## Global Constraints
 
-- Gates de entrada: Fases 0–4 aprovadas; Fase 5 aprovada se o Wazuh tiver sido contratado.
+- Gates de entrada do MVP: Fases 0–4 aprovadas. Fase 5 é pós-MVP e não condiciona este aceite.
 - Wazuh adiado deve aparecer como `planned` e não bloqueia aceite do escopo contratado.
 - Não executar exercício destrutivo sem snapshot atual e rollback comprovado.
 
@@ -59,6 +59,7 @@
 - [ ] Registrar baseline de contagens antes do exercício.
 - [ ] Gerar alerta Zabbix sintético e confirmar ingestão no limite de latência definido.
 - [ ] Confirmar criação única do incidente e ticket GLPI, atribuição correta e visibilidade no dashboard.
+- [ ] Confirmar trilha atribuível para reconhecimento, atribuição, mudança de estado e integração com GLPI.
 - [ ] Repetir o evento e confirmar idempotência.
 - [ ] Gerar recuperação, confirmar encerramento e comparar contagens finais.
 - [ ] Se Wazuh estiver implantado, repetir o ciclo com evento inofensivo e confirmar normalização pelo adapter versionado.
