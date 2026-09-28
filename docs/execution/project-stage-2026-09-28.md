@@ -30,6 +30,8 @@ As leituras e contagens Atera agora também ocultam detalhes do provedor quando 
 
 As rotas do dashboard passaram a devolver somente estados e mensagens genéricas quando Zabbix ou Atera falham; logs registram apenas o tipo da exceção. A cobertura protege resumo, painel unificado e lista de problemas contra o vazamento de detalhes do provedor. A suíte completa passou com 388 testes aprovados e um ignorado.
 
+As quatro rotas expostas de Atera RMM usam agora uma resposta genérica para falhas do provedor e um único registro seguro do tipo de erro. A suíte completa passou com 392 testes aprovados e um ignorado.
+
 O precheck somente leitura de 28/09 passou em 60 testes de sessão/RBAC, nos gates estáticos e nas rotas públicas Authentik, Hub, GLPI, n8n e Zabbix UAT. O Zabbix UAT permanece `inactive`, `masked` e sem escuta TCP/10051; ver `docs/execution/evidence/uat-readonly-precheck-2026-09-28.md`. Não houve login nominal nem confirmação do isolamento na aplicação implantada. O SSH de leitura à VPS AIOps foi negado pela chave disponível nesta sessão, portanto não há atualização de backups ou runtime de produção.
 
 ## Próxima execução

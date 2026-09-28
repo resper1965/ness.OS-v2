@@ -26,6 +26,11 @@ def _client() -> AteraClient:
     return AteraClient(api_key=key)
 
 
+def _atera_failure(operation: str, error: Exception) -> HTTPException:
+    logger.error("Atera %s failed: %s", operation, type(error).__name__)
+    return HTTPException(502, "Atera indisponível.")
+
+
 @router.get("/customers", dependencies=[Depends(require_noc)])
 async def list_customers() -> dict[str, Any]:
     """Lista todos os clientes Atera (21 clientes)."""
@@ -35,9 +40,8 @@ async def list_customers() -> dict[str, Any]:
         return {"source": "atera", "total": len(customers), "items": customers}
     except HTTPException:
         raise
-    except Exception as e:
-        logger.error(f"Atera list_customers: {e}")
-        raise HTTPException(502, str(e))
+    except Exception as error:
+        raise _atera_failure("customer list", error)
 
 
 @router.get("/agents", dependencies=[Depends(require_noc)])
@@ -59,9 +63,8 @@ async def list_agents(
         }
     except HTTPException:
         raise
-    except Exception as e:
-        logger.error(f"Atera list_agents: {e}")
-        raise HTTPException(502, str(e))
+    except Exception as error:
+        raise _atera_failure("agent list", error)
 
 
 @router.get("/alerts", dependencies=[Depends(require_noc)])
@@ -84,9 +87,8 @@ async def list_alerts(
         }
     except HTTPException:
         raise
-    except Exception as e:
-        logger.error(f"Atera list_alerts: {e}")
-        raise HTTPException(502, str(e))
+    except Exception as error:
+        raise _atera_failure("alert list", error)
 
 
 @router.get("/summary", dependencies=[Depends(require_noc)])
@@ -97,6 +99,5 @@ async def atera_summary() -> dict[str, Any]:
         return await client.get_dashboard_summary()
     except HTTPException:
         raise
-    except Exception as e:
-        logger.error(f"Atera summary: {e}")
-        raise HTTPException(502, str(e))
+    except Exception as error:
+        raise _atera_failure("summary", error)
