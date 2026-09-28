@@ -38,6 +38,8 @@ O módulo Contabo de gerenciamento, mantido fora do roteamento público, também
 
 Os indicadores do Core deixaram de transformar falha de coleta em zero: fontes indisponíveis retornam `null` e estado `unavailable`, preservando a semântica do contrato executivo. A suíte completa passou com 396 testes aprovados e um ignorado.
 
+As estatísticas de triagem SecOps agora são derivadas das decisões persistidas em `SocDecision`, em vez de contadores por processo. Reinícios e múltiplos workers preservam os totais de bypass e encaminhamento de LLM.
+
 O precheck somente leitura de 28/09 passou em 60 testes de sessão/RBAC, nos gates estáticos e nas rotas públicas Authentik, Hub, GLPI, n8n e Zabbix UAT. O Zabbix UAT permanece `inactive`, `masked` e sem escuta TCP/10051; ver `docs/execution/evidence/uat-readonly-precheck-2026-09-28.md`. Não houve login nominal nem confirmação do isolamento na aplicação implantada. O SSH de leitura à VPS AIOps foi negado pela chave disponível nesta sessão, portanto não há atualização de backups ou runtime de produção.
 
 ## Próxima execução

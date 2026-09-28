@@ -11,6 +11,7 @@ from typing import Any
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
@@ -21,6 +22,7 @@ from app.core.dependencies import (
 )
 from app.core.triage_engine import TriageAction, TriageEngine
 from app.database import get_db
+from app.models.models import SocDecision
 from app.models.users import User
 
 logger = logging.getLogger(__name__)
@@ -460,7 +462,6 @@ async def zabbix_health() -> dict[str, Any]:
 # ── Módulo n.secops: Triagem de Alertas Wazuh SOC via IA & Camada 4 ─────────────
 
 _triage_engine = TriageEngine()
-_TRIAGE_METRICS: dict[str, int] = {"total": 0, "bypassed": 0, "llm_called": 0}
 
 
 def _extract_ips_and_hashes(payload: dict[str, Any]) -> tuple[list[str], list[str]]:
@@ -502,11 +503,12 @@ def _extract_ips_and_hashes(payload: dict[str, Any]) -> tuple[list[str], list[st
 
 
 @router.get("/triage-stats", dependencies=[Depends(require_noc)])
-async def get_triage_stats() -> dict[str, Any]:
-    """Retorna estatísticas do Triage Worker (Camada 4) e métricas de bypass de LLM."""
-    total = _TRIAGE_METRICS["total"]
-    bypassed = _TRIAGE_METRICS["bypassed"]
-    llm_called = _TRIAGE_METRICS["llm_called"]
+async def get_triage_stats(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
+    """Retorna estatísticas persistidas de triagem e bypass de LLM."""
+    actions = (await db.execute(select(SocDecision.action_taken))).scalars().all()
+    total = len(actions)
+    bypassed = sum(action == "ARCHIVE_NO_LLM" for action in actions)
+    llm_called = total - bypassed
     pct_bypassed = round((bypassed / total * 100.0), 2) if total > 0 else 100.0
 
     return {
@@ -534,7 +536,6 @@ async def triage_alert(
     from app.integrations.n8n import notify_soc_triage_decision
     from app.integrations.soc_agent import triage_wazuh_alert
     from app.integrations.threat_intel import enrich_hash, enrich_ip
-    from app.models.models import SocDecision
 
     # 1. Enriquecimento de Ameaças (Threat Intel)
     ips, hashes = _extract_ips_and_hashes(payload)
@@ -564,11 +565,8 @@ async def triage_alert(
         fingerprint=fingerprint,
     )
 
-    _TRIAGE_METRICS["total"] += 1
-
     # 3. Se Risco < 75 -> Arquiva e Agrega (Bypass de LLM)
     if eval_result.action == TriageAction.ARCHIVE:
-        _TRIAGE_METRICS["bypassed"] += 1
         summary = (
             f"Arquivado por Triage Worker (Risk Score: {eval_result.risk_score}/100 < 75). "
             f"Motivos: {', '.join(eval_result.reasons)}."
@@ -588,7 +586,6 @@ async def triage_alert(
         )
     else:
         # 4. Se Risco >= 75 -> Encaminha para o LLM (Gemini)
-        _TRIAGE_METRICS["llm_called"] += 1
         triage_result = dict(triage_wazuh_alert(payload))
         triage_result["risk_score"] = eval_result.risk_score
         triage_result["llm_bypassed"] = False
@@ -666,10 +663,6 @@ async def list_soc_decisions(
     current_user: User = Depends(require_authenticated),
 ) -> dict[str, Any]:
     """Retorna a lista de decisões de triagem do SOC persistidas."""
-    from sqlalchemy import select
-
-    from app.models.models import SocDecision
-
     tenant_scope = resolve_tenant_scope(current_user, customer_id)
     stmt = select(SocDecision).order_by(SocDecision.created_at.desc()).limit(limit)
     if tenant_scope:

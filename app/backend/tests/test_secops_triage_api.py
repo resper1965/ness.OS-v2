@@ -12,6 +12,22 @@ from app.models.users import UserRole
 client = TestClient(app)
 
 
+class _Actions:
+    def __init__(self, values: list[str]):
+        self.values = values
+
+    def all(self) -> list[str]:
+        return self.values
+
+
+class _StatsResult:
+    def __init__(self, values: list[str]):
+        self.values = values
+
+    def scalars(self) -> _Actions:
+        return _Actions(self.values)
+
+
 @pytest.fixture(autouse=True)
 def authenticated_soc():
     app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(
@@ -21,6 +37,21 @@ def authenticated_soc():
     )
     yield
     app.dependency_overrides.pop(get_current_user, None)
+
+
+@pytest.fixture(autouse=True)
+def persisted_triage_stats_database():
+    session = AsyncMock()
+    session.execute.return_value = _StatsResult(
+        ["ARCHIVE_NO_LLM", "Review required", "ARCHIVE_NO_LLM"]
+    )
+
+    async def database():
+        yield session
+
+    app.dependency_overrides[get_db] = database
+    yield session
+    app.dependency_overrides.pop(get_db, None)
 
 
 @pytest.fixture
@@ -36,15 +67,20 @@ def decision_database():
     app.dependency_overrides.pop(get_db, None)
 
 
-def test_triage_stats_endpoint():
-    """Verifica se o endpoint GET /api/secops/triage-stats retorna estatísticas válidas."""
+def test_triage_stats_endpoint(persisted_triage_stats_database):
+    """Estatísticas sobrevivem ao processo porque são derivadas das decisões salvas."""
     response = client.get("/api/secops/triage-stats")
     assert response.status_code == 200
     data = response.json()
     assert "total_processed" in data
     assert "llm_bypassed_count" in data
     assert "bypassed_percentage" in data
+    assert data["total_processed"] == 3
+    assert data["llm_bypassed_count"] == 2
+    assert data["llm_called_count"] == 1
+    assert data["bypassed_percentage"] == 66.67
     assert data["target_meta_percentage"] == 95.0
+    persisted_triage_stats_database.execute.assert_awaited_once()
 
 
 def test_triage_alert_low_risk_bypasses_llm(decision_database):
