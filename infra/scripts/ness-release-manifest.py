@@ -256,10 +256,6 @@ def compare_production(
                 (row for row in production_images if str(row.get("service")) == service),
                 None,
             )
-        if not image["digest"]:
-            blockers.append(
-                {"code": "image_digest_missing", "service": f"{key[0]}:{service}"}
-            )
         if observed is None:
             image_divergences.append(f"{key[0] + ':' if key[0] else ''}{service}")
         elif not image["digest"] or observed.get("digest") != image["digest"]:

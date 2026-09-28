@@ -185,6 +185,36 @@ def test_unpinned_image_is_reported_as_a_release_blocker(tmp_path: Path) -> None
     assert manifest["release_ready"] is False
 
 
+def test_unpinned_image_has_one_blocker_with_production_facts(tmp_path: Path) -> None:
+    root = write_fixture_repo(
+        tmp_path / "repo",
+        "services:\n  db:\n    image: postgres:17\n",
+    )
+    initialize_git(root)
+    facts = {
+        "images": [
+            {
+                "compose_file": "app/docker-compose.yml",
+                "service": "db",
+                "digest": "sha256:" + "a" * 64,
+            }
+        ],
+        "deployed_files": {},
+        "versions": {},
+        "systemd_units": ["ness-test.timer"],
+    }
+
+    manifest = generate(root, tmp_path / "production.json", facts)
+
+    assert manifest["blockers"].count(
+        {"code": "image_digest_missing", "service": "app/docker-compose.yml:db"}
+    ) == 1
+    assert {blocker["code"] for blocker in manifest["blockers"]} >= {
+        "production_image_divergence"
+    }
+    assert manifest["release_ready"] is False
+
+
 def test_production_file_hash_difference_is_reported(tmp_path: Path) -> None:
     digest = "b" * 64
     compose = "services:\n  db:\n    image: postgres:17@sha256:" + digest + "\n"
