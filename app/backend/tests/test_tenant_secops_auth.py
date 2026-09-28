@@ -2,9 +2,10 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 
+from app.api.routers import tenants as tenants_router_module
 from app.api.routers.secops import router as secops_router
 from app.api.routers.tenants import router as tenants_router
 from app.core.dependencies import get_current_user, resolve_tenant_scope
@@ -34,6 +35,11 @@ class _FakeSession:
     async def execute(self, statement: object) -> _EmptyResult:
         self.statement = statement
         return _EmptyResult()
+
+
+class _FailingSession(_FakeSession):
+    async def execute(self, statement: object) -> _EmptyResult:
+        raise RuntimeError("database password=private")
 
 
 def _client(
@@ -146,7 +152,7 @@ def test_client_cannot_request_decisions_from_another_tenant():
 def test_user_without_tenant_is_denied_tenant_scoped_access():
     user = SimpleNamespace(role=UserRole.cliente, tenant_id=None)
 
-    with pytest.raises(Exception) as error:
+    with pytest.raises(HTTPException) as error:
         resolve_tenant_scope(user, None)
 
     assert getattr(error.value, "status_code", None) == 403
@@ -156,3 +162,26 @@ def test_operator_may_request_an_explicit_tenant_scope():
     user = SimpleNamespace(role=UserRole.soc, tenant_id=None)
 
     assert resolve_tenant_scope(user, "tenant-b") == "tenant-b"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "operation",
+    (
+        lambda: tenants_router_module.list_tenants(),
+        lambda: tenants_router_module.get_tenant_summary(
+            "tenant-a", SimpleNamespace(role=UserRole.cliente, tenant_id="tenant-a")
+        ),
+    ),
+)
+async def test_tenant_database_errors_hide_details(monkeypatch, operation):
+    monkeypatch.setattr(
+        tenants_router_module, "SessionLocal", lambda: _FailingSession()
+    )
+
+    with pytest.raises(HTTPException) as error:
+        await operation()
+
+    assert getattr(error.value, "status_code", None) == 500
+    assert getattr(error.value, "detail", None) == "Dados de tenants indisponíveis."
+    assert "private" not in str(error.value)

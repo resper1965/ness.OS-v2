@@ -18,6 +18,11 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+def _tenant_failure(operation: str, error: Exception) -> HTTPException:
+    logger.error("Tenant %s failed: %s", operation, type(error).__name__)
+    return HTTPException(status_code=500, detail="Dados de tenants indisponíveis.")
+
+
 @router.get("/health", tags=["system"], dependencies=[Depends(require_noc)])
 async def system_health():
     """Check connectivity with all integrated components."""
@@ -104,9 +109,8 @@ async def list_tenants():
                 }
                 for cred in credentials
             ]
-        except Exception as e:
-            logger.error(f"Failed to list tenants: {e}")
-            raise HTTPException(status_code=500, detail=str(e))
+        except Exception as error:
+            raise _tenant_failure("list", error)
 
 
 @router.get("/{tenant_id}/summary")
@@ -128,6 +132,5 @@ async def get_tenant_summary(
                 "assets_count": len(assets),
                 "status": "active",
             }
-        except Exception as e:
-            logger.error(f"Failed to get tenant summary: {e}")
-            raise HTTPException(status_code=500, detail=str(e))
+        except Exception as error:
+            raise _tenant_failure("summary", error)
