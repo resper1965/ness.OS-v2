@@ -54,6 +54,8 @@ As chamadas autenticadas do frontend passaram a usar `credentials: include`, per
 
 A lista de tenants consolida credenciais de vários provedores em um único contexto por cliente, com normalização e ordem estável. Isso impede que a seleção de contexto mostre o mesmo tenant repetido.
 
+As rotas de ativos não apresentam mais contagens zero quando Atera está ausente ou indisponível: retornam valores `null` com estado e código operacional explícitos. A listagem também não expõe o nome da variável de configuração ao cliente.
+
 O precheck somente leitura de 28/09 passou em 60 testes de sessão/RBAC, nos gates estáticos e nas rotas públicas Authentik, Hub, GLPI, n8n e Zabbix UAT. O Zabbix UAT permanece `inactive`, `masked` e sem escuta TCP/10051; ver `docs/execution/evidence/uat-readonly-precheck-2026-09-28.md`. Não houve login nominal nem confirmação do isolamento na aplicação implantada. O SSH de leitura à VPS AIOps foi negado pela chave disponível nesta sessão, portanto não há atualização de backups ou runtime de produção.
 
 ## Próxima execução

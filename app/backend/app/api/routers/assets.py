@@ -75,8 +75,14 @@ async def get_assets_summary() -> dict[str, Any]:
     client = _atera()
     if not client:
         return {
-            "atera": {"degraded": True, "error": "API key not configured"},
-            "datto": {"total": 0},
+            "atera": {
+                "total": None,
+                "customers": None,
+                "alerts": None,
+                "status": "unavailable",
+                "error_code": "not_configured",
+            },
+            "datto": {"total": None, "status": "planned"},
         }
     try:
         summary = await client.get_dashboard_summary()
@@ -104,7 +110,7 @@ async def list_assets(
     """
     client = _atera()
     if not client:
-        raise HTTPException(503, "NINF_ATERA_API_KEY not configured")
+        raise HTTPException(status_code=503, detail="Atera indisponível.")
     try:
         if customer_id:
             agents = await client.list_agents_by_customer(customer_id)
@@ -153,7 +159,13 @@ async def count_assets() -> dict[str, Any]:
     """Contagem rápida de ativos por fonte — usa apenas 1 request por fonte."""
     client = _atera()
     if not client:
-        return {"atera": 0, "datto": 0, "total": 0, "degraded": True}
+        return {
+            "atera": None,
+            "datto": None,
+            "total": None,
+            "status": "unavailable",
+            "error_code": "not_configured",
+        }
     try:
         summary = await client.get_dashboard_summary()
         atera_total = summary.get("agents_total", 0)
@@ -164,4 +176,10 @@ async def count_assets() -> dict[str, Any]:
         }
     except Exception as error:
         logger.error("Atera asset count failed: %s", type(error).__name__)
-        return {"atera": 0, "datto": 0, "total": 0, "error": "atera_unavailable"}
+        return {
+            "atera": None,
+            "datto": None,
+            "total": None,
+            "status": "unavailable",
+            "error_code": "source_unavailable",
+        }

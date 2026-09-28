@@ -25,8 +25,43 @@ async def test_assets_count_returns_safe_degraded_status(monkeypatch):
     monkeypatch.setattr(assets, "_atera", lambda: FailingAtera())
 
     assert await assets.count_assets() == {
-        "atera": 0,
-        "datto": 0,
-        "total": 0,
-        "error": "atera_unavailable",
+        "atera": None,
+        "datto": None,
+        "total": None,
+        "status": "unavailable",
+        "error_code": "source_unavailable",
     }
+
+
+@pytest.mark.asyncio
+async def test_assets_do_not_report_zero_when_atera_is_not_configured(monkeypatch):
+    monkeypatch.setattr(assets, "_atera", lambda: None)
+
+    assert await assets.get_assets_summary() == {
+        "atera": {
+            "total": None,
+            "customers": None,
+            "alerts": None,
+            "status": "unavailable",
+            "error_code": "not_configured",
+        },
+        "datto": {"total": None, "status": "planned"},
+    }
+    assert await assets.count_assets() == {
+        "atera": None,
+        "datto": None,
+        "total": None,
+        "status": "unavailable",
+        "error_code": "not_configured",
+    }
+
+
+@pytest.mark.asyncio
+async def test_assets_list_hides_missing_configuration(monkeypatch):
+    monkeypatch.setattr(assets, "_atera", lambda: None)
+
+    with pytest.raises(HTTPException) as error:
+        await assets.list_assets()
+
+    assert error.value.status_code == 503
+    assert error.value.detail == "Atera indisponível."
