@@ -456,16 +456,12 @@ async def test_pipeline_persists_incident_and_retries_glpi_failure(
     incidents = [item for item in added if isinstance(item, Incident)]
     actions = [item for item in added if isinstance(item, IncidentAction)]
     assert len(incidents) == (0 if existing else 1)
-    assert [item.action for item in actions] == (
-        ([] if existing else ["incident_created"])
-        + (
-            ["ticket_failed"]
-            if glpi_fails
-            else []
-            if linked_before and ticket_exists
-            else ["ticket_reused" if ticket_exists else "ticket_created"]
-        )
-    )
+    expected_actions = [] if existing else ["incident_created"]
+    if glpi_fails:
+        expected_actions.append("ticket_failed")
+    elif not (linked_before and ticket_exists):
+        expected_actions.append("ticket_reused" if ticket_exists else "ticket_created")
+    assert [item.action for item in actions] == expected_actions
     if existing:
         assert previous.alert_count == 1
     glpi.kill_session.assert_awaited_once()

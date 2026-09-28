@@ -91,17 +91,21 @@ async def get_operational_sources(redis: Redis = Depends(get_redis)) -> dict:
     async def glpi() -> dict:
         return await GLPIClient().readiness_probe()
 
-    statuses = await asyncio.gather(
-        observe_source(
-            "zabbix", zabbix, redis, configured=bool(settings.zabbix_api_token)
-        ),
-        observe_source("atera", atera, redis, configured=bool(settings.atera_api_key)),
-        observe_source(
-            "glpi",
-            glpi,
-            redis,
-            configured=bool(settings.glpi_app_token and settings.glpi_user_token),
-        ),
+    statuses = list(
+        await asyncio.gather(
+            observe_source(
+                "zabbix", zabbix, redis, configured=bool(settings.zabbix_api_token)
+            ),
+            observe_source(
+                "atera", atera, redis, configured=bool(settings.atera_api_key)
+            ),
+            observe_source(
+                "glpi",
+                glpi,
+                redis,
+                configured=bool(settings.glpi_app_token and settings.glpi_user_token),
+            ),
+        )
     )
     statuses.append(
         OperationalStatus(

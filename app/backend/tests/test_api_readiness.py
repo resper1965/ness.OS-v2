@@ -8,15 +8,13 @@ from app.main import app
 
 class FakeSession:
     def __init__(self, fails=False, missing_schema=False):
-        self.execute = AsyncMock(
-            side_effect=(
-                ConnectionError("database-secret")
-                if fails
-                else [None, RuntimeError("missing-schema"), None]
-                if missing_schema
-                else None
-            )
-        )
+        if fails:
+            side_effect = ConnectionError("database-secret")
+        elif missing_schema:
+            side_effect = [None, RuntimeError("missing-schema"), None]
+        else:
+            side_effect = None
+        self.execute = AsyncMock(side_effect=side_effect)
 
     async def __aenter__(self):
         return self
@@ -61,12 +59,8 @@ def test_api_readiness_requires_database_and_redis(failed_dependency):
         {"detail": "unavailable"} if failed_dependency else {"status": "ready"}
     )
     assert "secret" not in response.text
-    assert session.execute.await_count == (
-        1
-        if failed_dependency == "database"
-        else 2
-        if failed_dependency == "schema"
-        else 3
+    assert session.execute.await_count == {"database": 1, "schema": 2}.get(
+        failed_dependency, 3
     )
     if failed_dependency not in ("database", "schema"):
         redis.ping.assert_awaited_once()

@@ -75,9 +75,7 @@ async def run_migrations():
                 "ADD COLUMN IF NOT EXISTS assigned_user_id BIGINT;"
             )
         )
-        await conn.execute(
-            text(
-                """
+        actions_ddl = """
                 CREATE TABLE IF NOT EXISTS n_infraops_incident_actions (
                     id BIGSERIAL PRIMARY KEY,
                     incident_id BIGINT NOT NULL REFERENCES n_infraops_incidents(id),
@@ -92,8 +90,7 @@ async def run_migrations():
                     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
                 );
                 """
-            )
-        )
+        await conn.execute(text(actions_ddl))
         await conn.execute(
             text(
                 "CREATE INDEX IF NOT EXISTS idx_incident_actions_incident_created "
