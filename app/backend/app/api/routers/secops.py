@@ -502,6 +502,47 @@ def _extract_ips_and_hashes(payload: dict[str, Any]) -> tuple[list[str], list[st
     return list(ips), list(hashes)
 
 
+def _triage_input(
+    payload: dict[str, Any], enrichment: dict[str, list[dict[str, Any]]]
+) -> tuple[dict[str, Any], dict[str, dict[str, Any]]]:
+    """Translate Wazuh's nested event and enrichment lists to the risk contract."""
+    rule = payload.get("rule") if isinstance(payload.get("rule"), dict) else {}
+    agent = payload.get("agent") if isinstance(payload.get("agent"), dict) else {}
+    alert = {
+        **payload,
+        "level": rule.get("level", payload.get("level", payload.get("rule_level", 0))),
+        "host": agent.get("name", payload.get("host", payload.get("hostname", ""))),
+    }
+
+    sources = [*enrichment.get("ips", []), *enrichment.get("hashes", [])]
+    abuse_score = max(
+        (
+            int(source.get("abuseipdb", {}).get("abuse_score", 0))
+            for source in sources
+            if isinstance(source.get("abuseipdb"), dict)
+        ),
+        default=0,
+    )
+    vt_malicious = max(
+        (
+            int(source.get("virustotal", {}).get("malicious", 0))
+            for source in sources
+            if isinstance(source.get("virustotal"), dict)
+        ),
+        default=0,
+    )
+    misp_matches = sum(
+        int(source.get("misp", {}).get("match_count", 0))
+        for source in sources
+        if isinstance(source.get("misp"), dict) and source["misp"].get("found")
+    )
+    return alert, {
+        "abuseipdb": {"abuse_score": abuse_score},
+        "virustotal": {"malicious": vt_malicious},
+        "misp": {"found": misp_matches > 0, "match_count": misp_matches},
+    }
+
+
 @router.get("/triage-stats", dependencies=[Depends(require_noc)])
 async def get_triage_stats(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
     """Retorna estatísticas persistidas de triagem e bypass de LLM."""
@@ -565,9 +606,10 @@ async def triage_alert(
     agent_name = payload.get("agent", {}).get("name", "unknown")
     fingerprint = f"{agent_id}:{rule_id}"
 
+    alert_data, threat_intel = _triage_input(payload, enriched_data)
     eval_result = _triage_engine.evaluate_alert(
-        alert_data=payload,
-        threat_intel=enriched_data,
+        alert_data=alert_data,
+        threat_intel=threat_intel,
         fingerprint=fingerprint,
     )
 
@@ -578,8 +620,8 @@ async def triage_alert(
             f"Motivos: {', '.join(eval_result.reasons)}."
         )
         triage_result: dict[str, Any] = {
-            "classification": "FALSE_POSITIVE",
-            "confidence": 1.0,
+            "classification": "LOW_PRIORITY",
+            "confidence": 0.5,
             "summary": summary,
             "action_taken": "ARCHIVE_NO_LLM",
             "risk_score": eval_result.risk_score,

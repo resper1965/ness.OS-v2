@@ -109,8 +109,49 @@ def test_triage_alert_low_risk_bypasses_llm(decision_database):
     data = response.json()
 
     assert data["action_taken"] == "ARCHIVE_NO_LLM"
+    assert data["classification"] == "LOW_PRIORITY"
     assert data["llm_bypassed"] is True
     assert data["risk_score"] < 75
     assert data["decision_id"] == 19
     assert data["dispatch_status"] == "not_requested"
     decision_database.commit.assert_awaited_once()
+
+
+def test_triage_alert_uses_nested_wazuh_fields_and_enrichment(
+    decision_database, monkeypatch
+):
+    from app.api.routers import secops
+
+    async def malicious_ip(_ip: str):
+        return {
+            "ip": "203.0.113.10",
+            "abuseipdb": {"abuse_score": 90},
+            "virustotal": {"malicious": 4},
+            "misp": {"found": True, "match_count": 1},
+        }
+
+    monkeypatch.setattr(
+        secops, "_extract_ips_and_hashes", lambda payload: (["203.0.113.10"], [])
+    )
+    monkeypatch.setattr("app.integrations.threat_intel.enrich_ip", malicious_ip)
+    monkeypatch.setattr(
+        "app.integrations.soc_agent.triage_wazuh_alert",
+        lambda payload: {
+            "classification": "MALICIOUS",
+            "confidence": 0.9,
+            "summary": "Malicious IOC",
+            "action_taken": "Escalated",
+        },
+    )
+
+    response = client.post(
+        "/api/secops/triage",
+        json={
+            "rule": {"id": "100201", "level": 15},
+            "agent": {"id": "002", "name": "prod-dc-01", "group": ["cavan"]},
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["risk_score"] == 100
+    assert response.json()["llm_bypassed"] is False

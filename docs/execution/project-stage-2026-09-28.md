@@ -60,6 +60,8 @@ O seletor de tenant aparece somente na visão de incidentes, cuja API aplica o e
 
 Inscrições Web Push agora pertencem ao usuário autenticado: uma sessão não pode assumir ou remover o endpoint registrado por outra conta.
 
+A triagem SecOps normaliza nível e ativo de eventos Wazuh aninhados e consolida a inteligência de IP e hash antes de calcular o risco. Eventos arquivados por risco baixo são classificados como `LOW_PRIORITY`, sem afirmar falso positivo.
+
 O precheck somente leitura de 28/09 passou em 60 testes de sessão/RBAC, nos gates estáticos e nas rotas públicas Authentik, Hub, GLPI, n8n e Zabbix UAT. O Zabbix UAT permanece `inactive`, `masked` e sem escuta TCP/10051; ver `docs/execution/evidence/uat-readonly-precheck-2026-09-28.md`. Não houve login nominal nem confirmação do isolamento na aplicação implantada. O SSH de leitura à VPS AIOps foi negado pela chave disponível nesta sessão, portanto não há atualização de backups ou runtime de produção.
 
 ## Próxima execução
