@@ -22,6 +22,8 @@ O workflow `ci-backend.yml` também passou a executar os 10 testes do manifesto 
 
 A lista de incidentes agora informa o total filtrado, permite carregar páginas seguintes e usa ordem estável por data e ID. A interface busca novamente os dados persistidos ao receber um evento SSE, evitando mostrar um evento parcial como cartão completo. A suíte do backend passou com 380 testes aprovados e um teste integrado opcional ignorado; o frontend passou em typecheck, lint e build. Para a suíte completa local, `pywebpush` e suas dependências foram instalados apenas em `/tmp`, pois não estavam no Python do ambiente. Esta validação não substitui a UAT integrada.
 
+O precheck somente leitura de 28/09 passou em 60 testes de sessão/RBAC, nos gates estáticos e nas rotas públicas Authentik, Hub, GLPI, n8n e Zabbix UAT. O Zabbix UAT permanece `inactive`, `masked` e sem escuta TCP/10051; ver `docs/execution/evidence/uat-readonly-precheck-2026-09-28.md`. Não houve login nominal nem confirmação do isolamento na aplicação implantada. O SSH de leitura à VPS AIOps foi negado pela chave disponível nesta sessão, portanto não há atualização de backups ou runtime de produção.
+
 ## Próxima execução
 
 1. Executar UAT integrada dos papéis `operator` e `viewer` com Authentik e tenants reais, confirmando o isolamento na API e no stream antes de aprovar a Fase 1.
