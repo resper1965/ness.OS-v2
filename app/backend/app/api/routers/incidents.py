@@ -118,7 +118,8 @@ class IncidentActionRequest(BaseModel):
     tags=["incidents"],
 )
 async def list_incidents(
-    limit: int = Query(default=20, le=100),
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
     status: str | None = Query(default=None),
     tenant_id: str | None = Query(default=None),
     current_user: User = Depends(get_current_user),
@@ -126,24 +127,32 @@ async def list_incidents(
     """Retorna lista de incidentes com stage do pipeline."""
     scope = resolve_tenant_scope(current_user, tenant_id)
     async with SessionLocal() as session:
+        criteria = []
+        if status:
+            criteria.append(Incident.status == status)
+        if scope:
+            criteria.append(
+                func.lower(Incident.tags["ninf_customer_name"].astext) == scope
+            )
+        total = (
+            await session.execute(
+                select(func.count()).select_from(Incident).where(*criteria)
+            )
+        ).scalar_one()
         stmt = (
             select(Incident)
             .options(selectinload(Incident.asset))
-            .order_by(desc(Incident.last_seen))
+            .where(*criteria)
+            .order_by(desc(Incident.last_seen), desc(Incident.id))
             .limit(limit)
+            .offset(offset)
         )
-        if status:
-            stmt = stmt.where(Incident.status == status)
-        if scope:
-            stmt = stmt.where(
-                func.lower(Incident.tags["ninf_customer_name"].astext) == scope
-            )
         result = await session.execute(stmt)
         incidents = result.scalars().all()
 
         return {
             "incidents": [_incident_payload(inc) for inc in incidents],
-            "total": len(incidents),
+            "total": total,
         }
 
 

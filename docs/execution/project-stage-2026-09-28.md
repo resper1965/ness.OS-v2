@@ -20,6 +20,8 @@ O gerador do manifesto de release foi corrigido para registrar uma única vez ca
 
 O workflow `ci-backend.yml` também passou a executar os 10 testes do manifesto e os testes de proteção das sondas de readiness. Ambos passaram localmente nesta atualização; ainda não há PR ou execução desse workflow no GitHub para a branch atual.
 
+A lista de incidentes agora informa o total filtrado, permite carregar páginas seguintes e usa ordem estável por data e ID. A interface busca novamente os dados persistidos ao receber um evento SSE, evitando mostrar um evento parcial como cartão completo. A suíte do backend passou com 380 testes aprovados e um teste integrado opcional ignorado; o frontend passou em typecheck, lint e build. Para a suíte completa local, `pywebpush` e suas dependências foram instalados apenas em `/tmp`, pois não estavam no Python do ambiente. Esta validação não substitui a UAT integrada.
+
 ## Próxima execução
 
 1. Executar UAT integrada dos papéis `operator` e `viewer` com Authentik e tenants reais, confirmando o isolamento na API e no stream antes de aprovar a Fase 1.

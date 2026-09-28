@@ -1,7 +1,7 @@
 import { Activity, ShieldAlert, Settings, Cloud, RefreshCw,
          WifiOff, Monitor, AlertTriangle, CheckCircle, BarChart3,
          Cpu, LogOut, BookOpen } from 'lucide-react';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import CloudManagement from './components/CloudManagement';
 import PipelineStrip from './components/PipelineStrip';
 import IncidentsPage from './components/IncidentsPage';
@@ -252,8 +252,11 @@ function AppShellBody({ AUTH, logout, user }: {
   const [pipeline, setPipeline] = useState<any>(null);
   const [pipelineLoading, setPipelineLoading] = useState(true);
   const [incidents, setIncidents] = useState<any[]>([]);
+  const [incidentsTotal, setIncidentsTotal] = useState(0);
   const [incidentsLoading, setIncidentsLoading] = useState(false);
+  const [incidentsMoreLoading, setIncidentsMoreLoading] = useState(false);
   const [incidentsError, setIncidentsError] = useState<string | null>(null);
+  const incidentsRequest = useRef(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
@@ -285,19 +288,27 @@ function AppShellBody({ AUTH, logout, user }: {
     }
   }, [AUTH, selectedTenant, isOperator]);
 
-  const fetchIncidents = useCallback(async () => {
-    setIncidentsLoading(true);
+  const fetchIncidents = useCallback(async (offset = 0) => {
+    const requestId = ++incidentsRequest.current;
+    if (offset === 0) setIncidentsLoading(true);
+    else setIncidentsMoreLoading(true);
     try {
       const scope = isOperator && selectedTenant ? `&tenant_id=${encodeURIComponent(selectedTenant.trim().toLowerCase())}` : '';
-      const res = await fetch(`${API_BASE}/api/incidents?limit=20${scope}`, { headers: AUTH });
+      const res = await fetch(`${API_BASE}/api/incidents?limit=20&offset=${offset}${scope}`, { headers: AUTH });
       if (!res.ok) throw new Error();
-      setIncidents((await res.json()).incidents || []);
+      const data = await res.json();
+      if (requestId !== incidentsRequest.current) return;
+      setIncidents(previous => offset === 0 ? data.incidents || [] : [...previous, ...(data.incidents || [])]);
+      setIncidentsTotal(data.total || 0);
       setIncidentsError(null);
       if (!isOperator) setLastUpdate(new Date());
     } catch {
-      setIncidentsError('Não foi possível carregar incidentes');
+      if (requestId === incidentsRequest.current) setIncidentsError('Não foi possível carregar incidentes');
     } finally {
-      setIncidentsLoading(false);
+      if (requestId === incidentsRequest.current) {
+        setIncidentsLoading(false);
+        setIncidentsMoreLoading(false);
+      }
     }
   }, [AUTH, selectedTenant, isOperator]);
 
@@ -320,23 +331,10 @@ function AppShellBody({ AUTH, logout, user }: {
 
     eventSource.addEventListener('incident', (event) => {
       try {
-        const newIncident = JSON.parse(event.data);
-        if (selectedTenant && newIncident.tenant_id !== selectedTenant.trim().toLowerCase()) return;
-        console.log('Novo incidente recebido via SSE:', newIncident);
-
-        // 1. Atualizar lista de incidentes
-        setIncidents((prev) => {
-          const index = prev.findIndex((inc) => inc.fingerprint === newIncident.fingerprint);
-          if (index !== -1) {
-            const updated = [...prev];
-            updated[index] = { ...updated[index], ...newIncident };
-            return updated;
-          }
-          return [newIncident, ...prev];
-        });
-
-        // 2. Recarregar resumos do dashboard
-        fetchData();
+        const eventData = JSON.parse(event.data);
+        if (selectedTenant && eventData.tenant_id !== selectedTenant.trim().toLowerCase()) return;
+        if (currentView === 'incidents') void fetchIncidents();
+        if (isOperator) void fetchData();
       } catch (err) {
         console.error('Erro ao analisar dados do SSE:', err);
       }
@@ -358,7 +356,7 @@ function AppShellBody({ AUTH, logout, user }: {
     return () => {
       eventSource.close();
     };
-  }, [user, fetchData, selectedTenant, logout]);
+  }, [user, fetchData, fetchIncidents, selectedTenant, currentView, isOperator, logout]);
 
   const hasCritical = summary && summary.problems_critical > 0;
   const canAccessPricing = user?.role === 'platform_admin' || user?.role === 'admin' || user?.role === 'gestao';
@@ -488,7 +486,7 @@ function AppShellBody({ AUTH, logout, user }: {
           </div>
 
           <button
-            onClick={currentView === 'incidents' ? fetchIncidents : fetchData}
+            onClick={() => { if (currentView === 'incidents') void fetchIncidents(); else void fetchData(); }}
             aria-label="Atualizar dados"
             className="p-1.5 rounded-lg hover:bg-white/[0.06] text-[var(--color-brand-muted)] hover:text-white transition-all duration-200"
             style={{ transitionProperty: 'color, background, transform', transitionDuration: '300ms' }}
@@ -575,10 +573,13 @@ function AppShellBody({ AUTH, logout, user }: {
             {currentView === 'incidents' && (
               <IncidentsPage
                 incidents={incidents}
+                total={incidentsTotal}
                 loading={incidentsLoading}
+                loadingMore={incidentsMoreLoading}
                 error={incidentsError}
                 canAct={canActOnIncidents}
-                onChanged={fetchIncidents}
+                onChanged={() => fetchIncidents()}
+                onLoadMore={() => fetchIncidents(incidents.length)}
               />
             )}
 

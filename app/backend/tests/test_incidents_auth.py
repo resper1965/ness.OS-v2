@@ -25,14 +25,23 @@ class _EmptyResult:
 class _FakeSession:
     statement = None
 
+    def __init__(self, total=0):
+        self.total = total
+        self.calls = 0
+        self.statements = []
+
     async def __aenter__(self) -> "_FakeSession":
         return self
 
     async def __aexit__(self, *_: object) -> None:
         return None
 
-    async def execute(self, statement: object) -> _EmptyResult:
+    async def execute(self, statement: object):
         self.statement = statement
+        self.statements.append(statement)
+        self.calls += 1
+        if self.calls % 2:
+            return SimpleNamespace(scalar_one=lambda: self.total)
         return _EmptyResult()
 
 
@@ -102,8 +111,23 @@ def test_scoped_roles_list_only_their_tenant(role):
         denied = client.get("/api/incidents?tenant_id=tenant-b")
 
     assert response.status_code == 200
+    assert session.statements[0].compile().params["tags_1"] == "ninf_customer_name"
     assert session.statement.compile().params["tags_1"] == "ninf_customer_name"
     assert denied.status_code == 403
+
+
+def test_incident_list_returns_total_and_validates_page_bounds():
+    _, client = _client(UserRole.noc)
+    session = _FakeSession(total=37)
+    with patch("app.api.routers.incidents.SessionLocal", return_value=session):
+        response = client.get("/api/incidents?limit=20&offset=20")
+
+    assert response.status_code == 200
+    assert response.json() == {"incidents": [], "total": 37}
+    assert session.statement.compile().params["param_1"] == 20
+    assert session.statement.compile().params["param_2"] == 20
+    assert client.get("/api/incidents?limit=0").status_code == 422
+    assert client.get("/api/incidents?offset=-1").status_code == 422
 
 
 def test_incident_analysis_queues_work_for_noc():

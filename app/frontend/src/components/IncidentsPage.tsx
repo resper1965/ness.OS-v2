@@ -118,9 +118,9 @@ const ACTION_LABEL: Record<Action, string> = {
   resolve: 'Resolveu',
   close: 'Encerrou',
 };
-interface Props { incidents: Incident[]; loading: boolean; error: string | null; canAct: boolean; onChanged: () => void | Promise<void>; }
+interface Props { incidents: Incident[]; total: number; loading: boolean; loadingMore: boolean; error: string | null; canAct: boolean; onChanged: () => void | Promise<void>; onLoadMore: () => void | Promise<void>; }
 
-export default function IncidentsPage({ incidents, loading, error, canAct, onChanged }: Props) {
+export default function IncidentsPage({ incidents, total, loading, loadingMore, error, canAct, onChanged, onLoadMore }: Props) {
   const openCount = incidents.filter(i => i.status === 'open').length;
   const [activeId, setActiveId] = React.useState<string | null>(null);
   const [detail, setDetail] = React.useState<IncidentDetail | null>(null);
@@ -183,12 +183,12 @@ export default function IncidentsPage({ incidents, loading, error, canAct, onCha
         <div className="flex items-center gap-4 px-1">
           <div className="flex items-center gap-1.5 text-xs text-[var(--color-brand-muted)]">
             <ShieldAlert size={13} />
-            <span className="font-medium text-white">{incidents.length}</span> incidente{incidents.length !== 1 ? 's' : ''} total
+            <span className="font-medium text-white">{incidents.length}</span> de {total} incidente{total !== 1 ? 's' : ''}
           </div>
           {openCount > 0 && (
             <div className="flex items-center gap-1.5 text-xs text-red-400">
               <AlertTriangle size={11} />
-              <span className="font-medium">{openCount}</span> aberto{openCount !== 1 ? 's' : ''}
+              <span className="font-medium">{openCount}</span> aberto{openCount !== 1 ? 's' : ''} nesta lista
             </div>
           )}
         </div>
@@ -354,6 +354,11 @@ export default function IncidentsPage({ incidents, loading, error, canAct, onCha
           </div>
         );
       })}
+      {!loading && incidents.length < total && (
+        <button type="button" disabled={loadingMore} onClick={() => void onLoadMore()} className="w-full rounded-xl border border-white/15 px-4 py-3 text-sm text-white/80 hover:border-white/30 disabled:opacity-50">
+          {loadingMore ? 'Carregando...' : 'Carregar mais incidentes'}
+        </button>
+      )}
     </div>
   );
 }
