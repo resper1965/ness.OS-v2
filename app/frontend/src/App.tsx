@@ -268,11 +268,10 @@ function AppShellBody({ AUTH, logout, user }: {
       return;
     }
     try {
-      const query = selectedTenant ? `?customer_id=${selectedTenant}` : '';
       const [summaryRes, problemsRes, pipelineRes] = await Promise.all([
-        fetch(`${API_BASE}/api/dashboard/summary${query}`, { credentials: 'include', headers: AUTH }),
-        fetch(`${API_BASE}/api/dashboard/problems${selectedTenant ? query + '&' : '?'}limit=15`, { credentials: 'include', headers: AUTH }),
-        fetch(`${API_BASE}/api/dashboard/pipeline-status${query}`, { credentials: 'include', headers: AUTH }),
+        fetch(`${API_BASE}/api/dashboard/summary`, { credentials: 'include', headers: AUTH }),
+        fetch(`${API_BASE}/api/dashboard/problems?limit=15`, { credentials: 'include', headers: AUTH }),
+        fetch(`${API_BASE}/api/dashboard/pipeline-status`, { credentials: 'include', headers: AUTH }),
       ]);
       if (!summaryRes.ok || !problemsRes.ok) throw new Error('API error');
       setSummary(await summaryRes.json());
@@ -286,7 +285,7 @@ function AppShellBody({ AUTH, logout, user }: {
       setLoading(false);
       setPipelineLoading(false);
     }
-  }, [AUTH, selectedTenant, isOperator]);
+  }, [AUTH, isOperator]);
 
   const fetchIncidents = useCallback(async (offset = 0) => {
     const requestId = ++incidentsRequest.current;
@@ -316,7 +315,7 @@ function AppShellBody({ AUTH, logout, user }: {
     fetchData();
     const t = setInterval(fetchData, 30000);
     return () => clearInterval(t);
-  }, [fetchData, selectedTenant]);
+  }, [fetchData]);
 
   useEffect(() => {
     if (currentView === 'incidents') fetchIncidents();
@@ -375,7 +374,11 @@ function AppShellBody({ AUTH, logout, user }: {
         </div>
 
         <div className="px-2">
-          {isOperator ? <TenantSelector selectedTenant={selectedTenant} onSelect={setSelectedTenant} /> : <p className="text-xs text-white/60">Minha empresa</p>}
+          {isOperator && currentView === 'incidents' ? (
+            <TenantSelector selectedTenant={selectedTenant} onSelect={setSelectedTenant} />
+          ) : (
+            <p className="text-xs text-white/60">{isOperator ? 'Operação global' : 'Minha empresa'}</p>
+          )}
         </div>
 
         <nav className="flex flex-col gap-1 flex-1" aria-label="Navegação principal">
@@ -583,7 +586,7 @@ function AppShellBody({ AUTH, logout, user }: {
               />
             )}
 
-            {currentView === 'cloud' && <CloudManagement selectedTenant={selectedTenant} />}
+            {currentView === 'cloud' && <CloudManagement />}
 
           </div>
           )} {/* /infraops */}

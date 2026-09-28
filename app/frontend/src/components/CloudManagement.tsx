@@ -12,7 +12,7 @@ const API_BASE = import.meta.env.VITE_API_URL ?? '';
 type Tab = 'compute' | 'snapshots' | 'storage' | 'networks' | 'firewall';
 type HealthAlert = { type: 'danger'; title: string; message: string; icon: typeof AlertTriangle };
 
-export default function CloudManagement({ selectedTenant }: { selectedTenant: string | null }) {
+export default function CloudManagement() {
   const { authHeader } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>('compute');
   const [summary, setSummary] = useState<any>(null);
@@ -27,8 +27,7 @@ export default function CloudManagement({ selectedTenant }: { selectedTenant: st
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const query = selectedTenant ? `?customer_id=${selectedTenant}` : '';
-      const res = await fetch(`${API_BASE}/api/contabo/dashboard-full${query}`, { credentials: 'include', headers: authHeader() });
+      const res = await fetch(`${API_BASE}/api/contabo/dashboard-full`, { credentials: 'include', headers: authHeader() });
       if (res.ok) {
         const data = await res.json();
         setSummary(data.summary);
@@ -60,11 +59,11 @@ export default function CloudManagement({ selectedTenant }: { selectedTenant: st
     } finally {
       setLoading(false);
     }
-  }, [authHeader, selectedTenant]);
+  }, [authHeader]);
 
   useEffect(() => {
     fetchData();
-  }, [fetchData, selectedTenant]);
+  }, [fetchData]);
 
   const filteredInstances = instances.filter(i => 
     i.displayName.toLowerCase().includes(search.toLowerCase()) ||
