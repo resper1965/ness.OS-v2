@@ -72,7 +72,7 @@ Todas as rotas abaixo são somente leitura e exigem `platform_admin`; negam outr
 | `POST /v1/alerts` | `source-key` da API de alertas |
 | `POST /api/v1/alerts` | Mesmo contrato, com prefixo `/api` |
 | `POST /api/auth/login` | Público; valida credenciais e conta ativa |
-| `POST /api/auth/logout` | Sem dependência de sessão; valida origem e limpa cookie local |
+| `POST /api/auth/logout` | Valida origem; se houver sessão válida, incrementa a versão de sessão no banco e invalida os tokens anteriores; limpa o cookie local mesmo com token já inválido |
 | `POST /api/auth/oidc/callback` | Público; valida origem, código e token OIDC |
 | `POST /api/auth/seed` | Público apenas com `NINF_DEBUG=true`; indisponível em produção |
 | `GET /api/v1/push/config` | Público; configuração de inscrição |

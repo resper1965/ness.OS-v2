@@ -175,7 +175,7 @@ async def test_stream_delivers_event_while_session_is_current():
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("changed", ("is_active", "role", "tenant_id"))
+@pytest.mark.parametrize("changed", ("is_active", "role", "tenant_id", "session_epoch"))
 async def test_stream_closes_before_delivering_event_after_identity_change(changed):
     user = SimpleNamespace(
         id=42, role=UserRole.cliente, tenant_id="tenant-a", is_active=True
@@ -206,9 +206,12 @@ async def test_stream_closes_before_delivering_event_after_identity_change(chang
         setattr(
             user,
             changed,
-            {"is_active": False, "role": UserRole.noc, "tenant_id": "tenant-b"}[
-                changed
-            ],
+            {
+                "is_active": False,
+                "role": UserRole.noc,
+                "tenant_id": "tenant-b",
+                "session_epoch": 1,
+            }[changed],
         )
         assert (await anext(events)).startswith("event: auth\n")
         await events.aclose()

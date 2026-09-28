@@ -48,6 +48,7 @@ def _user(*, active: bool = True) -> SimpleNamespace:
 
 def _protected_client(user: SimpleNamespace) -> TestClient:
     app = FastAPI()
+    app.include_router(auth_router)
 
     @app.get("/protected")
     async def protected(current_user=Depends(get_current_user)):
@@ -158,6 +159,7 @@ def test_login_returns_user_and_sets_hardened_host_only_cookie() -> None:
     assert (
         verify_token(client.cookies[SESSION_COOKIE_NAME])["tenant_id"] == user.tenant_id
     )
+    assert verify_token(client.cookies[SESSION_COOKIE_NAME])["session_epoch"] == 0
 
 
 def test_non_browser_login_preserves_bearer_automation_compatibility() -> None:
@@ -219,6 +221,41 @@ def test_logout_expires_cookie_with_matching_security_attributes() -> None:
     assert "httponly" in cookie
     assert "secure" in cookie
     assert "samesite=strict" in cookie
+
+
+def test_logout_revokes_an_existing_session_token() -> None:
+    user = _user()
+    client = _protected_client(user)
+    token = create_access_token(
+        user_id=user.id,
+        role=user.role.value,
+        extra_claims={"tenant_id": user.tenant_id},
+    )
+    client.cookies.set(SESSION_COOKIE_NAME, token)
+
+    assert client.get("/protected").status_code == 200
+    response = client.post(
+        "/api/auth/logout", headers={"Origin": "https://hub.ness.com.br"}
+    )
+    assert response.status_code == 204
+    assert getattr(user, "session_epoch", 0) == 1
+    assert (
+        client.get(
+            "/protected", headers={"Authorization": f"Bearer {token}"}
+        ).status_code
+        == 401
+    )
+    fresh_token = create_access_token(
+        user_id=user.id,
+        role=user.role.value,
+        extra_claims={"tenant_id": user.tenant_id, "session_epoch": 1},
+    )
+    assert (
+        client.get(
+            "/protected", headers={"Authorization": f"Bearer {fresh_token}"}
+        ).status_code
+        == 200
+    )
 
 
 def test_frontend_never_handles_session_token() -> None:

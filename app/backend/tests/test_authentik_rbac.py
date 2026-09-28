@@ -62,7 +62,8 @@ def test_every_non_public_api_route_has_recognized_authorization():
         ):
             continue
         names = {
-            dependency.call.__name__ for dependency in route.dependant.dependencies
+            getattr(dependency.call, "__name__", type(dependency.call).__name__)
+            for dependency in route.dependant.dependencies
         }
         for method in route.methods:
             if (method, route.path) not in public and not names.intersection(guards):

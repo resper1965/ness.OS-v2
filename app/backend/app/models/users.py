@@ -63,6 +63,9 @@ class User(Base):
     tenant_id: Mapped[str | None] = mapped_column(
         String(128), nullable=True, index=True
     )
+    session_epoch: Mapped[int] = mapped_column(
+        BigInteger, nullable=False, default=0, server_default="0"
+    )
     is_active: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True, server_default="true"
     )

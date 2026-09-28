@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 
 import bcrypt as _bcrypt
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,6 +20,7 @@ from app.core.dependencies import get_current_user, is_noc_role
 from app.core.jwt import create_access_token
 from app.core.oidc import exchange_oidc_code, verify_oidc_token
 from app.core.session import (
+    SESSION_COOKIE_NAME,
     clear_session_cookie,
     require_trusted_origin,
     set_session_cookie,
@@ -28,6 +30,7 @@ from app.models.users import User, UserRole
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/auth", tags=["auth"])
+_logout_bearer = HTTPBearer(auto_error=False)
 
 
 # ── Schemas ──────────────────────────────────────────────────────────────────
@@ -147,7 +150,10 @@ async def login(
     token = create_access_token(
         user_id=user.id,
         role=user.role.value,
-        extra_claims={"tenant_id": user.tenant_id},
+        extra_claims={
+            "tenant_id": user.tenant_id,
+            "session_epoch": getattr(user, "session_epoch", 0),
+        },
     )
     if not browser_request:
         return TokenResponse(
@@ -192,9 +198,22 @@ async def me(
     response_model=None,
     summary="Encerra a sessão",
 )
-async def logout(request: Request, response: Response) -> Response:
-    """Remove a sessão local do navegador; o frontend encerra o SSO em seguida."""
+async def logout(
+    request: Request,
+    response: Response,
+    credentials: HTTPAuthorizationCredentials | None = Depends(_logout_bearer),
+    db: AsyncSession = Depends(get_db),
+) -> Response:
+    """Revoga as sessões locais do usuário e remove o cookie do navegador."""
     require_trusted_origin(request)
+    if credentials is not None or request.cookies.get(SESSION_COOKIE_NAME):
+        try:
+            user = await get_current_user(request, credentials, db)
+        except HTTPException:
+            pass  # Token já inválido; ainda limpamos o cookie local.
+        else:
+            user.session_epoch = getattr(user, "session_epoch", 0) + 1
+            await db.commit()
     clear_session_cookie(response)
     response.status_code = status.HTTP_204_NO_CONTENT
     return response
@@ -369,7 +388,10 @@ async def oidc_callback(
     local_token = create_access_token(
         user_id=user.id,
         role=user.role.value,
-        extra_claims={"tenant_id": user.tenant_id},
+        extra_claims={
+            "tenant_id": user.tenant_id,
+            "session_epoch": getattr(user, "session_epoch", 0),
+        },
     )
     set_session_cookie(response, local_token)
 

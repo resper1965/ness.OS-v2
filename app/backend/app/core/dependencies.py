@@ -103,6 +103,7 @@ async def get_current_user(
         payload.get("role") != user.role.value
         or ("tenant_id" in payload and payload["tenant_id"] != user.tenant_id)
         or ("tenant_id" not in payload and not is_noc_role(user.role))
+        or payload.get("session_epoch", 0) != getattr(user, "session_epoch", 0)
     ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

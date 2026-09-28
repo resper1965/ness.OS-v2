@@ -56,6 +56,13 @@ async def run_migrations():
             logger.error(f"Erro ao verificar/criar coluna tenant_id: {e}")
             raise
 
+        await conn.execute(
+            text(
+                "ALTER TABLE n_infraops_users "
+                "ADD COLUMN IF NOT EXISTS session_epoch BIGINT NOT NULL DEFAULT 0;"
+            )
+        )
+
         # 3. Criar tabela n_infraops_push_subscriptions se não existir
         logger.info("Verificando tabela n_infraops_push_subscriptions...")
         try:

@@ -40,14 +40,18 @@
 
 **Files:**
 - Modify: `app/backend/app/api/routers/incidents.py`
+- Modify: `app/backend/app/api/routers/auth.py`
+- Modify: `app/backend/app/core/dependencies.py`
+- Modify: `app/backend/app/models/users.py`
+- Modify: `app/backend/app/migrate.py`
 - Modify: `app/backend/tests/test_incidents_auth.py`
-- Modify: `app/backend/tests/test_oidc_session_lifecycle.py`
+- Modify: `app/backend/tests/test_browser_session_security.py`
 
-**Interfaces:** O stream SSE revalida expiração, sessão e autorização em intervalo limitado e encerra com evento de autenticação antes de desconectar quando a sessão deixa de ser válida.
+**Interfaces:** O stream SSE revalida expiração, versão de sessão, papel e tenant em intervalo limitado e encerra com evento de autenticação antes de desconectar. Logout incrementa `session_epoch` persistido; tokens anteriores passam a receber 401 também nas rotas HTTP. A coluna é aplicada por `app.migrate` antes do deploy; nenhuma migração de produção ocorre antes do gate da Fase 0.
 
-- [ ] Criar testes para expiração durante stream, revogação, troca de papel e mudança de tenant.
+- [x] Criar testes para expiração durante stream, revogação por logout, troca de papel e mudança de tenant.
 - [ ] Executar os dois arquivos de teste; esperado: novos casos falham.
-- [ ] Implementar revalidação periódica usando a mesma política de `auth.py`, sem confiar no papel capturado na conexão inicial.
+- [x] Implementar revalidação periódica usando `get_current_user` e versão de sessão persistida, sem confiar no papel capturado na conexão inicial.
 - [ ] Repetir os testes; esperado: stream autorizado continua e cada alteração de segurança encerra o stream.
 - [ ] Commit: `git add app/backend/app/api/routers/incidents.py app/backend/tests/test_incidents_auth.py app/backend/tests/test_oidc_session_lifecycle.py && git commit -m "fix(auth): revalidate long lived incident streams"`.
 
