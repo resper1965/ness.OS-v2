@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from celery.exceptions import Retry
 
 from app.ml.analyzer import AIAnalysisResult
 from app.models import Incident, IncidentAction
@@ -168,12 +169,34 @@ def test_atomic_inhibition_loser_does_not_process_alert(monkeypatch):
     process = AsyncMock()
     monkeypatch.setattr(alerts, "_get_sync_redis", lambda: redis)
     monkeypatch.setattr(alerts, "_async_process_alert_v1", process)
+    monkeypatch.setattr(
+        alerts, "_has_persisted_inhibition_completion", AsyncMock(return_value=True)
+    )
 
     result = alerts.process_alert_v1.run({}, "fingerprint")
 
     assert result == {"status": "deduplicated", "fingerprint": "fingerprint"}
     process.assert_not_called()
     redis.close.assert_called_once()
+
+
+def test_atomic_inhibition_loser_retries_without_persisted_completion(monkeypatch):
+    redis = MagicMock()
+    redis.set.return_value = None
+    process = AsyncMock()
+    retry = MagicMock(side_effect=Retry())
+    monkeypatch.setattr(alerts, "_get_sync_redis", lambda: redis)
+    monkeypatch.setattr(alerts, "_async_process_alert_v1", process)
+    monkeypatch.setattr(
+        alerts, "_has_persisted_inhibition_completion", AsyncMock(return_value=False)
+    )
+    monkeypatch.setattr(alerts.process_alert_v1, "retry", retry)
+
+    with pytest.raises(Retry):
+        alerts.process_alert_v1.run({}, "fingerprint")
+
+    process.assert_not_called()
+    retry.assert_called_once_with(countdown=alerts.settings.lock_retry_delay_seconds)
 
 
 def test_processing_failure_releases_only_owned_inhibition_and_retries(monkeypatch):

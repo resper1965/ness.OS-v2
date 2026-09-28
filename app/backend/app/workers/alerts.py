@@ -7,6 +7,7 @@ from html import escape
 from typing import Any, Dict
 from uuid import uuid4
 
+from celery.exceptions import Retry
 from redis import Redis
 from sqlalchemy import select
 
@@ -649,6 +650,19 @@ async def _async_process_recovery(
     return result
 
 
+async def _has_persisted_inhibition_completion(
+    fingerprint: str, *, recovery: bool
+) -> bool:
+    """Check durable completion before treating a Redis inhibition as a duplicate."""
+    async with SessionLocal() as session:
+        statement = select(Incident.id).where(Incident.fingerprint == fingerprint)
+        if recovery:
+            statement = statement.where(
+                Incident.tags["ninf_zabbix_status"].astext == "resolved"
+            )
+        return (await session.execute(statement)).scalar_one_or_none() is not None
+
+
 def _publish_incident_event(event_data: dict) -> None:
     redis_client = None
     try:
@@ -695,6 +709,14 @@ def process_alert_v1(
         finally:
             redis.close()
         if not acquired:
+            if not asyncio.run(
+                _has_persisted_inhibition_completion(fingerprint, recovery=recovery)
+            ):
+                logger.info(
+                    "Inibição sem conclusão persistida; reagendando | fingerprint=%s",
+                    fingerprint,
+                )
+                raise self.retry(countdown=settings.lock_retry_delay_seconds)
             logger.info(
                 "Alerta DEDUPLICADO / INIBIDO | fingerprint=%s host=%s trigger=%s",
                 fingerprint,
@@ -713,6 +735,8 @@ def process_alert_v1(
         result = asyncio.run(_async_process_alert_v1(alert_data, fingerprint))
         return result
 
+    except Retry:
+        raise
     except Exception as exc:
         try:
             if acquired:

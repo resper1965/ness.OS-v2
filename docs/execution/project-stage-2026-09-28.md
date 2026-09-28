@@ -62,6 +62,8 @@ Inscrições Web Push agora pertencem ao usuário autenticado: uma sessão não 
 
 A triagem SecOps normaliza nível e ativo de eventos Wazuh aninhados e consolida a inteligência de IP e hash antes de calcular o risco. Eventos arquivados por risco baixo são classificados como `LOW_PRIORITY`, sem afirmar falso positivo.
 
+O worker de alertas só trata uma inibição Redis como deduplicação depois de confirmar a conclusão persistida. Se o lock existir sem incidente concluído, a tarefa é reagendada, protegendo a reentrega após interrupção de worker.
+
 O precheck somente leitura de 28/09 passou em 60 testes de sessão/RBAC, nos gates estáticos e nas rotas públicas Authentik, Hub, GLPI, n8n e Zabbix UAT. O Zabbix UAT permanece `inactive`, `masked` e sem escuta TCP/10051; ver `docs/execution/evidence/uat-readonly-precheck-2026-09-28.md`. Não houve login nominal nem confirmação do isolamento na aplicação implantada. O SSH de leitura à VPS AIOps foi negado pela chave disponível nesta sessão, portanto não há atualização de backups ou runtime de produção.
 
 ## Próxima execução
