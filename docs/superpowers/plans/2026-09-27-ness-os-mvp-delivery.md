@@ -62,12 +62,12 @@ Detailed task steps remain in the referenced plans. For each phase, load `superp
 
 **Interfaces:** The master plan maps each criterion in the MVP spec to one phase task and one exit gate. Phase plans distinguish local development from production rollout. Phase 4's Wazuh cost/capacity work is a post-MVP gate and cannot block MVP acceptance.
 
-- [ ] Add a requirement-to-task table to the master plan for all eight MVP acceptance criteria.
-- [ ] Correct phase gate wording so local code and tests may proceed while Fase 0 is pending, with no production rollout before Fase 0 approval.
-- [ ] Move Wazuh production readiness out of the Phase 4 MVP exit gate; preserve capacity/cost approval as a prerequisite to Wazuh purchase and rollout.
-- [ ] Mark already completed Phase 3 Task 1 by its existing commit `342a817`; do not repeat its implementation.
-- [ ] Run `git diff --check`; expected: no whitespace errors and only the seven listed plan files change.
-- [ ] Commit only these plan files with `docs(plan): align phase gates with ness.OS MVP`.
+- [x] Add a requirement-to-task table to the master plan for all eight MVP acceptance criteria.
+- [x] Correct phase gate wording so local code and tests may proceed while Fase 0 is pending, with no production rollout before Fase 0 approval.
+- [x] Move Wazuh production readiness out of the Phase 4 MVP exit gate; preserve capacity/cost approval as a prerequisite to Wazuh purchase and rollout.
+- [x] Mark already completed Phase 3 Task 1 by its existing commit `342a817`; do not repeat its implementation.
+- [x] Run `git diff --check`; no whitespace errors, and the Task 1 commit changed only the seven listed plan files.
+- [x] Commit only these plan files as `4bf9c68` (`docs(plan): align phase gates with ness.OS MVP`).
 
 ### Task 2: Complete identity and tenant controls
 
