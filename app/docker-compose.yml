@@ -60,7 +60,7 @@ services:
     networks:
       - ninf-net
     healthcheck:
-      test: ["CMD-SHELL", "timeout 15s celery -A app.workers.celery_app inspect ping -d alerts@* 2>&1 | grep -qc pong"]
+      test: ["CMD-SHELL", "timeout 15s celery -A app.workers.celery_app inspect ping -d alerts@$$(hostname) 2>&1 | grep -qc pong"]
       interval: 60s
       timeout: 30s
       retries: 3
@@ -91,7 +91,7 @@ services:
     networks:
       - ninf-net
     healthcheck:
-      test: ["CMD-SHELL", "timeout 15s celery -A app.workers.celery_app inspect ping -d ml@* 2>&1 | grep -qc pong"]
+      test: ["CMD-SHELL", "timeout 15s celery -A app.workers.celery_app inspect ping -d ml@$$(hostname) 2>&1 | grep -qc pong"]
       interval: 60s
       timeout: 30s
       retries: 3

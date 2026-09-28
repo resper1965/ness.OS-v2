@@ -102,9 +102,10 @@ printf 'pong\n'
 EOF
 chmod +x "${fake_bin}/celery"
 for worker in alerts ml; do
-  probe_line="$(grep -F -- "-d ${worker}@*" "${compose_file}")"
+  probe_line="$(grep -F -- "-d ${worker}@\$\$(hostname)" "${compose_file}")"
   [[ -n "${probe_line}" ]] || { echo "missing ${worker} healthcheck" >&2; exit 1; }
   probe="$(sed -E 's/.*"CMD-SHELL", "(.*)"\].*/\1/' <<<"${probe_line}")"
+  probe="$(sed 's/\$\$/\$/g' <<<"${probe}")"
   PATH="${fake_bin}:${PATH}" AIOPS_TEST_WORKER_PONG=1 bash -c "${probe}"
   if PATH="${fake_bin}:${PATH}" AIOPS_TEST_WORKER_PONG=0 bash -c "${probe}"; then
     echo "${worker} healthcheck accepted a stopped worker" >&2
