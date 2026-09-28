@@ -24,6 +24,7 @@ Levantamento das rotas registradas em `app.main` em 2026-09-28. O backend usa os
 | `GET /api/dashboard/pipeline-status` | Estado do pipeline | `noc`, global |
 | `GET /api/incidents` | Listar incidentes | `auth`, tenant efetivo para `cliente`; operadores podem selecionar tenant |
 | `GET /api/incidents/{incident_id}` | Detalhe, origem Zabbix e vínculo GLPI | `auth`, tenant efetivo para `cliente`; incidente ausente ou fora do tenant: 404 |
+| `POST /api/incidents/{incident_id}/actions` | Reconhecer, assumir, comentar, resolver ou encerrar com histórico | `noc`, operadores globais; demais papéis: 403; transição inválida ou GLPI pendente: 409 |
 | `POST /api/incident/analyze` | Analisar incidente | `noc`, global |
 | `GET /api/incidents/stream` | Eventos de incidentes | `auth`, filtro de tenant para `cliente`; revalida sessão, papel e tenant durante o stream |
 | `GET /api/tenants/health` | Saúde dos tenants | `noc`, global |

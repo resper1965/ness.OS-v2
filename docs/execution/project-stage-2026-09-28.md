@@ -9,18 +9,18 @@ O MVP é o fluxo autenticado Zabbix → incidente no Hub → ticket GLPI, com is
 | Frente | Estado | Base |
 |---|---|---|
 | Fase 0 / release | `FAIL` na última avaliação, de 26/09 | `docs/execution/gates/phase-0-recovery-release.md`; backup e restauração passaram, mas commit/digests, rollback e CI completo ainda bloqueiam release |
-| Código local do Hub | Implementação em andamento | Fase 3 Task 1 concluída em `342a817`; workers falham fechado em `641a885`; a sonda `/ready` da API verifica PostgreSQL, Redis da aplicação e broker Celery, mas falta exercício com containers reais |
+| Código local do Hub | Implementação em andamento | Fase 3 Task 1 concluída em `342a817`; workers falham fechado em `641a885`; a sonda `/ready` verifica PostgreSQL, esquema de incidente, Redis da aplicação e broker Celery, mas falta exercício do stack com containers reais |
 | Identidade e tenant | Matriz inicial, gate pendente | Inventário de rotas em `docs/security/access-control-matrix.md`; HTTP e SSE revalidam papel, tenant e versão de sessão, e logout incrementa `session_epoch`; `operator`/`viewer` ainda não têm correspondência segura com papéis legados |
-| MVP integrado | Não aceito | O detalhe de incidente agora expõe origem Zabbix e vínculo GLPI com isolamento de tenant; ainda faltam ações e histórico auditável, contratos de frescor, fluxo integrado e gates das Fases 1–4 e 6 |
+| MVP integrado | Não aceito | O detalhe restringe usuários de tenant; ações exigem papel NOC/SOC/admin, usam bloqueio de linha e persistem histórico. Resolução GLPI e ACK Zabbix geram registros atribuídos à integração. Ainda faltam auditoria da criação do ticket, política final de papéis, contratos de frescor, fluxo integrado e gates das Fases 1–4 e 6 |
 | Wazuh | Planejado | Fora do gate do MVP; sem compra ou rollout autorizado por este plano |
 
-Os testes locais executados até aqui foram a suíte completa do backend (291 aprovados, com dois avisos de depreciação), typecheck, lint e build do frontend, Ruff nos arquivos Python alterados e `bash infra/tests/test-aiops-runtime-readiness.sh`. O teste de readiness simula um worker parado; não substitui um exercício com contêiner real. A migração `session_epoch` ainda não foi aplicada ou testada em PostgreSQL isolado: o daemon Docker local está indisponível. Não houve nova coleta de saúde dos serviços ou de backups de produção nesta atualização. A evidência de 26/09 deve ser renovada antes de qualquer decisão de release.
+Os testes locais executados até aqui foram a suíte completa do backend (299 aprovados, dois avisos de depreciação), typecheck, lint e build do frontend, Ruff nos arquivos Python alterados e `bash infra/tests/test-aiops-runtime-readiness.sh`. A migração `app.migrate` passou duas vezes em um PostgreSQL 17 isolado e uma ação de incidente foi persistida com seu histórico na mesma transação. O container de teste foi removido. Isso não substitui o exercício do stack real nem valida o SQL de inicialização com TimescaleDB/pgvector. Não houve nova coleta de saúde dos serviços ou de backups de produção nesta atualização. A evidência de 26/09 deve ser renovada antes de qualquer decisão de release.
 
 ## Próxima execução
 
 1. Definir e testar o escopo de tenant do papel `operator` sem conceder acesso global de `noc`; manter a Fase 1 sem aprovação até o teste de isolamento passar em API e stream.
 2. Provar a transição `unhealthy`/`healthy` da API e dos workers em ambiente com containers; os testes locais cobrem falhas de banco, Redis e broker, mas não o ciclo real do Docker.
-3. Persistir ações e histórico atribuível do incidente, ligar atribuição/estado/comentários à interface e avançar no fluxo idempotente Zabbix/GLPI; preservar a Fase 0 como gate para deploy e escritas em produção.
+3. Auditar a criação/atualização de ticket, completar a inicialização de banco do zero e provar o fluxo Zabbix/GLPI de ponta a ponta; preservar a Fase 0 como gate para deploy e escritas em produção.
 4. Reconciliar a release com os arquivos e imagens reais, CI e rollback antes de reavaliar a Fase 0.
 
 A árvore da branch `feat/incidents-rbac-local` ainda contém alterações e arquivos não rastreados anteriores a esta atualização. Eles permanecem fora dos commits de implementação desta etapa.
