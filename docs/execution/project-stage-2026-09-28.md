@@ -48,6 +48,8 @@ O utilitário OIDC passou a ocultar corpos de resposta e detalhes de exceções 
 
 O cliente GLPI passou a registrar somente o tipo de falha e a propagar erros operacionais genéricos para sessão, leituras e escritas. A suíte completa passou com 402 testes aprovados e um ignorado.
 
+O cliente Zabbix passou a ocultar detalhes HTTP e JSON-RPC do provedor, preservando somente a indisponibilidade identificável para seus chamadores. A suíte completa passou com 403 testes aprovados e um ignorado.
+
 O precheck somente leitura de 28/09 passou em 60 testes de sessão/RBAC, nos gates estáticos e nas rotas públicas Authentik, Hub, GLPI, n8n e Zabbix UAT. O Zabbix UAT permanece `inactive`, `masked` e sem escuta TCP/10051; ver `docs/execution/evidence/uat-readonly-precheck-2026-09-28.md`. Não houve login nominal nem confirmação do isolamento na aplicação implantada. O SSH de leitura à VPS AIOps foi negado pela chave disponível nesta sessão, portanto não há atualização de backups ou runtime de produção.
 
 ## Próxima execução

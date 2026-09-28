@@ -59,17 +59,14 @@ class ZabbixClient:
                 response = await client.post(self.url, json=payload, headers=headers)
                 response.raise_for_status()
                 res_data = response.json()
-                if "error" in res_data:
-                    logger.error(
-                        "Erro na API Zabbix [%s]: %s", method, res_data["error"]
-                    )
-                    raise ValueError(
-                        f"Zabbix API Error: {res_data['error'].get('data', '') or res_data['error'].get('message', '')}"
-                    )
-                return res_data.get("result")
-            except Exception as e:
-                logger.error("Falha ao comunicar com API Zabbix [%s]: %s", method, e)
-                raise
+            except Exception as exc:
+                logger.error("Zabbix API %s failed: %s", method, type(exc).__name__)
+                raise RuntimeError("Zabbix API indisponível") from exc
+
+        if "error" in res_data:
+            logger.error("Zabbix API %s returned a JSON-RPC error", method)
+            raise RuntimeError("Zabbix API indisponível")
+        return res_data.get("result")
 
     async def _readiness_call(
         self,

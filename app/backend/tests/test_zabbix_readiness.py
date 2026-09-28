@@ -187,3 +187,22 @@ async def test_unexpected_json_rpc_error_is_sanitized(monkeypatch):
 
     assert str(exc_info.value) == "Probe falhou: erro JSON-RPC do Zabbix"
     assert "secret-token" not in str(exc_info.value)
+
+
+@pytest.mark.asyncio
+async def test_call_hides_json_rpc_provider_details(monkeypatch, caplog):
+    def handler(_request):
+        return httpx.Response(
+            200,
+            json={
+                "jsonrpc": "2.0",
+                "error": {"message": "bad auth", "data": "Bearer provider-secret"},
+                "id": 1,
+            },
+        )
+
+    with pytest.raises(RuntimeError, match="Zabbix API indisponível") as error:
+        await _client(monkeypatch, handler)._call("host.get", {})
+
+    assert "provider-secret" not in str(error.value)
+    assert "provider-secret" not in caplog.text
