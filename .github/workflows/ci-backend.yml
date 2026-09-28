@@ -14,6 +14,7 @@ on:
       - 'infra/scripts/hub-integration-monitor.sh'
       - 'infra/tests/test-hub-integration-readiness-report.sh'
       - 'infra/tests/test-hub-health-history.py'
+      - 'infra/tests/run-hub-local-flow.sh'
       - '.github/workflows/ci-backend.yml'
   pull_request:
     branches: [ "main" ]
@@ -39,6 +40,7 @@ jobs:
       with:
         python-version: "3.12"
         cache: 'pip'
+        cache-dependency-path: app/backend/requirements.txt
         
     - name: Install dependencies
       run: |
@@ -60,6 +62,10 @@ jobs:
     - name: Test with pytest
       run: |
         pytest
+
+    - name: Verify local Hub flow with PostgreSQL and Redis
+      working-directory: .
+      run: bash infra/tests/run-hub-local-flow.sh
 
     - name: Verify health history and monitor
       working-directory: .
