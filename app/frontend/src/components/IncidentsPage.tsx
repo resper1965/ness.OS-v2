@@ -87,10 +87,47 @@ interface Incident {
   asset?: { name: string; glpi_itemtype?: string; glpi_item_id?: number; owner?: string; owner_group_id?: number } | null;
 }
 
+interface IncidentDetail extends Incident {
+  host_id: string;
+  trigger_id: string;
+  source_event_id: string | null;
+  source_url: string | null;
+  description: string | null;
+  resolution_sync_status: string | null;
+}
+
 interface Props { incidents: Incident[]; loading: boolean; error: string | null; }
 
 export default function IncidentsPage({ incidents, loading, error }: Props) {
   const openCount = incidents.filter(i => i.status === 'open').length;
+  const [activeId, setActiveId] = React.useState<string | null>(null);
+  const [detail, setDetail] = React.useState<IncidentDetail | null>(null);
+  const [detailLoading, setDetailLoading] = React.useState(false);
+  const [detailError, setDetailError] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (!activeId) return;
+    const controller = new AbortController();
+    setDetail(null);
+    setDetailError(null);
+    setDetailLoading(true);
+    fetch(`${import.meta.env.VITE_API_URL ?? ''}/api/incidents/${encodeURIComponent(activeId)}`, {
+      credentials: 'include',
+      signal: controller.signal,
+    })
+      .then(async response => {
+        if (!response.ok) throw new Error('Não foi possível carregar o detalhe do incidente');
+        return response.json() as Promise<IncidentDetail>;
+      })
+      .then(setDetail)
+      .catch(err => {
+        if (!controller.signal.aborted) setDetailError(err.message);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setDetailLoading(false);
+      });
+    return () => controller.abort();
+  }, [activeId]);
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -205,6 +242,33 @@ export default function IncidentsPage({ incidents, loading, error }: Props) {
 
             {/* Pipeline timeline */}
             <IncidentTimeline stage={inc.pipeline_stage} />
+            <button
+              type="button"
+              className="mt-3 text-xs text-[var(--color-brand-primary)] hover:underline"
+              aria-expanded={activeId === inc.id}
+              aria-controls={`incident-detail-${inc.id}`}
+              onClick={() => setActiveId(activeId === inc.id ? null : inc.id)}
+            >
+              {activeId === inc.id ? 'Ocultar detalhes' : 'Ver detalhes'}
+            </button>
+            {activeId === inc.id && (
+              <div id={`incident-detail-${inc.id}`} className="mt-3 border-t border-white/[0.06] pt-3 space-y-2 text-xs text-white/70">
+                {detailLoading && <p role="status">Carregando detalhes...</p>}
+                {detailError && <p role="alert" className="text-red-400">{detailError}</p>}
+                {detail && (
+                  <>
+                    <p className="whitespace-pre-wrap">{detail.description || 'Sem descrição da origem.'}</p>
+                    <p>Host Zabbix #{detail.host_id} · Trigger #{detail.trigger_id} · Evento #{detail.source_event_id || 'indisponível'}</p>
+                    {detail.source_url && (
+                      <a href={detail.source_url} target="_blank" rel="noopener noreferrer" className="inline-block text-[var(--color-brand-primary)] hover:underline">
+                        Abrir evento no Zabbix
+                      </a>
+                    )}
+                    <p>Sincronização da resolução: {detail.resolution_sync_status || 'sem atualização registrada'}</p>
+                  </>
+                )}
+              </div>
+            )}
           </div>
         );
       })}

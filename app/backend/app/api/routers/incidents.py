@@ -7,12 +7,14 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+from urllib.parse import urlencode, urljoin
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from fastapi.security import HTTPBearer
 from redis.asyncio import Redis
-from sqlalchemy import desc, select
+from sqlalchemy import desc, func, select
+from sqlalchemy.orm import selectinload
 
 from app.config import get_settings
 from app.core.dependencies import (
@@ -55,6 +57,41 @@ def _pipeline_stage(incident: Incident) -> str:
     return "detected"
 
 
+def _incident_payload(inc: Incident) -> dict:
+    tags = inc.tags or {}
+    asset_tags = inc.asset.tags or {} if inc.asset else {}
+    return {
+        "id": str(inc.id),
+        "fingerprint": inc.fingerprint,
+        "ticket_id": inc.deskmanager_ticket_id,
+        "solution": tags.get("glpi_solution"),
+        "resolution_sync_status": tags.get("resolution_sync_status"),
+        "asset_id": inc.asset_id,
+        "asset": (
+            {
+                "name": inc.asset.hostname,
+                "glpi_itemtype": asset_tags.get("glpi_itemtype"),
+                "glpi_item_id": asset_tags.get("glpi_item_id"),
+                "owner": asset_tags.get("owner"),
+                "owner_group_id": asset_tags.get("glpi_owner_group_id"),
+            }
+            if inc.asset
+            else None
+        ),
+        "title": inc.title,
+        "severity": SEVERITY_LABEL.get(inc.severity or 0, "unknown"),
+        "severity_level": inc.severity or 0,
+        "host_name": inc.host_name or "unknown",
+        "client": tags.get("ninf_customer_name")
+        or (inc.asset.customer_name if inc.asset else "Não identificado"),
+        "status": inc.status,
+        "alert_count": inc.alert_count or 1,
+        "first_seen": inc.first_seen.isoformat() if inc.first_seen else None,
+        "last_seen": inc.last_seen.isoformat() if inc.last_seen else None,
+        "pipeline_stage": _pipeline_stage(inc),
+    }
+
+
 @router.get(
     "/api/incidents",
     tags=["incidents"],
@@ -66,8 +103,6 @@ async def list_incidents(
     current_user: User = Depends(get_current_user),
 ):
     """Retorna lista de incidentes com stage do pipeline."""
-    from sqlalchemy.orm import selectinload
-
     scope = resolve_tenant_scope(current_user, tenant_id)
     async with SessionLocal() as session:
         stmt = (
@@ -79,8 +114,6 @@ async def list_incidents(
         if status:
             stmt = stmt.where(Incident.status == status)
         if scope:
-            from sqlalchemy import func
-
             stmt = stmt.where(
                 func.lower(Incident.tags["ninf_customer_name"].astext) == scope
             )
@@ -88,43 +121,7 @@ async def list_incidents(
         incidents = result.scalars().all()
 
         return {
-            "incidents": [
-                {
-                    "id": str(inc.id),
-                    "fingerprint": inc.fingerprint,
-                    "ticket_id": inc.deskmanager_ticket_id,
-                    "solution": (inc.tags or {}).get("glpi_solution"),
-                    "resolution_sync_status": (inc.tags or {}).get(
-                        "resolution_sync_status"
-                    ),
-                    "asset_id": inc.asset_id,
-                    "asset": (
-                        {
-                            "name": inc.asset.hostname,
-                            "glpi_itemtype": inc.asset.tags.get("glpi_itemtype"),
-                            "glpi_item_id": inc.asset.tags.get("glpi_item_id"),
-                            "owner": inc.asset.tags.get("owner"),
-                            "owner_group_id": inc.asset.tags.get("glpi_owner_group_id"),
-                        }
-                        if inc.asset
-                        else None
-                    ),
-                    "title": inc.title,
-                    "severity": SEVERITY_LABEL.get(inc.severity or 0, "unknown"),
-                    "severity_level": inc.severity or 0,
-                    "host_name": inc.host_name or "unknown",
-                    "client": (inc.tags or {}).get("ninf_customer_name")
-                    or (inc.asset.customer_name if inc.asset else "Não identificado"),
-                    "status": inc.status,
-                    "alert_count": inc.alert_count or 1,
-                    "first_seen": (
-                        inc.first_seen.isoformat() if inc.first_seen else None
-                    ),
-                    "last_seen": inc.last_seen.isoformat() if inc.last_seen else None,
-                    "pipeline_stage": _pipeline_stage(inc),
-                }
-                for inc in incidents
-            ],
+            "incidents": [_incident_payload(inc) for inc in incidents],
             "total": len(incidents),
         }
 
@@ -243,3 +240,44 @@ async def stream_incidents(
             "X-Accel-Buffering": "no",  # Evita buffering em Caddy/Nginx
         },
     )
+
+
+@router.get("/api/incidents/{incident_id}", tags=["incidents"])
+async def get_incident_detail(
+    incident_id: int,
+    current_user: User = Depends(get_current_user),
+):
+    """Return incident detail only within the authenticated user's tenant scope."""
+    scope = resolve_tenant_scope(current_user, None)
+    async with SessionLocal() as session:
+        stmt = (
+            select(Incident)
+            .options(selectinload(Incident.asset))
+            .where(Incident.id == incident_id)
+        )
+        if scope:
+            stmt = stmt.where(
+                func.lower(Incident.tags["ninf_customer_name"].astext) == scope
+            )
+        incident = (await session.execute(stmt)).scalar_one_or_none()
+        if incident is None or (
+            scope
+            and (incident.tags or {}).get("ninf_customer_name", "").lower() != scope
+        ):
+            raise HTTPException(status_code=404, detail="Incidente não encontrado")
+        event_id = (incident.tags or {}).get("ninf_zabbix_event_id")
+        source_url = None
+        if event_id and incident.trigger_id:
+            source_url = (
+                urljoin(get_settings().zabbix_url, "tr_events.php")
+                + "?"
+                + urlencode({"triggerid": incident.trigger_id, "eventid": event_id})
+            )
+        return {
+            **_incident_payload(incident),
+            "host_id": incident.host_id,
+            "trigger_id": incident.trigger_id,
+            "source_event_id": event_id,
+            "source_url": source_url,
+            "description": incident.sanitized_description,
+        }
