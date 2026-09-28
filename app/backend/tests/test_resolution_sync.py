@@ -93,6 +93,7 @@ async def test_resolution_commits_human_solution_before_ack_and_replay_is_idempo
         markdown_report="original", corrective_actions=[], embedding=[1]
     )
     session = AsyncMock()
+    session.add = MagicMock()
     results = []
     for item in (incident, report, incident):
         r = MagicMock()
@@ -124,6 +125,10 @@ async def test_resolution_commits_human_solution_before_ack_and_replay_is_idempo
     assert report.embedding is None
     assert incident.tags["resolution_sync_status"] == "synced"
     assert redis.publish.call_count == 2
+    assert [call.args[0].action for call in session.add.call_args_list] == [
+        "glpi_resolution_imported",
+        "resolution_acknowledged",
+    ]
 
 
 @pytest.mark.asyncio
@@ -133,7 +138,7 @@ async def test_glpi_collection_reads_all_pages(monkeypatch):
         return httpx.Response(
             206,
             json=[{"id": i} for i in range(start, min(start + 100, 101))],
-            headers={"Content-Range": f"{start}-{min(start+99,100)}/101"},
+            headers={"Content-Range": f"{start}-{min(start + 99, 100)}/101"},
         )
 
     original = httpx.AsyncClient

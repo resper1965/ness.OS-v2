@@ -8,7 +8,7 @@ from sqlalchemy import select
 from app.database import SessionLocal
 from app.integrations.glpi import GLPIClient
 from app.integrations.zabbix import ZabbixClient
-from app.models import Incident, IncidentReport
+from app.models import Incident, IncidentAction, IncidentReport
 
 
 async def resolve_ticket(ticket_id: str, redis) -> dict:
@@ -40,6 +40,14 @@ async def resolve_ticket(ticket_id: str, redis) -> dict:
 
         solution = resolution["solution"]
         solution_id = resolution["solution_id"]
+        previous_status = incident.status
+        imported = (
+            tags.get("glpi_solution_id") != solution_id or previous_status != "resolved"
+        )
+        already_synced = (
+            tags.get("glpi_solution_id") == solution_id
+            and tags.get("resolution_sync_status") == "synced"
+        )
         if solution and tags.get("glpi_solution_id") != solution_id:
             report = (
                 await session.execute(
@@ -67,6 +75,19 @@ async def resolve_ticket(ticket_id: str, redis) -> dict:
         )
         incident.tags = tags
         incident.status = "resolved"
+        if imported:
+            session.add(
+                IncidentAction(
+                    incident_id=incident.id,
+                    actor_source="glpi",
+                    action="glpi_resolution_imported",
+                    previous_status=previous_status,
+                    new_status="resolved",
+                    previous_assignee_id=getattr(incident, "assigned_user_id", None),
+                    new_assignee_id=getattr(incident, "assigned_user_id", None),
+                    note=f"ticket={ticket_id} solution={solution_id}",
+                )
+            )
         await session.commit()
 
         event_id = tags.get("ninf_zabbix_event_id")
@@ -80,6 +101,19 @@ async def resolve_ticket(ticket_id: str, redis) -> dict:
             "resolution_sync_status": "synced",
             "resolution_synced_at": now,
         }
+        if not already_synced:
+            session.add(
+                IncidentAction(
+                    incident_id=incident.id,
+                    actor_source="zabbix",
+                    action="resolution_acknowledged",
+                    previous_status=incident.status,
+                    new_status=incident.status,
+                    previous_assignee_id=getattr(incident, "assigned_user_id", None),
+                    new_assignee_id=getattr(incident, "assigned_user_id", None),
+                    note=f"event={event_id} result={ack}",
+                )
+            )
         await session.commit()
         redis.publish(
             "ninf_incidents",
