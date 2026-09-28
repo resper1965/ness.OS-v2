@@ -345,6 +345,11 @@ function AppShellBody({ AUTH, logout, user }: {
       // Keep alive
     });
 
+    eventSource.addEventListener('auth', () => {
+      eventSource.close();
+      void logout();
+    });
+
     eventSource.onerror = (err) => {
       console.warn('Conexão SSE com aviso ou reconectando:', err);
     };
@@ -352,7 +357,7 @@ function AppShellBody({ AUTH, logout, user }: {
     return () => {
       eventSource.close();
     };
-  }, [user, fetchData, selectedTenant]);
+  }, [user, fetchData, selectedTenant, logout]);
 
   const hasCritical = summary && summary.problems_critical > 0;
   const canAccessPricing = user?.role === 'platform_admin' || user?.role === 'admin' || user?.role === 'gestao';
