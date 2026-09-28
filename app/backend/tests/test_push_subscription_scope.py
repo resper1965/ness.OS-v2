@@ -64,7 +64,9 @@ async def test_unsubscribe_is_scoped_to_the_current_user() -> None:
     db = _Db(_Result(rowcount=0))
     endpoint = "https://push.example.invalid/subscription"
 
-    result = await unsubscribe_push(PushUnsubscribeRequest(endpoint=endpoint), _user(1), db)
+    result = await unsubscribe_push(
+        PushUnsubscribeRequest(endpoint=endpoint), _user(1), db
+    )
 
     assert result["status"] == "not_found"
     assert db.committed is True
