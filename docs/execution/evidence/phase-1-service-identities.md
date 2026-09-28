@@ -25,3 +25,5 @@ Esta evidência descreve declarações encontradas em `app/docker-compose.yml`, 
 - Confirmar se Object Storage tem consumidor ativo e uma identidade dedicada.
 
 **Resultado:** inventário local parcial; identidade técnica, escopo e rotação em produção continuam **não verificados**. Não usar esta evidência como aprovação da Fase 1.
+
+**Validação local do relatório (2026-09-28):** o modo `--metadata-only` foi exercitado com fixtures sintéticas para origem ausente, compartilhada, expirada e versionada. O teste também confirmou que o conteúdo de um arquivo fixture não aparece na saída. Isto valida a classificação e a não exposição dos valores pelo analisador; não é inventário de produção nem prova de escopo efetivo ou revogação.

@@ -8,6 +8,12 @@
 - Registrar em inventário protegido o consumidor, proprietário, origem segura, escopo aprovado, data da última rotação e prova de revogação. Nunca registrar o valor do segredo.
 - A idade do arquivo de ambiente não prova a idade do segredo; usar a data de rotação documentada pelo custodiante.
 
+## Inventário protegido para o relatório
+
+O relatório aceita `--metadata-file /etc/ness-os/service-identities.tsv`. O arquivo é TSV UTF-8, com seis colunas e sem cabeçalho: `identidade`, `consumidor`, `origem`, `escopo`, `última_rotação` e `expira_em`. Datas usam `YYYY-MM-DD`; data de expiração vazia significa que o emissor não forneceu uma expiração explícita e será marcada `expiry_unverified`. `origem` é um caminho de arquivo protegido, nunca um URI ou valor do segredo. Proteja o inventário com proprietário root e modo `0600`.
+
+O relatório marca origem ausente, compartilhada, versionada ou expirada e calcula a idade a partir da data declarada pelo custodiante em UTC. Escopo ou data de rotação vazios aparecem como não verificados. Sem inventário, o relatório marca os metadados como não verificados. Esses resultados locais não comprovam permissões efetivas no emissor nem revogação; mantenha esses pontos como pendências até o teste no serviço.
+
 ## Rotação controlada
 
 1. Escolher uma credencial não crítica e um consumidor de teste; confirmar acesso de recuperação antes da mudança.
