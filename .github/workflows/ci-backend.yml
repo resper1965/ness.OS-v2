@@ -6,6 +6,7 @@ on:
     paths:
       - 'app/backend/**'
       - 'app/docker-compose.yml'
+      - 'app/docker-compose.tickets.yml'
       - 'app/.env.example'
       - 'app/n8n/**'
       - 'infra/docs/n8n-webhooks-guide.md'
@@ -19,6 +20,8 @@ on:
       - 'infra/tests/test-ness-release-manifest.py'
       - 'infra/scripts/aiops-runtime-readiness.sh'
       - 'infra/tests/test-aiops-runtime-readiness.sh'
+      - 'infra/scripts/aiops-runtime-preflight.sh'
+      - 'infra/tests/test-aiops-runtime-preflight.sh'
       - '.github/workflows/ci-backend.yml'
   pull_request:
     branches: [ "main" ]
@@ -76,6 +79,22 @@ jobs:
       run: |
         python -m pytest -q infra/tests/test-ness-release-manifest.py
         bash infra/tests/test-aiops-runtime-readiness.sh
+
+    - name: Validate merged AIOps Compose without starting services
+      working-directory: .
+      run: |
+        env_file="$(mktemp)"
+        trap 'rm -f -- "$env_file"' EXIT
+        printf '%s\n' \
+          'NINF_AUTHENTIK_SECRET_KEY=ci-placeholder' \
+          'NINF_DB_PASSWORD=ci-placeholder' \
+          'NINF_EVOLUTION_API_KEY=ci-placeholder' \
+          'NINF_GLPI_DB_PASSWORD=ci-placeholder' \
+          'NINF_GLPI_DB_ROOT_PASSWORD=ci-placeholder' \
+          'NINF_JWT_SECRET=ci-placeholder' \
+          'NINF_RESEND_API_KEY=ci-placeholder' > "$env_file"
+        bash infra/scripts/aiops-runtime-preflight.sh --env-file "$env_file"
+        bash infra/tests/test-aiops-runtime-preflight.sh
 
     - name: Verify health history and monitor
       working-directory: .
