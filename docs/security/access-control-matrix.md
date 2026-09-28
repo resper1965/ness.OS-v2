@@ -24,7 +24,7 @@ Levantamento das rotas registradas em `app.main` em 2026-09-28. O backend usa os
 | `GET /api/dashboard/pipeline-status` | Estado do pipeline | `noc`, global |
 | `GET /api/incidents` | Listar incidentes | `auth`, tenant efetivo para `cliente`; operadores podem selecionar tenant |
 | `POST /api/incident/analyze` | Analisar incidente | `noc`, global |
-| `GET /api/incidents/stream` | Eventos de incidentes | `auth`, filtro de tenant para `cliente`; revogação durante stream é tarefa da Fase 1 |
+| `GET /api/incidents/stream` | Eventos de incidentes | `auth`, filtro de tenant para `cliente`; revalida sessão, papel e tenant durante o stream |
 | `GET /api/tenants/health` | Saúde dos tenants | `noc`, global |
 | `GET /api/tenants/security-audit` | Auditoria de segurança | `noc`, global |
 | `GET /api/tenants/list` | Listar tenants | `noc`, global |
@@ -77,5 +77,6 @@ Todas as rotas abaixo são somente leitura e exigem `platform_admin`; negam outr
 | `POST /api/auth/seed` | Público apenas com `NINF_DEBUG=true`; indisponível em produção |
 | `GET /api/v1/push/config` | Público; configuração de inscrição |
 | `GET /` | Público; identificação do serviço |
+| `GET /ready` | Público; readiness da API, PostgreSQL, Redis da aplicação e broker Celery, sem detalhes de falha |
 
 O teste `test_every_non_public_api_route_has_recognized_authorization` falha se uma nova rota de API não declarar guarda de usuário ou chave técnica. Isso verifica presença de controle; os testes de isolamento e revogação das Fases 1 e 6 verificam o comportamento efetivo.
