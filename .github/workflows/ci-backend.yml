@@ -97,9 +97,9 @@ jobs:
         test ! -e /etc/ness-os/zabbix-integration.env
         trap 'rm -f -- "$env_file" app/.env; sudo rm -f /etc/ness-os/glpi-integration.env /etc/ness-os/zabbix-integration.env' EXIT
         cp "$env_file" app/.env
-        sudo install -d -m 700 /etc/ness-os
-        sudo install -m 600 /dev/null /etc/ness-os/glpi-integration.env
-        sudo install -m 600 /dev/null /etc/ness-os/zabbix-integration.env
+        sudo install -d -m 755 /etc/ness-os
+        sudo install -m 644 /dev/null /etc/ness-os/glpi-integration.env
+        sudo install -m 644 /dev/null /etc/ness-os/zabbix-integration.env
         docker compose version
         docker compose --env-file "$env_file" \
           -f app/docker-compose.yml -f app/docker-compose.tickets.yml \
