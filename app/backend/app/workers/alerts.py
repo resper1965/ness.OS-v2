@@ -16,7 +16,7 @@ from app.integrations.loki import LokiClient
 from app.integrations.whatsapp import WhatsAppClient
 from app.integrations.zabbix import ZabbixClient
 from app.ml.analyzer import analyze_incident
-from app.models import Asset, Incident
+from app.models import Asset, Incident, IncidentAction
 from app.workers.celery_app import celery_app
 
 logger = logging.getLogger(__name__)
@@ -282,6 +282,7 @@ async def _async_process_alert_v1(
 """
 
     ticket_id = None
+    ticket_created = False
     glpi_error = None
     try:
         await glpi.init_session()
@@ -375,6 +376,10 @@ async def _async_process_alert_v1(
             stmt = select(Incident).where(Incident.fingerprint == fingerprint)
             result = await session.execute(stmt)
             db_incident = result.scalar_one_or_none()
+            incident_created = db_incident is None
+            previous_ticket_id = (
+                db_incident.deskmanager_ticket_id if db_incident else None
+            )
 
             now = datetime.now(timezone.utc)
 
@@ -420,6 +425,45 @@ async def _async_process_alert_v1(
                 "ninf_zabbix_event_id": str(alert_data.get("event_id", "")),
             }
             await session.flush()
+            if incident_created:
+                session.add(
+                    IncidentAction(
+                        incident_id=db_incident.id,
+                        actor_source="zabbix",
+                        action="incident_created",
+                        new_status=db_incident.status,
+                        new_assignee_id=db_incident.assigned_user_id,
+                        note=f"event={alert_data.get('event_id', '')}",
+                    )
+                )
+            if glpi_error is not None:
+                session.add(
+                    IncidentAction(
+                        incident_id=db_incident.id,
+                        actor_source="glpi",
+                        action="ticket_failed",
+                        previous_status=db_incident.status,
+                        new_status=db_incident.status,
+                        previous_assignee_id=db_incident.assigned_user_id,
+                        new_assignee_id=db_incident.assigned_user_id,
+                        note=f"error={type(glpi_error).__name__}",
+                    )
+                )
+            elif ticket_id and (
+                ticket_created or str(ticket_id) != str(previous_ticket_id)
+            ):
+                session.add(
+                    IncidentAction(
+                        incident_id=db_incident.id,
+                        actor_source="glpi",
+                        action="ticket_created" if ticket_created else "ticket_reused",
+                        previous_status=db_incident.status,
+                        new_status=db_incident.status,
+                        previous_assignee_id=db_incident.assigned_user_id,
+                        new_assignee_id=db_incident.assigned_user_id,
+                        note=f"ticket={ticket_id} entity={entity_id}",
+                    )
+                )
 
             # Capture persisted values before the session closes.
             severity_map = {
