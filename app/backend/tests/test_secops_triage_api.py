@@ -83,6 +83,19 @@ def test_triage_stats_endpoint(persisted_triage_stats_database):
     persisted_triage_stats_database.execute.assert_awaited_once()
 
 
+def test_triage_stats_without_decisions_are_unavailable(
+    persisted_triage_stats_database,
+):
+    persisted_triage_stats_database.execute.return_value = _StatsResult([])
+
+    response = client.get("/api/secops/triage-stats")
+
+    assert response.status_code == 200
+    assert response.json()["total_processed"] == 0
+    assert response.json()["bypassed_percentage"] is None
+    assert response.json()["status"] == "unavailable"
+
+
 def test_triage_alert_low_risk_bypasses_llm(decision_database):
     """Alerta com Wazuh level 3 e host comum deve ter o LLM Bypassed pelo Triage Worker (Camada 4)."""
     payload = {

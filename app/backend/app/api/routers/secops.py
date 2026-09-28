@@ -509,7 +509,13 @@ async def get_triage_stats(db: AsyncSession = Depends(get_db)) -> dict[str, Any]
     total = len(actions)
     bypassed = sum(action == "ARCHIVE_NO_LLM" for action in actions)
     llm_called = total - bypassed
-    pct_bypassed = round((bypassed / total * 100.0), 2) if total > 0 else 100.0
+    pct_bypassed = round(bypassed / total * 100.0, 2) if total else None
+    if pct_bypassed is None:
+        status = "unavailable"
+    elif pct_bypassed >= 95.0:
+        status = "optimal"
+    else:
+        status = "suboptimal"
 
     return {
         "timestamp": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
@@ -518,7 +524,7 @@ async def get_triage_stats(db: AsyncSession = Depends(get_db)) -> dict[str, Any]
         "llm_called_count": llm_called,
         "bypassed_percentage": pct_bypassed,
         "target_meta_percentage": 95.0,
-        "status": "optimal" if pct_bypassed >= 95.0 else "suboptimal",
+        "status": status,
     }
 
 
