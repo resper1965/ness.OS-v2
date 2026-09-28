@@ -115,16 +115,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
-    setState({ user: null, loading: false });
     try {
-      await fetch(`${API_BASE}/api/auth/logout`, {
+      const response = await fetch(`${API_BASE}/api/auth/logout`, {
         method: 'POST',
         credentials: 'include',
       });
-    } finally {
+      if (!response.ok) throw new Error('Falha ao encerrar a sessão no Hub. Tente novamente.');
+      setState({ user: null, loading: false });
       const clientId = "hub-ness";
       const postLogoutRedirectUri = encodeURIComponent(window.location.origin);
       window.location.href = `https://sso.ness.com.br/application/o/hub/end-session/?client_id=${clientId}&post_logout_redirect_uri=${postLogoutRedirectUri}`;
+    } catch {
+      window.alert('Não foi possível encerrar a sessão no Hub. Tente novamente.');
     }
   }, []);
 
