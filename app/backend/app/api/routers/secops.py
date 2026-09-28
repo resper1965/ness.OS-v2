@@ -506,8 +506,10 @@ def _triage_input(
     payload: dict[str, Any], enrichment: dict[str, list[dict[str, Any]]]
 ) -> tuple[dict[str, Any], dict[str, dict[str, Any]]]:
     """Translate Wazuh's nested event and enrichment lists to the risk contract."""
-    rule = payload.get("rule") if isinstance(payload.get("rule"), dict) else {}
-    agent = payload.get("agent") if isinstance(payload.get("agent"), dict) else {}
+    raw_rule = payload.get("rule")
+    raw_agent = payload.get("agent")
+    rule: dict[str, Any] = raw_rule if isinstance(raw_rule, dict) else {}
+    agent: dict[str, Any] = raw_agent if isinstance(raw_agent, dict) else {}
     alert = {
         **payload,
         "level": rule.get("level", payload.get("level", payload.get("rule_level", 0))),
