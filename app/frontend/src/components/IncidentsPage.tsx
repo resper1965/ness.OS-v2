@@ -12,6 +12,7 @@ const SEVERITY_CONFIG: Record<string, { badge: string; dot: string; label: strin
 
 const STATUS_CONFIG: Record<string, { label: string; style: string }> = {
   open:     { label: 'Aberto',    style: 'bg-red-500/10 text-red-400 border-red-500/20' },
+  acknowledged: { label: 'Reconhecido', style: 'bg-amber-500/10 text-amber-300 border-amber-500/20' },
   resolved: { label: 'Resolvido', style: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' },
   closed:   { label: 'Fechado',   style: 'bg-white/5 text-white/30 border-white/10' },
 };
@@ -84,6 +85,7 @@ interface Incident {
   last_seen: string | null; pipeline_stage: string;
   client?: string; ticket_id?: string | null;
   solution?: string | null;
+  assigned_user_id?: number | null;
   asset?: { name: string; glpi_itemtype?: string; glpi_item_id?: number; owner?: string; owner_group_id?: number } | null;
 }
 
@@ -94,16 +96,37 @@ interface IncidentDetail extends Incident {
   source_url: string | null;
   description: string | null;
   resolution_sync_status: string | null;
+  actions: Array<{
+    id: string;
+    actor_user_id: number | null;
+    actor_source: string;
+    action: string;
+    previous_status: string | null;
+    new_status: string | null;
+    note: string | null;
+    created_at: string;
+  }>;
 }
 
-interface Props { incidents: Incident[]; loading: boolean; error: string | null; }
+type Action = 'acknowledge' | 'assign_self' | 'comment' | 'resolve' | 'close';
+const ACTION_LABEL: Record<Action, string> = {
+  acknowledge: 'Reconheceu',
+  assign_self: 'Assumiu',
+  comment: 'Comentou',
+  resolve: 'Resolveu',
+  close: 'Encerrou',
+};
+interface Props { incidents: Incident[]; loading: boolean; error: string | null; canAct: boolean; onChanged: () => void | Promise<void>; }
 
-export default function IncidentsPage({ incidents, loading, error }: Props) {
+export default function IncidentsPage({ incidents, loading, error, canAct, onChanged }: Props) {
   const openCount = incidents.filter(i => i.status === 'open').length;
   const [activeId, setActiveId] = React.useState<string | null>(null);
   const [detail, setDetail] = React.useState<IncidentDetail | null>(null);
   const [detailLoading, setDetailLoading] = React.useState(false);
   const [detailError, setDetailError] = React.useState<string | null>(null);
+  const [reloadKey, setReloadKey] = React.useState(0);
+  const [note, setNote] = React.useState('');
+  const [acting, setActing] = React.useState(false);
 
   React.useEffect(() => {
     if (!activeId) return;
@@ -127,7 +150,29 @@ export default function IncidentsPage({ incidents, loading, error }: Props) {
         if (!controller.signal.aborted) setDetailLoading(false);
       });
     return () => controller.abort();
-  }, [activeId]);
+  }, [activeId, reloadKey]);
+
+  const submitAction = async (action: Action) => {
+    if (!activeId) return;
+    setActing(true);
+    setDetailError(null);
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL ?? ''}/api/incidents/${encodeURIComponent(activeId)}/actions`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, note: note.trim() || null }),
+      });
+      if (!response.ok) throw new Error('A ação não pôde ser registrada. Atualize o incidente e tente novamente.');
+      setNote('');
+      setReloadKey(key => key + 1);
+      void onChanged();
+    } catch (err) {
+      setDetailError(err instanceof Error ? err.message : 'Falha ao registrar ação');
+    } finally {
+      setActing(false);
+    }
+  };
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -247,7 +292,7 @@ export default function IncidentsPage({ incidents, loading, error }: Props) {
               className="mt-3 text-xs text-[var(--color-brand-primary)] hover:underline"
               aria-expanded={activeId === inc.id}
               aria-controls={`incident-detail-${inc.id}`}
-              onClick={() => setActiveId(activeId === inc.id ? null : inc.id)}
+              onClick={() => { setNote(''); setActiveId(activeId === inc.id ? null : inc.id); }}
             >
               {activeId === inc.id ? 'Ocultar detalhes' : 'Ver detalhes'}
             </button>
@@ -265,6 +310,40 @@ export default function IncidentsPage({ incidents, loading, error }: Props) {
                       </a>
                     )}
                     <p>Sincronização da resolução: {detail.resolution_sync_status || 'sem atualização registrada'}</p>
+                    <p>Responsável no Hub: {detail.assigned_user_id ? `usuário #${detail.assigned_user_id}` : 'não atribuído'}</p>
+                    {canAct && (
+                      <div className="space-y-2 border-t border-white/[0.06] pt-3">
+                        <label htmlFor={`incident-note-${inc.id}`} className="block">Comentário ou justificativa</label>
+                        <textarea
+                          id={`incident-note-${inc.id}`}
+                          value={note}
+                          onChange={event => setNote(event.target.value)}
+                          maxLength={2000}
+                          rows={2}
+                          className="w-full rounded-md border border-white/15 bg-black/20 p-2 text-white"
+                        />
+                        <div className="flex flex-wrap gap-2">
+                          {detail.status === 'open' && <button type="button" disabled={acting} onClick={() => void submitAction('acknowledge')} className="rounded border border-white/20 px-2 py-1 disabled:opacity-50">Reconhecer</button>}
+                          {detail.status !== 'closed' && <button type="button" disabled={acting} onClick={() => void submitAction('assign_self')} className="rounded border border-white/20 px-2 py-1 disabled:opacity-50">Assumir</button>}
+                          <button type="button" disabled={acting || !note.trim()} onClick={() => void submitAction('comment')} className="rounded border border-white/20 px-2 py-1 disabled:opacity-50">Registrar comentário</button>
+                          {!detail.ticket_id && ['open', 'acknowledged'].includes(detail.status) && <button type="button" disabled={acting || !note.trim()} onClick={() => void submitAction('resolve')} className="rounded border border-white/20 px-2 py-1 disabled:opacity-50">Resolver</button>}
+                          {detail.status === 'resolved' && (!detail.ticket_id || detail.resolution_sync_status === 'synced') && <button type="button" disabled={acting} onClick={() => void submitAction('close')} className="rounded border border-white/20 px-2 py-1 disabled:opacity-50">Encerrar</button>}
+                        </div>
+                      </div>
+                    )}
+                    <div className="border-t border-white/[0.06] pt-3">
+                      <p className="font-semibold text-white/80">Ações registradas</p>
+                      {detail.actions.length === 0 && <p className="mt-1">Nenhuma ação registrada.</p>}
+                      <ol className="mt-2 space-y-2">
+                        {detail.actions.map(action => (
+                          <li key={action.id} className="border-l border-white/15 pl-3">
+                            <span className="font-medium text-white/80">{ACTION_LABEL[action.action as Action] ?? action.action}</span>
+                            <span> · {action.actor_user_id ? `usuário #${action.actor_user_id}` : action.actor_source} · {new Date(action.created_at).toLocaleString('pt-BR')}</span>
+                            {action.note && <p className="whitespace-pre-wrap">{action.note}</p>}
+                          </li>
+                        ))}
+                      </ol>
+                    </div>
                   </>
                 )}
               </div>

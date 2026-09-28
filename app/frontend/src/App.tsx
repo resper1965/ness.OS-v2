@@ -576,6 +576,8 @@ function AppShellBody({ AUTH, logout, user }: {
                 incidents={incidents}
                 loading={incidentsLoading}
                 error={incidentsError}
+                canAct={isOperator}
+                onChanged={fetchIncidents}
               />
             )}
 
