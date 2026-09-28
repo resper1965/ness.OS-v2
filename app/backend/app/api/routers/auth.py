@@ -144,7 +144,11 @@ async def login(
     user.last_login = datetime.now(tz=timezone.utc)
     await db.commit()
 
-    token = create_access_token(user_id=user.id, role=user.role.value)
+    token = create_access_token(
+        user_id=user.id,
+        role=user.role.value,
+        extra_claims={"tenant_id": user.tenant_id},
+    )
     if not browser_request:
         return TokenResponse(
             access_token=token,

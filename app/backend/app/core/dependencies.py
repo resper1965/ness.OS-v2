@@ -99,6 +99,16 @@ async def get_current_user(
             detail="Usuario nao encontrado ou inativo",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    if (
+        payload.get("role") != user.role.value
+        or ("tenant_id" in payload and payload["tenant_id"] != user.tenant_id)
+        or ("tenant_id" not in payload and not is_noc_role(user.role))
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Sessao revogada por alteracao de acesso",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     return user
 
 

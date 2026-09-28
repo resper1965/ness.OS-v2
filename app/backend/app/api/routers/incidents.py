@@ -8,8 +8,9 @@ import asyncio
 import json
 import logging
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
+from fastapi.security import HTTPBearer
 from redis.asyncio import Redis
 from sqlalchemy import desc, select
 
@@ -27,6 +28,7 @@ from app.models.users import User
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+_stream_bearer = HTTPBearer(auto_error=False)
 
 # Mapeamento severity → label
 SEVERITY_LABEL = {
@@ -162,11 +164,29 @@ async def analyze_incident(
 
 @router.get("/api/incidents/stream", tags=["incidents"])
 async def stream_incidents(
+    request: Request,
     current_user: User = Depends(get_current_user),
 ):
     """Canal SSE (Server-Sent Events) para stream de novos incidentes em tempo real."""
     user_role = current_user.role
     user_tenant_id = current_user.tenant_id
+    user_id = current_user.id
+
+    async def session_is_current() -> bool:
+        try:
+            credentials = await _stream_bearer(request)
+            async with SessionLocal() as session:
+                user = await get_current_user(request, credentials, session)
+            return (
+                user.id == user_id
+                and user.role == user_role
+                and user.tenant_id == user_tenant_id
+            )
+        except HTTPException:
+            return False
+        except Exception:
+            logger.warning("Falha ao revalidar sessão SSE", exc_info=True)
+            return False
 
     async def event_generator():
         settings = get_settings()
@@ -187,6 +207,9 @@ async def stream_incidents(
                 message = await pubsub.get_message(
                     ignore_subscribe_messages=True, timeout=15.0
                 )
+                if not await session_is_current():
+                    yield 'event: auth\ndata: {"status":"revoked"}\n\n'
+                    break
                 if message:
                     try:
                         data = json.loads(message["data"])

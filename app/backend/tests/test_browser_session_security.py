@@ -2,12 +2,13 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
+import pytest
 from fastapi import Depends, FastAPI
 from fastapi.testclient import TestClient
 
 from app.api.routers.auth import router as auth_router
 from app.core.dependencies import get_current_user
-from app.core.jwt import create_access_token
+from app.core.jwt import create_access_token, verify_token
 from app.core.session import SESSION_COOKIE_NAME
 from app.database import get_db
 from app.models.users import UserRole
@@ -82,6 +83,35 @@ def test_bearer_authentication_remains_supported() -> None:
     assert response.status_code == 200
 
 
+@pytest.mark.parametrize("changed", ("role", "tenant_id"))
+def test_existing_session_rejects_role_or_tenant_change(changed: str) -> None:
+    user = _user()
+    token = create_access_token(
+        user_id=user.id,
+        role=user.role.value,
+        extra_claims={"tenant_id": user.tenant_id},
+    )
+    setattr(
+        user,
+        changed,
+        {"role": UserRole.cliente, "tenant_id": "UAT-B"}[changed],
+    )
+    response = _protected_client(user).get(
+        "/protected", headers={"Authorization": f"Bearer {token}"}
+    )
+    assert response.status_code == 401
+
+
+def test_tenant_bound_user_rejects_token_without_tenant_claim() -> None:
+    user = _user()
+    user.role = UserRole.cliente
+    token = create_access_token(user_id=user.id, role=user.role.value)
+    response = _protected_client(user).get(
+        "/protected", headers={"Authorization": f"Bearer {token}"}
+    )
+    assert response.status_code == 401
+
+
 def test_cookie_authenticated_mutation_requires_trusted_origin() -> None:
     client = _protected_client(_user())
     client.cookies.set(
@@ -125,6 +155,9 @@ def test_login_returns_user_and_sets_hardened_host_only_cookie() -> None:
     assert "secure" in cookie
     assert "samesite=strict" in cookie
     assert "domain=" not in cookie
+    assert (
+        verify_token(client.cookies[SESSION_COOKIE_NAME])["tenant_id"] == user.tenant_id
+    )
 
 
 def test_non_browser_login_preserves_bearer_automation_compatibility() -> None:
