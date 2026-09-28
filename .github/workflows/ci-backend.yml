@@ -84,7 +84,6 @@ jobs:
       working-directory: .
       run: |
         env_file="$(mktemp)"
-        trap 'rm -f -- "$env_file"' EXIT
         printf '%s\n' \
           'NINF_AUTHENTIK_SECRET_KEY=ci-placeholder' \
           'NINF_DB_PASSWORD=ci-placeholder' \
@@ -93,6 +92,14 @@ jobs:
           'NINF_GLPI_DB_ROOT_PASSWORD=ci-placeholder' \
           'NINF_JWT_SECRET=ci-placeholder' \
           'NINF_RESEND_API_KEY=ci-placeholder' > "$env_file"
+        test ! -e app/.env
+        test ! -e /etc/ness-os/glpi-integration.env
+        test ! -e /etc/ness-os/zabbix-integration.env
+        trap 'rm -f -- "$env_file" app/.env; sudo rm -f /etc/ness-os/glpi-integration.env /etc/ness-os/zabbix-integration.env' EXIT
+        cp "$env_file" app/.env
+        sudo install -d -m 700 /etc/ness-os
+        sudo install -m 600 /dev/null /etc/ness-os/glpi-integration.env
+        sudo install -m 600 /dev/null /etc/ness-os/zabbix-integration.env
         docker compose version
         docker compose --env-file "$env_file" \
           -f app/docker-compose.yml -f app/docker-compose.tickets.yml \
