@@ -4,6 +4,7 @@ set -Eeuo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 runner="${repo_root}/infra/scripts/aiops-runtime-readiness.sh"
 compose_file="${repo_root}/app/docker-compose.yml"
+api_dockerfile="${repo_root}/app/Dockerfile"
 tmpdir="$(mktemp -d)"
 trap 'rm -rf -- "${tmpdir}"' EXIT
 
@@ -85,6 +86,10 @@ assert_no_secrets() {
 }
 
 bash -n "${runner}"
+grep -Fq 'http://localhost:8000/ready' "${api_dockerfile}" || {
+  echo 'API container healthcheck does not use dependency readiness' >&2
+  exit 1
+}
 if grep -Eq '\|\|[[:space:]]*exit[[:space:]]+0' "${compose_file}"; then
   echo 'Compose healthcheck masks a failure with exit 0' >&2
   exit 1

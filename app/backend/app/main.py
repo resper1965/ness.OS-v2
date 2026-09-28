@@ -7,12 +7,15 @@ from __future__ import annotations
 # Imports da aplicação ocorrem após o ajuste de `sys.path` para preservar a
 # execução direta usada pelos scripts legados de operação.
 # ruff: noqa: E402
+import asyncio
 import logging
 import sys
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from redis.asyncio import Redis
+from sqlalchemy import text
 
 project_root = Path(__file__).resolve().parent.parent.parent.parent
 if str(project_root) not in sys.path:
@@ -39,6 +42,7 @@ from app.api.routers.push import router as push_router
 from app.api.routers.secops import router as secops_router
 from app.api.routers.tenants import router as tenants_router
 from app.config import get_settings
+from app.database import SessionLocal
 
 settings = get_settings()
 
@@ -104,3 +108,28 @@ async def root() -> dict:
         "status": "running",
         "modules": ["n.infraops", "n.secops", "core"],
     }
+
+
+@app.get("/ready", tags=["system"])
+async def ready() -> dict[str, str]:
+    """Container readiness: API, PostgreSQL and both Redis connections."""
+
+    async def probe() -> None:
+        async with SessionLocal() as session:
+            await session.execute(text("SELECT 1"))
+        for url in (settings.redis_url, settings.celery_broker_url):
+            client = Redis.from_url(url, socket_connect_timeout=2, socket_timeout=2)
+            try:
+                if await client.ping() is not True:
+                    raise ConnectionError("Redis did not confirm readiness")
+            finally:
+                await client.aclose()
+
+    try:
+        await asyncio.wait_for(probe(), timeout=4)
+    except Exception as exc:
+        logging.getLogger(__name__).warning(
+            "API readiness failed: %s", type(exc).__name__
+        )
+        raise HTTPException(status_code=503, detail="unavailable") from None
+    return {"status": "ready"}

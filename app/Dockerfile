@@ -39,8 +39,8 @@ RUN python -c "from cli.contabo.api_client import ContaboAPIClient"
 USER nessops
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD curl -f http://localhost:8000/ || exit 1
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+    CMD curl -fsS http://localhost:8000/ready > /dev/null || exit 1
 
 # Porta da API
 EXPOSE 8000
