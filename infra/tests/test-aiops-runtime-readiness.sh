@@ -31,7 +31,15 @@ set -Eeuo pipefail
 printf '%s\n' "$*" >>"${AIOPS_TEST_DOCKER_LOG}"
 
 if [[ "${1-}" == inspect ]]; then
-  if [[ "${AIOPS_TEST_WORKER_UNHEALTHY:-0}" == 1 ]]; then
+  if [[ "${3-}" == *State.Running* ]]; then
+    if [[ "${AIOPS_TEST_WORKER_STOPPED:-0}" == 1 ]]; then
+      printf '%s\n' '/ninf-api=true=healthy' '/ninf-worker-alerts=false=healthy' '/ninf-worker-ml=true=healthy'
+    elif [[ "${AIOPS_TEST_WORKER_UNHEALTHY:-0}" == 1 ]]; then
+      printf '%s\n' '/ninf-api=true=healthy' '/ninf-worker-alerts=true=unhealthy' '/ninf-worker-ml=true=healthy'
+    else
+      printf '%s\n' '/ninf-api=true=healthy' '/ninf-worker-alerts=true=healthy' '/ninf-worker-ml=true=healthy'
+    fi
+  elif [[ "${AIOPS_TEST_WORKER_UNHEALTHY:-0}" == 1 ]]; then
     printf '%s\n' '/ninf-api=healthy' '/ninf-worker-alerts=unhealthy' '/ninf-worker-ml=healthy'
   else
     printf '%s\n' '/ninf-api=healthy' '/ninf-worker-alerts=healthy' '/ninf-worker-ml=healthy'
@@ -163,5 +171,12 @@ if unhealthy_output="$(run_isolated env AIOPS_TEST_WORKER_UNHEALTHY=1 AIOPS_READ
 fi
 grep -q 'ninf-worker-alerts healthcheck is not healthy' <<<"${unhealthy_output}"
 assert_no_secrets "${unhealthy_output}"
+
+if stopped_output="$(run_isolated env AIOPS_TEST_WORKER_STOPPED=1 AIOPS_READONLY_EXECUTE=1 bash "${runner}" --env-file "${env_file}" --execute-read-only 2>&1)"; then
+  echo 'runner unexpectedly accepted a stopped worker' >&2
+  exit 1
+fi
+grep -q 'ninf-worker-alerts healthcheck is not healthy' <<<"${stopped_output}"
+assert_no_secrets "${stopped_output}"
 
 echo 'AIOps runtime readiness runner checks: PASS'
