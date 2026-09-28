@@ -27,6 +27,8 @@
 
 **Interfaces:** Papéis mínimos `admin`, `operator` e `viewer`; cada endpoint documenta ação, escopo de tenant e resposta esperada para acesso negado.
 
+**Compatibilidade legada:** antes de mapear `operator` ou `viewer` aos papéis existentes, provar que rotas `require_noc` e `resolve_tenant_scope` não ampliam o tenant do usuário. `noc`/`soc` atualmente têm acesso global; um alias direto de `operator` para `noc` não satisfaz isolamento de tenant.
+
 - [ ] Extrair todas as rotas protegidas de `app/backend/app/api/routers` e registrar na matriz com método, papel e tenant.
 - [ ] Criar teste que falha se uma rota protegida não declarar dependência de autorização reconhecida.
 - [ ] Executar `python -m pytest app/backend/tests/test_authentik_rbac.py -q`; esperado: falha para lacunas reais.

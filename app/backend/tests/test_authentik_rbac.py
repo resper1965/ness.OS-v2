@@ -2,9 +2,11 @@ from types import SimpleNamespace
 
 import pytest
 from fastapi import HTTPException
+from fastapi.routing import APIRoute
 
-from app.core.dependencies import require_admin, require_noc, require_platform_admin
 from app.api.routers.auth import map_authentik_role
+from app.core.dependencies import require_admin, require_noc, require_platform_admin
+from app.main import app
 from app.models.users import UserRole
 
 
@@ -34,3 +36,35 @@ def test_platform_admin_group_aliases_map_to_global_role(group):
 
 def test_unknown_group_falls_back_to_least_privileged_role():
     assert map_authentik_role({"groups": ["unknown"]}) == UserRole.cliente
+
+
+def test_every_non_public_api_route_has_recognized_authorization():
+    public = {
+        ("POST", "/api/auth/login"),
+        ("POST", "/api/auth/logout"),
+        ("POST", "/api/auth/oidc/callback"),
+        ("POST", "/api/auth/seed"),
+        ("GET", "/api/v1/push/config"),
+    }
+    guards = {
+        "get_current_user",
+        "require_authenticated",
+        "require_noc",
+        "require_admin",
+        "require_platform_admin",
+        "verify_api_key",
+        "verify_webhook_key",
+    }
+    missing = []
+    for route in app.routes:
+        if not isinstance(route, APIRoute) or not route.path.startswith(
+            ("/api/", "/v1/", "/webhook/")
+        ):
+            continue
+        names = {
+            dependency.call.__name__ for dependency in route.dependant.dependencies
+        }
+        for method in route.methods:
+            if (method, route.path) not in public and not names.intersection(guards):
+                missing.append((method, route.path))
+    assert missing == []
