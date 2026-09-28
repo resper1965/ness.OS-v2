@@ -5,13 +5,19 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
+from redis.asyncio import Redis
 
 from app.config import get_settings
 from app.core.dependencies import require_noc
+from app.dependencies import get_redis
 from app.integrations.atera import AteraClient
+from app.integrations.glpi import GLPIClient
 from app.integrations.zabbix import ZabbixClient
+from app.schemas.operational_status import OperationalStatus
+from app.services.operational_status import observe_source
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -61,6 +67,52 @@ async def _atera_summary() -> dict:
     except Exception as e:
         logger.error("Atera summary error: %s", e)
         return {"error": str(e), "degraded": True}
+
+
+@router.get(
+    "/api/dashboard/sources", tags=["dashboard"], dependencies=[Depends(require_noc)]
+)
+async def get_operational_sources(redis: Redis = Depends(get_redis)) -> dict:
+    """Per-source data and last valid collection for the operator dashboard."""
+    settings = get_settings()
+
+    async def zabbix() -> dict:
+        result = await _zabbix_summary()
+        if result.get("degraded"):
+            raise RuntimeError("Zabbix collection failed")
+        return result
+
+    async def atera() -> dict:
+        result = await _atera_summary()
+        if result.get("degraded"):
+            raise RuntimeError("Atera collection failed")
+        return result
+
+    async def glpi() -> dict:
+        return await GLPIClient().readiness_probe()
+
+    statuses = await asyncio.gather(
+        observe_source(
+            "zabbix", zabbix, redis, configured=bool(settings.zabbix_api_token)
+        ),
+        observe_source("atera", atera, redis, configured=bool(settings.atera_api_key)),
+        observe_source(
+            "glpi",
+            glpi,
+            redis,
+            configured=bool(settings.glpi_app_token and settings.glpi_user_token),
+        ),
+    )
+    statuses.append(
+        OperationalStatus(
+            status="planned",
+            source="wazuh",
+            observed_at=datetime.now(timezone.utc),
+            stale=True,
+            error_code="post_mvp",
+        )
+    )
+    return {"sources": {item.source: item.model_dump(mode="json") for item in statuses}}
 
 
 @router.get("/api/dashboard/summary", tags=["dashboard"])

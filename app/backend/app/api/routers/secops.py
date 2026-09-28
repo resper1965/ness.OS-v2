@@ -438,7 +438,7 @@ async def zabbix_health() -> dict[str, Any]:
         overall = "secure" if score >= 80 else ("warning" if score >= 50 else "danger")
 
         return {
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(UTC).isoformat(),
             "score": max(0, score),
             "overall": overall,
             "checks": checks,
@@ -446,12 +446,12 @@ async def zabbix_health() -> dict[str, Any]:
         }
 
     except Exception as e:
-        logger.error(f"Zabbix health check failed: {e}")
+        logger.error("Zabbix health check failed: %s", type(e).__name__)
         return {
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(UTC).isoformat(),
             "score": 0,
             "overall": "unknown",
-            "error": str(e),
+            "error": type(e).__name__,
             "checks": [],
             "zabbix_url": "https://zabbix.ness.com.br",
         }
