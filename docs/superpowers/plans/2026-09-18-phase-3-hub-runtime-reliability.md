@@ -39,7 +39,7 @@
 ### Task 2: Tornar healthchecks de containers fail-closed
 
 **Files:**
-- Modify: `docker-compose.yml`
+- Modify: `app/docker-compose.yml` (Compose efetivo dos workers do Hub; o Compose da raiz não os define)
 - Modify: `infra/scripts/aiops-runtime-readiness.sh`
 - Modify: `infra/tests/test-aiops-runtime-readiness.sh`
 

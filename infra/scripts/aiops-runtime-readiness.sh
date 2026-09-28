@@ -69,6 +69,14 @@ fi
 [[ "${AIOPS_READONLY_EXECUTE:-}" == 1 ]] ||
   fail 'live probes require AIOPS_READONLY_EXECUTE=1'
 
+for service in api worker-alerts worker-ml; do
+  if ! health="$(docker inspect --format '{{.State.Health.Status}}' "ninf-${service}" 2>/dev/null)"; then
+    fail "${service} container health is unavailable (details suppressed)"
+  fi
+  [[ "${health}" == healthy ]] || fail "${service} container is not healthy"
+  printf '%s_container=healthy\n' "${service}"
+done
+
 run_probe() {
   local name="$1"
   local module="$2"
