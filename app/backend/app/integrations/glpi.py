@@ -11,6 +11,11 @@ from app.config import get_settings
 logger = logging.getLogger(__name__)
 
 
+def _glpi_failure(operation: str, exc: Exception) -> RuntimeError:
+    logger.error("GLPI %s failed: %s", operation, type(exc).__name__)
+    return RuntimeError(f"GLPI {operation} indisponível")
+
+
 def is_private_glpi_api_url(url: str) -> bool:
     """Accept only explicit GLPI API paths on private/internal hosts."""
     parsed = urlparse(url)
@@ -79,9 +84,8 @@ class GLPIClient:
                 self.headers["Session-Token"] = session_token
                 logger.info("Sessão inicializada no GLPI com sucesso.")
                 return session_token
-        except Exception as e:
-            logger.error("Erro ao inicializar sessão no GLPI: %s", str(e))
-            raise RuntimeError(f"Erro ao conectar ao GLPI: {e}") from e
+        except Exception as exc:
+            raise _glpi_failure("sessão", exc) from exc
 
     async def change_active_entity(self, entity_id: int) -> None:
         """Select exactly one authorized entity before ticket operations."""
@@ -112,8 +116,8 @@ class GLPIClient:
                 self.session_token = None
                 self.headers.pop("Session-Token", None)
                 return True
-        except Exception as e:
-            logger.warning("Falha ao encerrar sessão no GLPI: %s", str(e))
+        except Exception as exc:
+            logger.warning("GLPI session cleanup failed: %s", type(exc).__name__)
             return False
 
     async def get_my_entities(self) -> list[Dict[str, Any]]:
@@ -133,9 +137,8 @@ class GLPIClient:
                 if not isinstance(entities, list):
                     raise RuntimeError("GLPI retornou entidades em formato inválido")
                 return entities
-        except Exception as e:
-            logger.error("Erro ao listar entidades acessíveis no GLPI: %s", str(e))
-            raise RuntimeError(f"Erro ao listar entidades no GLPI: {e}") from e
+        except Exception as exc:
+            raise _glpi_failure("leitura de entidades", exc) from exc
 
     async def readiness_probe(self) -> Dict[str, Any]:
         """Prova sessão e leituras mínimas por rota privada, sem escrita."""
@@ -292,9 +295,8 @@ class GLPIClient:
                 res = await client.post(url, headers=self.headers, json=payload)
                 res.raise_for_status()
                 return res.json()
-        except Exception as e:
-            logger.error("Erro ao criar ticket no GLPI: %s", str(e))
-            raise RuntimeError(f"Erro ao criar ticket no GLPI: {e}") from e
+        except Exception as exc:
+            raise _glpi_failure("criação de ticket", exc) from exc
 
     async def find_ticket_by_name_marker(
         self, marker: str, entity_id: int
@@ -322,9 +324,8 @@ class GLPIClient:
                 )
                 res.raise_for_status()
                 data = res.json()
-        except Exception as e:
-            logger.error("Erro ao localizar ticket idempotente no GLPI: %s", str(e))
-            raise RuntimeError(f"Erro ao localizar ticket no GLPI: {e}") from e
+        except Exception as exc:
+            raise _glpi_failure("consulta de ticket", exc) from exc
 
         if not isinstance(data, list):
             raise RuntimeError("GLPI retornou busca de tickets em formato inválido")
@@ -364,13 +365,8 @@ class GLPIClient:
                 res = await client.post(url, headers=self.headers, json=payload)
                 res.raise_for_status()
                 return res.json()
-        except Exception as e:
-            logger.error(
-                "Erro ao adicionar comentário no ticket %d do GLPI: %s",
-                ticket_id,
-                str(e),
-            )
-            raise RuntimeError(f"Erro ao adicionar comentário no GLPI: {e}") from e
+        except Exception as exc:
+            raise _glpi_failure("comentário de ticket", exc) from exc
 
     async def list_knowbase_item_categories(self) -> list[Dict[str, Any]]:
         """Lista categorias da base de conhecimento pela API suportada."""
@@ -392,13 +388,8 @@ class GLPIClient:
                 if not isinstance(data, list):
                     raise RuntimeError("GLPI retornou categorias em formato inválido")
                 return data
-        except Exception as e:
-            logger.error(
-                "Erro ao listar categorias da base de conhecimento do GLPI: %s", str(e)
-            )
-            raise RuntimeError(
-                f"Erro ao listar categorias da base de conhecimento do GLPI: {e}"
-            ) from e
+        except Exception as exc:
+            raise _glpi_failure("leitura de categorias", exc) from exc
 
     async def create_knowbase_item_category(self, name: str) -> Dict[str, Any]:
         """Cria uma categoria da base de conhecimento pela API suportada."""
@@ -417,10 +408,5 @@ class GLPIClient:
                 )
                 res.raise_for_status()
                 return res.json()
-        except Exception as e:
-            logger.error(
-                "Erro ao criar categoria da base de conhecimento do GLPI: %s", str(e)
-            )
-            raise RuntimeError(
-                f"Erro ao criar categoria da base de conhecimento do GLPI: {e}"
-            ) from e
+        except Exception as exc:
+            raise _glpi_failure("criação de categoria", exc) from exc

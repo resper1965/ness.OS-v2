@@ -101,10 +101,22 @@ async def test_redirect_to_sso_fails_closed_without_following(monkeypatch):
             headers={"Location": "https://sso.example/application/o/authorize/"},
         )
 
-    with pytest.raises(RuntimeError, match="Erro ao conectar ao GLPI"):
+    with pytest.raises(RuntimeError, match="GLPI sessão indisponível"):
         await _client(monkeypatch, handler).readiness_probe()
 
     assert requests == ["/apirest.php/initSession"]
+
+
+@pytest.mark.asyncio
+async def test_glpi_session_failure_hides_provider_details(monkeypatch, caplog):
+    def handler(_request):
+        raise RuntimeError("Authorization: Bearer provider-secret")
+
+    with pytest.raises(RuntimeError, match="GLPI sessão indisponível") as error:
+        await _client(monkeypatch, handler).init_session()
+
+    assert "provider-secret" not in str(error.value)
+    assert "provider-secret" not in caplog.text
 
 
 @pytest.mark.asyncio
@@ -121,7 +133,7 @@ async def test_invalid_read_response_still_closes_session(monkeypatch):
             return httpx.Response(200, json={})
         raise AssertionError(f"request inesperado: {request.url.path}")
 
-    with pytest.raises(RuntimeError, match="formato inválido"):
+    with pytest.raises(RuntimeError, match="GLPI leitura de entidades indisponível"):
         await _client(monkeypatch, handler).readiness_probe()
 
     assert requests[-1] == "/apirest.php/killSession"
