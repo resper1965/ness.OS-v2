@@ -1,13 +1,15 @@
 # Matriz de acesso do Hub (MVP)
 
-Levantamento das rotas registradas em `app.main` em 2026-09-28. O backend usa os papéis persistidos `platform_admin`, `admin`, `noc`, `soc`, `helpdesk`, `gestao` e `cliente`. A política de `admin`, `operator` e `viewer` do MVP ainda precisa de uma correspondência explícita com esses papéis legados. O papel é resolvido no servidor a cada requisição. Um `tenant_id` enviado pelo cliente não amplia o escopo de `cliente`.
+Levantamento das rotas registradas em `app.main` em 2026-09-28. O backend usa os papéis persistidos `platform_admin`, `admin`, `operator`, `viewer`, `noc`, `soc`, `helpdesk`, `gestao` e `cliente`. Grupos Authentik `operator` e `viewer` são mapeados para papéis próprios, com tenant obrigatório no OIDC. O papel e o tenant são revalidados no servidor a cada requisição. Um `tenant_id` enviado pelo cliente não amplia o escopo dos papéis de tenant.
 
-**Lacuna para a Fase 1:** `noc`/`soc` têm acesso global em `resolve_tenant_scope` e várias rotas `require_noc` devolvem dados globais. Portanto, `operator` não deve ser ligado automaticamente a `noc` enquanto o escopo por tenant dessas rotas não for definido e testado. `viewer` também precisa de contrato de leitura próprio. Esta matriz registra o comportamento atual; não aprova o gate de identidade.
+**Gate pendente para a Fase 1:** `noc`/`soc` mantêm acesso global nas rotas `require_noc`. `operator` e `viewer` ficam restritos ao próprio tenant em lista, detalhe e stream de incidentes; somente `operator` pode executar ações nesse escopo. A implementação local não substitui UAT no Authentik e nas aplicações integradas, MFA e recuperação.
 
 | Política | Papéis / identidade | Escopo e negação |
 |---|---|---|
 | `platform_admin` | `platform_admin` | Plano de controle global; sem login: 401, papel errado: 403 |
 | `noc` | `noc`, `soc`, `admin`, `platform_admin` | Operação global; sem login: 401, papel errado: 403 |
+| `operator` | `operator` e papéis `noc` globais | Ações de incidente: `operator` somente no próprio tenant; outro tenant: 404; `viewer`: 403 |
+| `viewer` | `viewer` | Leitura de incidentes somente no próprio tenant; outro tenant: 404 |
 | `auth` | Qualquer conta ativa | Dados próprios ou tenant efetivo, conforme a rota; sem login: 401, tenant divergente: 403 |
 | `source-key` | Chave técnica do webhook ou da API | Escopo do contrato da fonte; chave ausente/inválida: 401/403 conforme o verificador |
 
@@ -19,14 +21,15 @@ Levantamento das rotas registradas em `app.main` em 2026-09-28. O backend usa os
 | `GET /api/core/modules` | Módulos disponíveis | `auth`, catálogo de módulos |
 | `GET /api/core/kpis` | Indicadores operacionais | `noc`, global |
 | `GET /api/dashboard/summary` | Resumo do painel | `noc`, global |
+| `GET /api/dashboard/sources` | Estado e frescor das fontes | `noc`, global |
 | `GET /api/dashboard/unified` | Painel unificado | `noc`, global |
 | `GET /api/dashboard/problems` | Problemas do painel | `noc`, global |
 | `GET /api/dashboard/pipeline-status` | Estado do pipeline | `noc`, global |
-| `GET /api/incidents` | Listar incidentes | `auth`, tenant efetivo para `cliente`; operadores podem selecionar tenant |
-| `GET /api/incidents/{incident_id}` | Detalhe, origem Zabbix e vínculo GLPI | `auth`, tenant efetivo para `cliente`; incidente ausente ou fora do tenant: 404 |
-| `POST /api/incidents/{incident_id}/actions` | Reconhecer, assumir, comentar, resolver ou encerrar com histórico | `noc`, operadores globais; demais papéis: 403; transição inválida ou GLPI pendente: 409 |
+| `GET /api/incidents` | Listar incidentes | `auth`, tenant efetivo para `operator`, `viewer` e `cliente`; `noc` pode selecionar tenant |
+| `GET /api/incidents/{incident_id}` | Detalhe, origem Zabbix e vínculo GLPI | `auth`, tenant efetivo para `operator`, `viewer` e `cliente`; incidente ausente ou fora do tenant: 404 |
+| `POST /api/incidents/{incident_id}/actions` | Reconhecer, assumir, comentar, resolver ou encerrar com histórico | `operator` no próprio tenant ou `noc` global; `viewer`: 403; outro tenant: 404; transição inválida ou GLPI pendente: 409 |
 | `POST /api/incident/analyze` | Analisar incidente | `noc`, global |
-| `GET /api/incidents/stream` | Eventos de incidentes | `auth`, filtro de tenant para `cliente`; revalida sessão, papel e tenant durante o stream |
+| `GET /api/incidents/stream` | Eventos de incidentes | `auth`, filtro de tenant para `operator`, `viewer` e `cliente`; revalida sessão, papel e tenant durante o stream |
 | `GET /api/tenants/health` | Saúde dos tenants | `noc`, global |
 | `GET /api/tenants/security-audit` | Auditoria de segurança | `noc`, global |
 | `GET /api/tenants/list` | Listar tenants | `noc`, global |
