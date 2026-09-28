@@ -13,12 +13,17 @@ router = APIRouter(dependencies=[Depends(require_platform_admin)])
 def get_contabo_client() -> ContaboAPIClient:
     try:
         return ContaboAPIClient()
-    except Exception as e:
-        logger.error(f"Failed to initialize Contabo client: {e}")
+    except Exception as error:
+        logger.error("Failed to initialize Contabo client: %s", type(error).__name__)
         raise HTTPException(
             status_code=500,
             detail="Contabo CLI integration failed or missing credentials.",
         )
+
+
+def _contabo_failure(operation: str, error: Exception) -> HTTPException:
+    logger.error("Contabo %s failed: %s", operation, type(error).__name__)
+    return HTTPException(status_code=502, detail="Contabo API indisponível.")
 
 
 # --- Infrastructure ---
@@ -28,9 +33,8 @@ def list_instances(client: ContaboAPIClient = Depends(get_contabo_client)):
     try:
         response = client.get("/compute/instances")
         return response.get("data", [])
-    except Exception as e:
-        logger.error(f"Failed to fetch Contabo instances: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as error:
+        raise _contabo_failure("instance list", error)
 
 
 @router.get("/compute/{instance_id}/snapshots")
@@ -41,9 +45,8 @@ def list_snapshots(
     try:
         response = client.get(f"/compute/instances/{instance_id}/snapshots")
         return response.get("data", [])
-    except Exception as e:
-        logger.error(f"Failed to fetch snapshots for {instance_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as error:
+        raise _contabo_failure("snapshot list", error)
 
 
 @router.get("/storage", response_model=List[Dict[str, Any]])
@@ -52,9 +55,8 @@ def list_storage(client: ContaboAPIClient = Depends(get_contabo_client)):
     try:
         response = client.get("/object-storages")
         return response.get("data", [])
-    except Exception as e:
-        logger.error(f"Failed to fetch Contabo object storage: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as error:
+        raise _contabo_failure("object storage list", error)
 
 
 @router.get("/summary")
@@ -75,9 +77,8 @@ def get_cloud_summary(client: ContaboAPIClient = Depends(get_contabo_client)):
             },
             "storage": {"total_tb": total_storage, "buckets": len(storages)},
         }
-    except Exception as e:
-        logger.error(f"Failed to generate cloud summary: {e}")
-        return {"error": str(e)}
+    except Exception as error:
+        raise _contabo_failure("cloud summary", error)
 
 
 @router.get("/firewall", response_model=List[Dict[str, Any]])
@@ -86,9 +87,8 @@ def list_firewalls(client: ContaboAPIClient = Depends(get_contabo_client)):
     try:
         response = client.get("/firewalls")
         return response.get("data", [])
-    except Exception as e:
-        logger.error(f"Failed to fetch firewalls: {e}")
-        return []
+    except Exception as error:
+        raise _contabo_failure("firewall list", error)
 
 
 @router.get("/networks", response_model=List[Dict[str, Any]])
@@ -97,9 +97,8 @@ def list_networks(client: ContaboAPIClient = Depends(get_contabo_client)):
     try:
         response = client.get("/private-networks")
         return response.get("data", [])
-    except Exception as e:
-        logger.error(f"Failed to fetch networks: {e}")
-        return []
+    except Exception as error:
+        raise _contabo_failure("network list", error)
 
 
 @router.get("/images", response_model=List[Dict[str, Any]])
@@ -109,9 +108,8 @@ def list_images(client: ContaboAPIClient = Depends(get_contabo_client)):
         # Images are under compute in OpenAPI
         response = client.get("/compute/images")
         return response.get("data", [])
-    except Exception as e:
-        logger.error(f"Failed to fetch images: {e}")
-        return []
+    except Exception as error:
+        raise _contabo_failure("image list", error)
 
 
 @router.get("/audits", response_model=List[Dict[str, Any]])
@@ -120,9 +118,8 @@ def list_audits(client: ContaboAPIClient = Depends(get_contabo_client)):
     try:
         response = client.get("/compute/instances/audits")
         return response.get("data", [])
-    except Exception as e:
-        logger.error(f"Failed to fetch audits: {e}")
-        return []
+    except Exception as error:
+        raise _contabo_failure("audit list", error)
 
 
 @router.get("/dashboard-full")
@@ -167,6 +164,5 @@ def get_dashboard_full(client: ContaboAPIClient = Depends(get_contabo_client)):
             "audits": audits,
             "images": images,
         }
-    except Exception as e:
-        logger.error(f"Failed to fetch dashboard full: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as error:
+        raise _contabo_failure("dashboard", error)

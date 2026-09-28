@@ -3,9 +3,9 @@ from types import SimpleNamespace
 import pytest
 from fastapi import HTTPException
 
-from app.main import app
 from app.api.routers import contabo
 from app.core.dependencies import require_platform_admin
+from app.main import app
 from app.models.users import UserRole
 
 
@@ -56,3 +56,23 @@ def test_dashboard_does_not_fetch_or_return_secrets():
     payload = contabo.get_dashboard_full(Client())
     assert "secrets" not in payload
     assert "/secrets" not in paths
+
+
+@pytest.mark.parametrize(
+    "operation",
+    (
+        lambda client: contabo.list_instances(client),
+        lambda client: contabo.get_cloud_summary(client),
+        lambda client: contabo.get_dashboard_full(client),
+    ),
+)
+def test_contabo_failures_do_not_expose_provider_error(operation):
+    class FailingClient:
+        def get(self, _: str):
+            raise RuntimeError("Bearer provider-secret")
+
+    with pytest.raises(HTTPException) as error:
+        operation(FailingClient())
+
+    assert error.value.status_code == 502
+    assert error.value.detail == "Contabo API indisponível."
