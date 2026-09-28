@@ -308,8 +308,8 @@ async def oidc_callback(
         token_payload = await exchange_oidc_code(
             body.code, body.redirect_uri, body.code_verifier
         )
-    except Exception as e:
-        logger.error(f"Erro na troca do código OIDC: {e}")
+    except Exception as exc:
+        logger.error("OIDC code exchange failed: %s", type(exc).__name__)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Falha ao autenticar com o Authentik SSO (troca de código falhou).",
@@ -326,8 +326,8 @@ async def oidc_callback(
     # 2. Validar token
     try:
         claims = await verify_oidc_token(id_token)
-    except Exception as e:
-        logger.error(f"Token OIDC inválido: {e}")
+    except Exception as exc:
+        logger.error("OIDC identity token validation failed: %s", type(exc).__name__)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token OIDC fornecido pelo Authentik é inválido ou expirou.",

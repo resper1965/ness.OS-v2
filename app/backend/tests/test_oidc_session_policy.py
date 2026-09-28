@@ -108,3 +108,28 @@ def test_access_token_cannot_replace_missing_identity_token():
     assert response.status_code == 400
     verify.assert_not_awaited()
     assert SESSION_COOKIE_NAME not in response.cookies
+
+
+def test_oidc_exchange_failure_hides_provider_details(caplog):
+    app = FastAPI()
+    app.include_router(router)
+
+    with (
+        patch(
+            "app.api.routers.auth.get_settings",
+            return_value=SimpleNamespace(oidc_enabled=True),
+        ),
+        patch(
+            "app.api.routers.auth.exchange_oidc_code",
+            new=AsyncMock(side_effect=RuntimeError("code=private")),
+        ),
+    ):
+        response = TestClient(app, base_url="https://hub.ness.com.br").post(
+            "/api/auth/oidc/callback",
+            headers={"Origin": "https://hub.ness.com.br"},
+            json={"code": "test", "redirect_uri": "https://hub.ness.com.br/callback"},
+        )
+
+    assert response.status_code == 400
+    assert "private" not in response.text
+    assert "private" not in caplog.text
