@@ -1,4 +1,5 @@
 import asyncio
+from types import SimpleNamespace
 
 from app.api.routers import core
 
@@ -10,6 +11,7 @@ async def _infra_summary():
         "alerts_critical": 2,
         "alerts_total": 5,
         "status": "ok",
+        "sources": {"zabbix": {"status": "ok"}, "atera": {"status": "ok"}},
     }
 
 
@@ -47,3 +49,33 @@ def test_kpis_keep_sources_separate_instead_of_double_counting(monkeypatch):
     assert kpis["rmm_agents_reported"]["value"] == 7
     assert kpis["rmm_agents_reported"]["source"] == "atera"
     assert kpis["secops_incidents_open"]["value"] == 3
+
+
+def test_kpis_do_not_report_provider_failure_as_zero(monkeypatch):
+    async def failed_call(*_args, **_kwargs):
+        raise RuntimeError("provider secret")
+
+    monkeypatch.setattr(
+        core, "ZabbixClient", lambda: SimpleNamespace(_call=failed_call)
+    )
+    monkeypatch.setattr(core, "get_settings", lambda: SimpleNamespace(atera_api_key=""))
+
+    infra = asyncio.run(core._infra_summary())
+
+    assert infra["hosts_active"] is None
+    assert infra["alerts_total"] is None
+    assert infra["sources"]["zabbix"]["status"] == "unavailable"
+    assert infra["sources"]["atera"] == {
+        "status": "unavailable",
+        "error_code": "not_configured",
+    }
+
+    async def unavailable_infra_summary():
+        return infra
+
+    monkeypatch.setattr(core, "_infra_summary", unavailable_infra_summary)
+    kpis = {item["id"]: item for item in asyncio.run(core.get_kpis())["kpis"]}
+
+    assert kpis["zabbix_hosts_active"]["value"] is None
+    assert kpis["zabbix_hosts_active"]["status"] == "unavailable"
+    assert kpis["zabbix_alerts_critical"]["alert"] is None

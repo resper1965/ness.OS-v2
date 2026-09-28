@@ -30,16 +30,16 @@ router = APIRouter(prefix="/api/core", tags=["core"])
 _TIMEOUT = 8.0
 
 
-async def _safe(coro, name: str, fallback: Any = None) -> Any:
-    """Executa corrotina com timeout; retorna fallback em caso de erro."""
+async def _safe(coro, name: str) -> Any | None:
+    """Executa corrotina com timeout sem converter falha em dado válido."""
     try:
         return await asyncio.wait_for(coro, timeout=_TIMEOUT)
     except asyncio.TimeoutError:
         logger.warning("core: %s timeout após %.0fs", name, _TIMEOUT)
-        return fallback
+        return None
     except Exception as exc:
-        logger.error("core: %s erro: %s", name, exc)
-        return fallback
+        logger.error("core: %s failed: %s", name, type(exc).__name__)
+        return None
 
 
 # ── Helpers de coleta ────────────────────────────────────────────────────────
@@ -81,27 +81,40 @@ async def _infra_summary() -> dict:
         }
 
     zabbix_data, atera_data = await asyncio.gather(
-        _safe(_zabbix(), "zabbix", {}),
-        _safe(_atera(), "atera", {}),
+        _safe(_zabbix(), "zabbix"),
+        _safe(_atera(), "atera") if settings.atera_api_key else asyncio.sleep(0),
     )
+    zabbix_status = "ok" if zabbix_data is not None else "unavailable"
+    atera_status = (
+        "ok" if atera_data is not None and settings.atera_api_key else "unavailable"
+    )
+    zabbix_values = zabbix_data or {}
+    atera_values = atera_data or {}
 
     return {
-        "hosts_active": zabbix_data.get("hosts_active", 0),
-        "agents_rmm": atera_data.get("agents", 0),
-        "alerts_critical": zabbix_data.get("alerts_critical", 0),
-        "alerts_total": zabbix_data.get("alerts_total", 0),
-        "rmm_alerts": atera_data.get("alerts", 0),
-        "status": "ok" if zabbix_data else "degraded",
+        "hosts_active": zabbix_values.get("hosts_active"),
+        "agents_rmm": atera_values.get("agents"),
+        "alerts_critical": zabbix_values.get("alerts_critical"),
+        "alerts_total": zabbix_values.get("alerts_total"),
+        "rmm_alerts": atera_values.get("alerts"),
+        "status": "ok" if zabbix_status == atera_status == "ok" else "degraded",
+        "sources": {
+            "zabbix": {"status": zabbix_status},
+            "atera": {
+                "status": atera_status,
+                "error_code": None if settings.atera_api_key else "not_configured",
+            },
+        },
     }
 
 
 async def _secops_summary() -> dict:
     """Reserva o módulo SecOps até a integração Wazuh aprovada."""
     return {
-        "incidents_open": 0,
-        "incidents_critical": 0,
-        "agents_online": 0,
-        "status": "not_configured",
+        "incidents_open": None,
+        "incidents_critical": None,
+        "agents_online": None,
+        "status": "unavailable",
     }
 
 
@@ -122,9 +135,11 @@ async def get_overview() -> dict:
     Cada fonte tem timeout de 8s e degrada independentemente.
     """
     infra, secops = await asyncio.gather(
-        _safe(_infra_summary(), "infra", {}),
-        _safe(_secops_summary(), "secops", {}),
+        _safe(_infra_summary(), "infra"),
+        _safe(_secops_summary(), "secops"),
     )
+    infra = infra or {"status": "unavailable"}
+    secops = secops or {"status": "unavailable"}
 
     return {
         "timestamp": datetime.now(tz=timezone.utc).isoformat(),
@@ -141,10 +156,10 @@ async def get_overview() -> dict:
                 "color": "#3B82F6",
                 "status": infra.get("status", "unknown"),
                 "metrics": {
-                    "hosts_active": infra.get("hosts_active", 0),
-                    "agents_rmm": infra.get("agents_rmm", 0),
-                    "alerts_critical": infra.get("alerts_critical", 0),
-                    "alerts_total": infra.get("alerts_total", 0),
+                    "hosts_active": infra.get("hosts_active"),
+                    "agents_rmm": infra.get("agents_rmm"),
+                    "alerts_critical": infra.get("alerts_critical"),
+                    "alerts_total": infra.get("alerts_total"),
                 },
             },
             "secops": {
@@ -152,9 +167,9 @@ async def get_overview() -> dict:
                 "color": "#EF4444",
                 "status": secops.get("status", "unknown"),
                 "metrics": {
-                    "incidents_open": secops.get("incidents_open", 0),
-                    "incidents_critical": secops.get("incidents_critical", 0),
-                    "agents_online": secops.get("agents_online", 0),
+                    "incidents_open": secops.get("incidents_open"),
+                    "incidents_critical": secops.get("incidents_critical"),
+                    "agents_online": secops.get("agents_online"),
                 },
             },
         },
@@ -218,9 +233,16 @@ async def get_kpis() -> dict:
     Inclui métricas de infraestrutura e segurança unificadas.
     """
     infra, secops = await asyncio.gather(
-        _safe(_infra_summary(), "infra-kpi", {}),
-        _safe(_secops_summary(), "secops-kpi", {}),
+        _safe(_infra_summary(), "infra-kpi"),
+        _safe(_secops_summary(), "secops-kpi"),
     )
+    infra = infra or {"status": "unavailable", "sources": {}}
+    secops = secops or {"status": "unavailable"}
+    sources = infra.get("sources", {})
+    zabbix_status = sources.get("zabbix", {}).get("status", "unavailable")
+    atera_status = sources.get("atera", {}).get("status", "unavailable")
+    zabbix_critical = infra.get("alerts_critical")
+    secops_critical = secops.get("incidents_critical")
 
     return {
         "timestamp": datetime.now(tz=timezone.utc).isoformat(),
@@ -228,46 +250,46 @@ async def get_kpis() -> dict:
             {
                 "id": "zabbix_hosts_active",
                 "label": "Hosts ativos no Zabbix",
-                "value": infra.get("hosts_active", 0),
+                "value": infra.get("hosts_active"),
                 "unit": "hosts",
                 "module": "infraops",
                 "color": "#3B82F6",
                 "trend": "stable",
                 "source": "zabbix",
-                "status": "ok" if infra.get("status") == "ok" else "partial",
+                "status": zabbix_status,
             },
             {
                 "id": "rmm_agents_reported",
                 "label": "Agentes reportados pelo RMM",
-                "value": infra.get("agents_rmm", 0),
+                "value": infra.get("agents_rmm"),
                 "unit": "agentes",
                 "module": "infraops",
                 "color": "#06B6D4",
                 "trend": "stable",
                 "source": "atera",
-                "status": "provisional",
+                "status": atera_status,
             },
             {
                 "id": "zabbix_alerts_critical",
                 "label": "Alertas críticos no Zabbix",
-                "value": infra.get("alerts_critical", 0),
+                "value": infra.get("alerts_critical"),
                 "unit": "alertas ativos",
                 "module": "infraops",
                 "color": "#F59E0B",
                 "trend": "stable",
-                "alert": infra.get("alerts_critical", 0) > 5,
+                "alert": zabbix_critical > 5 if zabbix_critical is not None else None,
                 "source": "zabbix",
-                "status": "ok" if infra.get("status") == "ok" else "partial",
+                "status": zabbix_status,
             },
             {
                 "id": "secops_incidents_open",
                 "label": "Incidentes de segurança abertos",
-                "value": secops.get("incidents_open", 0),
+                "value": secops.get("incidents_open"),
                 "unit": "incidentes",
                 "module": "secops",
                 "color": "#EF4444",
                 "trend": "stable",
-                "alert": secops.get("incidents_critical", 0) > 0,
+                "alert": secops_critical > 0 if secops_critical is not None else None,
                 "source": "wazuh",
                 "status": secops.get("status", "unavailable"),
             },
