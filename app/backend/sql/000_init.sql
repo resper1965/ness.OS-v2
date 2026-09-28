@@ -9,3 +9,4 @@
 
 -- Garantir que a extensão TimescaleDB está ativada
 CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;
+CREATE EXTENSION IF NOT EXISTS vector;

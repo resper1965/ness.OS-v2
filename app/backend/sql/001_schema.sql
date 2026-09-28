@@ -5,6 +5,7 @@
 
 -- ENUMs para tipagem forte no banco
 CREATE TYPE asset_type AS ENUM (
+    'unknown',
     'windows',
     'linux',
     'network_device'
@@ -287,4 +288,22 @@ CREATE INDEX idx_soc_decisions_rule ON n_secops_soc_decisions (wazuh_rule_id);
 CREATE INDEX idx_soc_decisions_agent ON n_secops_soc_decisions (agent_id);
 CREATE INDEX idx_soc_decisions_customer ON n_secops_soc_decisions (customer_id);
 CREATE INDEX idx_soc_decisions_classification ON n_secops_soc_decisions (classification);
+
+-- A tabela de usuários precisa existir antes de 002_push_subscriptions.sql.
+CREATE TYPE userrole AS ENUM (
+    'platform_admin', 'admin', 'noc', 'soc', 'helpdesk', 'gestao', 'cliente'
+);
+
+CREATE TABLE n_infraops_users (
+    id              BIGSERIAL PRIMARY KEY,
+    email           VARCHAR(255) NOT NULL UNIQUE,
+    hashed_password VARCHAR(255) NOT NULL,
+    full_name       VARCHAR(255),
+    role            userrole NOT NULL DEFAULT 'noc',
+    tenant_id       VARCHAR(128),
+    session_epoch   BIGINT NOT NULL DEFAULT 0,
+    is_active       BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    last_login      TIMESTAMPTZ
+);
 
