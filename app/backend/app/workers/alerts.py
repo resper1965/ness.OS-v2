@@ -3,6 +3,7 @@ import json
 import logging
 import re
 from datetime import datetime, timezone
+from html import escape
 from typing import Any, Dict
 from uuid import uuid4
 
@@ -240,6 +241,34 @@ async def lookup_glpi_asset(host_id: str, customer: str) -> dict | None:
     return None
 
 
+def build_glpi_ticket_content(alert_data: Dict[str, Any], analysis: Any) -> str:
+    """Render untrusted alert and analysis text inside the GLPI HTML body."""
+    host_name = escape(str(alert_data.get("host_name", "")))
+    host_ip = escape(str(alert_data.get("host_ip", "Sem IP")))
+    severity = escape(str(alert_data.get("severity", "AVERAGE")))
+    cause = escape(str(analysis.probable_cause))
+    urgency = escape(str(analysis.urgency))
+    executive_plan = escape(str(analysis.executive_action_plan))
+    technical_plan = escape(str(analysis.technical_action_plan))
+    playbook = escape(str(analysis.recommended_playbook))
+    return f"""
+<h2>Relatório AIOps — Triagem de Incidente</h2>
+<hr/>
+<p><b>Host:</b> {host_name} ({host_ip})</p>
+<p><b>Severidade do Alerta:</b> {severity}</p>
+<p><b>Causa Provável:</b> {cause}</p>
+<p><b>Urgência de IA:</b> {urgency}</p>
+<p><b>Isolamento Requerido:</b> {"Sim" if analysis.isolation_required else "Não"}</p>
+<hr/>
+<h3>Plano de Ação Executivo:</h3>
+<p>{executive_plan}</p>
+<h3>Plano de Ação Técnico:</h3>
+<p>{technical_plan}</p>
+<h3>Playbook Recomendado:</h3>
+<p><code>{playbook}</code></p>
+"""
+
+
 async def _async_process_alert_v1(
     alert_data: Dict[str, Any], fingerprint: str
 ) -> Dict[str, Any]:
@@ -267,22 +296,7 @@ async def _async_process_alert_v1(
     glpi = GLPIClient()
 
     ticket_title = f"[AIOps] {alert_data.get('trigger_name', 'Alerta')}"
-    ticket_content = f"""
-<h2>Relatório AIOps — Triagem de Incidente</h2>
-<hr/>
-<p><b>Host:</b> {host_name} ({alert_data.get("host_ip", "Sem IP")})</p>
-<p><b>Severidade do Alerta:</b> {alert_data.get("severity", "AVERAGE")}</p>
-<p><b>Causa Provável:</b> {analysis.probable_cause}</p>
-<p><b>Urgência de IA:</b> {analysis.urgency}</p>
-<p><b>Isolamento Requerido:</b> {"Sim" if analysis.isolation_required else "Não"}</p>
-<hr/>
-<h3>Plano de Ação Executivo:</h3>
-<p>{analysis.executive_action_plan}</p>
-<h3>Plano de Ação Técnico:</h3>
-<p>{analysis.technical_action_plan}</p>
-<h3>Playbook Recomendado:</h3>
-<p><code>{analysis.recommended_playbook}</code></p>
-"""
+    ticket_content = build_glpi_ticket_content(alert_data, analysis)
 
     ticket_id = None
     ticket_created = False

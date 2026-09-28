@@ -11,6 +11,34 @@ from app.workers import alerts
 from app.workers.alerts import ensure_glpi_ticket
 
 
+def test_glpi_ticket_body_escapes_alert_and_analysis_text():
+    analysis = AIAnalysisResult(
+        executive_action_plan='<img src=x onerror="alert(1)">',
+        technical_action_plan="Verificar <host> & serviço",
+        urgency="HIGH",
+        isolation_required=False,
+        probable_cause="<script>alert(1)</script>",
+        recommended_playbook="<restart>",
+    )
+
+    content = alerts.build_glpi_ticket_content(
+        {
+            "host_name": "<script>host</script>",
+            "host_ip": '10.0.0.1" onload="x',
+            "severity": 4,
+        },
+        analysis,
+    )
+
+    assert "<script>" not in content
+    assert "<img" not in content
+    assert "<host>" not in content
+    assert "&lt;script&gt;" in content
+    assert "&lt;img src=x onerror=&quot;alert(1)&quot;&gt;" in content
+    assert "10.0.0.1&quot; onload=&quot;x" in content
+    assert "Verificar &lt;host&gt; &amp; serviço" in content
+
+
 @pytest.mark.asyncio
 async def test_existing_marker_reuses_ticket_without_external_writes():
     glpi = AsyncMock()
