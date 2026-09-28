@@ -87,6 +87,8 @@ def _incident_payload(inc: Incident) -> dict:
         "client": tags.get("ninf_customer_name")
         or (inc.asset.customer_name if inc.asset else "Não identificado"),
         "status": inc.status,
+        "source_status": tags.get("ninf_zabbix_status", "unknown"),
+        "source_recovered_at": tags.get("ninf_zabbix_recovered_at"),
         "assigned_user_id": getattr(inc, "assigned_user_id", None),
         "alert_count": inc.alert_count or 1,
         "first_seen": inc.first_seen.isoformat() if inc.first_seen else None,

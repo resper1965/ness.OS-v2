@@ -62,6 +62,8 @@ def _incident(tenant="tenant-a"):
         tags={
             "ninf_customer_name": tenant,
             "ninf_zabbix_event_id": "303",
+            "ninf_zabbix_status": "resolved",
+            "ninf_zabbix_recovered_at": "2026-09-28T11:00:00+00:00",
             "resolution_sync_status": "pending",
         },
         deskmanager_ticket_id="404",
@@ -87,6 +89,8 @@ def test_detail_exposes_source_and_ticket_in_authorized_tenant():
 
     assert response.status_code == 200
     assert response.json()["source_event_id"] == "303"
+    assert response.json()["source_status"] == "resolved"
+    assert response.json()["source_recovered_at"] == "2026-09-28T11:00:00+00:00"
     assert response.json()["source_url"].endswith(
         "/tr_events.php?triggerid=202&eventid=303"
     )

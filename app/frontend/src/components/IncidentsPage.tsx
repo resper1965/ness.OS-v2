@@ -85,6 +85,8 @@ interface Incident {
   last_seen: string | null; pipeline_stage: string;
   client?: string; ticket_id?: string | null;
   solution?: string | null;
+  source_status?: string;
+  source_recovered_at?: string | null;
   assigned_user_id?: number | null;
   asset?: { name: string; glpi_itemtype?: string; glpi_item_id?: number; owner?: string; owner_group_id?: number } | null;
 }
@@ -310,6 +312,7 @@ export default function IncidentsPage({ incidents, loading, error, canAct, onCha
                       </a>
                     )}
                     <p>Sincronização da resolução: {detail.resolution_sync_status || 'sem atualização registrada'}</p>
+                    <p>Estado Zabbix: {detail.source_status === 'resolved' ? `sinal recuperado em ${detail.source_recovered_at || 'horário indisponível'}` : detail.source_status === 'problem' ? 'problema ativo' : 'não registrado'}</p>
                     <p>Responsável no Hub: {detail.assigned_user_id ? `usuário #${detail.assigned_user_id}` : 'não atribuído'}</p>
                     {canAct && (
                       <div className="space-y-2 border-t border-white/[0.06] pt-3">

@@ -243,6 +243,9 @@ async def lookup_glpi_asset(host_id: str, customer: str) -> dict | None:
 async def _async_process_alert_v1(
     alert_data: Dict[str, Any], fingerprint: str
 ) -> Dict[str, Any]:
+    if str(alert_data.get("status", "PROBLEM")).upper() in {"RESOLVED", "OK"}:
+        return await _async_process_recovery(alert_data, fingerprint)
+
     # 1. Resolver o cliente do ativo
     host_name = alert_data.get("host_name", "")
     customer_name = await resolve_alert_customer(alert_data)
@@ -423,6 +426,9 @@ async def _async_process_alert_v1(
                 **(db_incident.tags or {}),
                 "ninf_customer_name": customer_name,
                 "ninf_zabbix_event_id": str(alert_data.get("event_id", "")),
+                "ninf_zabbix_status": (db_incident.tags or {}).get(
+                    "ninf_zabbix_status", "problem"
+                ),
             }
             await session.flush()
             if incident_created:
@@ -486,6 +492,7 @@ async def _async_process_alert_v1(
                 "client": customer_name,
                 "tenant_id": customer_name.lower().strip(),
                 "status": db_incident.status,
+                "source_status": db_incident.tags["ninf_zabbix_status"],
                 "ticket_id": db_incident.deskmanager_ticket_id,
                 "pipeline_stage": (
                     "resolved"
@@ -557,6 +564,78 @@ async def _async_process_alert_v1(
             }
 
     # A failed commit must never announce an incident that was not persisted.
+    _publish_incident_event(event_data)
+
+    # Commit the local incident even when GLPI is unavailable, then let Celery retry.
+    if glpi_error is not None:
+        raise glpi_error
+    return result_data
+
+
+async def _async_process_recovery(
+    alert_data: Dict[str, Any], fingerprint: str
+) -> Dict[str, Any]:
+    """Record Zabbix recovery; GLPI remains authoritative for ticket resolution."""
+    async with SessionLocal() as session:
+        async with session.begin():
+            incident = (
+                await session.execute(
+                    select(Incident)
+                    .where(Incident.fingerprint == fingerprint)
+                    .with_for_update()
+                )
+            ).scalar_one_or_none()
+            if incident is None:
+                raise LookupError("Problem incident has not been persisted yet")
+            tags = incident.tags or {}
+            if (
+                str(tags.get("ninf_zabbix_event_id")) != str(alert_data.get("event_id"))
+                or incident.host_id != str(alert_data.get("host_id"))
+                or incident.trigger_id != str(alert_data.get("trigger_id"))
+            ):
+                raise ValueError("Recovery does not match original Zabbix event")
+            result = {
+                "id": incident.id,
+                "fingerprint": fingerprint,
+                "ticket_id": incident.deskmanager_ticket_id,
+                "status": "source_recovered",
+            }
+            if tags.get("ninf_zabbix_status") == "resolved":
+                return result
+            now = datetime.now(timezone.utc)
+            incident.tags = {
+                **tags,
+                "ninf_zabbix_status": "resolved",
+                "ninf_zabbix_recovered_at": now.isoformat(),
+            }
+            incident.last_seen = now
+            incident.updated_at = now
+            session.add(
+                IncidentAction(
+                    incident_id=incident.id,
+                    actor_source="zabbix",
+                    action="zabbix_recovered",
+                    previous_status=incident.status,
+                    new_status=incident.status,
+                    previous_assignee_id=incident.assigned_user_id,
+                    new_assignee_id=incident.assigned_user_id,
+                    note=f"event={alert_data.get('event_id')}",
+                )
+            )
+            event_data = {
+                "id": str(incident.id),
+                "fingerprint": fingerprint,
+                "tenant_id": tags.get("ninf_customer_name", "").lower().strip(),
+                "status": incident.status,
+                "ticket_id": incident.deskmanager_ticket_id,
+                "source_status": "resolved",
+                "source_recovered_at": now.isoformat(),
+            }
+    _publish_incident_event(event_data)
+    return result
+
+
+def _publish_incident_event(event_data: dict) -> None:
     redis_client = None
     try:
         redis_client = _get_sync_redis()
@@ -571,11 +650,6 @@ async def _async_process_alert_v1(
                 redis_client.close()
             except Exception:
                 logger.warning("Could not close incident publisher")
-
-    # Commit the local incident even when GLPI is unavailable, then let Celery retry.
-    if glpi_error is not None:
-        raise glpi_error
-    return result_data
 
 
 @celery_app.task(
@@ -595,7 +669,8 @@ def process_alert_v1(
     Implementa deduplicação/inibição com chaves SHA-256 no Redis (`ninf-redis`)
     com TTL de 300 segundos.
     """
-    inhibit_key = f"ninf:inhibit:{fingerprint}"
+    recovery = str(alert_data.get("status", "PROBLEM")).upper() in {"RESOLVED", "OK"}
+    inhibit_key = f"ninf:inhibit:{fingerprint}{':recovery' if recovery else ''}"
     inhibit_token = uuid4().hex
     acquired = False
 

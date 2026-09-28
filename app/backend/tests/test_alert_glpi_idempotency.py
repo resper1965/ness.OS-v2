@@ -170,6 +170,143 @@ def test_processing_failure_releases_only_owned_inhibition_and_retries(monkeypat
     retry.assert_called_once_with(exc=failure)
 
 
+def test_recovery_uses_separate_inhibition_key(monkeypatch):
+    redis = MagicMock()
+    redis.set.return_value = True
+    process = AsyncMock(return_value={"status": "source_recovered"})
+    monkeypatch.setattr(alerts, "_get_sync_redis", lambda: redis)
+    monkeypatch.setattr(alerts, "_async_process_alert_v1", process)
+
+    assert alerts.process_alert_v1.run({"status": "RESOLVED"}, "fingerprint") == {
+        "status": "source_recovered"
+    }
+    assert redis.set.call_args.args[0] == "ninf:inhibit:fingerprint:recovery"
+    process.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("existing", [False, True])
+@pytest.mark.parametrize("replay", [False, True])
+async def test_zabbix_recovery_records_signal_without_changing_glpi_state(
+    monkeypatch, existing, replay
+):
+    incident = MagicMock(
+        id=7,
+        fingerprint="a" * 64,
+        host_id="100",
+        trigger_id="200",
+        status="open",
+        assigned_user_id=3,
+        deskmanager_ticket_id="456",
+        alert_count=1,
+        tags={
+            "ninf_customer_name": "Cavan",
+            "ninf_zabbix_event_id": "300",
+            **(
+                {
+                    "ninf_zabbix_status": "resolved",
+                    "ninf_zabbix_recovered_at": "2026-09-28T00:00:00+00:00",
+                }
+                if replay
+                else {}
+            ),
+        },
+    )
+    session = MagicMock()
+    result = MagicMock()
+    result.scalar_one_or_none.return_value = incident if existing else None
+    session.execute = AsyncMock(return_value=result)
+
+    @asynccontextmanager
+    async def transaction():
+        yield
+
+    @asynccontextmanager
+    async def session_factory():
+        yield session
+
+    session.begin.side_effect = transaction
+    redis = MagicMock()
+    monkeypatch.setattr(alerts, "SessionLocal", session_factory)
+    monkeypatch.setattr(alerts, "_get_sync_redis", lambda: redis)
+    analyze = AsyncMock()
+    monkeypatch.setattr(alerts, "analyze_incident", analyze)
+    glpi = AsyncMock()
+    monkeypatch.setattr(alerts, "GLPIClient", lambda: glpi)
+    alert_data = {
+        "status": "RESOLVED",
+        "event_id": "300",
+        "host_id": "100",
+        "trigger_id": "200",
+    }
+
+    if not existing:
+        with pytest.raises(LookupError):
+            await alerts._async_process_alert_v1(alert_data, "a" * 64)
+        redis.publish.assert_not_called()
+    else:
+        response = await alerts._async_process_alert_v1(alert_data, "a" * 64)
+        assert response["status"] == "source_recovered"
+        assert response["ticket_id"] == "456"
+        assert incident.status == "open"
+        assert incident.alert_count == 1
+        assert incident.tags["ninf_zabbix_status"] == "resolved"
+        assert incident.tags["ninf_zabbix_recovered_at"]
+        actions = [
+            call.args[0]
+            for call in session.add.call_args_list
+            if isinstance(call.args[0], IncidentAction)
+        ]
+        assert [action.action for action in actions] == (
+            [] if replay else ["zabbix_recovered"]
+        )
+        if replay:
+            redis.publish.assert_not_called()
+        else:
+            redis.publish.assert_called_once()
+            assert json.loads(redis.publish.call_args.args[1])["source_status"] == (
+                "resolved"
+            )
+    analyze.assert_not_awaited()
+    glpi.create_ticket.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_zabbix_recovery_rejects_different_problem_event(monkeypatch):
+    incident = MagicMock(
+        host_id="100",
+        trigger_id="200",
+        tags={"ninf_zabbix_event_id": "300"},
+    )
+    session = MagicMock()
+    session.execute = AsyncMock(
+        return_value=MagicMock(scalar_one_or_none=lambda: incident)
+    )
+
+    @asynccontextmanager
+    async def transaction():
+        yield
+
+    @asynccontextmanager
+    async def session_factory():
+        yield session
+
+    session.begin.side_effect = transaction
+    monkeypatch.setattr(alerts, "SessionLocal", session_factory)
+
+    with pytest.raises(ValueError, match="does not match"):
+        await alerts._async_process_alert_v1(
+            {
+                "status": "RESOLVED",
+                "event_id": "301",
+                "host_id": "100",
+                "trigger_id": "200",
+            },
+            "a" * 64,
+        )
+    session.add.assert_not_called()
+
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize("glpi_fails", [False, True])
 @pytest.mark.parametrize("notifications_enabled", [False, True])
