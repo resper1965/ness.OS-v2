@@ -243,6 +243,7 @@ function AppShellBody({ AUTH, logout, user }: {
   user: import('./hooks/useAuth').User | null;
 }) {
   const isOperator = ['platform_admin', 'admin', 'noc', 'soc'].includes(user?.role ?? '');
+  const canActOnIncidents = isOperator || user?.role === 'operator';
   const [activeModule, setActiveModule] = useState<NessModule>(isOperator ? 'core' : 'infraops');
   const [currentView, setCurrentView] = useState<View>(isOperator ? 'dashboard' : 'incidents');
   const [selectedTenant, setSelectedTenant] = useState<string | null>(null);
@@ -576,7 +577,7 @@ function AppShellBody({ AUTH, logout, user }: {
                 incidents={incidents}
                 loading={incidentsLoading}
                 error={incidentsError}
-                canAct={isOperator}
+                canAct={canActOnIncidents}
                 onChanged={fetchIncidents}
               />
             )}

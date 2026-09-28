@@ -291,7 +291,7 @@ CREATE INDEX idx_soc_decisions_classification ON n_secops_soc_decisions (classif
 
 -- A tabela de usuários precisa existir antes de 002_push_subscriptions.sql.
 CREATE TYPE userrole AS ENUM (
-    'platform_admin', 'admin', 'noc', 'soc', 'helpdesk', 'gestao', 'cliente'
+    'platform_admin', 'admin', 'operator', 'viewer', 'noc', 'soc', 'helpdesk', 'gestao', 'cliente'
 );
 
 CREATE TABLE n_infraops_users (

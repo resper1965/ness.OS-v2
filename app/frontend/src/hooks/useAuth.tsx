@@ -24,7 +24,7 @@ export interface User {
   id: number;
   email: string;
   full_name: string;
-  role: 'platform_admin' | 'admin' | 'noc' | 'soc' | 'helpdesk' | 'gestao' | 'cliente';
+  role: 'platform_admin' | 'admin' | 'noc' | 'soc' | 'helpdesk' | 'gestao' | 'cliente' | 'operator' | 'viewer';
 }
 
 interface AuthState {

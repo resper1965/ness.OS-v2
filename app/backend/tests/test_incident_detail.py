@@ -113,6 +113,23 @@ def test_detail_hides_missing_or_cross_tenant_incident(incident):
     assert response.status_code == 404
 
 
+@pytest.mark.parametrize("role", (UserRole.operator, UserRole.viewer))
+def test_scoped_roles_can_read_only_own_incident(role):
+    with patch(
+        "app.api.routers.incidents.SessionLocal",
+        return_value=FakeSession(_incident("tenant-a")),
+    ):
+        own = _client(role).get("/api/incidents/7")
+    with patch(
+        "app.api.routers.incidents.SessionLocal",
+        return_value=FakeSession(_incident("tenant-b")),
+    ):
+        other = _client(role).get("/api/incidents/7")
+
+    assert own.status_code == 200
+    assert other.status_code == 404
+
+
 def test_detail_requires_authentication():
     app = FastAPI()
     app.include_router(router)

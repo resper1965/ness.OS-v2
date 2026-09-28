@@ -5,7 +5,13 @@ from fastapi import HTTPException
 from fastapi.routing import APIRoute
 
 from app.api.routers.auth import map_authentik_role
-from app.core.dependencies import require_admin, require_noc, require_platform_admin
+from app.core.dependencies import (
+    require_admin,
+    require_noc,
+    require_operator,
+    require_platform_admin,
+    resolve_tenant_scope,
+)
 from app.main import app
 from app.models.users import UserRole
 
@@ -38,6 +44,36 @@ def test_unknown_group_falls_back_to_least_privileged_role():
     assert map_authentik_role({"groups": ["unknown"]}) == UserRole.cliente
 
 
+@pytest.mark.parametrize("group,role", (("operator", "operator"), ("viewer", "viewer")))
+def test_scoped_authentik_groups_map_to_scoped_roles(group, role):
+    assert map_authentik_role({"groups": [group]}).value == role
+
+
+def test_scoped_group_wins_over_legacy_noc_group():
+    assert map_authentik_role({"groups": ["noc", "operator"]}) == UserRole.operator
+    assert map_authentik_role({"groups": ["noc", "viewer"]}) == UserRole.viewer
+
+
+@pytest.mark.parametrize("role", ("operator", "viewer"))
+def test_scoped_roles_cannot_select_another_tenant(role):
+    user = SimpleNamespace(role=UserRole(role), tenant_id="tenant-a")
+    assert resolve_tenant_scope(user, None) == "tenant-a"
+    with pytest.raises(HTTPException) as error:
+        resolve_tenant_scope(user, "tenant-b")
+    assert error.value.status_code == 403
+
+
+def test_operator_guard_allows_scoped_operator_but_not_viewer():
+    operator = SimpleNamespace(role=UserRole.operator, tenant_id="tenant-a")
+    assert require_operator(operator) is operator
+    with pytest.raises(HTTPException) as error:
+        require_operator(SimpleNamespace(role=UserRole.viewer, tenant_id="tenant-a"))
+    assert error.value.status_code == 403
+    with pytest.raises(HTTPException) as error:
+        require_noc(operator)
+    assert error.value.status_code == 403
+
+
 def test_every_non_public_api_route_has_recognized_authorization():
     public = {
         ("POST", "/api/auth/login"),
@@ -50,6 +86,7 @@ def test_every_non_public_api_route_has_recognized_authorization():
         "get_current_user",
         "require_authenticated",
         "require_noc",
+        "require_operator",
         "require_admin",
         "require_platform_admin",
         "verify_api_key",

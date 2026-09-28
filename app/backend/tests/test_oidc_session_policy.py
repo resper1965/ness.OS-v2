@@ -19,6 +19,10 @@ from app.models.users import UserRole
         (True, ["usuarios"], ["alupar"], 403),
         (True, ["usuarios"], " ALUPAR ", 200),
         (True, ["noc"], None, 200),
+        (True, ["operator"], None, 403),
+        (True, ["operator"], "tenant-a", 200),
+        (True, ["viewer"], None, 403),
+        (True, ["viewer"], "tenant-a", 200),
     ],
 )
 def test_oidc_session_policy(active, groups, tenant, status):
@@ -69,6 +73,8 @@ def test_oidc_session_policy(active, groups, tenant, status):
         db.commit.assert_awaited_once()
         assert SESSION_COOKIE_NAME in response.cookies
         assert user.tenant_id == (tenant or "").strip().lower()
+        if groups[0] in {"operator", "viewer"}:
+            assert user.role == UserRole(groups[0])
     else:
         db.commit.assert_not_awaited()
         assert SESSION_COOKIE_NAME not in response.cookies

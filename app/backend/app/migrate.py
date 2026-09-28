@@ -37,6 +37,12 @@ async def run_migrations():
         await conn.execute(
             text("ALTER TYPE userrole ADD VALUE IF NOT EXISTS 'platform_admin';")
         )
+        await conn.execute(
+            text("ALTER TYPE userrole ADD VALUE IF NOT EXISTS 'operator';")
+        )
+        await conn.execute(
+            text("ALTER TYPE userrole ADD VALUE IF NOT EXISTS 'viewer';")
+        )
 
         # 2. Adicionar tenant_id em n_infraops_users se não existir
         logger.info("Verificando coluna tenant_id na tabela n_infraops_users...")

@@ -27,6 +27,8 @@ class UserRole(str, enum.Enum):
     Mapeamento Authentik SSO → UserRole:
       platform_admin → platform_admin
       admin    → admin
+      operator → operator (tenant-scoped)
+      viewer   → viewer (tenant-scoped, read-only)
       noc      → noc
       soc      → soc
       helpdesk → helpdesk
@@ -36,6 +38,8 @@ class UserRole(str, enum.Enum):
 
     platform_admin = "platform_admin"
     admin = "admin"
+    operator = "operator"
+    viewer = "viewer"
     noc = "noc"
     soc = "soc"
     helpdesk = "helpdesk"

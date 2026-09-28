@@ -35,11 +35,11 @@ class FakeSession:
         self.actions.append(action)
 
 
-def _client(role=UserRole.noc):
+def _client(role=UserRole.noc, tenant_id=None):
     app = FastAPI()
     app.include_router(router)
     app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(
-        id=42, role=role, tenant_id=None
+        id=42, role=role, tenant_id=tenant_id
     )
     return TestClient(app)
 
@@ -111,6 +111,32 @@ def test_invalid_transition_does_not_write_audit(action, status, ticket_id, tags
 
 def test_tenant_user_cannot_mutate_incident():
     response = _client(UserRole.cliente).post(
+        "/api/incidents/7/actions", json={"action": "acknowledge"}
+    )
+    assert response.status_code == 403
+
+
+def test_scoped_operator_can_act_only_on_own_incident():
+    own = FakeSession(_incident(tags={"ninf_customer_name": "tenant-a"}))
+    with patch("app.api.routers.incidents.SessionLocal", return_value=own):
+        allowed = _client(UserRole.operator, "tenant-a").post(
+            "/api/incidents/7/actions", json={"action": "acknowledge"}
+        )
+    assert allowed.status_code == 200
+    assert len(own.actions) == 1
+    assert own.statement.compile().params["tags_1"] == "ninf_customer_name"
+
+    other = FakeSession(_incident(tags={"ninf_customer_name": "tenant-b"}))
+    with patch("app.api.routers.incidents.SessionLocal", return_value=other):
+        denied = _client(UserRole.operator, "tenant-a").post(
+            "/api/incidents/7/actions", json={"action": "acknowledge"}
+        )
+    assert denied.status_code == 404
+    assert other.actions == []
+
+
+def test_viewer_cannot_mutate_incident():
+    response = _client(UserRole.viewer, "tenant-a").post(
         "/api/incidents/7/actions", json={"action": "acknowledge"}
     )
     assert response.status_code == 403

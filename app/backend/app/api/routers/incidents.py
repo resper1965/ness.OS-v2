@@ -23,6 +23,7 @@ from app.core.dependencies import (
     get_current_user,
     is_noc_role,
     require_noc,
+    require_operator,
     resolve_tenant_scope,
 )
 from app.database import SessionLocal
@@ -334,7 +335,7 @@ async def get_incident_detail(
 async def act_on_incident(
     incident_id: int,
     body: IncidentActionRequest,
-    current_user: User = Depends(require_noc),
+    current_user: User = Depends(require_operator),
 ):
     """Apply an operator action and append its audit row in one transaction."""
     if body.action in {"comment", "resolve"} and not body.note:

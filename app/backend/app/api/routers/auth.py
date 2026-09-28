@@ -76,6 +76,8 @@ def _verify_password(plain: str, hashed: str) -> bool:
 _AUTHENTIK_GROUP_ROLE_PRIORITY = (
     ({"platform_admin", "ness-os-platform-admin"}, UserRole.platform_admin),
     ({"admin"}, UserRole.admin),
+    ({"viewer"}, UserRole.viewer),
+    ({"operator"}, UserRole.operator),
     ({"noc"}, UserRole.noc),
     ({"soc"}, UserRole.soc),
     ({"helpdesk"}, UserRole.helpdesk),

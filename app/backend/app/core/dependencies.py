@@ -38,7 +38,7 @@ NOC_ROLES = frozenset(
 
 
 def is_noc_role(role: UserRole | str | None) -> bool:
-    """Return whether a persisted role or JWT role value is an operator role."""
+    """Return whether a persisted role or JWT role has global NOC scope."""
     try:
         return UserRole(role) in NOC_ROLES
     except (TypeError, ValueError):
@@ -124,6 +124,16 @@ def require_noc(user: User = Depends(get_current_user)) -> User:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Acesso restrito a operadores NOC/SOC",
+        )
+    return user
+
+
+def require_operator(user: User = Depends(get_current_user)) -> User:
+    """Allow global NOC roles or a tenant-scoped incident operator."""
+    if user.role != UserRole.operator and not is_noc_role(user.role):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Acesso restrito a operadores",
         )
     return user
 
