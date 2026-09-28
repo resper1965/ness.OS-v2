@@ -18,6 +18,8 @@ Os testes locais executados até aqui foram a suíte completa do backend (379 ap
 
 O gerador do manifesto de release foi corrigido para registrar uma única vez cada bloqueio de imagem sem digest quando recebe fatos de produção. A regressão passou nos 10 testes do gerador. O bloqueio e o estado `FAIL` da Fase 0 continuam válidos; o manifesto histórico em `docs/execution/evidence/phase-0-production-manifest.json` não foi reescrito.
 
+O workflow `ci-backend.yml` também passou a executar os 10 testes do manifesto e os testes de proteção das sondas de readiness. Ambos passaram localmente nesta atualização; ainda não há PR ou execução desse workflow no GitHub para a branch atual.
+
 ## Próxima execução
 
 1. Executar UAT integrada dos papéis `operator` e `viewer` com Authentik e tenants reais, confirmando o isolamento na API e no stream antes de aprovar a Fase 1.

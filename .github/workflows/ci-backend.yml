@@ -15,6 +15,10 @@ on:
       - 'infra/tests/test-hub-integration-readiness-report.sh'
       - 'infra/tests/test-hub-health-history.py'
       - 'infra/tests/run-hub-local-flow.sh'
+      - 'infra/scripts/ness-release-manifest.py'
+      - 'infra/tests/test-ness-release-manifest.py'
+      - 'infra/scripts/aiops-runtime-readiness.sh'
+      - 'infra/tests/test-aiops-runtime-readiness.sh'
       - '.github/workflows/ci-backend.yml'
   pull_request:
     branches: [ "main" ]
@@ -66,6 +70,12 @@ jobs:
     - name: Verify local Hub flow with PostgreSQL and Redis
       working-directory: .
       run: bash infra/tests/run-hub-local-flow.sh
+
+    - name: Verify release manifest and runtime readiness guards
+      working-directory: .
+      run: |
+        python -m pytest -q infra/tests/test-ness-release-manifest.py
+        bash infra/tests/test-aiops-runtime-readiness.sh
 
     - name: Verify health history and monitor
       working-directory: .
