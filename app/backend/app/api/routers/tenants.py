@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Dict, List
+from typing import Any, Dict, Iterable, List
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
@@ -21,6 +21,22 @@ router = APIRouter()
 def _tenant_failure(operation: str, error: Exception) -> HTTPException:
     logger.error("Tenant %s failed: %s", operation, type(error).__name__)
     return HTTPException(status_code=500, detail="Dados de tenants indisponíveis.")
+
+
+def _tenant_list(rows: Iterable[tuple[str | None, str | None]]) -> list[dict[str, str]]:
+    """Return one stable selector entry for each usable tenant identifier."""
+    tenants: dict[str, str] = {}
+    for tenant_id, tenant_name in rows:
+        if not tenant_id:
+            continue
+        identifier = tenant_id.strip().lower()
+        if identifier:
+            tenants.setdefault(identifier, (tenant_name or tenant_id).strip())
+
+    return [
+        {"id": tenant_id, "name": tenants[tenant_id]}
+        for tenant_id in sorted(tenants, key=lambda value: tenants[value].casefold())
+    ]
 
 
 @router.get("/health", tags=["system"], dependencies=[Depends(require_noc)])
@@ -84,8 +100,8 @@ async def list_tenants():
     """List all available tenants (customers)."""
     async with SessionLocal() as session:
         try:
-            # We fetch unique customer_ids from Asset or CustomerCredentials
-            # For now, let's use the CustomerCredentials table as the source of truth for tenants
+            # CustomerCredentials is the primary source. A tenant can have multiple
+            # provider credentials, but the selector must expose it only once.
             stmt = select(CustomerCredentials)
             result = await session.execute(stmt)
             credentials = result.scalars().all()
@@ -95,20 +111,12 @@ async def list_tenants():
                 stmt_assets = select(Asset.customer_id, Asset.customer_name).distinct()
                 result_assets = await session.execute(stmt_assets)
                 rows = result_assets.all()
-                return [
-                    {"id": r.customer_id, "name": r.customer_name or r.customer_id}
-                    for r in rows
-                    if r.customer_id
-                ]
+                return _tenant_list((r.customer_id, r.customer_name) for r in rows)
 
-            return [
-                {
-                    "id": cred.customer_id,
-                    "name": cred.customer_id,  # Can be enhanced with a real Tenant table later
-                    "provider": cred.provider,
-                }
-                for cred in credentials
-            ]
+            return _tenant_list(
+                (credential.customer_id, credential.customer_id)
+                for credential in credentials
+            )
         except Exception as error:
             raise _tenant_failure("list", error)
 
