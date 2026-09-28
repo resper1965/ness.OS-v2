@@ -51,22 +51,22 @@ async def _zabbix_summary() -> dict:
             "problems_warning": len(warning),
             "problems_total": len(problems_all or []),
         }
-    except Exception as e:
-        logger.error("Zabbix summary error: %s", e)
-        return {"error": str(e), "degraded": True}
+    except Exception as exc:
+        logger.error("Zabbix summary failed: %s", type(exc).__name__)
+        return {"error": "source_unavailable", "degraded": True}
 
 
 async def _atera_summary() -> dict:
     settings = get_settings()
     key = settings.atera_api_key
     if not key:
-        return {"degraded": True, "error": "API key not configured"}
+        return {"degraded": True, "error": "not_configured"}
     try:
         client = AteraClient(api_key=key)
         return await client.get_dashboard_summary()
-    except Exception as e:
-        logger.error("Atera summary error: %s", e)
-        return {"error": str(e), "degraded": True}
+    except Exception as exc:
+        logger.error("Atera summary failed: %s", type(exc).__name__)
+        return {"error": "source_unavailable", "degraded": True}
 
 
 @router.get(
@@ -124,9 +124,7 @@ async def get_dashboard_summary(_=Depends(require_noc)):
     """Retorna metricas reais do Zabbix para o dashboard. Requer role noc ou admin."""
     result = await _zabbix_summary()
     if result.get("degraded"):
-        raise HTTPException(
-            status_code=502, detail=f"Zabbix API error: {result.get('error')}"
-        )
+        raise HTTPException(status_code=502, detail="Zabbix indisponível.")
     return result
 
 
@@ -145,9 +143,9 @@ async def get_unified_summary(_=Depends(require_noc)):
         except asyncio.TimeoutError:
             logger.warning(f"{name} timed out after {SOURCE_TIMEOUT}s")
             return {"degraded": True, "error": "timeout"}
-        except Exception as e:
-            logger.error(f"{name} error: {e}")
-            return {"degraded": True, "error": str(e)}
+        except Exception as exc:
+            logger.error("%s failed: %s", name, type(exc).__name__)
+            return {"degraded": True, "error": "source_unavailable"}
 
     zabbix_data, atera_data = await asyncio.gather(
         _safe(_zabbix_summary(), "zabbix"),
@@ -231,6 +229,6 @@ async def get_dashboard_problems(limit: int = 20, _=Depends(require_noc)):
 
         return {"problems": result, "total": len(result)}
 
-    except Exception as e:
-        logger.error("Erro ao buscar problemas do Zabbix: %s", e)
-        raise HTTPException(status_code=502, detail=f"Zabbix API error: {str(e)}")
+    except Exception as exc:
+        logger.error("Zabbix problems failed: %s", type(exc).__name__)
+        raise HTTPException(status_code=502, detail="Zabbix indisponível.")

@@ -4,6 +4,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
+from fastapi import HTTPException
 
 from app.api.routers import dashboard, secops
 from app.services.operational_status import observe_source
@@ -136,3 +137,47 @@ async def test_secops_zabbix_failure_does_not_publish_secret_or_score(monkeypatc
     assert result["checks"] == []
     assert result["error"] == "RuntimeError"
     assert "private token" not in str(result)
+
+
+@pytest.mark.asyncio
+async def test_dashboard_zabbix_failures_hide_provider_details(monkeypatch):
+    monkeypatch.setattr(
+        dashboard,
+        "_zabbix_summary",
+        AsyncMock(return_value={"degraded": True, "error": "token=private"}),
+    )
+
+    with pytest.raises(HTTPException) as error:
+        await dashboard.get_dashboard_summary()
+
+    assert error.value.status_code == 502
+    assert error.value.detail == "Zabbix indisponível."
+    assert "private" not in str(error.value.detail)
+
+
+@pytest.mark.asyncio
+async def test_unified_dashboard_hides_provider_exception(monkeypatch):
+    monkeypatch.setattr(
+        dashboard,
+        "_zabbix_summary",
+        AsyncMock(side_effect=RuntimeError("token=private")),
+    )
+    monkeypatch.setattr(dashboard, "_atera_summary", AsyncMock(return_value={}))
+
+    result = await dashboard.get_unified_summary()
+
+    assert result["zabbix"] == {"degraded": True, "error": "source_unavailable"}
+    assert "private" not in str(result)
+
+
+@pytest.mark.asyncio
+async def test_dashboard_problems_hides_provider_details(monkeypatch):
+    zabbix = SimpleNamespace(_call=AsyncMock(side_effect=RuntimeError("token=private")))
+    monkeypatch.setattr(dashboard, "ZabbixClient", lambda: zabbix)
+
+    with pytest.raises(HTTPException) as error:
+        await dashboard.get_dashboard_problems()
+
+    assert error.value.status_code == 502
+    assert error.value.detail == "Zabbix indisponível."
+    assert "private" not in str(error.value.detail)
