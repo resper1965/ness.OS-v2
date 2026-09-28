@@ -51,6 +51,11 @@ async def subscribe_push(
     existing_sub = res.scalar_one_or_none()
 
     if existing_sub:
+        if existing_sub.user_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Esta inscrição de push já pertence a outra conta.",
+            )
         # Atualiza a subscrição existente
         existing_sub.tenant_id = current_user.tenant_id
         existing_sub.user_id = current_user.id
@@ -87,7 +92,10 @@ async def unsubscribe_push(
     db: AsyncSession = Depends(get_db),
 ):
     """Remove uma inscrição de notificação push do banco de dados."""
-    stmt = delete(PushSubscription).where(PushSubscription.endpoint == request.endpoint)
+    stmt = delete(PushSubscription).where(
+        PushSubscription.endpoint == request.endpoint,
+        PushSubscription.user_id == current_user.id,
+    )
     res = await db.execute(stmt)
     await db.commit()
 

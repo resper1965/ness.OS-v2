@@ -58,6 +58,8 @@ As rotas de ativos não apresentam mais contagens zero quando Atera está ausent
 
 O seletor de tenant aparece somente na visão de incidentes, cuja API aplica o escopo. As telas de Zabbix e Contabo indicam operação global enquanto não houver vínculo fonte–tenant verificável, evitando aparentar um recorte que esses provedores ainda não fornecem.
 
+Inscrições Web Push agora pertencem ao usuário autenticado: uma sessão não pode assumir ou remover o endpoint registrado por outra conta.
+
 O precheck somente leitura de 28/09 passou em 60 testes de sessão/RBAC, nos gates estáticos e nas rotas públicas Authentik, Hub, GLPI, n8n e Zabbix UAT. O Zabbix UAT permanece `inactive`, `masked` e sem escuta TCP/10051; ver `docs/execution/evidence/uat-readonly-precheck-2026-09-28.md`. Não houve login nominal nem confirmação do isolamento na aplicação implantada. O SSH de leitura à VPS AIOps foi negado pela chave disponível nesta sessão, portanto não há atualização de backups ou runtime de produção.
 
 ## Próxima execução
