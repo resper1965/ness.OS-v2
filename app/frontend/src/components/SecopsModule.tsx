@@ -194,7 +194,7 @@ function CveCard({ cve }: { cve: CveItem }) {
 
 // ── Zabbix Health Panel ───────────────────────────────────────────────────────
 
-function ZabbixHealthPanel({ health, loading }: { health: ZabbixHealth | null; loading: boolean }) {
+function ZabbixHealthPanel({ health, loading, requestError }: { health: ZabbixHealth | null; loading: boolean; requestError: string | null }) {
   if (loading) {
     return (
       <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-6 flex items-center justify-center gap-3">
@@ -204,9 +204,10 @@ function ZabbixHealthPanel({ health, loading }: { health: ZabbixHealth | null; l
     );
   }
 
-  if (!health) return null;
+  if (!health) return requestError ? <p role="alert" className="rounded-xl border border-red-500/20 p-4 text-sm text-red-300">Falha na coleta Zabbix. Nenhuma coleta válida disponível.</p> : null;
 
-  const overall = STATUS_CONFIG[health.overall] ?? STATUS_CONFIG.unknown;
+  const failed = Boolean(health.error || requestError);
+  const overall = failed ? STATUS_CONFIG.unknown : STATUS_CONFIG[health.overall] ?? STATUS_CONFIG.unknown;
   const OverallIcon = overall.icon;
 
   return (
@@ -219,11 +220,11 @@ function ZabbixHealthPanel({ health, loading }: { health: ZabbixHealth | null; l
           </div>
           <div>
             <p className="text-sm font-bold text-white">Zabbix — Saúde do Ambiente</p>
-            <p className="text-[11px] text-white/30">zabbix.ness.com.br · atualizado agora</p>
+            <p className="text-[11px] text-white/40">{requestError ? `Dados desatualizados · última coleta válida: ${new Date(health.timestamp).toLocaleString('pt-BR')}` : health.error ? 'Falha na coleta · última coleta válida indisponível' : `Coletado em ${new Date(health.timestamp).toLocaleString('pt-BR')}`}</p>
           </div>
         </div>
         <div className="flex items-center gap-4">
-          <ScoreRing score={health.score} />
+          {!failed && <ScoreRing score={health.score} />}
           <a href={health.zabbix_url} target="_blank" rel="noreferrer"
             className="flex items-center gap-1.5 text-[11px] text-white/30 hover:text-[#00ADE8] transition-colors">
             <ExternalLink size={11} /> Abrir Zabbix
@@ -261,9 +262,9 @@ function ZabbixHealthPanel({ health, loading }: { health: ZabbixHealth | null; l
         })}
       </div>
 
-      {health.error && (
+      {(health.error || requestError) && (
         <div className="px-5 py-3 text-xs text-red-400/60 font-mono border-t border-white/[0.04]">
-          ⚠ {health.error}
+          ⚠ {requestError || health.error}
         </div>
       )}
     </div>
@@ -334,12 +335,13 @@ export default function SecopsModule() {
   const { authHeader } = useAuth();
   const [cveIntel, setCveIntel] = useState<CveIntel | null>(null);
   const [health, setHealth]     = useState<ZabbixHealth | null>(null);
+  const [healthRequestError, setHealthRequestError] = useState<string | null>(null);
   const [cveLoading, setCveLoading]       = useState(true);
   const [healthLoading, setHealthLoading] = useState(true);
   const [filter, setFilter]     = useState<FilterSev>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [exploitedOnly, setExploitedOnly] = useState(false);
-  const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
+  const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
 
   const fetchAll = useCallback(async () => {
     setCveLoading(true);
@@ -353,8 +355,11 @@ export default function SecopsModule() {
 
     try {
       const res = await fetch(`${API_BASE}/api/secops/zabbix-health`, { headers: authHeader() });
-      if (res.ok) setHealth(await res.json());
-    } catch (e) { console.error('Zabbix health:', e); }
+      if (!res.ok) throw new Error('Falha HTTP na coleta Zabbix');
+      const next = await res.json() as ZabbixHealth;
+      if (!next.error) setHealth(next);
+      setHealthRequestError(next.error || null);
+    } catch (e) { setHealthRequestError(e instanceof Error ? e.message : 'Falha na coleta Zabbix'); }
     finally { setHealthLoading(false); }
 
     setLastRefresh(new Date());
@@ -396,7 +401,7 @@ export default function SecopsModule() {
         </div>
         <div className="flex items-center gap-3">
           <p className="text-[10px] text-white/20">
-            {lastRefresh.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+            {lastRefresh ? `Tentativa ${lastRefresh.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}` : 'Sem tentativa'}
           </p>
           <button
             onClick={fetchAll}
@@ -439,7 +444,7 @@ export default function SecopsModule() {
           <Activity size={13} className="text-[#00ADE8]" />
           <p className="text-xs font-bold text-white/50 uppercase tracking-wider">Saúde do Zabbix</p>
         </div>
-        <ZabbixHealthPanel health={health} loading={healthLoading} />
+        <ZabbixHealthPanel health={health} loading={healthLoading} requestError={healthRequestError} />
       </div>
 
       {/* ── Client Risk Matrix ──────────────────────────────────────────────── */}
