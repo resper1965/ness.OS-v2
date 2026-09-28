@@ -93,6 +93,10 @@ jobs:
           'NINF_GLPI_DB_ROOT_PASSWORD=ci-placeholder' \
           'NINF_JWT_SECRET=ci-placeholder' \
           'NINF_RESEND_API_KEY=ci-placeholder' > "$env_file"
+        docker compose version
+        docker compose --env-file "$env_file" \
+          -f app/docker-compose.yml -f app/docker-compose.tickets.yml \
+          config --quiet --no-env-resolution
         bash infra/scripts/aiops-runtime-preflight.sh --env-file "$env_file"
         bash infra/tests/test-aiops-runtime-preflight.sh
 
