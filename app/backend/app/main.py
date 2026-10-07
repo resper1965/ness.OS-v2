@@ -16,6 +16,10 @@ if str(project_root) not in sys.path:
 
 from app.api.webhooks import router as webhooks_router
 from app.api.routers.contabo import router as contabo_router
+from app.api.routers.dashboard import router as dashboard_router
+from app.api.routers.pipeline import router as pipeline_router
+from app.api.routers.incidents import router as incidents_router
+from app.api.routers.tenants import router as tenants_router
 from app.config import get_settings
 
 settings = get_settings()
@@ -44,6 +48,10 @@ app.add_middleware(
 # --- Routers ---
 app.include_router(webhooks_router)
 app.include_router(contabo_router, prefix="/api/contabo", tags=["contabo"])
+app.include_router(dashboard_router, tags=["dashboard"])
+app.include_router(pipeline_router, tags=["dashboard"])
+app.include_router(incidents_router, tags=["incidents"])
+app.include_router(tenants_router, prefix="/api/tenants", tags=["tenants"])
 
 
 @app.get("/", tags=["root"])

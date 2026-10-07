@@ -12,6 +12,7 @@ engine = create_async_engine(
     settings.database_url,
     echo=False,
     future=True,
+    connect_args={"ssl": False},  # Postgres em Docker sem SSL
 )
 
 SessionLocal = async_sessionmaker(

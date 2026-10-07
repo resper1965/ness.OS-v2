@@ -1,21 +1,38 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
 @theme {
-  /* Colors based on ness. branding */
-  --color-brand-base: #0A0A0F;
-  --color-brand-surface: #14141B;
-  --color-brand-primary: #00ADE8; /* Ciano do ponto final */
-  --color-brand-secondary: #334155;
-  --color-brand-text: #F8FAFC;
-  --color-brand-muted: #94A3B8;
-  --color-brand-success: #10B981;
-  --color-brand-danger: #EF4444;
+  /* ── Brand Core ─────────────────────── */
+  --color-brand-base:      #080810;
+  --color-brand-surface:   #0F0F1A;
+  --color-brand-elevated:  #161625;
+  --color-brand-border:    rgba(255,255,255,0.06);
+  --color-brand-border-md: rgba(255,255,255,0.10);
 
-  /* Fonts */
+  /* ── Brand Accent ───────────────────── */
+  --color-brand-primary:   #00ADE8;
+  --color-brand-primary-dim: rgba(0,173,232,0.12);
+  --color-brand-primary-glow: rgba(0,173,232,0.25);
+
+  /* ── Semantic Status ────────────────── */
+  --color-brand-success:   #10B981;
+  --color-brand-success-dim: rgba(16,185,129,0.12);
+  --color-brand-warning:   #F59E0B;
+  --color-brand-warning-dim: rgba(245,158,11,0.12);
+  --color-brand-danger:    #EF4444;
+  --color-brand-danger-dim: rgba(239,68,68,0.12);
+
+  /* ── Text ────────────────────────────── */
+  --color-brand-text:      #F1F5F9;
+  --color-brand-muted:     #64748B;
+  --color-brand-subtle:    #334155;
+
+  /* ── Fonts ──────────────────────────── */
   --font-sans: 'Plus Jakarta Sans', system-ui, sans-serif;
   --font-logo: 'Montserrat', system-ui, sans-serif;
 }
 
+/* ── Base ──────────────────────────────── */
 @layer base {
   body {
     background-color: var(--color-brand-base);
@@ -24,25 +41,68 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
+
+  /* Subtle noise texture overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.4;
+  }
 }
 
-/* Base resets or globals */
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
-/* Minimal scrollbar for dark mode */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
+/* ── Scrollbar ──────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: var(--color-brand-secondary);
-  border-radius: 4px;
+  background: var(--color-brand-subtle);
+  border-radius: 99px;
 }
-::-webkit-scrollbar-thumb:hover {
-  background: var(--color-brand-primary);
+::-webkit-scrollbar-thumb:hover { background: var(--color-brand-primary); }
+
+/* ── Animations ────────────────────────── */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
+@keyframes slide-in-left {
+  from { opacity: 0; transform: translateX(-8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes pulse-dot {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(0,173,232,0.4); }
+  50%       { box-shadow: 0 0 0 5px rgba(0,173,232,0); }
+}
+@keyframes flow-arrow {
+  0%   { opacity: 0.2; transform: translateX(-4px); }
+  50%  { opacity: 1;   transform: translateX(0px); }
+  100% { opacity: 0.2; transform: translateX(4px); }
+}
+
+.animate-fade-in    { animation: fade-in 0.25s ease both; }
+.animate-slide-left { animation: slide-in-left 0.2s ease both; }
+.animate-pulse-dot  { animation: pulse-dot 2s ease-in-out infinite; }
+.animate-flow       { animation: flow-arrow 1.5s ease-in-out infinite; }
+
+/* ── Glass card ────────────────────────── */
+.glass {
+  background: rgba(255,255,255,0.03);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--color-brand-border);
+}
+.glass-md {
+  background: rgba(255,255,255,0.05);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--color-brand-border-md);
+}
+
+/* ── Glow effects ───────────────────────── */
+.glow-primary { box-shadow: 0 0 20px var(--color-brand-primary-glow); }
+.glow-success { box-shadow: 0 0 16px rgba(16,185,129,0.25); }
+.glow-danger  { box-shadow: 0 0 16px rgba(239,68,68,0.25); }
