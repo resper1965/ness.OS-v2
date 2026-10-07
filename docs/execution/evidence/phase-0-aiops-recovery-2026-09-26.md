@@ -38,3 +38,18 @@ Esta evidência comprova o conjunto AIOps de 25/09 e o snapshot externo associad
 Ela não atualiza hashes do código/imagens em produção, nem comprova estado atual
 do Zabbix ou da UAT. O gate de release continua condicionado à reconciliação
 completa, digests imutáveis, CI e ensaio de rollback.
+
+## Revalidação de timers e checksums — 19:40 UTC
+
+Coleta somente leitura por `ness_admin` em 2026-09-26 às 19:40 UTC:
+
+- O conjunto local mais recente segue `20260925T230000-0300`, com marcador
+  `COMPLETED` modo `0600`; as 24 entradas de `SHA256SUMS` passaram novamente.
+  A idade do conjunto era de aproximadamente 17h36.
+- `ness-aiops-backup.service` e `ness-aiops-object-storage-backup.service`
+  reportaram `Result=success`, `ExecMainStatus=0` e `ActiveState=inactive` após
+  terminar.
+- `ness-aiops-backup.timer` está ativo e aponta para 26/09 às 23:00 BRT;
+  `ness-aiops-object-storage-backup.timer` está ativo e aponta para 27/09 às
+  00:30 BRT.
+- Nenhum timer foi disparado manualmente nesta revalidação.

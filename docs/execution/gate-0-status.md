@@ -1,5 +1,8 @@
 # Gate 0 — estado de execução
 
+> **Estado corrente da Fase 0 (26/09/2026): FAIL.** Para decisão de release,
+> backups/restores e corte, prevalece [`gates/phase-0-recovery-release.md`](gates/phase-0-recovery-release.md), atualizado após este histórico. As atualizações datadas abaixo preservam decisões e observações do período em que foram registradas; prazos históricos não são autorização vigente.
+
 > Início: 20/08/2026
 > Estado geral: em andamento; incidente crítico Zabbix contido
 
@@ -118,6 +121,69 @@
 - [ ] Migrar credenciais humanas/break-glass para cofre corporativo e segredos de automação para SOPS/age.
 - [ ] Restringir 10051 às redes/proxies aprovados.
 - [x] Definir e iniciar reconstrução limpa da VPS Zabbix: a VPS permanente `ness-os-zabbix-prd-01` foi preparada e recebeu restore isolado aprovado; 203 tabelas, 674 hosts/templates, 60.250 itens e 24.520 triggers, com ações/mídias neutralizadas e servidor mascarado. Evidência em [`zabbix-prd-01-restore-2026-08-25.md`](zabbix-prd-01-restore-2026-08-25.md). O corte continua pendente de UAT.
+
+## Atualização — 17/09/2026
+
+**Consolidação de 27 dias de execução (21/08 — 17/09/2026).**
+
+### Estado Geral
+
+- ✅ **Incidente contido:** XMRig eliminado, senhas/tokens rotacionados, backups validados operacionais.
+- ✅ **Fundação operacional:** Zabbix e Hub estáveis, backup local + externo reproducível.
+- ❌ **Transmutação vencida:** Plano de 10–12 dias úteis levou 27 dias calendário; nenhuma decisão executiva ainda.
+
+### Concluído desde 26/08
+
+- ✅ Backup Zabbix: 27 rotações diárias sem falha, 22:00 BRT, checksums OK.
+- ✅ Backup AIOps: 27 rotações diárias sem falha, 23:00 BRT, restore isolado comprovado.
+- ✅ Backup externo: Restic S3 diário automático, 27 snapshots, todos validados.
+- ✅ KVM8: Pronta para polimento desde 22/08, aguardando decisão sobre backlog.
+- ✅ Segredos: Reduzido de 69 Gitleaks para 0; migração para Psono aguardando aprovação.
+- ✅ GLPI: Manifesto de catálogo/projetos aprovado (5 projetos, 8 categorias, 13 work packages).
+- ✅ Authentik: Core saudável, fluxo OIDC validado; homologação por aplicação pendente.
+
+### Bloqueado — Requer Decisão Executiva (Ricardo Esper)
+
+**D-PAC-1: Estratégia Polimento Zabbix**
+- Backlog: 1.204 itens não suportados, 584 triggers `unknown`, 1.829 escalations vencidas.
+- Opções: (A) Onda de polimento 5 dias + UAT 2 dias, (B) aceitar como debt, (C) adiar indefinidamente.
+- Recomendação: Opção A pela engenharia.
+- **Status:** ❌ Aguardando decisão.
+
+**D-PAC-2: Contratação Contabo Nova**
+- Especificação: 8 vCPU, 32 GB RAM, 1 TB SSD; ~€55/mês.
+- KVM8 pode servir como bridge por máximo 14 dias adicionais.
+- **Status:** ❌ Aguardando autorização de compra.
+
+**D-PAC-3: Psono Community PoC**
+- Requisitos: VPS 2 vCPU/4 GB/40 GB; não bloqueia Zabbix (paralelo).
+- Custo: ~€3/mês.
+- Benefício: ativa pipeline de secrets em paralelo.
+- **Status:** ❌ Aguardando aprovação.
+
+### Cronograma Realista (se decisões aprovadas hoje)
+
+```
+18/09 — Decisões críticas aprovadas
+19/09 — Onda 1 polimento iniciada (FortiGate, switches)
+01/10 — Qualificação Zabbix (UAT completo)
+06/10 — Aprovação técnica (go/no-go)
+07/10 — **CORTE PARA CONTABO NOVA** (janela 22:00 BRT)
+15/10 — Observação concluída, aceite
+16/10 — **Gate 1 Zabbix concluído**
+```
+
+### Próximas Ações
+
+| Ação | Responsável | Prazo |
+|---|---|---|
+| Aprovar D-PAC-1/2/3 | Ricardo Esper | 18/09 17:00 |
+| Designar eng. Zabbix (Onda 1) | Ricardo Esper | 18/09 18:00 |
+| Provisionar VPS Psono | Eng. Infraestrutura | 19/09 meio-dia |
+| Iniciar Onda 1 | Eng. Zabbix | 19/09 14:00 |
+| Atualizar docs | Eng. DevOps | 18/09 20:00 |
+
+Detalhes completos em [`project-stage-2026-09-17.md`](project-stage-2026-09-17.md).
 
 ## Preparação da transmutação Zabbix
 
