@@ -67,6 +67,22 @@ pytest -q \
 
 Baseline local em 2026-09-02: gates estáticos de Authentik e sessão do Hub em `PASS`, além de `49 passed`. Qualquer regressão é `NO-GO` antes do teste humano.
 
+Reexecução em 02/09/2026 confirmou os mesmos `49 passed` e os dois gates
+estáticos. O precheck público sem sessão registrou:
+
+| Alvo | Resultado |
+| --- | --- |
+| Authentik | HTTP 200 |
+| Hub | HTTP 200 |
+| GLPI | HTTP 302 para `sso.ness.com.br` |
+| n8n | HTTP 302 para `sso.ness.com.br` |
+| GLPI com `Remote-User`/`X-Authentik-Username` forjados | continuou HTTP 302 para o Authentik; nenhuma sessão criada |
+| Zabbix UAT | inicialmente falhou por banco indisponível; após recuperação operacional, `/zabbix/index_sso.php` retornou HTTP 302 para o Authentik |
+
+A rota Zabbix correta inclui o prefixo `/zabbix/`; o exemplo abaixo foi
+reconciliado. O incidente e a recuperação estão em
+`zabbix-uat-unattended-upgrade-recovery-2026-09-02.md` e nas issues #56/#57.
+
 No runner autorizado de UAT, com `set +x` e credenciais injetadas pelo cofre sem impressão:
 
 ```bash
@@ -80,11 +96,14 @@ HUB_SESSION_EXECUTE=1 \
   bash infra/scripts/hub-session-readiness.sh --execute-contained \
   > "hub-session-readiness-${RUN_ID}.txt"
 
+bash infra/scripts/authentik-public-precheck.sh \
+  > "authentik-public-precheck-${RUN_ID}.txt"
+
 for url in \
   'https://sso.ness.com.br/-/health/live/' \
   'https://hub.ness.com.br/' \
   'https://n-ticket.ness.com.br/' \
-  'https://zabbix-uat.ness.com.br/index_sso.php'; do
+  'https://zabbix-uat.ness.com.br/zabbix/index_sso.php'; do
   curl --silent --show-error --output /dev/null \
     --connect-timeout 5 --max-time 15 \
     --write-out '%{url_effective} %{http_code}\n' "$url"
@@ -204,6 +223,100 @@ Declarar `GO` somente para a aplicação que cumprir todos os itens aplicáveis:
 É `NO-GO` imediato para a aplicação afetada se houver acesso cross-tenant, elevação de papel, header spoofing, callback OIDC aceito com `state`/PKCE inválido, usuário desativado obtendo nova sessão, ausência de recuperação administrativa, efeito real em ticket/monitoramento/notificação ou vazamento de segredo. Falha de logout/revogação, duplicata de identidade/perfil ou divergência entre grupo e papel também bloqueia promoção até correção ou exceção formal aprovada.
 
 O resultado global é `GO` apenas quando as quatro aplicações estão `GO`. Caso contrário, registrar `NO-GO parcial`, manter somente as aplicações já aprovadas e não ampliar público/tenant. Em particular, a sessão segura do Hub precisa ser comprovada após deploy (atributos do cookie, ausência de token na URL/armazenamento e logout), enquanto a ausência de SLO do Zabbix e o `forward_auth` temporário do GLPI continuam gates explícitos a observar, não itens implicitamente aceitos.
+
+## Sessão segura do hub implantada — 02/09/2026 17:50–18:06 BRT
+
+O inventário inicial confirmou que a produção ainda usava JWT no
+`localStorage`, token na URL do SSE, não possuía `/api/auth/logout` e divergira
+dos fontes já aprovados por 49 testes. O pacote mínimo foi construído sem
+alteração de banco e com rollback de fonte, Compose, Caddyfile e imagem do
+frontend.
+
+Dois mecanismos de proteção impediram promoção incompleta antes do aceite:
+
+1. o import na imagem produtiva encontrou incompatibilidade da versão de
+   FastAPI com uma rota 204 que inferia corpo; a rota passou a declarar
+   `response_model=None` e retornar explicitamente `Response`, mantendo o
+   cookie expirado;
+2. o primeiro reload após a correção carregou um bind mount antigo do
+   Caddyfile, pois o tar havia trocado o inode. A tentativa foi revertida e o
+   deploy final recriou somente o proxy para remontar o arquivo persistente.
+
+O deploy final foi aprovado com:
+
+- API e frontend saudáveis; Caddy ativo e hash do arquivo montado igual ao
+  arquivo persistente;
+- `/api/auth/me` sem sessão: 401 e `Cache-Control: no-store`;
+- `/api/auth/logout` sem origem confiável: 403;
+- logout com origem `https://hub.ness.com.br`: 204 e expiração de cookie
+  `HttpOnly`, `Secure`, host-only e `SameSite=Strict`;
+- SSE sem sessão: 401; nenhum `ninf_token` ou `stream?token=` no bundle;
+- tela pública renderizada em 2,26 s, sem cookie nem token em `localStorage`;
+- botão SSO redirecionando ao Authentik com `state`, `response_type=code`,
+  `code_challenge` e `code_challenge_method=S256`, sem autenticar usuário;
+- precheck público posterior aprovado para Authentik, hub, GLPI, n8n, Zabbix
+  UAT e tentativa GLPI com cabeçalhos de identidade forjados.
+
+Rollback e evidências restritas estão em
+`/opt/n-infraops/rollback/hub-session-20260902T1805-0300`. O login nominal,
+callback OIDC, logout do IdP e revogação ainda dependem da janela contida e não
+foram inferidos a partir desses testes sem sessão.
+
+O achado separado da F4 no módulo `contabo_firewall.py` foi corrigido e
+implantado às 18:52 BRT. Além do fechamento da string multilinha, o contrato foi
+alinhado à API vigente: `PUT /v1/firewalls/{id}`, corpo `rules.inbound`,
+`destPorts` serializado e `x-request-id` UUID. Nove testes focados passaram; a
+compilação e o import em produção foram aprovados. O roteador mutável continua
+fora da aplicação e nenhuma chamada externa foi executada. Rollback:
+`/opt/n-infraops/rollback/contabo-firewall-module-20260902T185146-0300-retry1`.
+
+### Leitura Zabbix pelo hub
+
+Às 19:21 BRT, o hub passou a usar a identidade técnica
+`svc_ninfraops_api`, sem interface e com allowlist de oito métodos somente de
+leitura. A prova negativa recusou `token.get`; as provas positivas retornaram
+Zabbix 7.0.27 e uma amostra de host, sempre com zero escritas. O readiness do
+GLPI permaneceu aprovado e o hub respondeu HTTP 200.
+
+Depois do aceite, o token pessoal de cutover foi desativado e o readiness foi
+repetido com sucesso. O segredo técnico fica em arquivo externo ao Git,
+`root:root` `0600`; a duplicata anterior em `.env` e os estágios temporários de
+transporte foram removidos. Detalhes e evidências estão em
+`zabbix-hub-readonly-integration-2026-09-02.md`. Isso não aprova ainda o fluxo
+de incidente, deduplicação ou escrita no GLPI.
+
+### Transporte SMTP do Authentik
+
+O runtime ativo já contém as variáveis SMTP/Resend e ambos os contêineres do
+Authentik estão saudáveis, sem reinícios. Uma conexão iniciada dentro do
+servidor autenticou com STARTTLS na porta 587 e encerrou sem transmitir
+mensagem: `authentik_smtp_auth_without_send=PASS` e
+`authentik_smtp_message_sent=no`.
+
+Esse resultado valida somente o transporte. Ativação, recuperação, conteúdo da
+mensagem, expiração/reuso do link e auditoria continuam fora do aceite até um
+destinatário controlado executar a jornada completa.
+
+## Integração privada do GLPI — 02/09/2026 18:29–18:38 BRT
+
+O erro `ERROR_WRONG_APP_TOKEN_PARAMETER` foi reproduzido e não indicava token
+revogado. O GLPI filtra primeiro os clientes de API pelo endereço de origem; o
+cliente técnico aceitava somente o IP público da VPS, enquanto o Hub nasce no
+subnet Docker `172.18.0.0/16`. O token protegido local foi comparado em memória
+com o valor vigente e coincidiu, sem exposição ou rotação.
+
+O filtro do cliente ID 2 foi alterado pela camada de modelo do GLPI para o
+subnet interno. O Hub passou a receber as credenciais por arquivo `root:root`
+`0600`, fora do Git, e a usar `http://ninf-glpi/apirest.php`. A prova posterior
+retornou `status=ready`, transporte privado, uma entidade, zero escritas e
+sessão encerrada. O proxy público do GLPI permanece sob Authentik.
+
+Com o manifesto aprovado, o dry-run encontrou oito categorias ausentes; o
+apply criou exatamente oito e a repetição encontrou zero pendências. A
+categoria de operação interna foi reconciliada para `ness.` sem conceder ao
+usuário técnico direito permanente de atualização. Isso conclui apenas API e
+taxonomia; isolamento entre entidades, inventário e jornada de ticket ainda
+permanecem como gates da F3.
 
 ## Rollback e encerramento (máximo 15 minutos)
 

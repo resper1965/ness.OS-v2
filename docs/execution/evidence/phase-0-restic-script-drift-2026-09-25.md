@@ -2,7 +2,7 @@
 
 ## Resultado
 
-**Gate de cópia externa Zabbix: permanece FAIL.** Nenhum comando Restic foi executado nesta verificação. A comparação foi feita lendo os scripts em disco e confrontando seus SHA-256 com o histórico Git.
+**Estado inicial em 2026-09-25: FAIL. Estado atualizado em 2026-09-26: cópia externa e restore isolado PASS para `20260925T220022-0300`.** A evidência abaixo preserva a análise de drift e o histórico das ações executadas; o resultado final está na seção “Execução autorizada”.
 
 ## Hosts no escopo
 
@@ -52,10 +52,68 @@ Atualizei o script versionado para passar `--group-by host` também ao `restic b
 `restic restore --verify` concluiu o snapshot `15a5ef41` com 11 entradas e 4,981 GiB verificados. Em seguida, o validador falhou porque o snapshot guarda os arquivos na raiz (`restic ls` mostra `/COMPLETED` e `/backup-set-manifest.json`); a restauração os colocou diretamente em `.../restored`, cujo basename não corresponde ao `backup_set_id`. O manifesto lido diretamente do snapshot (`restic dump`) contém o ID correto `20260925T220022-0300`. O cleanup automático removeu todo o staging; `/` manteve mais de 970 GiB livres.
 
 Corrigi `infra/scripts/verify-zabbix-restic-restore.sh` para restaurar em `.../restored/<backup_set_id>`, satisfazendo também a validação do nome do conjunto. O restore completo e o teste isolado de MariaDB ainda precisam ser repetidos antes de aprovar o Gate.
-## Decisão operacional
+## Decisão operacional inicial (superada)
 
 1. Na janela registrada de 22:00–00:00 BRT, confirmar o repositório exato e ler o inventário de snapshots; anotar quantidade, snapshot mais recente, tags e host antes de qualquer escrita. Executar `forget --dry-run` com os mesmos filtros e política de 14; revisar a lista `remove` antes de permitir que o serviço aplique retenção/prune.
 2. Instalar a versão atual de `HEAD` somente depois de confirmar que o caminho corresponde ao repositório Zabbix esperado e preserva o histórico existente.
 3. Habilitar o timer persistente uma única vez para o catch-up. Não iniciar o serviço manualmente em paralelo. A execução espera o lock do backup local e então seleciona o conjunto concluído mais recente.
 4. Verificar snapshot, tag e `backup_set_id`; executar `restic check` e restauração isolada com checksums. Manter o gate FAIL até todos passarem.
-A credencial não foi lida nem exibida; nenhum valor secreto foi registrado. Nenhum arquivo em produção foi alterado.
+A credencial não foi lida nem exibida; nenhum valor secreto foi registrado. Na verificação inicial de 25/09, nenhum arquivo em produção foi alterado. A decisão foi superada pela execução autorizada abaixo.
+
+## Execução autorizada em 26/09/2026
+
+Na janela de sábado, o conjunto local `20260925T220022-0300` passou novamente
+pela verificação de checksums. O timer persistente iniciou um único catch-up às
+08:38 BRT. A cópia externa terminou com sucesso às 08:41:52 BRT, código zero,
+snapshot `15a5ef41`, tags `ness-dataset-zabbix` e
+`ness-backup-set-20260925T220022-0300`. Foram processados 4,981 GiB e
+armazenados 4,907 GiB; a checagem de 5% e a checagem completa do repositório
+terminaram sem erros. A prévia de retenção manteve os sete snapshots; nenhum foi
+removido. O timer permanece habilitado/ativo, com próxima execução em
+27/09/2026 às 05:30 BRT. O serviço não está executando uma segunda cópia.
+
+A cópia inicial não encontrou parent porque o caminho muda a cada conjunto.
+Instalei no Zabbix canônico a versão do script com `--group-by host` também no
+`restic backup`, SHA-256
+`5ab9f0c6057957766fd672575088229ad4db1be2c163264a0ab5492f15328a26`, modo
+`root:root/0750`. A versão anterior foi preservada em
+`/root/ness-object-storage-restic.20260926.preparent`, modo `root:root/0750`.
+O reaproveitamento do parent só será comprovado no próximo backup agendado.
+
+O verificador de restauração isolada foi corrigido para restaurar em
+`restored/<backup_set_id>`, hash instalado
+`df00e16f…`, modo `root:root/0750`. A segunda restauração Restic verificou 11
+entradas e 4,981 GiB sem erro e selecionou o conjunto e snapshot esperados.
+A importação do dump no MariaDB temporário sem rede terminou após cerca de
+1h54m. Os processos temporários e os diretórios `run-*` foram removidos pelo
+cleanup; `/` ficou com 977 GiB livres, e MariaDB/Zabbix de produção permaneceram
+ativos. Contudo, o cliente SSH deixou de entregar a saída do verificador e o
+código final após o término dos processos. Sem a saída com as contagens das
+tabelas/hosts/itens/triggers/templates e `dbversion`, não é possível afirmar
+`isolated_restore=PASS` ou `external_restore=PASS`; essa evidência continua
+pendente e a execução não será repetida automaticamente.
+
+Por isso, iniciei uma única repetição controlada às 11:06 BRT. Ela roda
+desacoplada da sessão SSH, grava a saída em
+`/var/log/ness-zabbix-restic-restore-verify-20260926-rerun.log` e grava o código
+de término em `/run/ness-zabbix-restic-restore-verify-20260926-rerun.status`.
+No início, o log/status ainda não continham resultado; MariaDB e Zabbix de
+produção estavam ativos. A cópia externa continua aprovada; a restauração fica
+pendente até ler o status zero e as contagens desse log.
+
+O token/segredos do EnvironmentFile não foram exibidos nem registrados.
+
+## Resultado final da repetição desacoplada em 26/09
+
+A repetição terminou com status `0`. O verificador confirmou `isolated_restore=PASS`
+e `external_restore=PASS` para o conjunto `20260925T220022-0300` e o snapshot
+Restic completo `15a5ef41be82e65eda4fc5be285d948a1daeccd0c68f0a46ceb9090b168c190e`.
+O banco temporário identificou Zabbix `7.0.27`, MariaDB
+`10.11.18-MariaDB-deb12`, 203 tabelas, 685 hosts, 64.226 itens, 26.697 triggers,
+362 templates e `dbversion.mandatory=7000000`.
+
+Depois da conclusão, o diretório do banco de teste e o staging Restic estavam
+ausentes; MariaDB e Zabbix de produção continuaram ativos, e o volume tinha
+977 GiB livres. O timer externo continuou habilitado/ativo. A cópia e a
+restauração externa do Zabbix estão aprovadas para este conjunto. O reaproveitamento
+do parent incremental permanece pendente até a próxima execução agendada.

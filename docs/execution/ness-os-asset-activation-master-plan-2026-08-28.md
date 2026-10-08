@@ -83,8 +83,9 @@ Wazuh e expansão não bloqueiam o primeiro go-live NOC/ITSM.
 - Backups externos Restic de AIOps e Zabbix já foram comprovados anteriormente.
 - É necessário reconciliar a falha recente por timeout com o último conjunto
   `COMPLETED` e manter RPO de 24 h continuamente.
-- Psono Community ainda é PoC; `cofre.ness.com.br` foi aprovado e os bloqueios
-  restantes são VPS dedicada, DNS publicado e SMTP.
+- Psono Community ainda é PoC; `cofre.ness.com.br`, DNS e SMTP Resend estão
+  operacionais. Permanecem como gates a VPS dedicada, a recuperação comprovada
+  pelos dois custodians, o MFA adiado e o restore do cofre.
 - Segredos humanos permanecem temporariamente em arquivos root-only; automação
   ainda não foi integralmente migrada para SOPS/age.
 - O repositório possui grande volume de alterações não consolidadas e segredos
@@ -186,8 +187,10 @@ compatível.
 
 ### A03 — Cofre Psono e SOPS/age
 
-**Estado:** Psono é PoC; VPS, domínio e SMTP são bloqueios. Arquivos root-only são
-contenção temporária, não solução final.
+**Estado:** Psono é PoC; domínio, TLS, DNS e SMTP Resend estão operacionais na
+exceção temporária AIOps. VPS dedicada, recuperação dos dois custodians, MFA e
+restore continuam como gates. Arquivos root-only são contenção temporária, não
+solução final.
 
 **Plano:** provisionar VPS exclusiva; hardening; TLS/DNS/SMTP; dois custodians com
 MFA; backup Restic; recovery/emergency code offline; estruturar coleções; criar
@@ -649,6 +652,8 @@ O programa termina quando:
 
 ## 9. Referências principais
 
+- `docs/execution/functional-first-polish-last-plan-2026-09-02.md`
+- `docs/execution/ecosystem-resend-rollout-2026-09-02.md`
 - `docs/architecture/ness-os-official-architecture.md`
 - `docs/adr/0012-ness-os-official-architecture.md`
 - `docs/adr/0014-staged-ness-os-delivery.md`

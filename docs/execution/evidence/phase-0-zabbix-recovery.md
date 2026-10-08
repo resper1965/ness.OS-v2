@@ -1,6 +1,6 @@
 # Fase 0 — evidência de recuperação do Zabbix
 
-**Resultado: FAIL parcial** — o backup local e a restauração isolada passaram; a cópia externa atual e o login técnico somente leitura não foram comprovados.
+**Resultado atualizado em 2026-09-26: recuperação externa e restauração isolada PASS; leitura autenticada da API parcial.** O histórico inicial abaixo registra a falha parcial antes da execução externa autorizada; consulte a atualização final.
 
 ## Identificação
 
@@ -39,3 +39,22 @@
 - `git diff --check` no escopo da tarefa → PASS.
 
 Nenhum valor secreto foi incluído nesta evidência.
+
+## Atualização de recuperação externa — 2026-09-26
+
+- O conjunto local `20260925T220022-0300` foi enviado ao snapshot Restic
+  `15a5ef41be82e65eda4fc5be285d948a1daeccd0c68f0a46ceb9090b168c190e` com as tags
+  `ness-dataset-zabbix` e `ness-backup-set-20260925T220022-0300`.
+- Cópia externa e `restic check` completo concluíram com sucesso; a política
+  `forget --dry-run` manteve os sete snapshots e não removeu nenhum.
+- Restauração externa isolada: status zero; Zabbix 7.0.27, MariaDB
+  10.11.18, 203 tabelas, 685 hosts, 64.226 itens, 26.697 triggers, 362
+  templates e `dbversion.mandatory=7000000`. Os temporários foram removidos e
+  os serviços de produção permaneceram ativos.
+- Timers local e externo habilitados/ativos. A execução externa terminou às
+  08:41:52 BRT; próxima execução 27/09 às 05:30 BRT.
+- A API autenticada retorna 260 hosts, mas `template.get` é explicitamente
+  negado ao usuário técnico. Isso permanece blocker da onda funcional, não da
+  integridade da cópia/restauração. O parent incremental será verificado na
+  próxima execução agendada.
+- Evidência detalhada: [`phase-0-restic-script-drift-2026-09-25.md`](phase-0-restic-script-drift-2026-09-25.md).
