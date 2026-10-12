@@ -71,6 +71,10 @@ enviadas a Ismael com cópia a Ricardo. Z1 permanece parcial, não aceito.
 Próxima tarefa independente: Z3, preparar/reconciliar o dashboard NOC existente,
 sem regressar ao backup ou aguardar resposta da #70.
 
+Z3: payload NOC nativo preparado em `config/zabbix/noc-uat-dashboard.json`,
+privado e explicitamente identificado como UAT sem coleta. Teste de geometria
+sem sobreposição aprovado; publicação API e renderização ainda pendentes.
+
 1. Reutilizar `zabbix-offline-quality-2026-10-12.md` e o relatório restaurado.
 2. Identificar os ativos internos da plataforma e sua configuração existente
    no destino; selecionar cinco sem alterar produção.
