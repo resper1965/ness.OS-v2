@@ -24,6 +24,15 @@ não expõe segredos e está em
 O próximo requisito é a inscrição MFA pelos próprios custodians e o teste de
 revogação.
 
+### Cofre — recuperação atual
+
+O Psono passou em restauração externa isolada do conjunto
+`20261012T013812-0300`, com aplicação HTTP 200, assinatura válida, chave
+pública confirmada e RTO de 36 segundos. A evidência está em
+[`psono-recovery-2026-10-12.md`](evidence/psono-recovery-2026-10-12.md).
+Ele continua uma PoC na VPS AIOps: promoção dedicada e dupla custódia com MFA
+seguem obrigatórias para G2.
+
 O Hub/AIOps foi promovido em janela controlada para o commit
 `144317fd5262ecf242b118774573a62df8e88d78`, com imagens privadas GHCR por
 digest, backup prévio `20261012T085531-0300`, migração aditiva, canário,
