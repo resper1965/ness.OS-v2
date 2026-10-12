@@ -21,9 +21,9 @@ Provas cobertas:
   aberto conforme comportamento atual. Encerramento GLPI não está comprovado.
 - Conteúdo do alerta é escapado antes do envio ao ticket.
 
-Containers e rede temporários foram removidos pelo trap da primeira rodada;
-API e workers produtivos permaneceram healthy. A limpeza da rodada final será
-conferida antes de encerrar a execução. O diretório root-only de código em
+Containers e rede temporários foram removidos pelo trap, com ausência
+confirmada após a rodada final; API e workers produtivos permaneceram healthy.
+O diretório root-only de código em
 `/var/tmp/ness-isolated-flow-20261012` contém apenas arquivo Git, sem segredos,
 e pode ser reutilizado para os próximos ensaios.
 
