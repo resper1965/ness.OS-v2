@@ -71,8 +71,6 @@ e guarda os códigos estáticos sob dupla custódia, prova login com MFA e somen
 depois a regra deixa de aceitar `skip` para o grupo `platform_admin`. Não foi
 alterada nenhuma etapa de autenticação nesta coleta.
 
-## Próxima mudança controlada
-
 ## Verificação do backend — 12/10
 
 A suíte local de identidade e controle de acesso passou com **81 testes**:
@@ -81,6 +79,8 @@ A suíte local de identidade e controle de acesso passou com **81 testes**:
 Ela verifica regras de papel, isolamento de tenant, sessão e proteção da API;
 não substitui a homologação de login com dispositivos MFA nem a recuperação
 independente do cofre pelos custodians.
+
+## Próxima mudança controlada
 
 1. Cadastrar TOTP ou WebAuthn individualmente para os três custodians, gerar
    códigos de recuperação sob dupla custódia e testar revogação.
