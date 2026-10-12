@@ -33,11 +33,33 @@ MFA e recuperação de dois custodians comprovadas.
 `2026.5.6`. Isto prova disponibilidade do processo, não prova os fluxos de
 login, logout, revogação, callback nem segregação por tenant.
 
+## MFA — configuração efetiva observada
+
+O fluxo `default-authentication-flow` contém a etapa
+`default-authentication-mfa-validation`, após identificação e senha. Ela aceita
+`static`, `totp`, `webauthn`, `duo` e `sms`, porém está com
+`not_configured_action=skip`. Portanto, o ambiente suporta a validação MFA sem
+interromper quem ainda não cadastrou um fator; isto explica os logins atuais,
+mas não equivale a MFA imposto.
+
+Também existem, sem necessidade de criar componentes novos, os fluxos nativos:
+
+- `default-authenticator-totp-setup`;
+- `default-authenticator-webauthn-setup`;
+- `default-authenticator-static-setup`.
+
+O corte seguro é: cada um dos três custodians cadastra TOTP ou WebAuthn, obtém
+e guarda os códigos estáticos sob dupla custódia, prova login com MFA e somente
+depois a regra deixa de aceitar `skip` para o grupo `platform_admin`. Não foi
+alterada nenhuma etapa de autenticação nesta coleta.
+
 ## Próxima mudança controlada
 
-1. Habilitar TOTP ou WebAuthn individualmente para os três custodians, gerar códigos
-   de recuperação sob dupla custódia e testar revogação.
-2. Executar matriz de acesso positivo/negativo em Hub, Zabbix, GLPI, Psono,
+1. Cadastrar TOTP ou WebAuthn individualmente para os três custodians, gerar
+   códigos de recuperação sob dupla custódia e testar revogação.
+2. Impor MFA especificamente a `platform_admin` somente depois dos três testes
+   positivos; preservar um break-glass documentado e testado.
+3. Executar matriz de acesso positivo/negativo em Hub, Zabbix, GLPI, Psono,
    Grafana e Node-RED.
 
 O inventário inicial não alterou MFA, políticas ou tokens. A associação nominal
