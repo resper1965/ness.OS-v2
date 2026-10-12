@@ -21,6 +21,7 @@ ou e-mails de cobrança quando não houver mudança acionável.
 | UAT nominal por aplicação | #51 | responsáveis por aplicação |
 | Recovery por e-mail | #44, #59 | Ricardo e Ismael |
 | Faturamento Actions e revisão dos PRs | #67 | Ricardo e revisor elegível |
+| Docker Desktop/WSL para ensaio isolado | #69 | Ricardo |
 | Índice e política de execução | #68 | plataforma |
 
 URLs: `https://github.com/resper1965/n-infraops/issues/<número>`.
@@ -49,3 +50,8 @@ local recebeu a dependência já declarada pywebpush em venv temporário. Um tes
 com PostgreSQL/Redis foi inicialmente pulado por depender de Docker, cujo
 daemon local estava parado. Este resultado não comprova o fluxo real GLPI nem
 o aceite produtivo.
+
+A suíte completa do backend também passou: **411 testes aprovados, 1 pulado**.
+O único pulado é o ensaio PostgreSQL/Redis descrito acima, acompanhado pela
+issue #69 e por e-mail de instrução ao Ricardo. Estes testes usam doubles para
+as APIs externas; não representam UAT humana nem escrita produtiva GLPI.
