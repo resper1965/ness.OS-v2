@@ -143,3 +143,19 @@ Esse ensaio não iniciou Zabbix nem verificou resposta SNMP; não prova reduçã
 dos 992 erros dependentes ou ganho por timeout. Não repetir o ensaio aprovado
 sem mudança relevante. Próxima etapa é definir observação de coleta autorizada
 sem dupla coleta antes de promover tuning para hosts reais.
+
+## NOC — smoke test de navegador isolado
+
+Microsoft Edge headless em contexto novo: login local emergencial, abertura
+do dashboard 406 e logout executados. Sem usar/mudar a aba do usuário, sem
+salvar senha/cookies/trace. Frontend renderizou pt-BR, logo oficial no sidebar,
+cinco abas e layout legível na primeira página, sem pageerror registrado ou
+erro de conexão ao banco. Teste versionado em
+infra/tests/verify-zabbix-noc-browser.cjs; captura fica fora do Git.
+
+Limite: somente conta emergencial e viewport desktop 1600x1000; não prova SSO
+nominal, MFA, RBAC de cliente, móvel ou renderização das cinco páginas. Dados
+são do snapshot, como informa o título. O widget de disponibilidade exibiu
+259 hosts com interface, não os 261 habilitados do cadastro; hosts sem interface
+precisam ficar fora desse denominador explicitamente, sem declarar cobertura
+completa. Este smoke test não aprova gate produtivo.
