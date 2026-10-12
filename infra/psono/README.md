@@ -71,6 +71,20 @@ em modo somente leitura, saúde, último backup, SMTP e o estado de MFA,
 recuperação e emergency access dos dois custodians. O relatório não imprime
 credenciais, chaves, seeds TOTP nem conteúdo do cofre.
 
+O `PASS` desse relatório confirma apenas que o inventário terminou. Para
+verificar os controles dos custodians, use Python 3 no consumidor do relatório:
+
+```bash
+set -o pipefail
+sudo scripts/f2-readiness-report.sh | python3 scripts/check-custodian-readiness.py
+```
+
+O validador exige ambos os custodians ativos, MFA imposto, recovery codes,
+emergency code, saúde e permissões protegidas. Retorna código 1 para controle
+ausente, status duplicado ou relatório incompleto. Mesmo seu `PASS` não comprova
+a cerimônia independente de recuperação nem a VPS dedicada; essas evidências
+continuam obrigatórias para G2.
+
 Não há contração automática: arquivos root-only antigos e credenciais existentes
 somente serão revogados depois que dois custodians comprovarem recuperação e o
 restore do cofre passar.

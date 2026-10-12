@@ -21,6 +21,12 @@ homologada; ambos são pré-requisitos de G2.
 
 ## Readiness F2 atual — 2026-10-12 10:08 BRT
 
+A verificação posterior com `check-custodian-readiness.py` retornou `FAIL`
+para MFA de Ricardo, recovery codes dos dois custodians, emergency code e
+MFA imposto. O inventário foi lido diretamente do servidor; o validador
+permanece local e não alterou a configuração. Cinco testes de regressão
+passaram, incluindo relatório ausente, duplicação e recuperação inválida.
+
 O relatório root-only `f2-readiness-report.sh` foi executado na VPS AIOps sem
 imprimir segredos. Psono e PostgreSQL estavam `healthy`; HTTPS respondeu,
 timer de backup estava ativo, a última execução teve `success` e os dois
