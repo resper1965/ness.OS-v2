@@ -191,3 +191,31 @@ Fontes primárias consultadas: [Brands](https://docs.goauthentik.io/brands/),
 [código oficial](https://github.com/goauthentik/authentik).
 Referências main podem superar2026.5.6: campos e comportamento foram conferidos
 no runtime antes da escrita. Registros históricos não substituem esta fotografia.
+
+## 6. Dependências e bindings — atualização de 12/10 20:57 BRT
+
+Leitura nova, sem alteração: outpost embutido contém providers3/5/12.
+Portanto glpi-sso3 ainda é referenciado junto de glpi-proxy12, embora só12 seja
+provider principal da aplicação GLPI. Não excluir3 como se fosse órfão.
+Nenhuma das nove aplicações tem backchannel provider configurado nesta amostra.
+Isso não exclui consumidor externo de provider aparentemente sem aplicação.
+
+Bindings de grupos observados:
+
+- GLPI: admin/helpdesk/usuarios/noc/soc/gestao; nenhuma policy direta;
+- Hub: noc/helpdesk/admin/soc/gestao e uma policy;
+- Zabbix: noc/admin/soc/gestao;
+- UAT: ness-os-platform-admin;
+- n8n: noc/admin/soc; Grafana: noc/admin/soc/gestao; Wazuh: admin/soc;
+- nessops: nenhum grupo/policy direto; n-csirt: uma policy, nenhum grupo direto.
+
+Os grupos platform_admin e ness-os-platform-admin têm três membros ativos cada;
+interseção dos IDs ativos é três. Logo, nesta amostra a binding UAT legada não
+exclui administradores canônicos por divergência de associação. Não trocar
+binding nem duplicar grupos para corrigir problema que essa consulta não achou.
+Primeira tentativa de consulta usou relação inexistente; corrigida para
+interseção em memória dos IDs, exit0, sem exportar identidades ou alterar grupos.
+
+Próximo passo é prova nominal/MFA/logout e análise de sessões/consumidores,
+não exclusão de providers ou mais sincronização de grupos. MFA continua
+dependência humana de cadastro/recuperação; nenhum fator foi criado pelo agente.
