@@ -5,9 +5,12 @@
 > em imagens GHCR imutáveis, backup anterior e rollback/re-promoção ensaiados.
 > A evidência está em
 > [`evidence/hub-immutable-release-2026-10-12.md`](evidence/hub-immutable-release-2026-10-12.md).
-> G0 global segue **PARCIAL**: o workflow publicado ainda precisa da revisão e
-> dos checks exigidos no PR #65; o próximo trabalho ativo é G1 do Hub/AIOps,
-> descrito em `docs/superpowers/plans/2026-10-12-g1-hub-recovery-evidence.md`.
+> G0 global segue **PARCIAL**: o workflow de publicação ainda precisa da
+> revisão e dos checks exigidos no PR #65. O PR de entrega atual, #64, também
+> está bloqueado porque os jobs de Actions não receberam runner (`runner_id=0`),
+> e não por uma falha de teste registrada. G1-Hub/AIOps foi renovado com restore
+> externo; o trabalho ativo é G2 (identidade e cofre), documentado nas
+> evidências de 12/10.
 
 Data: 2026-10-11 (BRT)  
 Objetivo: transformar evidências dispersas em uma sequência de entrega
@@ -54,6 +57,13 @@ backup e restore datados.
 **Aceite:** dois custodians recuperam o cofre, MFA comprovado e nenhum segredo
 válido em Git ou arquivos de projeto.  
 **Bloqueia:** automação produtiva e acessos administrativos ampliados.
+
+**Estado em 12/10:** `platform_admin` contém exclusivamente Ismael, Rogerio e
+Ricardo. O fluxo padrão do Authentik já valida MFA, mas usa `skip` para quem
+ainda não cadastrou fator. No Psono, Ismael já tem MFA e Ricardo ainda não;
+ambos acessaram o cofre, mas não há recovery/emergency codes. A VPS dedicada
+continua pendente. A recuperação por senha e SMTP estão ativos no runtime,
+divergência registrada que deve ser decidida antes de promoção.
 
 ## Fase 2 — Zabbix: migração, qualidade e operação
 
