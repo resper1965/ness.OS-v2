@@ -421,3 +421,23 @@ sem piora dos unsupported. Limite10min; falha retorna10 viaAPI normal e
 confirma readback. Não relançar unidade por timeout de consulta; acompanhar
 o mesmo job/evidência. Não aplicar segundo host enquanto primeiro não passar.
 Status neste registro: APPLIED_OBSERVATION_PENDING, não redução comprovada.
+
+### Correção do observador, não dos templates compartilhados
+
+Primeira unidade terminou OBSERVATION_ERROR:AssertionError e retornou bulk10,
+readbackPASS. Mestre85756 tem history0: não haveria três clocks persistidos.
+Além disso LLD adicionou itens durante recuperação: igualdade exata de IDs
+era critério incorreto; agora exige todos os anteriores presentes e aceita
+adições, nunca remoção. Leitura intermediária master0/340unsupported mostrou
+melhora temporária, mas não aprovação; após retorno10 voltou master1.
+
+Helper zabbix-snmp-observation.py/teste:3casos RED→GREEN para LLD aditivo,
+perda de item, clocks únicos novos e recusa de clocks ausentes/antigos/falha.
+Nova unidade justificada por bug demonstrado, não timeout de observação:
+ness-zabbix-bulk25-observe-10768-v2-20261012.service. Evidência root-only
+source-bulk25-10768-v2-20261012.json. Reaplicação somente10768/interface116;
+retenção temporária history1h somente item mestre85756, viaAPI normal e
+confirmada, permite medir clocks reais. Finally restaura history0; falha
+também devolve bulk10 e confirma. Não imprime valores brutos. Não iniciar
+terceira unidade/reaplicar enquanto esta estiver rodando. Host10769 intacto.
+Critério de aplicação continua pendente até resultado terminal e cleanupPASS.
