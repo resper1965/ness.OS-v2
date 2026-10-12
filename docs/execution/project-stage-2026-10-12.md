@@ -540,3 +540,28 @@ configuração/cache/execução no proxy usando diagnóstico nativo e percurso
 autorizado. Não culpar o agente ou trocar template antes de evidência.
 UUIDsVMware continuam sem fonte autoritativa; não escrever macros por nome.
 Os dois hostsSNMP já aceitos não foram revertidos/refeitos. Corte não feito.
+
+### Diagnóstico nativo do proxy e dependência local — 12/10 19:42BRT
+
+Task65 diagnóstico porAPI respondeu status-1: estatística solicitada não
+suportada; não interpretar como incompatibilidade de versão. Pedido corrigido
+task67/historycache padrão respondeustatus0 com dados estruturados:1item/
+1valor no buffer, memória data~64MiB praticamente livre naquele instante.
+Isso confirma caminho de diagnóstico e ausência de congestionamento nessa
+amostra, não conteúdo da configuração ou execução das12definições. Não
+repetir requestsestatísticos já aprovados sem nova necessidade.
+
+Leitura limitada de últimas2500linhas do log da origem não encontrou as
+categorias conhecidas de erro de configuração deproxy/cache/banco. Ausência
+dessas mensagens não comprova funcionamento. Não exportados logs/valores.
+Nenhum percursoSSH deproxy encontrado nos arquivos operacionais pesquisados;
+scripts existentes só apontam servidores centrais, não o produtorlocal.
+
+Dependência novaissue73: diagnóstico de leitura no equipamento doproxy1,
+owner técnicoIsmael e acessoRicardo, comandos de versão/serviço/frequências
+sem segredos; revisar logs localmente19:05–19:25BRT, não enviar dadosbrutos
+porGitHub/chat/email. Não pedir outrotoken ou reativarprobes. Nenhuma
+mudança de configuraçãopersistente/serviço/DNS/coleta foi feita nesta etapa.
+Instruções novas enviadas a Ismael com Ricardo emcópia, GmailSENT
+1a13248a44509e7e. Não repetir cobrança; continuar causas independentes
+enquanto o acesso/relatório local daissue73 não chega.
