@@ -156,6 +156,8 @@ infra/tests/verify-zabbix-noc-browser.cjs; captura fica fora do Git.
 Limite: somente conta emergencial e viewport desktop 1600x1000; não prova SSO
 nominal, MFA, RBAC de cliente, móvel ou renderização das cinco páginas. Dados
 são do snapshot, como informa o título. O widget de disponibilidade exibiu
-259 hosts com interface, não os 261 habilitados do cadastro; hosts sem interface
-precisam ficar fora desse denominador explicitamente, sem declarar cobertura
-completa. Este smoke test não aprova gate produtivo.
+259 hosts elegíveis ao widget, não os 261 habilitados do cadastro. Há três
+hosts sem interface: esper, INTRANET - Producao e o sintético UAT. O widget
+também representa agente ativo, portanto ausência de interface por si só não
+define exclusão. Não usar o total desse widget como cobertura completa do
+cadastro. Este smoke test não aprova gate produtivo.
