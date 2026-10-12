@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """Apply or roll back one five-host factual collection-quality wave in UAT."""
 import importlib.util
+import argparse
 import json
 import os
 from pathlib import Path
 import socket
 import subprocess
-import sys
 import urllib.request
 
 if os.geteuid() != 0 or socket.gethostname() != 'zbx-prd-01':
@@ -19,8 +19,19 @@ os.umask(0o077)
 spec = importlib.util.spec_from_file_location('wave', Path(__file__).with_name('zabbix-quality-wave.py'))
 wave = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(wave)
-hostids = ['10740', '10741', '10742', '10743', '10744']
-plan_file = Path('/var/lib/ness-os/restore-evidence/unconfigured-wave-1-20261012.json')
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--wave', type=int, choices=[1, 2, 3], default=1)
+parser.add_argument('--apply', action='store_true')
+parser.add_argument('--rollback', action='store_true')
+args = parser.parse_args()
+if args.rollback and not args.apply:
+    parser.error('rollback requires --apply')
+hostids = {
+    1: ['10740', '10741', '10742', '10743', '10744'],
+    2: ['10745', '10746', '10747', '10748', '10749'],
+    3: ['10750', '10751', '10791', '10962'],
+}[args.wave]
+plan_file = Path(f'/var/lib/ness-os/restore-evidence/unconfigured-wave-{args.wave}-20261012.json')
 
 class Api:
     def call(self, method, params, token=None):
@@ -60,13 +71,13 @@ try:
             raise RuntimeError('Wrong wave identity')
     else:
         plan = wave.make_plan(hosts, [{'hostid': h, 'tags': {'collection_state': 'unconfigured'}} for h in hostids])
-    if '--apply' not in sys.argv:
-        print('wave_preflight=PASS; hosts=5; zero_items=true; mode=preview')
+    if not args.apply:
+        print(f'wave_preflight=PASS; hosts={len(hostids)}; zero_items=true; mode=preview')
     else:
         if not plan_file.exists():
             with plan_file.open('x') as output:
                 json.dump(plan, output)
-        wave.apply_plan(api, plan, rollback='--rollback' in sys.argv)
-        print('quality_wave=PASS; hosts=5; rollback='+str('--rollback' in sys.argv))
+        wave.apply_plan(api, plan, rollback=args.rollback)
+        print(f'quality_wave=PASS; hosts={len(hostids)}; wave={args.wave}; rollback={args.rollback}')
 finally:
     api.call('user.logout', [], api.token)

@@ -1,4 +1,5 @@
 import importlib.util
+import ast
 from copy import deepcopy
 from pathlib import Path
 
@@ -10,6 +11,19 @@ spec = importlib.util.spec_from_file_location(
 )
 wave = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(wave)
+
+
+def test_unconfigured_waves_cover_only_the_confirmed_zero_item_hosts():
+    script = Path(__file__).resolve().parents[1] / 'scripts/tag-zabbix-uat-unconfigured.py'
+    tree = ast.parse(script.read_text())
+    assignment = next(n for n in tree.body if isinstance(n, ast.Assign)
+                      and any(isinstance(t, ast.Name) and t.id == 'hostids' for t in n.targets))
+    waves = ast.literal_eval(assignment.value.value)
+    ids = [hostid for group in waves.values() for hostid in group]
+    assert len(ids) == len(set(ids)) == 14
+    assert all(1 <= len(group) <= 5 for group in waves.values())
+    assert set(ids) == {str(i) for i in range(10740, 10752)} | {'10791', '10962'}
+    assert '10978' not in ids  # Synthetic trapper host is intentionally excluded.
 
 
 def host():

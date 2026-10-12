@@ -102,3 +102,11 @@ idempotente aprovados pela API normal. Pacote anterior/posterior protegido:
 Reaplicar este delta via script versionado após qualquer refresh final que
 substitua a configuração UAT; nunca presumir que sobrevive ao restore. A tag
 expõe lacuna de cobertura, não corrige coleta ou reduz itens não suportados.
+
+Ondas 2 e 3 concluídas pelo mesmo script: 10745–10749 e
+10750/10751/10791/10962. Total de 14 hosts sem itens sinalizados; 10978
+sintético excluído. Ambos os lotes passaram preflight, aplicação, rollback e
+reaplicação. Seis testes do mecanismo/escopo aprovados; arquivos root-only
+unconfigured-wave-2-20261012.json e unconfigured-wave-3-20261012.json
+preservam antes/depois. Nenhum host foi habilitado/desabilitado, nenhum template
+foi vinculado, e a origem não recebeu essas alterações.
