@@ -139,3 +139,14 @@ Token do Hub permite leitura/ACK e não será elevado para editar itens/hosts.
 DNS, coleta e notificações produtivas permanecem na origem; corte ainda não
 executado. Próximo passo obrigatório: regularizar SSO/API UAT e validar login,
 antes de promover as correções e preparar o freeze final autorizado.
+
+## Atualização da dependência de acesso — 12/10 15:44 BRT
+
+O bloqueio técnico acima é histórico: recuperação exclusivamente UAT foi
+autorizada e concluída, login/API/logout normais passaram, e SAML técnico foi
+reconciliado com provider 13. Não repetir recuperação ou configuração SAML.
+Continuam pendentes login nominal/MFA/logout federado e identidade técnica
+permanente de menor privilégio, conforme issues 51/71 atualizadas. Dashboards
+406/407, três ondas de tags, variante SNMP e ensaio reversível já constam em
+project-stage. Destino não foi ativado; origem segue produtiva. Nenhuma dessas
+entregas aprova G2 ou o corte. Retomar pelos critérios pendentes, não pelo dump.

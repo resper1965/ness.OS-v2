@@ -215,3 +215,41 @@ Próxima correção de coleta: desenhar perfil de appliance em 10977 e perfil de
 link em 10873/10874, preservando os históricos existentes e validando ciclos
 LLD/expiração em ambiente autorizado. O erro de armazenamento não deve ser
 escondido; verificar capacidade/disco aplicável antes de alterar cálculo.
+
+## Perfil de link — proteção de histórico e correção de identificação
+
+Leitura da origem em 12/10 15:41 BRT: net.if.discovery 46237 (template 10604),
+97484 (10873), 97861 (10874) e 115599 (10977) têm lifetime_type=0/lifetime=7d
+e enabled_lifetime_type=2. A API oficial 7.0 define isso como excluir recursos
+perdidos após sete dias e desabilitá-los imediatamente. Portanto um filtro
+IFNAME restrito aplicado diretamente pode causar exclusão posterior de itens.
+Não aplicar macros de restrição sobre o template/hosts atuais sem preservação.
+
+Etapa preparada, NÃO implementada: exportar o template real e a configuração
+dos dois links; criar variante privada de transição com net.if.discovery
+lifetime_type=1 (não excluir) antes de restringir descoberta; usar filtros
+exatos ^wan$ em 10873 e ^lan3$ em 10874; conservar appliance completo em 10977.
+Não usar wan1, não alterar índices por suposição, não editar template global.
+Ensaiar troca sem templates_clear com invariância de IDs/chaves/triggers;
+observar ciclos LLD autorizados e estados dos itens excluídos do filtro.
+Export de IDs não é backup de histórico: nenhum delete será permitido.
+Desativação/remoção de métricas duplicadas de appliance nos hosts de links
+é etapa separada, exige inventário das dependências e aceite de cobertura.
+Rollback retorna template/macros anteriores e valida reativação dos itens
+preservados; só a troca de template, sem observar LLD, não prova esse retorno.
+
+Correção aplicada por API normal somente UAT: name visível de 10873 passou
+de "Link AmericaNet wan1" para "Link AmericaNet wan". Campo técnico host
+permaneceu "Cavan Matriz Fortigate 40F Link AmericaNet wan1", para não quebrar
+expressões/integrações. Configuração completa, tags, templates e IDs/chaves/
+status dos itens ficaram iguais; aplicação, rollback e reaplicação passaram.
+Delta versionado em config/zabbix/cavan-wan-display-name-delta.json;
+antes/depois root-only cavan-wan-name-20261012.json. Reaplicar após refresh
+somente se hostid/host/name anterior e interface coincidirem; caso divergente,
+abortar. Rollback altera exclusivamente name para o valor anterior.
+
+Issues 51/71 atualizadas em 15:42 BRT para substituir instruções ultrapassadas
+de recuperação/configuração já executadas. E-mail de procedimento restante
+enviado a Ismael com Ricardo em cópia, Gmail SENT 1a1316cace7b0677.
+Permanecem abertos SSO nominal/MFA/logout/negativos e identidade técnica
+permanente mínima; sessões emergenciais não equivalem a esses aceites.

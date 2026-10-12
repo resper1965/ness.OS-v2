@@ -1,0 +1,10 @@
+{
+  "environment": "UAT isolated",
+  "hostid": "10873",
+  "host": "Cavan Matriz Fortigate 40F Link AmericaNet wan1",
+  "before": "[ Cavan ] [ Matriz ] [ Fortigate 40F ] Link AmericaNet wan1",
+  "after": "[ Cavan ] [ Matriz ] [ Fortigate 40F ] Link AmericaNet wan",
+  "change": "host.update name only",
+  "evidence": "net.if.in[ifHCInOctets.1] identifies wan(AmericaNET - 500MB)",
+  "rollback": "Restore before as visible name; never change host or delete items"
+}
