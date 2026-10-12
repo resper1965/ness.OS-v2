@@ -20,6 +20,11 @@ operacional, recuperável e mensurável.
 
 ## Critério de avanço
 
+Atualização autorizada em 12/10: G2 permanece aberto em issues #43, #45, #48,
+#51 e #66; GitHub/Actions em #67, índice em #68. Implementação e ensaios
+isolados das etapas seguintes continuam. Toda dependência humana gera issue
+e e-mail de instrução. Ver `human-actions-and-independent-delivery-2026-10-12.md`.
+
 Cada fase só avança quando a evidência indicada existe, foi colhida no ambiente
 correto e não contém segredos. Falha ou ausência de evidência mantém o gate
 aberto; não se compensa com documentação, mock, processo `running` ou teste

@@ -50,6 +50,12 @@ atual de ambiente, credenciais, backup ou serviço.
 
 ## Regras permanentes
 
+Decisão de 12/10/2026: G2 fica aberto em issues, sem impedir desenvolvimento,
+ensaios isolados e tarefas independentes. Toda interação humana exige issue
+com passo a passo e e-mail ao responsável; continuar sem aguardar resposta
+nas demais tarefas. Índice: issue #68 e
+`docs/execution/human-actions-and-independent-delivery-2026-10-12.md`.
+
 1. A origem Zabbix não é alterada durante a migração sem rollback comprovado.
 2. Nenhum segredo, token, senha, chave privada ou dump entra no Git.
 3. Toda alteração produtiva tem backup, rollback, owner e evidência posterior.
