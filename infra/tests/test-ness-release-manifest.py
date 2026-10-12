@@ -167,6 +167,26 @@ def test_compose_discovery_skips_dependency_and_build_directories(tmp_path: Path
     ]
 
 
+def test_compose_discovery_skips_git_worktree_checkouts(tmp_path: Path) -> None:
+    root = write_fixture_repo(
+        tmp_path / "repo",
+        "services:\n  db:\n    image: postgres:17@sha256:" + "a" * 64 + "\n",
+    )
+    auxiliary = root / ".worktrees" / "candidate" / "docker-compose.yml"
+    auxiliary.parent.mkdir(parents=True)
+    auxiliary.write_text(
+        "services:\n  accidental:\n    image: registry.example/accidental:latest\n",
+        encoding="utf-8",
+    )
+    initialize_git(root)
+
+    manifest = generate(root, tmp_path / "manifest.json")
+
+    assert [(row["compose_file"], row["service"]) for row in manifest["images"]] == [
+        ("app/docker-compose.yml", "db")
+    ]
+
+
 def test_unpinned_image_is_reported_as_a_release_blocker(tmp_path: Path) -> None:
     root = write_fixture_repo(
         tmp_path / "repo",

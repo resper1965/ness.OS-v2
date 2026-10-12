@@ -82,6 +82,7 @@ def compose_files(root: Path) -> list[Path]:
         ".nuxt",
         ".pytest_cache",
         ".superpowers",
+        ".worktrees",
         ".turbo",
         ".venv",
         ".yarn",
