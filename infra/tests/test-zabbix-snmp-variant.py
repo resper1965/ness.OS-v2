@@ -42,6 +42,10 @@ def test_refuses_export_with_hosts_or_ambiguous_master():
     source['zabbix_export']['hosts'] = [{'host': 'live-host'}]
     with pytest.raises(ValueError):
         variant.clone_variant(source)
+    source = exported()
+    source['zabbix_export']['templates'][0]['items'] = []
+    with pytest.raises(ValueError):
+        variant.clone_variant(source)
 
 
 def link_export():
@@ -73,7 +77,3 @@ def test_link_transition_refuses_absent_or_duplicate_network_discovery(rules):
     source['zabbix_export']['templates'][0]['discovery_rules'] = rules
     with pytest.raises(ValueError):
         variant.clone_link_transition(source)
-    source = exported()
-    source['zabbix_export']['templates'][0]['items'] = []
-    with pytest.raises(ValueError):
-        variant.clone_variant(source)
