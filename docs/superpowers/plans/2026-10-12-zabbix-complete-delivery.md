@@ -40,18 +40,18 @@ Reutilizar `infra/scripts/zabbix-quality-wave.py`, scripts de SAML, NOC, brandin
 
 **Interfaces:** `build_register(rows: list[dict], observed_at: str) -> dict`. Entrada por host: hostid, flags, status, name, templates, tags, item_count, unsupported_count, error_categories. Saída: assets, prototypes, waves, totals; cada asset contém estado pendente, lacunas e onda; não contém IP, macro, serial ou erro bruto.
 
-- [ ] Testar exclusão de protótipos do total real, preservação de desativado, cobertura exata sem ID duplicado, ondas ≤5 e recusa de entrada inválida; dados sem itens não podem sair como saudáveis.
-- [ ] Executar `python3 -m pytest -q infra/tests/test-zabbix-asset-register.py`; observar RED por função ausente.
-- [ ] Implementar registro sem inferir identidade pelo nome: estado disabled_preserved, unconfigured, needs_remediation ou assessment_required. Ausência de unsupported não gera accepted.
-- [ ] Fazer uma leitura sanitizada da origem, contar itens flags 0/4 (não protótipos de itens), categorias de erro sem texto bruto e tags/templates reais; gerar registro completo. Totais precisam reconciliar SQL de origem e IDs únicos.
-- [ ] Executar testes e registrar todos os IDs nas ondas. Esperado inicialmente 262 assets, 63 prototypes, 53 ondas; divergência abre investigação, não força o número.
+- [x] Testar exclusão de protótipos do total real, preservação de desativado, cobertura exata sem ID duplicado, ondas ≤5 e recusa de entrada inválida; dados sem itens não podem sair como saudáveis.
+- [x] Executar `python3 -m pytest -q infra/tests/test-zabbix-asset-register.py`; observar RED por função ausente.
+- [x] Implementar registro sem inferir identidade pelo nome: estado disabled_preserved, unconfigured, needs_remediation ou assessment_required. Ausência de unsupported não gera accepted.
+- [x] Fazer uma leitura sanitizada da origem, contar itens flags 0/4 (não protótipos de itens), categorias de erro sem texto bruto e tags/templates reais; gerar registro completo. Totais precisam reconciliar SQL de origem e IDs únicos.
+- [x] Executar testes e registrar todos os IDs nas ondas. Esperado inicialmente 262 assets, 63 prototypes, 53 ondas; divergência abre investigação, não força o número.
 - [ ] Commit/push e atualizar ledger. Nenhum host fica sem linha nem protótipo é esquecido.
 
 ### Task 2: Perfil Cavan de links sem exclusão LLD
 
 **Files:** Modify `infra/scripts/zabbix-snmp-variant.py`; Test `infra/tests/test-zabbix-snmp-variant.py`; Create delta/evidência protegida `fortigate-link-transition-20261012.json`.
 
-**Interfaces:** `clone_link_transition(document: dict) -> dict`; nome `FortiGate by SNMP - UAT link transition`; manter timeout original; somente net.if.discovery muda lifetime_type para NEVER. UUIDs/refências renovados; template raiz intocado.
+**Interfaces:** `clone_link_transition(document: dict) -> dict`; nome `FortiGate by SNMP - UAT link transition`; manter timeout original; somente net.if.discovery muda lifetime_type para DELETE_NEVER no export (API: 1). UUIDs/refências renovados; template raiz intocado.
 
 - [ ] Testar clone não muta origem, mantém timeout, muda só retenção da regra correta e recusa export ambíguo/hosts. Rodar RED; implementar; rodar GREEN.
 - [ ] Exportar 10604 por API UAT normal; criar candidato; importcompare permite apenas adições; importar createMissing=true/updateExisting=false. Confirmar raiz idêntica e variante sem hosts.

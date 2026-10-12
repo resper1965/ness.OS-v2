@@ -1,0 +1,107 @@
+"""Sanitized, complete asset coverage register; no health inferred from zero errors."""
+from datetime import datetime
+import json
+from pathlib import Path
+import subprocess
+import os
+import socket
+
+REQUIRED_TAGS = ('tenant', 'site', 'service', 'environment', 'technology',
+                 'scope', 'owner', 'role', 'criticality')
+
+
+def build_register(rows, observed_at):
+    stamp = datetime.fromisoformat(observed_at.replace('Z', '+00:00'))
+    if stamp.tzinfo is None or not rows:
+        raise ValueError('Timestamp must identify timezone and scope must not be empty')
+    assets, prototypes, seen = [], [], set()
+    for row in sorted(rows, key=lambda r: int(r['hostid'])):
+        hostid = str(row['hostid'])
+        flags, status = int(row['flags']), int(row['status'])
+        items, errors = int(row['item_count']), int(row['unsupported_count'])
+        if (not hostid.isdigit() or int(hostid) <= 0 or hostid in seen
+                or flags not in (0, 2, 4) or status not in (0, 1)
+                or items < 0 or not 0 <= errors <= items):
+            raise ValueError('Invalid or duplicate asset identity/status/counters')
+        seen.add(hostid)
+        tags = [dict(t) for t in row.get('tags', []) if t['tag'] in REQUIRED_TAGS]
+        values = {k: {t['value'] for t in tags if t['tag'] == k and t['value']}
+                  for k in REQUIRED_TAGS}
+        clean = {'hostid': hostid, 'flags': flags, 'status': status,
+                 'name': row['name'], 'templates': row.get('templates', []),
+                 'tags': tags, 'item_count': items, 'unsupported_count': errors,
+                 'error_categories': row.get('error_categories', {}),
+                 'missing_tags': [k for k, v in values.items() if not v],
+                 'conflicted_tags': sorted(k for k, v in values.items() if len(v) > 1),
+                 'state': ('prototype_review_required' if flags == 2 else
+                           'disabled_preserved' if status == 1 else
+                           'unconfigured' if items == 0 else
+                           'needs_remediation' if errors else 'assessment_required')}
+        (prototypes if flags == 2 else assets).append(clean)
+    waves = [[h['hostid'] for h in assets[i:i + 5]] for i in range(0, len(assets), 5)]
+    return {'observed_at': observed_at, 'source': 'origin_readonly_configuration_and_runtime',
+            'fresh_collection': 'NOT_VERIFIED', 'assets': assets, 'prototypes': prototypes,
+            'waves': waves, 'totals': {'real_hosts': len(assets), 'prototypes': len(prototypes),
+                'active': sum(h['status'] == 0 for h in assets),
+                'disabled': sum(h['status'] == 1 for h in assets), 'accepted': 0,
+                'unsupported_active': sum(h['unsupported_count'] for h in assets if h['status'] == 0)}}
+
+
+def collect_rows():
+    """Read configuration/rtdata only; never select credentials or raw errors."""
+    if os.geteuid() != 0 or socket.gethostname() != 'zabbix-srv01':
+        raise RuntimeError('Collector requires protected origin configuration')
+    config = {}
+    for line in Path('/etc/zabbix/zabbix_server.conf').read_text().splitlines():
+        if line.startswith(('DBUser=', 'DBName=', 'DBPassword=')):
+            key, value = line.split('=', 1)
+            config[key] = value
+    category = """CASE
+      WHEN LOWER(rt.error) REGEXP 'auth|unauthorized|credential|password' THEN 'authentication'
+      WHEN LOWER(rt.error) REGEXP 'timeout|timed out' THEN 'timeout'
+      WHEN LOWER(rt.error) REGEXP 'preprocess|jsonpath|xpath|javascript' THEN 'preprocessing'
+      WHEN LOWER(rt.error) REGEXP 'dns|resolve|network|connect|unreachable|no route' THEN 'connectivity'
+      WHEN LOWER(rt.error) REGEXP 'calculated|formula|expression|division by zero' THEN 'calculation'
+      WHEN LOWER(rt.error) REGEXP 'unknown metric|unsupported key|invalid key|oid|snmp' THEN 'key_metric_oid'
+      ELSE 'other' END"""
+    sql = """START TRANSACTION READ ONLY;
+      SELECT JSON_OBJECT('kind','host','hostid',h.hostid,'flags',h.flags,'status',h.status,'name',h.name,
+        'templates',COALESCE((SELECT JSON_ARRAYAGG(t.host) FROM hosts_templates ht JOIN hosts t ON t.hostid=ht.templateid WHERE ht.hostid=h.hostid),JSON_ARRAY()),
+        'tags',COALESCE((SELECT JSON_ARRAYAGG(JSON_OBJECT('tag',tag,'value',value)) FROM host_tag WHERE hostid=h.hostid AND tag IN ('tenant','site','service','environment','technology','scope','owner','role','criticality')),JSON_ARRAY()))
+        FROM hosts h WHERE h.status IN (0,1) ORDER BY h.hostid;
+      SELECT JSON_OBJECT('kind','metrics','hostid',i.hostid,'item_count',COUNT(*),
+        'unsupported_count',SUM(i.status=0 AND COALESCE(rt.state,0)=1))
+        FROM items i LEFT JOIN item_rtdata rt ON rt.itemid=i.itemid
+        JOIN hosts h ON h.hostid=i.hostid WHERE h.status IN (0,1) AND i.flags IN (0,4) GROUP BY i.hostid;
+      SELECT JSON_OBJECT('kind','category','hostid',i.hostid,'category',CATEGORY,'count',COUNT(*))
+        FROM items i JOIN item_rtdata rt ON rt.itemid=i.itemid JOIN hosts h ON h.hostid=i.hostid
+        WHERE h.status IN (0,1) AND i.flags IN (0,4) AND i.status=0 AND rt.state=1
+        GROUP BY i.hostid,CATEGORY;
+      COMMIT;""".replace('CATEGORY', category)
+    env = dict(os.environ, MYSQL_PWD=config['DBPassword'])
+    result = subprocess.run(['mariadb', '--batch', '--raw', '--skip-column-names',
+        '--user=' + config['DBUser'], config['DBName'], '-e', sql], env=env,
+        capture_output=True, text=True, timeout=60)
+    if result.returncode:
+        raise RuntimeError('Read-only inventory query failed; inspect protected DB diagnostics')
+    hosts = {}
+    for line in result.stdout.splitlines():
+        row = json.loads(line)
+        hostid = str(row['hostid'])
+        if row['kind'] == 'host':
+            row.update(item_count=0, unsupported_count=0, error_categories={})
+            hosts[hostid] = row
+        elif row['kind'] == 'metrics':
+            hosts[hostid].update(item_count=row['item_count'], unsupported_count=row['unsupported_count'])
+        else:
+            hosts[hostid]['error_categories'][row['category']] = row['count']
+    return list(hosts.values())
+
+
+if __name__ == '__main__':
+    from datetime import timezone
+    try:
+        report = build_register(collect_rows(), datetime.now(timezone.utc).isoformat())
+        print(json.dumps(report, ensure_ascii=False, indent=2))
+    except Exception as error:
+        raise SystemExit('Asset register failed: ' + type(error).__name__)

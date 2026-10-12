@@ -4,9 +4,10 @@ import uuid
 
 ORIGINAL = 'FortiGate by SNMP'
 CANDIDATE = 'FortiGate by SNMP - UAT walk 5s'
+LINK_TRANSITION = 'FortiGate by SNMP - UAT link transition'
 
 
-def clone_variant(document):
+def _clone(document, candidate):
     result = deepcopy(document)
     root = result['zabbix_export']
     if set(root) - {'version', 'date', 'template_groups', 'templates', 'graphs', 'triggers'}:
@@ -24,13 +25,29 @@ def clone_variant(document):
         if isinstance(value, list):
             return [rewrite(v) for v in value]
         if isinstance(value, str):
-            return CANDIDATE if value == ORIGINAL else value.replace('/'+ORIGINAL+'/', '/'+CANDIDATE+'/')
+            return candidate if value == ORIGINAL else value.replace('/'+ORIGINAL+'/', '/'+candidate+'/')
         return value
 
     for section in ['templates', 'graphs', 'triggers']:
         if section in root:
             root[section] = rewrite(root[section])
     template = root['templates'][0]
-    template['name'] = CANDIDATE
-    next(i for i in template['items'] if i['key'] == 'net.if.walk')['timeout'] = '5s'
+    template['name'] = candidate
+    return result
+
+
+def clone_variant(document):
+    result = _clone(document, CANDIDATE)
+    items = result['zabbix_export']['templates'][0]['items']
+    next(i for i in items if i['key'] == 'net.if.walk')['timeout'] = '5s'
+    return result
+
+
+def clone_link_transition(document):
+    result = _clone(document, LINK_TRANSITION)
+    rules = result['zabbix_export']['templates'][0].get('discovery_rules', [])
+    network = [r for r in rules if r.get('key') == 'net.if.discovery']
+    if len(network) != 1:
+        raise ValueError('Expected one network discovery rule')
+    network[0]['lifetime_type'] = 'DELETE_NEVER'
     return result

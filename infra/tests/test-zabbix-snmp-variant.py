@@ -42,6 +42,37 @@ def test_refuses_export_with_hosts_or_ambiguous_master():
     source['zabbix_export']['hosts'] = [{'host': 'live-host'}]
     with pytest.raises(ValueError):
         variant.clone_variant(source)
+
+
+def link_export():
+    source = exported()
+    source['zabbix_export']['templates'][0]['discovery_rules'] = [
+        {'key': 'net.if.discovery', 'lifetime_type': 'DELETE_AFTER', 'lifetime': '7d',
+         'enabled_lifetime_type': 'DISABLE_IMMEDIATELY'},
+        {'key': 'cpu.discovery', 'lifetime_type': 'DELETE_AFTER', 'lifetime': '7d'}]
+    return source
+
+
+def test_link_transition_preserves_history_without_timeout_or_other_rule_changes():
+    source = link_export()
+    before = deepcopy(source)
+    result = variant.clone_link_transition(source)['zabbix_export']
+    template = result['templates'][0]
+    assert source == before
+    assert template['template'] == 'FortiGate by SNMP - UAT link transition'
+    assert template['items'][0]['timeout'] == ''
+    assert template['discovery_rules'][0]['lifetime_type'] == 'DELETE_NEVER'
+    assert template['discovery_rules'][0]['enabled_lifetime_type'] == 'DISABLE_IMMEDIATELY'
+    assert template['discovery_rules'][1] == before['zabbix_export']['templates'][0]['discovery_rules'][1]
+    assert result['graphs'][0]['graph_items'][0]['item']['host'] == 'FortiGate by SNMP - UAT link transition'
+
+
+@pytest.mark.parametrize('rules', [[], [{'key':'net.if.discovery'}, {'key':'net.if.discovery'}]])
+def test_link_transition_refuses_absent_or_duplicate_network_discovery(rules):
+    source = link_export()
+    source['zabbix_export']['templates'][0]['discovery_rules'] = rules
+    with pytest.raises(ValueError):
+        variant.clone_link_transition(source)
     source = exported()
     source['zabbix_export']['templates'][0]['items'] = []
     with pytest.raises(ValueError):
