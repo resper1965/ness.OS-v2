@@ -30,7 +30,9 @@ def readiness_failures(report: str) -> list[str]:
         for field in ("active", "superuser", "mfa", "has_logged_in"):
             required[prefix + field] = "yes"
         required[prefix + "password_change_required"] = "no"
-    failures = [key for key, expected in required.items() if values.get(key) != expected]
+    failures = [
+        key for key, expected in required.items() if values.get(key) != expected
+    ]
     for key in (
         "custodian_resper_recovery_codes",
         "custodian_iaraujo_recovery_codes",
