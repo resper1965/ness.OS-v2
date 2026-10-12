@@ -122,3 +122,24 @@ evitar duplicata física, criação por modelo/API nativo, atualização do vín
 Hub pelo caminho existente, readback e rollback. Não executar antigo aplicador
 sem rever essas precondições; três registros criados isoladamente não corrigem
 automaticamente os645 tickets/incidentes anteriores.
+
+## Preparação do aplicador restrito — 12/10 após 23:20 UTC
+
+Reutilizado app.integrations.cmdb_sync, que antes aplicava a frota inteira.
+Novo argumento opcional --hostids limita consulta e processamento a um até
+cinco IDs únicos positivos; lista vazia/inválida/repetida/maior é recusada.
+Resposta Zabbix com conjunto diferente do solicitado aborta antes de abrir
+sessão GLPI. Execução sem argumento preserva comportamento anterior do timer.
+Não houve deploy nem execução --apply nesta etapa.
+
+TDD do guard de escopo: seis falhas observadas antes da implementação; sete
+casos aprovados depois. Suíte infra completa: 96 passed + 3 subtests.
+Suíte geral: 339 passed, 1 skipped, 72 failed na família
+test_alert_glpi_idempotency por pywebpush ausente, como observado antes.
+Não equivale a suite geral verde. Teste do guard puro não comprova integração
+API/banco, escopo de update real ou rollback produtivo.
+
+Próxima execução: validar candidatos sem marcador (nome serve somente como
+detector de ambiguidade, nunca identidade), registrar estado anterior e
+ensaiar percurso restrito em dry-run com retorno sanitizado. Não publicar nem
+aplicar reconciliador amplo para reparar apenas os três hosts.

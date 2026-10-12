@@ -27,7 +27,18 @@ def exact_match(index, host_id, entity):
     return None
 
 
-async def reconcile(apply=False):
+def scoped_hosts(hostids):
+    if hostids is None:
+        return None
+    if not 1 <= len(hostids) <= 5 or len(set(hostids)) != len(hostids):
+        raise ValueError("Scope requires one to five unique host IDs")
+    if any(not isinstance(h, str) or not h.isascii() or not h.isdecimal() or int(h) <= 0 for h in hostids):
+        raise ValueError("Scope requires positive numeric host IDs")
+    return hostids
+
+
+async def reconcile(apply=False, hostids=None):
+    hostids = scoped_hosts(hostids)
     from app.workers.alerts import (
         customer_from_hostgroups,
         resolve_customer_name,
@@ -38,6 +49,7 @@ async def reconcile(apply=False):
         "host.get",
         {
             "filter": {"status": 0},
+            **({"hostids": hostids} if hostids is not None else {}),
             "output": ["hostid", "host", "name"],
             "selectHostGroups": ["name"],
             "selectTags": "extend",
@@ -45,6 +57,8 @@ async def reconcile(apply=False):
             "selectInventory": ["os", "location"],
         },
     )
+    if hostids is not None and {h["hostid"] for h in hosts} != set(hostids):
+        raise ValueError("Source hosts differ from requested scope")
     glpi = GLPIClient()
     indexed = {}
     try:
@@ -209,5 +223,6 @@ async def reconcile(apply=False):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--apply", action="store_true")
+    parser.add_argument("--hostids", nargs="+")
     args = parser.parse_args()
-    print(json.dumps(asyncio.run(reconcile(args.apply)), ensure_ascii=False))
+    print(json.dumps(asyncio.run(reconcile(args.apply, args.hostids)), ensure_ascii=False))
