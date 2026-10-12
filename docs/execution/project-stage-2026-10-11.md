@@ -13,6 +13,16 @@ externo. Evidência: [`hub-aiops-recovery-2026-10-12.md`](evidence/hub-aiops-rec
 Isso aprova apenas G1-Hub/AIOps. O G1 global segue parcial até renovar as
 provas de Zabbix, GLPI, Authentik e Psono.
 
+### Identidade — início de G2 em somente leitura
+
+O Authentik está saudável, mas a fotografia atual impede a aprovação de G2:
+o grupo `platform_admin` tem zero membros e não existem dispositivos TOTP,
+WebAuthn ou códigos estáticos de recuperação. A evidência não expõe nomes ou
+segredos e está em
+[`authentik-g2-readonly-inventory-2026-10-12.md`](evidence/authentik-g2-readonly-inventory-2026-10-12.md).
+Não houve alteração de identidade; a atribuição deve ser nominal e confirmada
+antes de qualquer escrita.
+
 O Hub/AIOps foi promovido em janela controlada para o commit
 `144317fd5262ecf242b118774573a62df8e88d78`, com imagens privadas GHCR por
 digest, backup prévio `20261012T085531-0300`, migração aditiva, canário,

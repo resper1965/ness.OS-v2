@@ -27,6 +27,7 @@ esse fluxo, não como pré-requisito para o MVP.
 | Recuperação e release | `docs/execution/gates/phase-0-recovery-release.md` |
 | Evidência da promoção Hub/AIOps | `docs/execution/evidence/hub-immutable-release-2026-10-12.md` |
 | Recuperação externa atual do Hub/AIOps | `docs/execution/evidence/hub-aiops-recovery-2026-10-12.md` |
+| Inventário de identidade atual | `docs/execution/evidence/authentik-g2-readonly-inventory-2026-10-12.md` |
 | Plano de execução atual | `docs/superpowers/plans/2026-10-12-g1-hub-recovery-evidence.md` |
 
 Documentos históricos permanecem como evidência; não substituem uma validação
@@ -41,7 +42,7 @@ atual de ambiente, credenciais, backup ou serviço.
 | Object Storage/Restic | conjunto AIOps de 12/10/2026 08:55 BRT copiado, verificado e restaurado externamente | repetir a evidência atual para os demais produtores e revisar 3-2-1 |
 | Hub | runtime real promovido, `/ready` aprovado, workers saudáveis e rollback/re-promoção ensaiados | recuperação atual e MVP Authentik + Zabbix + GLPI reais |
 | GLPI | fundação, catálogo e reconciliação parcial prontos | API de máquina e jornada de ticket ponta a ponta |
-| Authentik | base e integrações parciais | MFA, revogação e teste por aplicação/tenant |
+| Authentik | runtime saudável, mas `platform_admin` vazio e MFA não comprovado | atribuição nominal, MFA, recuperação, revogação e teste por aplicação/tenant |
 | Psono Community | PoC funcional e recuperável na AIOps | dois custodians, MFA, SMTP/recovery e promoção dedicada |
 | AIOps | backup/restore comprovados; operação ainda não homologada | contratos, fluxos de incidente e observabilidade |
 | Wazuh | planejado | capacidade, arquitetura hub-spoke e piloto isolado |
