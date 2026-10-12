@@ -459,3 +459,26 @@ source-bulk25-10769-20261012.json. Mesmos guards/3ciclos/10min/rollback10 e
 finallyhistory0. Antes de ampliar novamente, acompanhar este job, não
 recriá-lo; nunca considerar processo running como PASS. Origem continua
 única coletora; DNS e destino inalterados; SSO/gates seguem pendentes.
+
+### Onda SNMP produtiva concluída — dois hosts, não o capítulo inteiro
+
+10769 concluiu THREE_CYCLES_PASS_SECOND_HOST: clocks1791842105/2165/2225,
+master0, unsupported340/7/1; history0 restauradoPASS, cleanupsemfalha,
+bulk25 mantido. Readback final dos dois confirmou details preservados exceto
+max_repetitions, interfaces disponíveis1 e todos os717IDsitens/304triggerIDs
+originais presentes. LLD acrescentou18itens/8triggers por host:735/312agora,
+nada apagado; não são dispositivos adicionais. Redução994→2=99,80% somente
+nos dois hosts, após ciclos reais; não atribuir outras variações da frota.
+
+Resíduos explícitos:10768/item85776 e10769/item85997, vfs.fs.pfree,
+DIVISION_BY_ZERO. Não substituir por0/100% nem desabilitar para maquiar meta;
+confirmar capacidade/aplicabilidade e tratar conforme modelo/contrato.
+Nova amostra sanitizada da frota após mudança:749unsupported/35905habilitados
+de hosts reais ativos=2,086%; ainda acima de0,5%. Registro completo atualizado
+porque houve mudança produtiva real, sem repetir dump/restore/backup.
+
+Unidades de observação terminaram; não relançar ou refazer onda aprovada.
+Próxima prioridade: causas restantes por famílias (agentes/VMware/calculados)
+e SSO/gates, não maps/polimento. G2 leastprivilege/nominalMFA não aprovado;
+token6temporário continua limitado à janela. Origem única coletora e destino
+mascarado; corteDNS não realizado. Janela e GO continuam pré-requisitos.

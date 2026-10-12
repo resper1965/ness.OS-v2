@@ -1,5 +1,5 @@
 {
-  "observed_at": "2026-10-12T21:27:03.317343+00:00",
+  "observed_at": "2026-10-12T21:58:28.105095+00:00",
   "source": "origin_readonly_configuration_and_runtime",
   "fresh_collection": "ESSENTIAL_PULSES_ONLY_NOT_HEALTH_ACCEPTANCE",
   "freshness_scope": [
@@ -2252,7 +2252,7 @@
       ],
       "tags": [],
       "item_count": 263,
-      "unsupported_count": 164,
+      "unsupported_count": 1,
       "enabled_item_count": 263,
       "freshness": {
         "essential_metrics": 1,
@@ -2262,8 +2262,7 @@
         "state": "FRESH"
       },
       "error_categories": {
-        "calculation": 1,
-        "timeout": 163
+        "calculation": 1
       },
       "missing_tags": [
         "tenant",
@@ -2576,9 +2575,9 @@
         "FortiGate by SNMP"
       ],
       "tags": [],
-      "item_count": 717,
-      "unsupported_count": 497,
-      "enabled_item_count": 708,
+      "item_count": 735,
+      "unsupported_count": 1,
+      "enabled_item_count": 735,
       "freshness": {
         "essential_metrics": 1,
         "fresh": 1,
@@ -2587,8 +2586,7 @@
         "state": "FRESH"
       },
       "error_categories": {
-        "calculation": 1,
-        "timeout": 496
+        "calculation": 1
       },
       "missing_tags": [
         "tenant",
@@ -2613,9 +2611,9 @@
         "FortiGate by SNMP"
       ],
       "tags": [],
-      "item_count": 717,
-      "unsupported_count": 497,
-      "enabled_item_count": 708,
+      "item_count": 735,
+      "unsupported_count": 1,
+      "enabled_item_count": 735,
       "freshness": {
         "essential_metrics": 1,
         "fresh": 1,
@@ -2624,8 +2622,7 @@
         "state": "FRESH"
       },
       "error_categories": {
-        "calculation": 1,
-        "timeout": 496
+        "calculation": 1
       },
       "missing_tags": [
         "tenant",
@@ -4037,9 +4034,9 @@
         "Windows by Zabbix agent"
       ],
       "tags": [],
-      "item_count": 112,
+      "item_count": 113,
       "unsupported_count": 0,
-      "enabled_item_count": 112,
+      "enabled_item_count": 113,
       "freshness": {
         "essential_metrics": 2,
         "fresh": 2,
@@ -4742,9 +4739,9 @@
         "Windows by Zabbix agent"
       ],
       "tags": [],
-      "item_count": 253,
+      "item_count": 254,
       "unsupported_count": 0,
-      "enabled_item_count": 253,
+      "enabled_item_count": 254,
       "freshness": {
         "essential_metrics": 2,
         "fresh": 2,
@@ -5520,9 +5517,9 @@
         "Windows by Zabbix agent"
       ],
       "tags": [],
-      "item_count": 111,
+      "item_count": 112,
       "unsupported_count": 1,
-      "enabled_item_count": 111,
+      "enabled_item_count": 112,
       "freshness": {
         "essential_metrics": 2,
         "fresh": 2,
@@ -8616,9 +8613,9 @@
         "Windows by Zabbix agent"
       ],
       "tags": [],
-      "item_count": 169,
+      "item_count": 170,
       "unsupported_count": 0,
-      "enabled_item_count": 161,
+      "enabled_item_count": 162,
       "freshness": {
         "essential_metrics": 2,
         "fresh": 2,
@@ -9515,9 +9512,9 @@
         "Windows by Zabbix agent"
       ],
       "tags": [],
-      "item_count": 113,
+      "item_count": 114,
       "unsupported_count": 0,
-      "enabled_item_count": 113,
+      "enabled_item_count": 114,
       "freshness": {
         "essential_metrics": 2,
         "fresh": 2,
@@ -12816,8 +12813,8 @@
     "active": 261,
     "disabled": 1,
     "accepted": 0,
-    "unsupported_active": 1904,
-    "enabled_items_active": 35846,
-    "unsupported_rate_active": 0.053116107794454054
+    "unsupported_active": 749,
+    "enabled_items_active": 35905,
+    "unsupported_rate_active": 0.020860604372650048
   }
 }

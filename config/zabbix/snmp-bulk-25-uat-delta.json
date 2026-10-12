@@ -1,11 +1,12 @@
 {
-  "state": "FIRST_HOST_THREE_CYCLES_PASS_SECOND_HOST_OBSERVING",
+  "state": "SOURCE_TWO_HOSTS_THREE_CYCLES_PASS",
   "applied_hostids": ["10768", "10769"],
-  "pending_acceptance_hostids": ["10769"],
+  "pending_acceptance_hostids": [],
   "observation_unit": "ness-zabbix-bulk25-observe-10769-20261012.service",
   "first_host_result": {"unsupported_before": 497, "unsupported_last_two_cycles": 1, "master_supported_cycles": 3, "history_restored": "PASS"},
+  "second_host_result": {"unsupported_before": 497, "unsupported_cycles": [340, 7, 1], "master_supported_cycles": 3, "history_restored": "PASS"},
   "first_attempt": "Rolled back to 10: observer rejected additive LLD and master history=0 provided no stored clocks. No success acceptance.",
-  "temporary_observation": {"itemid": "85977", "history": "1h", "restore_history": "0", "deadline_seconds": 600},
+  "temporary_observation": {"itemids": ["85756", "85977"], "history_during_test": "1h", "history_now": "0", "restored": "PASS", "deadline_seconds": 600},
   "hostids": ["10768", "10769"],
   "preconditions": {"snmp_version": 2, "bulk": 1, "max_repetitions": 10},
   "change": {"details": {"max_repetitions": 25}},
@@ -13,6 +14,6 @@
   "preserve": ["interfaceid", "hostid", "ip", "dns", "port", "community", "version", "bulk"],
   "diagnostic_hostid": "10768",
   "diagnostic": {"columns": 13, "values": 936, "bulk10_seconds": 21.905, "bulk25_seconds": 8.273},
-  "limits": "CLI diagnostic is not acceptance. Temporary owner-admin token verified and bounded to the authorized window; it is not a least-privilege G2 acceptance. First source host only; productive error reduction awaits three collection cycles.",
+  "limits": "Two source hosts observed for three real cycles each; this is not fleet/SSO/G2/cutover acceptance. Temporary owner-admin token is bounded to the window, not least privilege. Residual division-by-zero remains visible on both hosts; no fake replacement value.",
   "promotion": "Observe one authorized host for three complete polling cycles, compare master/dependent state, coverage, packet loss and poller load before the second host. Do not increase global timeout or change the shared template."
 }
