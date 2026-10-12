@@ -44,6 +44,12 @@ notificações, identidade, dados ou credenciais.
 - Frontend: typecheck, lint e build aprovados; lint emitiu somente um aviso de
   Fast Refresh em `src/hooks/useAuth.tsx`.
 - `git diff --check`: aprovado.
+- Backend: a execução com o Python global parou no primeiro teste que importa
+  `pywebpush`; a dependência está declarada em `requirements.txt`, mas não está
+  instalada no runner atual. A repetição isolada também não pôde iniciar porque
+  este host não possui `python3.12-venv`/`ensurepip`. Isto é falha de preparo do
+  runner, registrada como bloqueio G0; não foi instalado pacote no host nem
+  alterado código de aplicação.
 
 Esses testes não aprovam G0: a árvore está deliberadamente modificada por esta
 atualização e ainda há oito imagens sem digest. Nenhum runtime foi promovido.
