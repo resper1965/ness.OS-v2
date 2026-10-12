@@ -91,6 +91,8 @@ jobs:
           'NINF_GLPI_DB_PASSWORD=ci-placeholder' \
           'NINF_GLPI_DB_ROOT_PASSWORD=ci-placeholder' \
           'NINF_JWT_SECRET=ci-placeholder' \
+          'NINF_API_IMAGE=registry.example/ness/api@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' \
+          'NINF_FRONTEND_IMAGE=registry.example/ness/frontend@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' \
           'NINF_RESEND_API_KEY=ci-placeholder' > "$env_file"
         test ! -e app/.env
         test ! -e /etc/ness-os/glpi-integration.env
@@ -100,9 +102,13 @@ jobs:
         sudo install -d -m 755 /etc/ness-os
         sudo install -m 644 /dev/null /etc/ness-os/glpi-integration.env
         sudo install -m 644 /dev/null /etc/ness-os/zabbix-integration.env
+        bash infra/tests/test-release-compose-contract.sh
         docker compose version
         docker compose --env-file "$env_file" \
           -f app/docker-compose.yml -f app/docker-compose.tickets.yml \
+          config --quiet --no-env-resolution
+        docker compose --env-file "$env_file" \
+          -f app/docker-compose.yml -f app/docker-compose.dev.yml -f app/docker-compose.tickets.yml \
           config --quiet --no-env-resolution
         bash infra/scripts/aiops-runtime-preflight.sh --env-file "$env_file"
         bash infra/tests/test-aiops-runtime-preflight.sh

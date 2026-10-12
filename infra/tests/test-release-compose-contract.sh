@@ -4,6 +4,7 @@ set -Eeuo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 production="${repo_root}/app/docker-compose.yml"
 development="${repo_root}/app/docker-compose.dev.yml"
+workflow="${repo_root}/.github/workflows/ci-backend.yml"
 
 fail() {
   printf 'release compose contract: FAIL: %s\n' "$1" >&2
@@ -56,5 +57,10 @@ done
 frontend="$(service_block "${development}" frontend)"
 require_line "${frontend}" '    image: ness-frontend:dev'
 require_line "${frontend}" '    build:'
+
+require_line "$(tr -d '\r' <"${workflow}")" '        bash infra/tests/test-release-compose-contract.sh'
+grep -Fq -- 'NINF_API_IMAGE=registry.example/ness/api@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' "${workflow}" || fail 'CI lacks immutable API placeholder'
+grep -Fq -- 'NINF_FRONTEND_IMAGE=registry.example/ness/frontend@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' "${workflow}" || fail 'CI lacks immutable frontend placeholder'
+grep -Fq -- '-f app/docker-compose.dev.yml' "${workflow}" || fail 'CI does not validate development Compose'
 
 printf 'release compose contract: PASS\n'
