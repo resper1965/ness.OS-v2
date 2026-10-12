@@ -143,3 +143,25 @@ Próxima execução: validar candidatos sem marcador (nome serve somente como
 detector de ambiguidade, nunca identidade), registrar estado anterior e
 ensaiar percurso restrito em dry-run com retorno sanitizado. Não publicar nem
 aplicar reconciliador amplo para reparar apenas os três hosts.
+
+## Ensaio integrado restrito — 12/10 após 23:30 UTC
+
+Código candidato dc5de8f executado em memória no container ninf-api existente,
+sem substituir arquivo/imagem e sem --apply. Clientes normais Zabbix/GLPI e
+dependências reais do runtime: dry-run exit0, mapped_assets0, linked_incidents0,
+exatamente três gaps missing_glpi na entidade1 para10983/10984/10987.
+Sessão GLPI encerrada pelo finally existente. Nenhuma atualização de ativos
+ou incidentes; timer/reconciliador instalado permanece inalterado.
+
+Detector de ambiguidade separado comparou nomes normalizados completos e
+último componente de host/name Zabbix com Computer/NetworkEquipment GLPI,
+incluindo excluídos e demais entidades: zero candidatos para os três.
+Isso reduz risco de recriar registro sem marcador, mas nome não prova identidade
+física nem substitui inventário por serial; itens serão identidades monitoradas,
+nunca hardware certificado. Não exportadas descrições/serial/IP/credenciais.
+
+Pendência de aplicação: registrar export protegido e plano de reversão,
+validar aplicador nativo de criação (comentário do script antigo fixa data
+2026-09-08 e deve ser corrigido antes de nova aplicação), então criar lote3,
+ensaiar/aplicar atualização Hub restrita e reparar vínculos por ticket com
+precondição de entidade/fingerprint. Não contar este dry-run como implantação.
