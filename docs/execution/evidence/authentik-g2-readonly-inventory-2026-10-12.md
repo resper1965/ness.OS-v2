@@ -33,6 +33,24 @@ MFA e recuperação de dois custodians comprovadas.
 `2026.5.6`. Isto prova disponibilidade do processo, não prova os fluxos de
 login, logout, revogação, callback nem segregação por tenant.
 
+## Aplicações inventariadas para a matriz G2
+
+| Aplicação | Provedor vinculado | Bindings de política | Próxima prova |
+| --- | --- | ---: | --- |
+| GLPI | `glpi-proxy` | 6 | login, logout e acesso negado |
+| Grafana | `grafana-oidc` | 4 | OIDC, expiração e tenant negado |
+| Hub | `hub-oidc` | 6 | HTTP, SSE, logout e RBAC |
+| n-csirt | `n-csirt-oidc` | 1 | OIDC e autorização |
+| n8n | `n8n-proxy` | 3 | proxy e revogação |
+| nessops | `nessops` | 0 | revisar acesso antes de incluir no aceite |
+| Wazuh | `wazuh-oidc` | 2 | manter fora do MVP; testar depois |
+| Zabbix | `zabbix-saml` | 4 | SAML, logout e break-glass |
+| Zabbix UAT | `zabbix-uat-saml` | 1 | SAML isolado, sem coleta/notificação |
+
+Essa fotografia comprova o vínculo estrutural, não autorização efetiva. Em
+especial, `nessops` não tem binding diretamente na aplicação e deve ter sua
+rota de acesso revisada antes de entrar no aceite G2.
+
 ## MFA — configuração efetiva observada
 
 O fluxo `default-authentication-flow` contém a etapa
