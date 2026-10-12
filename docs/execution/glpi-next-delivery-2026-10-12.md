@@ -165,3 +165,25 @@ validar aplicador nativo de criação (comentário do script antigo fixa data
 2026-09-08 e deve ser corrigido antes de nova aplicação), então criar lote3,
 ensaiar/aplicar atualização Hub restrita e reparar vínculos por ticket com
 precondição de entidade/fingerprint. Não contar este dry-run como implantação.
+
+## Preflight de escrita — 12/10 após 23:40 UTC
+
+API normal getActiveProfile confirmou perfil12/computer=1: somente leitura.
+Constantes lidas no runtime nativo: READ1, CREATE4, DELETE8. Nenhum POST foi
+feito, ativo criado, perfil elevado ou superadmin reutilizado. Sessões fechadas.
+Primeira leitura retornou campos nulos porque resposta usa active_profile;
+schema corrigido antes da conclusão de direitos. Não tratar nulos como negação.
+
+Nova dependência issue74: identidade temporária separada de manutenção,
+Computer READ+CREATE+DELETE13 na entidade1 não recursiva, sem PURGE/admin.
+Não modificar userid94/perfil12. O perfil limita entidade, não objetos:
+executor restringe lote3 e rollback exclusivamente aos novosIDs. Credencial
+apenas no cofre/arquivo root0600; nenhuma credencial por chat/email/Git.
+Email de instrução enviado a Ismael com Ricardo em cópia, SENT1a1327f99024873b.
+Não repetir cobrança nem tentar criação pelo modelo callAsSystem para
+contornar os direitos da identidade de integração. Lote ainda não aplicado.
+
+Enquanto isso, próximo trabalho independente: classificar os115 incidentes
+sem ticket por idade/estado/causa e o backlog por evento/trigger, ou concluir
+testes de escopo/rollback isolados. Não repetir contagem ampla já comprovada,
+não apagar/resolver chamados em massa nem alterar SLAs sem contrato aprovado.
