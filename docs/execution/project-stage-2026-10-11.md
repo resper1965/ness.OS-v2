@@ -2,6 +2,17 @@
 
 ## Atualização de execução em 2026-10-12
 
+### Recuperação Hub/AIOps — G1 parcial do programa
+
+O conjunto atual `20261012T085531-0300` foi enviado ao Object Storage Contabo
+como snapshot `43192e11`, passou `restic check` e foi restaurado de volta em
+isolamento com `remote=1` em 196 segundos. A prova corrigiu a unidade semanal,
+que antes verificava somente o conjunto local; agora ela exige o snapshot
+externo. Evidência: [`hub-aiops-recovery-2026-10-12.md`](evidence/hub-aiops-recovery-2026-10-12.md).
+
+Isso aprova apenas G1-Hub/AIOps. O G1 global segue parcial até renovar as
+provas de Zabbix, GLPI, Authentik e Psono.
+
 O Hub/AIOps foi promovido em janela controlada para o commit
 `144317fd5262ecf242b118774573a62df8e88d78`, com imagens privadas GHCR por
 digest, backup prévio `20261012T085531-0300`, migração aditiva, canário,

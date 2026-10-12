@@ -26,6 +26,7 @@ esse fluxo, não como pré-requisito para o MVP.
 | Matriz de pendências | `docs/execution/goal-completion-audit-2026-09-08.md` |
 | Recuperação e release | `docs/execution/gates/phase-0-recovery-release.md` |
 | Evidência da promoção Hub/AIOps | `docs/execution/evidence/hub-immutable-release-2026-10-12.md` |
+| Recuperação externa atual do Hub/AIOps | `docs/execution/evidence/hub-aiops-recovery-2026-10-12.md` |
 | Plano de execução atual | `docs/superpowers/plans/2026-10-12-g1-hub-recovery-evidence.md` |
 
 Documentos históricos permanecem como evidência; não substituem uma validação
@@ -37,7 +38,7 @@ atual de ambiente, credenciais, backup ou serviço.
 | --- | --- | --- |
 | Repositório e release | branch de entrega sincronizada; Hub/AIOps promovido com imagens GHCR por digest e rollback ensaiado | CI limpo e integração protegida do workflow antes de aprovar G0 global |
 | Zabbix | destino permanente restaurado em UAT isolada; origem é rollback | revalidar estado atual, UAT de identidade e piloto Cavan antes de corte |
-| Object Storage/Restic | prova histórica existe; conjunto AIOps local de 12/10/2026 08:55 BRT aguarda nova cópia externa | enviar, verificar e restaurar isoladamente o conjunto atual dentro do RPO |
+| Object Storage/Restic | conjunto AIOps de 12/10/2026 08:55 BRT copiado, verificado e restaurado externamente | repetir a evidência atual para os demais produtores e revisar 3-2-1 |
 | Hub | runtime real promovido, `/ready` aprovado, workers saudáveis e rollback/re-promoção ensaiados | recuperação atual e MVP Authentik + Zabbix + GLPI reais |
 | GLPI | fundação, catálogo e reconciliação parcial prontos | API de máquina e jornada de ticket ponta a ponta |
 | Authentik | base e integrações parciais | MFA, revogação e teste por aplicação/tenant |

@@ -6,6 +6,9 @@ backup, digest, canário e rollback; G0 não está aprovado como gate global.**
 Atualização em 2026-10-12: o Hub/AIOps usa imagens privadas GHCR por digest,
 com migração aditiva, canário, rollback e re-promoção comprovados. A evidência
 é [`hub-immutable-release-2026-10-12.md`](../evidence/hub-immutable-release-2026-10-12.md).
+O conjunto atual AIOps `20261012T085531-0300` também foi copiado ao Object
+Storage, verificado e restaurado externamente em isolamento; consulte
+[`hub-aiops-recovery-2026-10-12.md`](../evidence/hub-aiops-recovery-2026-10-12.md).
 O restante desta página é histórico de 26/09 e não substitui a coleta atual.
 
 Avaliação atualizada em 2026-09-26 (America/Sao_Paulo), considerando somente as VPS do
