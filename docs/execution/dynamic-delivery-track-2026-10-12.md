@@ -74,6 +74,9 @@ sem regressar ao backup ou aguardar resposta da #70.
 Z3: payload NOC nativo preparado em `config/zabbix/noc-uat-dashboard.json`,
 privado e explicitamente identificado como UAT sem coleta. Teste de geometria
 sem sobreposição aprovado; publicação API e renderização ainda pendentes.
+API UAT rejeitou a credencial técnica existente; acesso mínimo na issue #71,
+com instruções por e-mail. Próximo cartão independente: preparar Z4 com itens
+reais de capacidade/fila identificados no banco restaurado, sem inventar IDs.
 
 1. Reutilizar `zabbix-offline-quality-2026-10-12.md` e o relatório restaurado.
 2. Identificar os ativos internos da plataforma e sua configuração existente

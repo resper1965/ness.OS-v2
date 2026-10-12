@@ -4,6 +4,12 @@ Z3 preparado, ainda não publicado/aceito. Inventário atual do destino confirma
 dashboard 1 Global view com nove widgets e dashboard 405 com cinco páginas;
 as alterações da origem documentadas em setembro não estão nessa restauração.
 
+Tentativa de leitura API local em 12/10: token bootstrap root-only rejeitado
+com JSON-RPC -32602 em `127.0.0.1:8080/zabbix/api_jsonrpc.php`. Não se presume
+expiração ou causa específica. Renovação/homologação da identidade técnica na
+issue #71; e-mail enviado a Ismael com cópia a Ricardo. Nenhum candidato foi
+aplicado e nenhuma credencial foi impressa.
+
 `config/zabbix/noc-uat-dashboard.json` é payload candidato `dashboard.update`:
 cinco widgets nativos, grade de 72 colunas, sem sobreposição, sem geomap
 genérico nem filtro inventado. Dashboard privado; a configuração de acesso
