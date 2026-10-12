@@ -49,3 +49,17 @@ ness-zabbix-reset-durability-20261012 está enfileirada após o import para volt
 a 1, inclusive se a importação falhar. A promoção exige confirmar 1. Risco
 restrito ao dump em importação: uma queda pode perder até o último segundo de
 transações e exigir reimportação do snapshot imutável; origem não foi alterada.
+
+Ticket operacional GLPI 75426 registra owner, janela, rollback e abort criteria.
+A API Change retornou 403; o ticket não representa aprovação formal desse
+objeto. Branding nativo aplicado também na origem às 12:09 BRT, mantendo
+Zabbix/MariaDB ativos. Rollback da origem:
+`/var/lib/ness-os/restore-evidence/branding-20261012T120907-0300`.
+Assets de login/sidebar responderam HTTP 200 pela URL pública. Não se declara
+aceite visual desktop/móvel antes da inspeção renderizada.
+
+Quatro itens prioritários do piloto: 97468/97845 (FortiGate: cálculo de espaço
+livre divide por capacidade), 63249 (Windows: swap livre depende de contador
+Paging file), 63256 (Windows: utilização depende de used/total). A leitura API
+mostra fórmulas herdadas; alteração no template raiz afetaria outros clientes.
+Nenhuma correção global ou desativação em massa foi aplicada.
