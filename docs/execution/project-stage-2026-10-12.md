@@ -132,3 +132,14 @@ Rollback do preparo: excluir apenas 10988 depois de comprovar ausência de
 hosts vinculados. Próxima etapa: ensaio de vínculo em host UAT com preservação
 de IDs/histórico e rollback. Não há coleta ativa ou redução comprovada de erros;
 5s é hipótese de teste, não tuning produtivo aprovado.
+
+Ensaio de vínculo em um host UAT (10768) concluído: preflight, troca de 10604
+para 10988 sem templates_clear, timeout herdado 5s e retorno a 10604 aprovados.
+IDs/chaves dos 717 itens, IDs dos 304 triggers e status do host preservados
+antes/depois/rollback. Evidência root-only snmp-variant-link-test-20261012.json;
+integração versionada em infra/tests/verify-zabbix-snmp-variant-live.py.
+Variante continua sem vínculo produtivo e o host terminou no template original.
+Esse ensaio não iniciou Zabbix nem verificou resposta SNMP; não prova redução
+dos 992 erros dependentes ou ganho por timeout. Não repetir o ensaio aprovado
+sem mudança relevante. Próxima etapa é definir observação de coleta autorizada
+sem dupla coleta antes de promover tuning para hosts reais.
