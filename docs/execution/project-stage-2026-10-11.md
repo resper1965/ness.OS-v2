@@ -18,6 +18,7 @@ notificações, identidade, dados ou credenciais.
 | Destino Zabbix `zbx-prd-01` | `zabbix-server` permanece inativo; timer local está `failed` desde 02/09 porque tenta iniciar serviço deliberadamente mascarado | `bloqueio de desenho` |
 | Backup local do destino | Último conjunto local é `20260901T220005-0300`; não é evidência atual de recuperação | `desatualizado` |
 | AIOps `144.91.115.242` | Timers de backup e Object Storage ativos; backup local terminou às 23:06 BRT e cópia externa às 00:32 BRT, ambos com `Result=success` | `observado` |
+| Runtime AIOps | 16 contêineres ativos; API, frontend e workers usam imagens locais `app-*`; demais imagens aparecem por tag no runtime. Hashes dos dois Compose ativos foram coletados sem conteúdo | `observado; G0 bloqueado` |
 | Hub, GLPI, Authentik, Psono, Contabo API | Nenhuma evidência operacional renovada nesta coleta | `desconhecido` |
 
 ## Decisões e limites aplicados
@@ -36,6 +37,12 @@ notificações, identidade, dados ou credenciais.
    referências auxiliares fora da release sem esconder os oito bloqueios reais
    de imagem sem digest (`app`: API, frontend e dois workers; raiz: API,
    Caddy, Evolution API e PostgreSQL).
+6. A leitura do runtime AIOps confirma o motivo do bloqueio: o deploy efetivo
+   usa imagens locais `app-api`, `app-frontend`, `app-worker-alerts` e
+   `app-worker-ml`, e imagens externas por tag. O próximo incremento G0 deve
+   produzir imagens OCI por build, registrar seus digests e remover bind-mount
+   de código do perfil de produção; não será resolvido alterando tags em um
+   runtime já ativo.
 
 ## Validações locais desta execução
 
