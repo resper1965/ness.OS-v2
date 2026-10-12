@@ -1,5 +1,17 @@
 # ness.OS — estágio operacional em 2026-10-11
 
+## Atualização de execução em 2026-10-12
+
+O Hub/AIOps foi promovido em janela controlada para o commit
+`144317fd5262ecf242b118774573a62df8e88d78`, com imagens privadas GHCR por
+digest, backup prévio `20261012T085531-0300`, migração aditiva, canário,
+rollback controlado e re-promoção aprovados. A API e os dois workers estão
+`healthy`; o frontend responde HTTP 200. Consulte a evidência completa em
+[`hub-immutable-release-2026-10-12.md`](evidence/hub-immutable-release-2026-10-12.md).
+
+Isto não aprova o programa inteiro: G0 continua parcial até CI completo em
+runner limpo e integração da workflow de publicação protegida por revisão.
+
 **Horários da coleta:** 2026-10-11 23:38–23:42 BRT (2026-10-12 02:38–02:42 UTC)  
 **Branch/commit de referência:** `feat/incidents-rbac-local` / `51bb22c`  
 **Owner operacional:** plataforma ness.  

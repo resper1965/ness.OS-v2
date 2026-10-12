@@ -1,6 +1,12 @@
 # Gate da Fase 0 — recuperação e baseline de release
 
-**Resultado geral: FAIL — não autoriza release nem início de fases dependentes.**
+**Resultado geral: PARTIAL — a release Hub de 2026-10-12 foi promovida com
+backup, digest, canário e rollback; G0 não está aprovado como gate global.**
+
+Atualização em 2026-10-12: o Hub/AIOps usa imagens privadas GHCR por digest,
+com migração aditiva, canário, rollback e re-promoção comprovados. A evidência
+é [`hub-immutable-release-2026-10-12.md`](../evidence/hub-immutable-release-2026-10-12.md).
+O restante desta página é histórico de 26/09 e não substitui a coleta atual.
 
 Avaliação atualizada em 2026-09-26 (America/Sao_Paulo), considerando somente as VPS do
 projeto: AIOps `144.91.115.242`, Zabbix canônico `144.91.72.202` e o destino de
@@ -34,7 +40,7 @@ O registro desta retomada está em
 | Cópia externa correspondente aos conjuntos atuais | PASS | AIOps: Restic snapshot `d66d36f3` corresponde ao conjunto `20260925T230000-0300`; restore isolado de 860,216 MiB com `--verify`, 26 arquivos verificados e checksums aprovados. Zabbix snapshot `15a5ef41` corresponde a `20260925T220022-0300`; `restic check` completo e restore isolado aprovados na evidência de 25/09. A retenção AIOps/Zabbix não foi alterada nesta validação. |
 | Restaurações isoladas Hub, Zabbix e Psono | PASS | AIOps: snapshot atual restaurado e checksums/manifesto aprovados em 26/09; Psono restaurado em 25/09 do conjunto `20260925T013239-0300` (51 tabelas, HTTP 200, assinatura válida e chave pública correspondente); Zabbix `15a5ef41` (203 tabelas, 685 hosts, 64.226 itens, 26.697 triggers, 362 templates e `dbversion.mandatory=7000000`). Ambientes temporários removidos. |
 | Timers habilitados, última execução aprovada e próxima execução | PASS | Revalidação AIOps às 16:40 BRT: os serviços local e externo reportam sucesso/código 0; timers ativos com próximas execuções 26/09 23:00 e 27/09 00:30 BRT. Zabbix externo estava ativo e com próxima execução 27/09 05:30 na coleta anterior. |
-| Produção ligada a commit e imagens imutáveis; rollback ensaiado | FAIL | A árvore contém mudanças pendentes; 8 de 19 imagens não têm digest; o baseline agregado de 25/09 registrava 43 arquivos divergentes e 47 sem hash remoto observado. A nova comparação restrita ao backend em 26/09 encontrou 39/75 arquivos divergentes e 2 arquivos somente locais. Não há ensaio de rollback associado à release. Consulte `../evidence/phase-0-production-manifest.json` e `../evidence/phase-0-aiops-code-hash-2026-09-26.md`. |
+| Produção Hub ligada a commit e imagens imutáveis; rollback ensaiado | PARTIAL | Em 12/10, API, dois workers e frontend foram promovidos a `144317f` por digests GHCR, após backup `20261012T085531-0300`, canário, migração aditiva e rollback/re-promoção aprovados. A workflow de publicação ainda aguarda revisão no PR #65 e o CI completo em runner limpo não foi renovado; portanto o G0 global não é `PASS`. Consulte `../evidence/hub-immutable-release-2026-10-12.md`. |
 | `git diff --check` e verificações locais | PASS | A checagem da árvore terminou sem erros. Backend: Pytest 264 aprovados; Black 111 arquivos, Ruff check/format 77 arquivos, MyPy 77 arquivos e Flake8 E9/F63/F7/F82 sem erros. Frontend em cópia temporária limpa: Oxlint, TypeScript e build passaram; Oxlint reportou um aviso Fast Refresh. Infraestrutura: 15 testes shell, 18 testes Python (+ 3 subtests) passaram; migração SQL aplicada duas vezes em PostgreSQL 17 isolado e 16 scripts PHP passaram lint em PHP 8.1. Sete utilitários GLPI/Zabbix e o cutover Cavan abortaram em modo padrão sem `--apply`; o emissor sintético exige `--apply` e passou teste sem rede. Nesta retomada, o backend completo passou (264, 2 avisos `datetime.utcnow`), fixture Node dos workflows passou, o relatório de readiness comprovou presença/força do segredo sem exibi-lo e o manifesto passou 9 testes. O workflow completo em runner GitHub ainda não foi reexecutado. |
 
 ## Ações necessárias para reavaliar
