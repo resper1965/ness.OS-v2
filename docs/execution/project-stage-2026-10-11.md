@@ -40,6 +40,13 @@ detectou recuperação por senha e SMTP ativos, divergindo da documentação
 histórica. O comportamento foi registrado como pendência, sem mudança
 automática que pudesse comprometer a recuperação.
 
+O scan do commit atual (`HEAD^..HEAD`) não encontrou segredos. A varredura da
+árvore local encontrou apenas arquivos operacionais ignorados (`0600`) e cópias
+no worktree auxiliar; eles não estão rastreados. Já o scan de histórico ainda
+encontra três ocorrências em commits antigos, que não provam uma credencial
+ativa, mas exigem rotação e decisão de saneamento antes de declarar a linha do
+tempo do Git totalmente livre de segredos.
+
 O Hub/AIOps foi promovido em janela controlada para o commit
 `144317fd5262ecf242b118774573a62df8e88d78`, com imagens privadas GHCR por
 digest, backup prévio `20261012T085531-0300`, migração aditiva, canário,
