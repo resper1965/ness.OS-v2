@@ -12,6 +12,12 @@ readonly output="${root}/${stamp}"
 
 systemctl is-active --quiet mariadb
 systemctl is-active --quiet zabbix-server && { echo 'refusing: Zabbix Server must remain offline for UAT backup' >&2; exit 1; }
+[[ "$(systemctl is-enabled zabbix-server 2>/dev/null || true)" == masked ]] || {
+  echo 'refusing: Zabbix Server must be masked for UAT backup' >&2; exit 1;
+}
+ss -H -lnt 'sport = :10051' | grep -q . && {
+  echo 'refusing: collection listener 10051 exists' >&2; exit 1;
+}
 
 exec 9>"${lock}"
 flock -n 9 || { echo 'another backup is active' >&2; exit 1; }

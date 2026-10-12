@@ -1,0 +1,21 @@
+[Unit]
+Description=ness. Zabbix isolated UAT logical backup
+Requires=mariadb.service
+After=mariadb.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/ness-zabbix-offline-uat-backup
+UMask=0077
+Nice=15
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+TimeoutStartSec=3h
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+ReadWritePaths=/var/backups/zabbix/nightly /run/lock
