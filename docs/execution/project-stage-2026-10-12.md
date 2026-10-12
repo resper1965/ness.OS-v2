@@ -23,3 +23,15 @@ restore concluído nem elevar a identidade de leitura do Hub.
 
 Evidências detalhadas: [janela e resultado](zabbix-production-window-2026-10-12.md).
 Este estágio não declara entrega total em produção nem aceita G2 por exceção.
+
+## Recuperação autorizada — continuação de 12/10
+
+O usuário autorizou explicitamente recuperar administração somente na UAT.
+Bootstrap emergencial feito com serviços nativos CUser/CUserGroup, sem escrita
+SQL direta; auditoria sob ator administrativo existente e evidência de
+autorização neste registro. Criada identidade ness_uat_breakglass em grupo
+local emergencial separado. Senha gerada e guardada exclusivamente em arquivo
+root-only 0600 no destino. Login pela API HTTP normal, leitura administrativa
+e logout aprovados. Não foi criado token permanente nem elevado o usuário Hub.
+Isso desbloqueia correção SAML/API UAT; não é homologação SSO ou corte.
+Remover conta/grupo emergencial após validar contas nominais e recuperação.
