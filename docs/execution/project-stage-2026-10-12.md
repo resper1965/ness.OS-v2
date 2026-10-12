@@ -61,3 +61,13 @@ Dashboards existentes preservados: 1 NOC — Visão Operacional (8 widgets),
 2 Zabbix server health (8), 57 Zabbix server (1), 405 NOC — Operação e Clientes
 (32). Não substituir pelo candidato genérico menor sem revisão. Próxima tarefa:
 exportar dashboard 405, validar filtros/layout e produzir delta reversível.
+
+## Entrega NOC UAT privada
+
+Dashboard 406 criado pela API autenticada: cinco páginas e 32 widgets, privado,
+com título explícito UAT/snapshot 11/10/2026/sem coleta. O original 405 foi
+exportado em arquivo root-only no destino e comprovado inalterado após criação.
+Filtros, tipos de widget e geometria copiados, sem substituir o NOC existente.
+Preflight, quantidade de widgets e privacidade aprovados. Rollback: excluir
+somente dashboard 406 via API; não restaurar banco nem substituir o original.
+Renderização e aceite nominal continuam pendentes; não declarar dados atuais.
