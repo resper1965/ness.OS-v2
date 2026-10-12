@@ -85,3 +85,20 @@ Tags de protótipos não serão tomadas como cadastro dos dispositivos reais.
 Ausência de template não comprova incompatibilidade; exige verificar coleta
 local e descoberta. O próximo pacote precisa classificar esses 15 hosts e
 qualificar fontes dos atributos antes de qualquer alteração de tenant.
+
+## Primeira onda de qualidade aplicada na UAT
+
+Classificação dos 15 hosts sem template: 14 não possuem nenhum item (12 APs
+Unifi Alupar, um VMware04 Alupar e esper); o host sintético 10978 possui um
+item trapper e não exige template apenas para satisfazer contador.
+
+Hosts 10740–10744 receberam somente collection_state=unconfigured na UAT,
+preservando todas as tags anteriores. Tenant/owner/criticidade não inferidos;
+nenhum template, item, histórico ou estado de habilitação alterado. Preflight
+com ausência de itens/templates, aplicação, rollback, reaplicação e repetição
+idempotente aprovados pela API normal. Pacote anterior/posterior protegido:
+/var/lib/ness-os/restore-evidence/unconfigured-wave-1-20261012.json.
+
+Reaplicar este delta via script versionado após qualquer refresh final que
+substitua a configuração UAT; nunca presumir que sobrevive ao restore. A tag
+expõe lacuna de cobertura, não corrige coleta ou reduz itens não suportados.
