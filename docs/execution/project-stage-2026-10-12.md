@@ -386,3 +386,15 @@ Apache da origem declara ServerName zabbix.ness.com.br; DNS atual resolve
 Percurso correto para criar acesso mínimo: https://zabbix.ness.com.br/,
 não zabbix-uat.ness.com.br. Resposta pública não prova login/API nem muda
 o bloqueioissue72. Não houve criação de token ou escrita de configuração.
+
+### Acesso de manutenção entregue pelo usuário
+
+Usuário gerou token na origem e entregou arquivo local fora do repositório.
+Transferência SSH concluída para /etc/ness-os/zabbix-maintenance.token,
+root:root0600; cópia temporária remota removida. Nenhum valor publicado.
+HTTPS/API normal host.get e hostinterface.get PASS:10768/10769 ativos,
+interfacesSNMP116/117. Bloqueio de autenticação de leitura superado para o
+piloto; permissão de escrita, identidade/expiração e escopo negativo ainda
+devem ser verificados. Não aplicar em massa nem considerarG2 aprovado por
+esse teste. Próximo passo: conferir privilégios e precondições do delta bulk25,
+aplicar somente primeiro host e observar três ciclos antes do segundo.
