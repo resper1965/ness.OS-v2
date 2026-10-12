@@ -171,3 +171,47 @@ Capturas desktop/móvel fora do Git. Próximo ajuste: testar navegação com men
 recolhido e, se necessário, variante de dashboard móvel; sem editar core.
 Geometria de mapas, frescor, RBAC de cliente e login SSO nominal continuam
 sem aceite, mesmo que o widget renderize.
+
+## Cavan — appliance e links separados na visualização
+
+Leitura de 12/10 por SQL somente leitura: as últimas amostras de modelo/serial
+dos hosts 10873 (AmericaNET), 10874 (Vivo) e 10977 (firewall físico) identificam
+FortiGate-40F e o mesmo serial, comparado por SHA-256 sem expor o valor.
+Essas amostras têm clock 1791745575–1791749438; não são prova de frescor atual.
+Os três hosts têm o template FortiGate by SNMP e 319 itens reais cada um.
+Macros herdadas IFNAME.MATCHES=.* e NOT_MATCHES=(^[Ll]o[0-9.]*$), sem override
+de host, fazem os dois hosts de links descobrir também interfaces internas/VPN.
+
+O cadastro chama AmericaNET de wan1, porém o item descoberto identifica `wan`
+(índice 1, alias AmericaNET); Vivo é `lan3` (índice 4, alias Vivo). Não inferir
+interfaces a partir do nome do host. Não apagar/mesclar hosts ou históricos.
+Não restringir LLD sem revisar duração de recursos perdidos e export dos itens:
+um filtro novo pode expirar itens existentes, mesmo sem templates_clear.
+
+Painel privado 407 criado na UAT a partir de
+config/zabbix/cavan-links-uat-dashboard.json: seis widgets, entrada/saída/estado
+por link, mostrando horário da amostra, título explícito snapshot/sem coleta.
+IDs 97682/97742/97782 pertencem a 10873/wan; 98076/98136/98176 a 10874/lan3.
+Preflight conferiu IDs/host/chave, isolamento, geometria sem sobreposição;
+readback confirmou seis widgets privados e dashboards 405/406 inalterados.
+Evidência root-only: cavan-links-dashboard-20261012.json em restore-evidence.
+Nenhum filtro LLD, template, coleta ou configuração da origem foi alterado.
+
+Reaplicação após refresh final: autenticar pela API normal; confirmar identidade
+dos seis itens acima, servidor inativo/mascarado e ausência de 10051; procurar
+dashboard pelo nome exato. Se inexistente, dashboard.create com o JSON; se
+existente, comparar os campos, não criar duplicata ou sobrescrever divergência.
+O userid 37 é específico da recuperação UAT: escolher owner nominal aprovado
+antes da promoção, não carregar cegamente este owner em produção. Rollback:
+dashboard.delete somente do ID criado, após conferir nome, privacidade e seis
+referências, sem tocar 405/406. A camada visual não reduz coleta duplicada.
+
+Smoke test Edge headless isolado: seis títulos renderizaram, sem pageerror,
+login local/logout executados, sem usar a aba do usuário ou salvar credenciais.
+Esse teste usou o fluxo existente de navegador com parâmetros do novo painel;
+não prova SSO nominal, frescor nem usabilidade móvel (overflow=false não basta).
+
+Próxima correção de coleta: desenhar perfil de appliance em 10977 e perfil de
+link em 10873/10874, preservando os históricos existentes e validando ciclos
+LLD/expiração em ambiente autorizado. O erro de armazenamento não deve ser
+escondido; verificar capacidade/disco aplicável antes de alterar cálculo.

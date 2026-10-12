@@ -84,6 +84,18 @@ exija evidência atual. RPO de 24h continua obrigatório para promoção/produç
 
 ## Cartão ativo e próxima retomada
 
+Atualização 12/10, 15:38 BRT: o cartão técnico ativo é Z2 (perfis de appliance
+e interfaces Cavan), com Z3 aplicado em UAT. As notas seguintes de Z1/API são
+históricas: recuperação administrativa UAT e reconciliação técnica SAML já
+passaram, mas login nominal/MFA permanece pendente. Inventário correto:
+262 hosts reais (261 habilitados, um desativado) e 63 protótipos LLD; a
+fotografia de 325 acima incluía protótipos, não representa 325 dispositivos.
+Não repetir restore, recuperação, SAML, três ondas de tags, clone 406 ou ensaio
+de vínculo SNMP já aprovados. Ver project-stage para evidências e limites.
+Novo painel privado 407 separa wan/AmericaNET e lan3/Vivo com itens reais;
+filtros LLD e coleta da origem não foram alterados. Próximo passo: perfil de
+link compatível com históricos, antes de qualquer redução de descoberta.
+
 **Ativo: Z1 — pacote de cinco ativos.**
 
 Execução de 12/10: ferramenta de onda implementada, cinco testes aprovados,
