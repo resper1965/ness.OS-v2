@@ -63,3 +63,24 @@ livre divide por capacidade), 63249 (Windows: swap livre depende de contador
 Paging file), 63256 (Windows: utilização depende de used/total). A leitura API
 mostra fórmulas herdadas; alteração no template raiz afetaria outros clientes.
 Nenhuma correção global ou desativação em massa foi aplicada.
+
+## Continuação 12/10 — 12:17 BRT
+
+A mesma unidade de refresh permanece `activating/start`, não concluída;
+diretório do banco destino avançou para 13 GiB. Destino continua mascarado e
+inativo. Durabilidade ainda 2 durante import; reset para 1 aguarda a unidade.
+`Result=success` durante `activating` não é prova de conclusão do restore.
+
+Escopo autorizado ampliado aos 325 hosts; trilha registrada no commit 0c45004.
+Classificação em leitura: 60 erros de divisão por zero em 60 hosts e 93 erros
+de dependência de cálculo em 44 hosts, na primeira amostra. Categorias não são
+diagnósticos finais. A amostra seguinte por tipo evidenciou concentração em
+itens dependentes (tipo 18: 1.395 em 27 hosts), checks simples (tipo 3: 255 em
+7), agente passivo (tipo 0: 237 em 46) e cálculos (tipo 15: 153 em 104).
+Contagens são amostras distintas de produção viva, não uma soma reconciliada.
+
+Causa específica confirmada no piloto: FortiGate 97468/97845 divide por
+capacidade zero; Windows 63249/63256 não tem dados suficientes nas dependências.
+Próximo passo técnico é conferir capacidade real do appliance e disponibilidade
+dos itens-base Windows antes de alterar fórmulas. Não mascarar coleta inválida
+com valores artificiais ou propagar edição de template raiz aos outros tenants.
