@@ -63,6 +63,7 @@ desktop.ini
 /outputs/
 app/deploy*.tar.gz
 app/scratch_*.py
+.codex-tmp-*
 
 # --- Docker ---
 docker-compose.override.yml
