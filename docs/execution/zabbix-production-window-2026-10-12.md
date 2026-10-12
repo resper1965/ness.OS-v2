@@ -36,3 +36,16 @@ os cinco hosts Cavan possuem um template vinculado cada. Itens não suportados:
 10873=1, 10874=1, 10877=2, 10878=0, 10885=0. A ausência de parentTemplates
 na resposta do token Hub não comprova ausência de template; a consulta de banco
 confirmou os vínculos. O pacote antigo de correção não deve sobrescrever isso.
+
+Branding nativo aplicado no destino, usando `local/conf/brand.conf.php` e
+logos oficiais já existentes, sem editar core. Rollback:
+`/var/lib/ness-os/restore-evidence/branding-20261012T120055-0300`.
+PHP lint e comparação dos assets passaram; inspeção da UI depende de terminar
+a importação. Publicação e aceitação visual ainda não estão declaradas.
+
+O destino possui 48 GiB RAM e buffer pool 16 GiB. Durante a importação isolada,
+`innodb_flush_log_at_trx_commit` mudou temporariamente de 1 para 2; a unidade
+ness-zabbix-reset-durability-20261012 está enfileirada após o import para voltar
+a 1, inclusive se a importação falhar. A promoção exige confirmar 1. Risco
+restrito ao dump em importação: uma queda pode perder até o último segundo de
+transações e exigir reimportação do snapshot imutável; origem não foi alterada.
