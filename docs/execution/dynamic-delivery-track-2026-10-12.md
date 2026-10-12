@@ -15,7 +15,8 @@ precondição, teste e rollback. Não remover histórico, substituir templates e
 massa ou inferir tenant/owner/criticidade sem evidência. Cavan continua sendo
 o piloto obrigatório para o corte; ampliar o escopo não dispensa os gates.
 
-Fotografia em leitura da origem nesta execução: 325 hosts (323 habilitados,
+Fotografia histórica anterior à separação de protótipos (não usar como
+escopo atual): 325 registros (323 habilitados,
 2 desabilitados); 21 sem template diretamente vinculado; 1.850 itens
 habilitados não suportados em 149 hosts habilitados. Tenant: 19 Cavan e 306
 sem tag. Ausências de tags: criticality 325, service 311, tenant/site/owner/
@@ -84,6 +85,23 @@ exija evidência atual. RPO de 24h continua obrigatório para promoção/produç
 
 ## Cartão ativo e próxima retomada
 
+Atualização vigente após18:24BRT: plano de encerramento em
+docs/superpowers/plans/2026-10-12-zabbix-complete-delivery.md e evidências em
+project-stage-2026-10-12.md. GitHub ddd06e8 contém262hosts reais/63protótipos/
+53ondas, frescor limitado às pulsações e vínculos válidos de todos os
+protótipos. Templates de transição10989 e ensaios preservando históricos
+passaram emUAT; ciclosLLD/coleta produtiva ainda não. Módulo móvel31UAT
+passou390px/desktop/edit/logout sem alterar dashboards405/406/407.
+Bulk25 foi mais rápido no diagnóstico de10768; ensaioAPI10768/69 com
+rollback10 passou, aplicação na origem aguarda acesso normal issue72.
+NominalSSO/MFA/negativos e gates continuam abertos. Origem é única coletora;
+destino não será ativado pela mensagem "execute sem parar". Continuação
+automática ativa10min até13/10 11:47:35BRT, sem repetir provas já aprovadas.
+Próximas tarefas independentes: causas por ativo/onda, intervalos e perfis,
+visibilidade de lacunas; nenhuma ausência de erro equivale a aceite.
+
+### Histórico dos cartões anteriores — não reiniciar estes ensaios
+
 Atualização 12/10, 15:38 BRT: o cartão técnico ativo é Z2 (perfis de appliance
 e interfaces Cavan), com Z3 aplicado em UAT. As notas seguintes de Z1/API são
 históricas: recuperação administrativa UAT e reconciliação técnica SAML já
@@ -96,7 +114,7 @@ Novo painel privado 407 separa wan/AmericaNET e lan3/Vivo com itens reais;
 filtros LLD e coleta da origem não foram alterados. Próximo passo: perfil de
 link compatível com históricos, antes de qualquer redução de descoberta.
 
-**Ativo: Z1 — pacote de cinco ativos.**
+**Histórico: Z1 — pacote de cinco ativos (parcial).**
 
 Execução de 12/10: ferramenta de onda implementada, cinco testes aprovados,
 dry-run do host interno 10084 preparado com templates preservados. Cadastro
