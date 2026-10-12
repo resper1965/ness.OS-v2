@@ -24,6 +24,22 @@
 
 ## Review Focus
 
+### Prioridade de liberação operacional — ordem renovada do usuário
+
+Executar primeiro Task6 (acesso normal/MFA/gates) junto das correções críticas
+Task3/4, depois Task7 (corte). Mapas e polimento não essenciais de Task5 ficam
+pós-corte. Task8 D+1/D+3/D+7 ocorre após a liberação operacional e somente seu
+aceite permite declarar encerramento definitivo. Esta prioridade não altera
+os critérios quantitativos, isolamento, rollback, janela ou GO aprovados.
+
+Bloqueio concreto de escrita na origem: somente zabbix-cutover-bootstrap.env
+está disponível no percurso operacional protegido; seu token está expirado/
+desativado. akadmin existe, mas nome de usuário não é credencial. Issue72
+orienta entrega protegida do acesso mínimo; sem isso não aplicar delta na
+origem, redefinir senha ou usar SQL de configuração. Não repetir ensaios UAT
+aprovados enquanto se aguarda o requisito. Pendência restante por ativo deve
+ter evidência/owner; registrá-la não equivale a aceitar um gate reprovado.
+
 1. Protótipos e hosts descobertos: flags 0/4 são ativos reais; flags 2 são protótipos. Falhar para ID repetido/flag inesperada.
 2. Host desativado: preservar status e histórico; nenhuma onda habilita automaticamente.
 3. Filtro LLD: retenção não pode excluir itens perdidos; observar disable/re-enable e IDs no retorno.

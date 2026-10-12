@@ -367,3 +367,14 @@ não existe username akadimin. Nenhuma senha lida/redefinida, nenhum token
 reativado. A indicação do nome não produz uma sessão normal autenticada:
 acesso produtivo continua dependente do percurso protegido da issue72.
 Entrega anterior publicada em7c4fd58; continuação do registro segue abaixo.
+
+### Trilha abreviada para liberar — ordem posterior do usuário
+
+Prioridade ajustada: acesso/SSO/gates e causas críticas de coleta precedem
+corte; mapas/polimento não essenciais depois; D+1/D+3/D+7 pós-liberação.
+Não dispensados metas de qualidade, GO, ausência de dupla coleta ou rollback.
+Leitura de nomes/permissões no percurso /etc/ness-os da origem continua
+mostrando somente zabbix-cutover-bootstrap.env0600 para Zabbix; nenhuma nova
+credencial de manutenção disponível nesse percurso. Não reativar token
+desativado nem redefinir conta akadmin em produção. Bloqueioissue72 permanece.
+Não houve backup/restore ou novo ensaio UAT repetido nesta retomada.
