@@ -25,7 +25,7 @@ esse fluxo, não como pré-requisito para o MVP.
 | Plano por ativo e gates | `docs/execution/ness-os-asset-activation-master-plan-2026-08-28.md` |
 | Matriz de pendências | `docs/execution/goal-completion-audit-2026-09-08.md` |
 | Recuperação e release | `docs/execution/gates/phase-0-recovery-release.md` |
-| Plano de execução atual | `docs/execution/implementation-plan-2026-10-11.md` |
+| Plano de execução atual | `docs/superpowers/plans/2026-10-11-ness-os-complete-implementation-route.md` |
 
 Documentos históricos permanecem como evidência; não substituem uma validação
 atual de ambiente, credenciais, backup ou serviço.
