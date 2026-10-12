@@ -161,3 +161,13 @@ hosts sem interface: esper, INTRANET - Producao e o sintético UAT. O widget
 também representa agente ativo, portanto ausência de interface por si só não
 define exclusão. Não usar o total desse widget como cobertura completa do
 cadastro. Este smoke test não aprova gate produtivo.
+
+Inspeção ampliada: as cinco páginas do dashboard 406 foram navegadas e
+renderizaram seus títulos/widgets sem erro de página. Logout executado.
+Em 390x844, documentWidth=390 não indicou overflow, porém a captura mostrou
+conteúdo cortado pela sidebar aberta e widgets fora da área visível. Portanto
+o teste móvel NÃO está aprovado; ausência de overflow não prova usabilidade.
+Capturas desktop/móvel fora do Git. Próximo ajuste: testar navegação com menu
+recolhido e, se necessário, variante de dashboard móvel; sem editar core.
+Geometria de mapas, frescor, RBAC de cliente e login SSO nominal continuam
+sem aceite, mesmo que o widget renderize.

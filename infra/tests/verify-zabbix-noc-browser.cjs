@@ -25,14 +25,40 @@ const { execFileSync } = require('node:child_process');
     await page.goto('https://zabbix-uat.ness.com.br/zabbix/zabbix.php?action=dashboard.view&dashboardid=406', { waitUntil: 'domcontentloaded' });
     await page.getByText('UAT — NOC (snapshot 11/10/2026; sem coleta)', { exact: false }).first().waitFor({ timeout: 20000 });
     await page.waitForTimeout(3000);
+    const pageChecks = [
+      [/^NOC — Visão Geral$/, 'NOC — Disponibilidade Global de Hosts'],
+      [/^Alupar\s*\(BR · CO · PE\)$/, 'Alupar — Disponibilidade de Hosts'],
+      [/^TBE \+ TNE \(Transmissoras\)$/, 'TBE — Disponibilidade de Hosts'],
+      [/^Corporativos$/, 'Target — Disponib.'],
+      [/^Mapa — São Paulo$/, 'Distribuição geográfica — centro São Paulo'],
+    ];
+    const renderedPages = [];
+    for (const [tab, title] of pageChecks) {
+      await page.getByText(tab).first().click();
+      await page.getByText(title, { exact: true }).first().waitFor({ timeout: 20000 });
+      await page.waitForTimeout(1000);
+      if (/Error connecting to database|Access denied for user|Fatal error/.test(await page.locator('body').innerText())) {
+        throw new Error('Frontend error on dashboard page');
+      }
+      renderedPages.push(title);
+    }
+    await page.getByText(/^NOC — Visão Geral$/).first().click();
+    await page.getByText('NOC — Disponibilidade Global de Hosts', { exact: true }).waitFor();
     const body = await page.locator('body').innerText();
     if (/Error connecting to database|Access denied for user|Fatal error/.test(body)) {
       throw new Error('Frontend error rendered');
     }
     if (errors.length) throw new Error('Client-side page error');
     if (process.argv[2]) await page.screenshot({ path: process.argv[2], fullPage: true });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.waitForTimeout(1000);
+    const mobile = await page.evaluate(() => ({ viewport: window.innerWidth,
+      documentWidth: document.documentElement.scrollWidth,
+      overflow: document.documentElement.scrollWidth > window.innerWidth }));
+    if (process.argv[2]) await page.screenshot({ path: process.argv[2].replace('.png', '-mobile.png'), fullPage: true });
+    await page.setViewportSize({ width: 1600, height: 1000 });
     const result = { browser_login: 'PASS', dashboard: 406, rendered: true,
-      nominal_sso: 'NOT_TESTED', page_errors: errors };
+      rendered_pages: renderedPages.length, mobile, nominal_sso: 'NOT_TESTED', page_errors: errors };
     console.log(JSON.stringify(result));
     const logout = page.getByText(/Sign out|Desconectar|Sair/, { exact: true }).first();
     if (await logout.isVisible()) {
