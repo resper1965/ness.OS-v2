@@ -565,3 +565,25 @@ mudança de configuraçãopersistente/serviço/DNS/coleta foi feita nesta etapa.
 Instruções novas enviadas a Ismael com Ricardo emcópia, GmailSENT
 1a13248a44509e7e. Não repetir cobrança; continuar causas independentes
 enquanto o acesso/relatório local daissue73 não chega.
+
+### Authentik — prioridade renovada após GLPI
+
+Usuário solicitou análise global, ajuste e customização ness. antes de seguir
+GLPI. Guia e fotografia atual em
+docs/operations/authentik-ness-implementation-guide-2026-10-12.md.
+Brand sso.ness.com.br atualizada transacionalmente: título ness. | acesso,
+CSS versionado config/authentik/ness-access.css, fluxo inicial Acesse sua conta.
+Snapshot root0600 no servidor144.91.115.242:
+/opt/n-infraops/rollback/authentik-global-20261012/before.json.
+Logo/favicon/providers/MFA/grupos/callbacks preservados, sem restart/core edit.
+
+Tela pública1440/390px, input, título, ausência de overflow, botões48px,
+BlueDot/texto preto/sem gradiente e reduced-motion PASS em navegador isolado.
+API Authentik sem sessão e headers forjados403; GLPI com headers forjados302
+paraSSO. Não são provas de sessão autenticada/cross-tenant/backend direto.
+Inventário atual reafirma zeroTOTP/WebAuthn/static e validaçãoMFA skip.
+Não impor deny global enquanto administradores sem fator/recuperação.
+Provider GLPI12proxy efetivo,8OIDC nãoefetivo;legados e callbacks documentados.
+G2,SSO nominal/MFA,admin UX,logo/fonte vetorial e tradução integral pendentes.
+GLPI issue74 de identidade mínima permanece; nenhum ativo criado.
+Zabbix origem única coletora/destino mascarado continuam preservados.

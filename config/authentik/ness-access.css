@@ -1,0 +1,54 @@
+/* Brand settings only; no upstream files or authentication controls changed. */
+:root, :host {
+  --ness-bluedot: #00ade8;
+  --ak-color-accent: #00ade8;
+  --ak-color-primary: #00ade8;
+  --ak-color-link: #00ade8;
+  --pf-global--primary-color--100: #00ade8;
+  --pf-global--primary-color--200: #00ade8;
+  --pf-global--link--Color: #00ade8;
+}
+.pf-c-login__main {
+  background: #111827;
+  color: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 24%);
+}
+.pf-c-login__main-header, .pf-c-login__main-body, .pf-c-login__main-footer,
+.pf-c-title, .pf-c-form__label, .pf-c-form__label-text {
+  color: inherit;
+}
+.branding-logo {
+  width: 240px;
+  max-width: 100%;
+  height: auto;
+  filter: none;
+}
+.pf-c-form-control {
+  min-height: 48px;
+  background: #ffffff;
+  color: #111827;
+  border-radius: 8px;
+}
+.pf-c-form-control::placeholder { color: #4b5563; opacity: 1; }
+.pf-c-button.pf-m-primary {
+  min-height: 48px;
+  background: #00ade8;
+  background-image: none;
+  color: #000000;
+  border-radius: 8px;
+  transition: opacity 160ms cubic-bezier(0.2, 0, 0, 1);
+}
+.pf-c-button.pf-m-primary:hover { opacity: 0.9; }
+.pf-c-button.pf-m-primary:disabled { opacity: 0.6; }
+.pf-c-button:focus-visible, .pf-c-form-control:focus-visible {
+  outline: 2px solid #00ade8;
+  outline-offset: 4px;
+}
+@media (max-width: 600px) {
+  .pf-c-login__main { margin: 16px; }
+  .pf-c-login__main-header, .pf-c-login__main-body { padding: 24px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pf-c-button.pf-m-primary { transition: none; }
+}
