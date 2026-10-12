@@ -77,3 +77,21 @@ def test_freshness_is_sanitized_and_does_not_accept_asset():
 def test_missing_essential_metrics_remain_unknown():
     asset = register.build_register([row(1)], '2026-10-12T20:00:00Z')['assets'][0]
     assert asset['freshness']['state'] == 'UNKNOWN'
+
+
+def test_prototype_retains_verified_parent_rule_without_counting_device():
+    prototype = row(3, flags=2)
+    prototype['lld'] = {'ruleid': '100', 'rule_flags': 1, 'rule_status': 0,
+        'parent_hostid': '4', 'parent_status': 3, 'parent_flags': 0,
+        'raw_key': 'private'}
+    report = register.build_register([prototype], '2026-10-12T20:00:00Z')
+    assert report['totals']['real_hosts'] == 0
+    result = report['prototypes'][0]['lld']
+    assert result['state'] == 'REFERENCES_VALID_NOT_COLLECTION_ACCEPTANCE'
+    assert result['parent_status'] == 3
+    assert 'private' not in str(report)
+
+
+def test_prototype_without_parent_reference_stays_unknown():
+    result = register.build_register([row(3, flags=2)], '2026-10-12T20:00:00Z')
+    assert result['prototypes'][0]['lld']['state'] == 'UNKNOWN'

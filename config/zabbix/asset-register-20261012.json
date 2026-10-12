@@ -1,5 +1,5 @@
 {
-  "observed_at": "2026-10-12T21:24:03.753886+00:00",
+  "observed_at": "2026-10-12T21:27:03.317343+00:00",
   "source": "origin_readonly_configuration_and_runtime",
   "fresh_collection": "ESSENTIAL_PULSES_ONLY_NOT_HEALTH_ACCEPTANCE",
   "freshness_scope": [
@@ -2252,7 +2252,7 @@
       ],
       "tags": [],
       "item_count": 263,
-      "unsupported_count": 1,
+      "unsupported_count": 164,
       "enabled_item_count": 263,
       "freshness": {
         "essential_metrics": 1,
@@ -2262,7 +2262,8 @@
         "state": "FRESH"
       },
       "error_categories": {
-        "calculation": 1
+        "calculation": 1,
+        "timeout": 163
       },
       "missing_tags": [
         "tenant",
@@ -2288,7 +2289,7 @@
       ],
       "tags": [],
       "item_count": 263,
-      "unsupported_count": 109,
+      "unsupported_count": 1,
       "enabled_item_count": 263,
       "freshness": {
         "essential_metrics": 1,
@@ -2298,8 +2299,7 @@
         "state": "FRESH"
       },
       "error_categories": {
-        "calculation": 1,
-        "timeout": 108
+        "calculation": 1
       },
       "missing_tags": [
         "tenant",
@@ -4568,9 +4568,9 @@
         "Windows by Zabbix agent"
       ],
       "tags": [],
-      "item_count": 114,
+      "item_count": 115,
       "unsupported_count": 0,
-      "enabled_item_count": 114,
+      "enabled_item_count": 115,
       "freshness": {
         "essential_metrics": 2,
         "fresh": 2,
@@ -5170,7 +5170,7 @@
       "tags": [],
       "item_count": 116,
       "unsupported_count": 1,
-      "enabled_item_count": 116,
+      "enabled_item_count": 114,
       "freshness": {
         "essential_metrics": 2,
         "fresh": 2,
@@ -9679,7 +9679,16 @@
         "criticality"
       ],
       "conflicted_tags": [],
-      "state": "prototype_review_required"
+      "state": "prototype_review_required",
+      "lld": {
+        "ruleid": 31657,
+        "rule_flags": 1,
+        "rule_status": 0,
+        "parent_hostid": 10173,
+        "parent_status": 3,
+        "parent_flags": 0,
+        "state": "REFERENCES_VALID_NOT_COLLECTION_ACCEPTANCE"
+      }
     },
     {
       "hostid": "10334",
@@ -9713,7 +9722,16 @@
         "criticality"
       ],
       "conflicted_tags": [],
-      "state": "prototype_review_required"
+      "state": "prototype_review_required",
+      "lld": {
+        "ruleid": 31658,
+        "rule_flags": 1,
+        "rule_status": 0,
+        "parent_hostid": 10173,
+        "parent_status": 3,
+        "parent_flags": 0,
+        "state": "REFERENCES_VALID_NOT_COLLECTION_ACCEPTANCE"
+      }
     },
     {
       "hostid": "10367",
@@ -9747,7 +9765,16 @@
         "criticality"
       ],
       "conflicted_tags": [],
-      "state": "prototype_review_required"
+      "state": "prototype_review_required",
+      "lld": {
+        "ruleid": 32956,
+        "rule_flags": 1,
+        "rule_status": 0,
+        "parent_hostid": 10366,
+        "parent_status": 3,
+        "parent_flags": 0,
+        "state": "REFERENCES_VALID_NOT_COLLECTION_ACCEPTANCE"
+      }
     },
     {
       "hostid": "10368",
@@ -9781,7 +9808,16 @@
         "criticality"
       ],
       "conflicted_tags": [],
-      "state": "prototype_review_required"
+      "state": "prototype_review_required",
+      "lld": {
+        "ruleid": 32957,
+        "rule_flags": 1,
+        "rule_status": 0,
+        "parent_hostid": 10366,
+        "parent_status": 3,
+        "parent_flags": 0,
+        "state": "REFERENCES_VALID_NOT_COLLECTION_ACCEPTANCE"
+      }
     },
     {
       "hostid": "10388",
@@ -9815,7 +9851,16 @@
         "criticality"
       ],
       "conflicted_tags": [],
-      "state": "prototype_review_required"
+      "state": "prototype_review_required",
+      "lld": {
+        "ruleid": 33920,
+        "rule_flags": 1,
+        "rule_status": 0,
+        "parent_hostid": 10387,
+        "parent_status": 3,
+        "parent_flags": 0,
+        "state": "REFERENCES_VALID_NOT_COLLECTION_ACCEPTANCE"
+      }
     },
     {
       "hostid": "10389",
@@ -9849,7 +9894,16 @@
         "criticality"
       ],
       "conflicted_tags": [],
-      "state": "prototype_review_required"
+      "state": "prototype_review_required",
+      "lld": {
+        "ruleid": 33923,
+        "rule_flags": 1,
+        "rule_status": 0,
+        "parent_hostid": 10387,
+        "parent_status": 3,
+        "parent_flags": 0,
+        "state": "REFERENCES_VALID_NOT_COLLECTION_ACCEPTANCE"
+      }
     },
     {
       "hostid": "10511",
@@ -9883,7 +9937,16 @@
         "criticality"
       ],
       "conflicted_tags": [],
-      "state": "prototype_review_required"
+      "state": "prototype_review_required",
+      "lld": {
+        "ruleid": 40021,
+        "rule_flags": 1,
+        "rule_status": 0,
+        "parent_hostid": 10510,
+        "parent_status": 3,
+        "parent_flags": 0,
+        "state": "REFERENCES_VALID_NOT_COLLECTION_ACCEPTANCE"
+      }
     },
     {
       "hostid": "10512",
@@ -9917,7 +9980,16 @@
         "criticality"
       ],
       "conflicted_tags": [],
-      "state": "prototype_review_required"
+      "state": "prototype_review_required",
+      "lld": {
+        "ruleid": 40023,
+        "rule_flags": 1,
+        "rule_status": 0,
+        "parent_hostid": 10510,
+        "parent_status": 3,
+        "parent_flags": 0,
+        "state": "REFERENCES_VALID_NOT_COLLECTION_ACCEPTANCE"
+      }
     },
     {
       "hostid": "10513",
@@ -9951,7 +10023,16 @@
         "criticality"
       ],
       "conflicted_tags": [],
-      "state": "prototype_review_required"
+      "state": "prototype_review_required",
+      "lld": {
+        "ruleid": 40033,
+        "rule_flags": 1,
+        "rule_status": 0,
+        "parent_hostid": 10510,
+        "parent_status": 3,
+        "parent_flags": 0,
+        "state": "REFERENCES_VALID_NOT_COLLECTION_ACCEPTANCE"
+      }
     },
     {
       "hostid": "10514",
@@ -9985,7 +10066,16 @@
         "criticality"
       ],
       "conflicted_tags": [],
-      "state": "prototype_review_required"
+      "state": "prototype_review_required",
+      "lld": {
+        "ruleid": 40035,
+        "rule_flags": 1,
+        "rule_status": 0,
+        "parent_hostid": 10510,
+        "parent_status": 3,
+        "parent_flags": 0,
+        "state": "REFERENCES_VALID_NOT_COLLECTION_ACCEPTANCE"
+      }
     },
     {
       "hostid": "10523",
@@ -10019,7 +10109,16 @@
         "criticality"
       ],
       "conflicted_tags": [],
-      "state": "prototype_review_required"
+      "state": "prototype_review_required",
+      "lld": {
+        "ruleid": 43166,
+        "rule_flags": 1,
+        "rule_status": 0,
+        "parent_hostid": 10522,
+        "parent_status": 3,
+        "parent_flags": 0,
+        "state": "REFERENCES_VALID_NOT_COLLECTION_ACCEPTANCE"
+      }
     },
     {
       "hostid": "10533",
@@ -10053,7 +10152,16 @@
         "criticality"
       ],
       "conflicted_tags": [],
-      "state": "prototype_review_required"
+      "state": "prototype_review_required",
+      "lld": {
+        "ruleid": 43768,
+        "rule_flags": 1,
+        "rule_status": 0,
+        "parent_hostid": 10531,
+        "parent_status": 3,
+        "parent_flags": 0,
+        "state": "REFERENCES_VALID_NOT_COLLECTION_ACCEPTANCE"
+      }
     },
     {
       "hostid": "10536",
@@ -10091,7 +10199,16 @@
         "criticality"
       ],
       "conflicted_tags": [],
-      "state": "prototype_review_required"
+      "state": "prototype_review_required",
+      "lld": {
+        "ruleid": 44052,
+        "rule_flags": 1,
+        "rule_status": 0,
+        "parent_hostid": 10535,
+        "parent_status": 3,
+        "parent_flags": 0,
+        "state": "REFERENCES_VALID_NOT_COLLECTION_ACCEPTANCE"
+      }
     },
     {
       "hostid": "10537",
@@ -10129,7 +10246,16 @@
         "criticality"
       ],
       "conflicted_tags": [],
-      "state": "prototype_review_required"
+      "state": "prototype_review_required",
+      "lld": {
+        "ruleid": 44053,
+        "rule_flags": 1,
+        "rule_status": 0,
+        "parent_hostid": 10535,
+        "parent_status": 3,
+        "parent_flags": 0,
+        "state": "REFERENCES_VALID_NOT_COLLECTION_ACCEPTANCE"
+      }
     },
     {
       "hostid": "10538",
@@ -10167,7 +10293,16 @@
         "criticality"
       ],
       "conflicted_tags": [],
-      "state": "prototype_review_required"
+      "state": "prototype_review_required",
+      "lld": {
+        "ruleid": 44054,
+        "rule_flags": 1,
+        "rule_status": 0,
+        "parent_hostid": 10535,
+        "parent_status": 3,
+        "parent_flags": 0,
+        "state": "REFERENCES_VALID_NOT_COLLECTION_ACCEPTANCE"
+      }
     },
     {
       "hostid": "10541",
@@ -10199,7 +10334,16 @@
         "criticality"
       ],
       "conflicted_tags": [],
-      "state": "prototype_review_required"
+      "state": "prototype_review_required",
+      "lld": {
+        "ruleid": 44200,
+        "rule_flags": 1,
+        "rule_status": 0,
+        "parent_hostid": 10531,
+        "parent_status": 3,
+        "parent_flags": 0,
+        "state": "REFERENCES_VALID_NOT_COLLECTION_ACCEPTANCE"
+      }
     },
     {
       "hostid": "10545",
@@ -10231,7 +10375,16 @@
         "criticality"
       ],
       "conflicted_tags": [],
-      "state": "prototype_review_required"
+      "state": "prototype_review_required",
+      "lld": {
+        "ruleid": 44293,
+        "rule_flags": 1,
+        "rule_status": 0,
+        "parent_hostid": 10531,
+        "parent_status": 3,
+        "parent_flags": 0,
+        "state": "REFERENCES_VALID_NOT_COLLECTION_ACCEPTANCE"
+      }
     },
     {
       "hostid": "10549",
@@ -10265,7 +10418,16 @@
         "criticality"
       ],
       "conflicted_tags": [],
-      "state": "prototype_review_required"
+      "state": "prototype_review_required",
+      "lld": {
+        "ruleid": 44314,
+        "rule_flags": 1,
+        "rule_status": 0,
+        "parent_hostid": 10546,
+        "parent_status": 3,
+        "parent_flags": 0,
+        "state": "REFERENCES_VALID_NOT_COLLECTION_ACCEPTANCE"
+      }
     },
     {
       "hostid": "10550",
@@ -10299,7 +10461,16 @@
         "criticality"
       ],
       "conflicted_tags": [],
-      "state": "prototype_review_required"
+      "state": "prototype_review_required",
+      "lld": {
+        "ruleid": 44315,
+        "rule_flags": 1,
+        "rule_status": 0,
+        "parent_hostid": 10546,
+        "parent_status": 3,
+        "parent_flags": 0,
+        "state": "REFERENCES_VALID_NOT_COLLECTION_ACCEPTANCE"
+      }
     },
     {
       "hostid": "10554",
@@ -10333,7 +10504,16 @@
         "criticality"
       ],
       "conflicted_tags": [],
-      "state": "prototype_review_required"
+      "state": "prototype_review_required",
+      "lld": {
+        "ruleid": 44468,
+        "rule_flags": 1,
+        "rule_status": 0,
+        "parent_hostid": 10552,
+        "parent_status": 3,
+        "parent_flags": 0,
+        "state": "REFERENCES_VALID_NOT_COLLECTION_ACCEPTANCE"
+      }
     },
     {
       "hostid": "10559",
@@ -10365,7 +10545,16 @@
         "criticality"
       ],
       "conflicted_tags": [],
-      "state": "prototype_review_required"
+      "state": "prototype_review_required",
+      "lld": {
+        "ruleid": 44585,
+        "rule_flags": 1,
+        "rule_status": 0,
+        "parent_hostid": 10531,
+        "parent_status": 3,
+        "parent_flags": 0,
+        "state": "REFERENCES_VALID_NOT_COLLECTION_ACCEPTANCE"
+      }
     },
     {
       "hostid": "10567",
@@ -10399,7 +10588,16 @@
         "criticality"
       ],
       "conflicted_tags": [],
-      "state": "prototype_review_required"
+      "state": "prototype_review_required",
+      "lld": {
+        "ruleid": 44733,
+        "rule_flags": 1,
+        "rule_status": 0,
+        "parent_hostid": 10507,
+        "parent_status": 3,
+        "parent_flags": 0,
+        "state": "REFERENCES_VALID_NOT_COLLECTION_ACCEPTANCE"
+      }
     },
     {
       "hostid": "10569",
@@ -10431,7 +10629,16 @@
         "criticality"
       ],
       "conflicted_tags": [],
-      "state": "prototype_review_required"
+      "state": "prototype_review_required",
+      "lld": {
+        "ruleid": 44818,
+        "rule_flags": 1,
+        "rule_status": 0,
+        "parent_hostid": 10531,
+        "parent_status": 3,
+        "parent_flags": 0,
+        "state": "REFERENCES_VALID_NOT_COLLECTION_ACCEPTANCE"
+      }
     },
     {
       "hostid": "10578",
@@ -10479,7 +10686,16 @@
       "conflicted_tags": [
         "service"
       ],
-      "state": "prototype_review_required"
+      "state": "prototype_review_required",
+      "lld": {
+        "ruleid": 45034,
+        "rule_flags": 1,
+        "rule_status": 0,
+        "parent_hostid": 10570,
+        "parent_status": 3,
+        "parent_flags": 0,
+        "state": "REFERENCES_VALID_NOT_COLLECTION_ACCEPTANCE"
+      }
     },
     {
       "hostid": "10579",
@@ -10527,7 +10743,16 @@
       "conflicted_tags": [
         "service"
       ],
-      "state": "prototype_review_required"
+      "state": "prototype_review_required",
+      "lld": {
+        "ruleid": 45035,
+        "rule_flags": 1,
+        "rule_status": 0,
+        "parent_hostid": 10570,
+        "parent_status": 3,
+        "parent_flags": 0,
+        "state": "REFERENCES_VALID_NOT_COLLECTION_ACCEPTANCE"
+      }
     },
     {
       "hostid": "10580",
@@ -10575,7 +10800,16 @@
       "conflicted_tags": [
         "service"
       ],
-      "state": "prototype_review_required"
+      "state": "prototype_review_required",
+      "lld": {
+        "ruleid": 45036,
+        "rule_flags": 1,
+        "rule_status": 0,
+        "parent_hostid": 10570,
+        "parent_status": 3,
+        "parent_flags": 0,
+        "state": "REFERENCES_VALID_NOT_COLLECTION_ACCEPTANCE"
+      }
     },
     {
       "hostid": "10581",
@@ -10619,7 +10853,16 @@
       "conflicted_tags": [
         "service"
       ],
-      "state": "prototype_review_required"
+      "state": "prototype_review_required",
+      "lld": {
+        "ruleid": 45037,
+        "rule_flags": 1,
+        "rule_status": 0,
+        "parent_hostid": 10570,
+        "parent_status": 3,
+        "parent_flags": 0,
+        "state": "REFERENCES_VALID_NOT_COLLECTION_ACCEPTANCE"
+      }
     },
     {
       "hostid": "10585",
@@ -10655,7 +10898,16 @@
         "criticality"
       ],
       "conflicted_tags": [],
-      "state": "prototype_review_required"
+      "state": "prototype_review_required",
+      "lld": {
+        "ruleid": 45595,
+        "rule_flags": 1,
+        "rule_status": 0,
+        "parent_hostid": 10535,
+        "parent_status": 3,
+        "parent_flags": 0,
+        "state": "REFERENCES_VALID_NOT_COLLECTION_ACCEPTANCE"
+      }
     },
     {
       "hostid": "10588",
@@ -10689,7 +10941,16 @@
         "criticality"
       ],
       "conflicted_tags": [],
-      "state": "prototype_review_required"
+      "state": "prototype_review_required",
+      "lld": {
+        "ruleid": 45612,
+        "rule_flags": 1,
+        "rule_status": 0,
+        "parent_hostid": 10586,
+        "parent_status": 3,
+        "parent_flags": 0,
+        "state": "REFERENCES_VALID_NOT_COLLECTION_ACCEPTANCE"
+      }
     },
     {
       "hostid": "10592",
@@ -10723,7 +10984,16 @@
         "criticality"
       ],
       "conflicted_tags": [],
-      "state": "prototype_review_required"
+      "state": "prototype_review_required",
+      "lld": {
+        "ruleid": 45787,
+        "rule_flags": 1,
+        "rule_status": 0,
+        "parent_hostid": 10590,
+        "parent_status": 3,
+        "parent_flags": 0,
+        "state": "REFERENCES_VALID_NOT_COLLECTION_ACCEPTANCE"
+      }
     },
     {
       "hostid": "10597",
@@ -10761,7 +11031,16 @@
         "criticality"
       ],
       "conflicted_tags": [],
-      "state": "prototype_review_required"
+      "state": "prototype_review_required",
+      "lld": {
+        "ruleid": 46022,
+        "rule_flags": 1,
+        "rule_status": 0,
+        "parent_hostid": 10594,
+        "parent_status": 3,
+        "parent_flags": 0,
+        "state": "REFERENCES_VALID_NOT_COLLECTION_ACCEPTANCE"
+      }
     },
     {
       "hostid": "10598",
@@ -10802,7 +11081,16 @@
         "criticality"
       ],
       "conflicted_tags": [],
-      "state": "prototype_review_required"
+      "state": "prototype_review_required",
+      "lld": {
+        "ruleid": 46023,
+        "rule_flags": 1,
+        "rule_status": 0,
+        "parent_hostid": 10594,
+        "parent_status": 3,
+        "parent_flags": 0,
+        "state": "REFERENCES_VALID_NOT_COLLECTION_ACCEPTANCE"
+      }
     },
     {
       "hostid": "10601",
@@ -10836,7 +11124,16 @@
         "criticality"
       ],
       "conflicted_tags": [],
-      "state": "prototype_review_required"
+      "state": "prototype_review_required",
+      "lld": {
+        "ruleid": 46060,
+        "rule_flags": 1,
+        "rule_status": 0,
+        "parent_hostid": 10599,
+        "parent_status": 3,
+        "parent_flags": 0,
+        "state": "REFERENCES_VALID_NOT_COLLECTION_ACCEPTANCE"
+      }
     },
     {
       "hostid": "10608",
@@ -10872,7 +11169,16 @@
         "criticality"
       ],
       "conflicted_tags": [],
-      "state": "prototype_review_required"
+      "state": "prototype_review_required",
+      "lld": {
+        "ruleid": 46503,
+        "rule_flags": 1,
+        "rule_status": 0,
+        "parent_hostid": 10535,
+        "parent_status": 3,
+        "parent_flags": 0,
+        "state": "REFERENCES_VALID_NOT_COLLECTION_ACCEPTANCE"
+      }
     },
     {
       "hostid": "10612",
@@ -10906,7 +11212,16 @@
         "criticality"
       ],
       "conflicted_tags": [],
-      "state": "prototype_review_required"
+      "state": "prototype_review_required",
+      "lld": {
+        "ruleid": 46723,
+        "rule_flags": 1,
+        "rule_status": 0,
+        "parent_hostid": 10610,
+        "parent_status": 3,
+        "parent_flags": 0,
+        "state": "REFERENCES_VALID_NOT_COLLECTION_ACCEPTANCE"
+      }
     },
     {
       "hostid": "10621",
@@ -10940,7 +11255,16 @@
         "criticality"
       ],
       "conflicted_tags": [],
-      "state": "prototype_review_required"
+      "state": "prototype_review_required",
+      "lld": {
+        "ruleid": 46933,
+        "rule_flags": 1,
+        "rule_status": 0,
+        "parent_hostid": 10617,
+        "parent_status": 3,
+        "parent_flags": 0,
+        "state": "REFERENCES_VALID_NOT_COLLECTION_ACCEPTANCE"
+      }
     },
     {
       "hostid": "10622",
@@ -10974,7 +11298,16 @@
         "criticality"
       ],
       "conflicted_tags": [],
-      "state": "prototype_review_required"
+      "state": "prototype_review_required",
+      "lld": {
+        "ruleid": 46934,
+        "rule_flags": 1,
+        "rule_status": 0,
+        "parent_hostid": 10617,
+        "parent_status": 3,
+        "parent_flags": 0,
+        "state": "REFERENCES_VALID_NOT_COLLECTION_ACCEPTANCE"
+      }
     },
     {
       "hostid": "10623",
@@ -11008,7 +11341,16 @@
         "criticality"
       ],
       "conflicted_tags": [],
-      "state": "prototype_review_required"
+      "state": "prototype_review_required",
+      "lld": {
+        "ruleid": 46935,
+        "rule_flags": 1,
+        "rule_status": 0,
+        "parent_hostid": 10617,
+        "parent_status": 3,
+        "parent_flags": 0,
+        "state": "REFERENCES_VALID_NOT_COLLECTION_ACCEPTANCE"
+      }
     },
     {
       "hostid": "10624",
@@ -11042,7 +11384,16 @@
         "criticality"
       ],
       "conflicted_tags": [],
-      "state": "prototype_review_required"
+      "state": "prototype_review_required",
+      "lld": {
+        "ruleid": 46936,
+        "rule_flags": 1,
+        "rule_status": 0,
+        "parent_hostid": 10617,
+        "parent_status": 3,
+        "parent_flags": 0,
+        "state": "REFERENCES_VALID_NOT_COLLECTION_ACCEPTANCE"
+      }
     },
     {
       "hostid": "10625",
@@ -11076,7 +11427,16 @@
         "criticality"
       ],
       "conflicted_tags": [],
-      "state": "prototype_review_required"
+      "state": "prototype_review_required",
+      "lld": {
+        "ruleid": 46937,
+        "rule_flags": 1,
+        "rule_status": 0,
+        "parent_hostid": 10617,
+        "parent_status": 3,
+        "parent_flags": 0,
+        "state": "REFERENCES_VALID_NOT_COLLECTION_ACCEPTANCE"
+      }
     },
     {
       "hostid": "10626",
@@ -11110,7 +11470,16 @@
         "criticality"
       ],
       "conflicted_tags": [],
-      "state": "prototype_review_required"
+      "state": "prototype_review_required",
+      "lld": {
+        "ruleid": 46938,
+        "rule_flags": 1,
+        "rule_status": 0,
+        "parent_hostid": 10617,
+        "parent_status": 3,
+        "parent_flags": 0,
+        "state": "REFERENCES_VALID_NOT_COLLECTION_ACCEPTANCE"
+      }
     },
     {
       "hostid": "10631",
@@ -11144,7 +11513,16 @@
         "criticality"
       ],
       "conflicted_tags": [],
-      "state": "prototype_review_required"
+      "state": "prototype_review_required",
+      "lld": {
+        "ruleid": 47278,
+        "rule_flags": 1,
+        "rule_status": 0,
+        "parent_hostid": 10531,
+        "parent_status": 3,
+        "parent_flags": 0,
+        "state": "REFERENCES_VALID_NOT_COLLECTION_ACCEPTANCE"
+      }
     },
     {
       "hostid": "10633",
@@ -11182,7 +11560,16 @@
         "criticality"
       ],
       "conflicted_tags": [],
-      "state": "prototype_review_required"
+      "state": "prototype_review_required",
+      "lld": {
+        "ruleid": 47300,
+        "rule_flags": 1,
+        "rule_status": 0,
+        "parent_hostid": 10535,
+        "parent_status": 3,
+        "parent_flags": 0,
+        "state": "REFERENCES_VALID_NOT_COLLECTION_ACCEPTANCE"
+      }
     },
     {
       "hostid": "10643",
@@ -11216,7 +11603,16 @@
         "criticality"
       ],
       "conflicted_tags": [],
-      "state": "prototype_review_required"
+      "state": "prototype_review_required",
+      "lld": {
+        "ruleid": 47928,
+        "rule_flags": 1,
+        "rule_status": 0,
+        "parent_hostid": 10642,
+        "parent_status": 3,
+        "parent_flags": 0,
+        "state": "REFERENCES_VALID_NOT_COLLECTION_ACCEPTANCE"
+      }
     },
     {
       "hostid": "10644",
@@ -11250,7 +11646,16 @@
         "criticality"
       ],
       "conflicted_tags": [],
-      "state": "prototype_review_required"
+      "state": "prototype_review_required",
+      "lld": {
+        "ruleid": 47929,
+        "rule_flags": 1,
+        "rule_status": 0,
+        "parent_hostid": 10642,
+        "parent_status": 3,
+        "parent_flags": 0,
+        "state": "REFERENCES_VALID_NOT_COLLECTION_ACCEPTANCE"
+      }
     },
     {
       "hostid": "10652",
@@ -11284,7 +11689,16 @@
         "criticality"
       ],
       "conflicted_tags": [],
-      "state": "prototype_review_required"
+      "state": "prototype_review_required",
+      "lld": {
+        "ruleid": 48383,
+        "rule_flags": 1,
+        "rule_status": 0,
+        "parent_hostid": 10531,
+        "parent_status": 3,
+        "parent_flags": 0,
+        "state": "REFERENCES_VALID_NOT_COLLECTION_ACCEPTANCE"
+      }
     },
     {
       "hostid": "10666",
@@ -11318,7 +11732,16 @@
         "criticality"
       ],
       "conflicted_tags": [],
-      "state": "prototype_review_required"
+      "state": "prototype_review_required",
+      "lld": {
+        "ruleid": 49880,
+        "rule_flags": 1,
+        "rule_status": 0,
+        "parent_hostid": 10531,
+        "parent_status": 3,
+        "parent_flags": 0,
+        "state": "REFERENCES_VALID_NOT_COLLECTION_ACCEPTANCE"
+      }
     },
     {
       "hostid": "10669",
@@ -11356,7 +11779,16 @@
         "criticality"
       ],
       "conflicted_tags": [],
-      "state": "prototype_review_required"
+      "state": "prototype_review_required",
+      "lld": {
+        "ruleid": 50037,
+        "rule_flags": 1,
+        "rule_status": 0,
+        "parent_hostid": 10535,
+        "parent_status": 3,
+        "parent_flags": 0,
+        "state": "REFERENCES_VALID_NOT_COLLECTION_ACCEPTANCE"
+      }
     },
     {
       "hostid": "10677",
@@ -11390,7 +11822,16 @@
         "criticality"
       ],
       "conflicted_tags": [],
-      "state": "prototype_review_required"
+      "state": "prototype_review_required",
+      "lld": {
+        "ruleid": 50526,
+        "rule_flags": 1,
+        "rule_status": 0,
+        "parent_hostid": 10676,
+        "parent_status": 3,
+        "parent_flags": 0,
+        "state": "REFERENCES_VALID_NOT_COLLECTION_ACCEPTANCE"
+      }
     },
     {
       "hostid": "10679",
@@ -11428,7 +11869,16 @@
         "criticality"
       ],
       "conflicted_tags": [],
-      "state": "prototype_review_required"
+      "state": "prototype_review_required",
+      "lld": {
+        "ruleid": 50622,
+        "rule_flags": 1,
+        "rule_status": 0,
+        "parent_hostid": 10503,
+        "parent_status": 3,
+        "parent_flags": 0,
+        "state": "REFERENCES_VALID_NOT_COLLECTION_ACCEPTANCE"
+      }
     },
     {
       "hostid": "10682",
@@ -11462,7 +11912,16 @@
         "criticality"
       ],
       "conflicted_tags": [],
-      "state": "prototype_review_required"
+      "state": "prototype_review_required",
+      "lld": {
+        "ruleid": 50709,
+        "rule_flags": 1,
+        "rule_status": 0,
+        "parent_hostid": 10680,
+        "parent_status": 3,
+        "parent_flags": 0,
+        "state": "REFERENCES_VALID_NOT_COLLECTION_ACCEPTANCE"
+      }
     },
     {
       "hostid": "10945",
@@ -11496,7 +11955,16 @@
         "criticality"
       ],
       "conflicted_tags": [],
-      "state": "prototype_review_required"
+      "state": "prototype_review_required",
+      "lld": {
+        "ruleid": 58420,
+        "rule_flags": 1,
+        "rule_status": 0,
+        "parent_hostid": 10787,
+        "parent_status": 0,
+        "parent_flags": 0,
+        "state": "REFERENCES_VALID_NOT_COLLECTION_ACCEPTANCE"
+      }
     },
     {
       "hostid": "10946",
@@ -11530,7 +11998,16 @@
         "criticality"
       ],
       "conflicted_tags": [],
-      "state": "prototype_review_required"
+      "state": "prototype_review_required",
+      "lld": {
+        "ruleid": 58421,
+        "rule_flags": 1,
+        "rule_status": 0,
+        "parent_hostid": 10787,
+        "parent_status": 0,
+        "parent_flags": 0,
+        "state": "REFERENCES_VALID_NOT_COLLECTION_ACCEPTANCE"
+      }
     },
     {
       "hostid": "10947",
@@ -11564,7 +12041,16 @@
         "criticality"
       ],
       "conflicted_tags": [],
-      "state": "prototype_review_required"
+      "state": "prototype_review_required",
+      "lld": {
+        "ruleid": 58489,
+        "rule_flags": 1,
+        "rule_status": 0,
+        "parent_hostid": 10788,
+        "parent_status": 0,
+        "parent_flags": 0,
+        "state": "REFERENCES_VALID_NOT_COLLECTION_ACCEPTANCE"
+      }
     },
     {
       "hostid": "10948",
@@ -11598,7 +12084,16 @@
         "criticality"
       ],
       "conflicted_tags": [],
-      "state": "prototype_review_required"
+      "state": "prototype_review_required",
+      "lld": {
+        "ruleid": 58490,
+        "rule_flags": 1,
+        "rule_status": 0,
+        "parent_hostid": 10788,
+        "parent_status": 0,
+        "parent_flags": 0,
+        "state": "REFERENCES_VALID_NOT_COLLECTION_ACCEPTANCE"
+      }
     },
     {
       "hostid": "10949",
@@ -11632,7 +12127,16 @@
         "criticality"
       ],
       "conflicted_tags": [],
-      "state": "prototype_review_required"
+      "state": "prototype_review_required",
+      "lld": {
+        "ruleid": 58558,
+        "rule_flags": 1,
+        "rule_status": 0,
+        "parent_hostid": 10789,
+        "parent_status": 0,
+        "parent_flags": 0,
+        "state": "REFERENCES_VALID_NOT_COLLECTION_ACCEPTANCE"
+      }
     },
     {
       "hostid": "10950",
@@ -11666,7 +12170,16 @@
         "criticality"
       ],
       "conflicted_tags": [],
-      "state": "prototype_review_required"
+      "state": "prototype_review_required",
+      "lld": {
+        "ruleid": 58559,
+        "rule_flags": 1,
+        "rule_status": 0,
+        "parent_hostid": 10789,
+        "parent_status": 0,
+        "parent_flags": 0,
+        "state": "REFERENCES_VALID_NOT_COLLECTION_ACCEPTANCE"
+      }
     },
     {
       "hostid": "10951",
@@ -11700,7 +12213,16 @@
         "criticality"
       ],
       "conflicted_tags": [],
-      "state": "prototype_review_required"
+      "state": "prototype_review_required",
+      "lld": {
+        "ruleid": 58627,
+        "rule_flags": 1,
+        "rule_status": 0,
+        "parent_hostid": 10793,
+        "parent_status": 0,
+        "parent_flags": 0,
+        "state": "REFERENCES_VALID_NOT_COLLECTION_ACCEPTANCE"
+      }
     },
     {
       "hostid": "10952",
@@ -11734,7 +12256,16 @@
         "criticality"
       ],
       "conflicted_tags": [],
-      "state": "prototype_review_required"
+      "state": "prototype_review_required",
+      "lld": {
+        "ruleid": 58628,
+        "rule_flags": 1,
+        "rule_status": 0,
+        "parent_hostid": 10793,
+        "parent_status": 0,
+        "parent_flags": 0,
+        "state": "REFERENCES_VALID_NOT_COLLECTION_ACCEPTANCE"
+      }
     },
     {
       "hostid": "10953",
@@ -11768,7 +12299,16 @@
         "criticality"
       ],
       "conflicted_tags": [],
-      "state": "prototype_review_required"
+      "state": "prototype_review_required",
+      "lld": {
+        "ruleid": 66492,
+        "rule_flags": 1,
+        "rule_status": 0,
+        "parent_hostid": 10790,
+        "parent_status": 0,
+        "parent_flags": 0,
+        "state": "REFERENCES_VALID_NOT_COLLECTION_ACCEPTANCE"
+      }
     },
     {
       "hostid": "10954",
@@ -11802,7 +12342,16 @@
         "criticality"
       ],
       "conflicted_tags": [],
-      "state": "prototype_review_required"
+      "state": "prototype_review_required",
+      "lld": {
+        "ruleid": 66493,
+        "rule_flags": 1,
+        "rule_status": 0,
+        "parent_hostid": 10790,
+        "parent_status": 0,
+        "parent_flags": 0,
+        "state": "REFERENCES_VALID_NOT_COLLECTION_ACCEPTANCE"
+      }
     },
     {
       "hostid": "10955",
@@ -11836,7 +12385,16 @@
         "criticality"
       ],
       "conflicted_tags": [],
-      "state": "prototype_review_required"
+      "state": "prototype_review_required",
+      "lld": {
+        "ruleid": 66561,
+        "rule_flags": 1,
+        "rule_status": 0,
+        "parent_hostid": 10792,
+        "parent_status": 0,
+        "parent_flags": 0,
+        "state": "REFERENCES_VALID_NOT_COLLECTION_ACCEPTANCE"
+      }
     },
     {
       "hostid": "10956",
@@ -11870,7 +12428,16 @@
         "criticality"
       ],
       "conflicted_tags": [],
-      "state": "prototype_review_required"
+      "state": "prototype_review_required",
+      "lld": {
+        "ruleid": 66562,
+        "rule_flags": 1,
+        "rule_status": 0,
+        "parent_hostid": 10792,
+        "parent_status": 0,
+        "parent_flags": 0,
+        "state": "REFERENCES_VALID_NOT_COLLECTION_ACCEPTANCE"
+      }
     }
   ],
   "waves": [
@@ -12249,8 +12816,8 @@
     "active": 261,
     "disabled": 1,
     "accepted": 0,
-    "unsupported_active": 1849,
-    "enabled_items_active": 35847,
-    "unsupported_rate_active": 0.05158032750299885
+    "unsupported_active": 1904,
+    "enabled_items_active": 35846,
+    "unsupported_rate_active": 0.053116107794454054
   }
 }

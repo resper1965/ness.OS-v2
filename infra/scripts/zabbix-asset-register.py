@@ -43,6 +43,15 @@ def build_register(rows, observed_at):
                            'disabled_preserved' if status == 1 else
                            'unconfigured' if items == 0 else
                            'needs_remediation' if errors else 'assessment_required')}
+        if flags == 2:
+            lld = row.get('lld', {})
+            clean['lld'] = {k: lld.get(k) for k in ('ruleid', 'rule_flags',
+                'rule_status', 'parent_hostid', 'parent_status', 'parent_flags')}
+            clean['lld']['state'] = ('REFERENCES_VALID_NOT_COLLECTION_ACCEPTANCE'
+                if lld.get('ruleid') and lld.get('parent_hostid')
+                and lld.get('rule_flags') == 1 and lld.get('rule_status') in (0, 1)
+                and lld.get('parent_status') in (0, 1, 3)
+                and lld.get('parent_flags') in (0, 4) else 'UNKNOWN')
         (prototypes if flags == 2 else assets).append(clean)
     waves = [[h['hostid'] for h in assets[i:i + 5]] for i in range(0, len(assets), 5)]
     enabled_total = sum(h['enabled_item_count'] for h in assets if h['status'] == 0)
@@ -100,6 +109,13 @@ def collect_rows():
         LEFT JOIN item_rtdata rt ON rt.itemid=i.itemid
         WHERE h.status IN (0,1) AND i.flags IN (0,4) AND i.status=0
           AND i.key_ IN ('agent.ping','icmpping','system.uptime');
+      SELECT JSON_OBJECT('kind','lld','hostid',h.hostid,'ruleid',i.itemid,
+        'rule_flags',i.flags,'rule_status',i.status,'parent_hostid',p.hostid,
+        'parent_status',p.status,'parent_flags',p.flags)
+        FROM hosts h LEFT JOIN host_discovery hd ON hd.hostid=h.hostid
+        LEFT JOIN items i ON i.itemid=hd.parent_itemid
+        LEFT JOIN hosts p ON p.hostid=i.hostid
+        WHERE h.flags=2 AND h.status IN (0,1);
       COMMIT;""".replace('CATEGORY', category)
     env = dict(os.environ, MYSQL_PWD=config['DBPassword'])
     result = subprocess.run(['mariadb', '--batch', '--raw', '--skip-column-names',
@@ -122,6 +138,9 @@ def collect_rows():
                 'itemid': str(row['itemid']), 'delay': row['delay'],
                 'state': int(row['state']),
                 'lastclock': int(row['lastclock']) if row['lastclock'] is not None else None})
+        elif row['kind'] == 'lld':
+            hosts[hostid]['lld'] = {k: row[k] for k in ('ruleid', 'rule_flags',
+                'rule_status', 'parent_hostid', 'parent_status', 'parent_flags')}
         else:
             hosts[hostid]['error_categories'][row['category']] = row['count']
     return list(hosts.values())

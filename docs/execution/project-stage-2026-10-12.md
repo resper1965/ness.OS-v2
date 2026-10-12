@@ -352,3 +352,18 @@ Continuação reativada a cada10min até13/10 11:47:35BRT, respeitando janela,
 gates e silêncio sem mudança. Próximos trabalhos: revisão de63protótipos,
 causas/intervalos por host, evidências por onda e acesso normal de origem;
 SSO nominal/MFA/negativos, coleta corrigida e corte continuam pendentes.
+
+### Protótipos e acesso — continuação após 18:24 BRT
+
+Registro por ID agora contém parent_hostid/ruleid/status/flags sanitizados de
+todos os63protótipos:63referências válidas a regras flags1, nenhuma órfã;
+51pais são templates status3 e12pais hosts ativos status0; regras habilitadas.
+Isso valida vínculos de configuração, não execução LLD, credenciais ou
+descoberta recente. Chaves/macros da regra não entram no registro público.
+Testes de parent/regra e ausência de referência RED2→GREEN15 no registro.
+
+Leitura normal de metadados confirmou username akadmin na origem, roleid3;
+não existe username akadimin. Nenhuma senha lida/redefinida, nenhum token
+reativado. A indicação do nome não produz uma sessão normal autenticada:
+acesso produtivo continua dependente do percurso protegido da issue72.
+Entrega anterior publicada em7c4fd58; continuação do registro segue abaixo.

@@ -45,7 +45,7 @@ Reutilizar `infra/scripts/zabbix-quality-wave.py`, scripts de SAML, NOC, brandin
 - [x] Implementar registro sem inferir identidade pelo nome: estado disabled_preserved, unconfigured, needs_remediation ou assessment_required. Ausência de unsupported não gera accepted.
 - [x] Fazer uma leitura sanitizada da origem, contar itens flags 0/4 (não protótipos de itens), categorias de erro sem texto bruto e tags/templates reais; gerar registro completo. Totais precisam reconciliar SQL de origem e IDs únicos.
 - [x] Executar testes e registrar todos os IDs nas ondas. Esperado inicialmente 262 assets, 63 prototypes, 53 ondas; divergência abre investigação, não força o número.
-- [ ] Commit/push e atualizar ledger. Nenhum host fica sem linha nem protótipo é esquecido.
+- [x] Commit/push e atualizar ledger. Nenhum host fica sem linha nem protótipo é esquecido. Publicado em18aa6ae/fdbb4e0/7c4fd58; cobertura não é aceite de coleta.
 
 ### Task 2: Perfil Cavan de links sem exclusão LLD
 
@@ -53,10 +53,10 @@ Reutilizar `infra/scripts/zabbix-quality-wave.py`, scripts de SAML, NOC, brandin
 
 **Interfaces:** `clone_link_transition(document: dict) -> dict`; nome `FortiGate by SNMP - UAT link transition`; manter timeout original; somente net.if.discovery muda lifetime_type para DELETE_NEVER no export (API: 1). UUIDs/refências renovados; template raiz intocado.
 
-- [ ] Testar clone não muta origem, mantém timeout, muda só retenção da regra correta e recusa export ambíguo/hosts. Rodar RED; implementar; rodar GREEN.
-- [ ] Exportar 10604 por API UAT normal; criar candidato; importcompare permite apenas adições; importar createMissing=true/updateExisting=false. Confirmar raiz idêntica e variante sem hosts.
-- [ ] Exportar configuração e IDs de itens/triggers de 10873/10874; ensaiar vínculo sem templates_clear em um host por vez, preservar IDs/chaves/status e retornar ao template anterior. Não repetir ensaio da variante 5s: este ensaio é da variante nova.
-- [ ] Preparar macros ^wan$ em 10873 e ^lan3$ em 10874; não aplicá-las antes de retenção NEVER confirmada. Conservar appliance 10977 completo, host 10877 desativado.
+- [x] Testar clone não muta origem, mantém timeout, muda só retenção da regra correta e recusa export ambíguo/hosts. Rodar RED; implementar; rodar GREEN.
+- [x] Exportar 10604 por API UAT normal; criar candidato; importcompare permite apenas adições; importar createMissing=true/updateExisting=false. Confirmar raiz idêntica e variante sem hosts.
+- [x] Exportar configuração e IDs de itens/triggers de 10873/10874; ensaiar vínculo sem templates_clear em um host por vez, preservar IDs/chaves/status e retornar ao template anterior. Não repetir ensaio da variante 5s: este ensaio é da variante nova.
+- [x] Preparar macros ^wan$ em 10873 e ^lan3$ em 10874; não aplicá-las antes de retenção NEVER confirmada. Conservar appliance 10977 completo, host 10877 desativado.
 - [ ] Observar LLD somente em coletor autorizado único; antes/depois de dois ciclos medir interfaces desejadas, recursos preservados e desativados; rollback exige redescoberta/reativação, não apenas troca de template. Sem isso marcar prepared, não accepted.
 - [ ] Métricas de appliance duplicadas: inventariar dependências e painel antes de desativar no perfil de link. Não esconder divisão por zero nem fundir históricos.
 
