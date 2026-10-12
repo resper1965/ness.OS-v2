@@ -42,7 +42,7 @@ atual de ambiente, credenciais, backup ou serviço.
 | Object Storage/Restic | conjunto AIOps de 12/10/2026 08:55 BRT copiado, verificado e restaurado externamente | repetir a evidência atual para os demais produtores e revisar 3-2-1 |
 | Hub | runtime real promovido, `/ready` aprovado, workers saudáveis e rollback/re-promoção ensaiados | recuperação atual e MVP Authentik + Zabbix + GLPI reais |
 | GLPI | fundação, catálogo e reconciliação parcial prontos | API de máquina e jornada de ticket ponta a ponta |
-| Authentik | runtime saudável, mas `platform_admin` vazio e MFA não comprovado | atribuição nominal, MFA, recuperação, revogação e teste por aplicação/tenant |
+| Authentik | runtime saudável; `platform_admin` contém Ismael, Rogerio e Ricardo; MFA ainda não comprovado | MFA, recuperação, revogação e teste por aplicação/tenant |
 | Psono Community | PoC funcional e recuperável na AIOps | dois custodians, MFA, SMTP/recovery e promoção dedicada |
 | AIOps | backup/restore comprovados; operação ainda não homologada | contratos, fluxos de incidente e observabilidade |
 | Wazuh | planejado | capacidade, arquitetura hub-spoke e piloto isolado |

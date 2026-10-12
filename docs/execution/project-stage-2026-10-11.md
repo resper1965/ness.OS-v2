@@ -16,12 +16,13 @@ provas de Zabbix, GLPI, Authentik e Psono.
 ### Identidade — início de G2 em somente leitura
 
 O Authentik está saudável, mas a fotografia atual impede a aprovação de G2:
-o grupo `platform_admin` tem zero membros e não existem dispositivos TOTP,
-WebAuthn ou códigos estáticos de recuperação. A evidência não expõe nomes ou
-segredos e está em
+o grupo `platform_admin` recebeu os três membros nominais Ismael, Rogerio e
+Ricardo e o backend comprovou o mapeamento da claim. Ainda não existem
+dispositivos TOTP, WebAuthn ou códigos estáticos de recuperação. A evidência
+não expõe segredos e está em
 [`authentik-g2-readonly-inventory-2026-10-12.md`](evidence/authentik-g2-readonly-inventory-2026-10-12.md).
-Não houve alteração de identidade; a atribuição deve ser nominal e confirmada
-antes de qualquer escrita.
+O próximo requisito é a inscrição MFA pelos próprios custodians e o teste de
+revogação.
 
 O Hub/AIOps foi promovido em janela controlada para o commit
 `144317fd5262ecf242b118774573a62df8e88d78`, com imagens privadas GHCR por
