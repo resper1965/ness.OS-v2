@@ -6,6 +6,28 @@ planos aprovados continuam válidos. Backup deixa de ser a tarefa inicial padrã
 
 ## Ritmo de execução
 
+### Escopo ampliado — autorização de 12/10/2026
+
+Todos os hosts cadastrados na origem entram na trilha de qualidade, inclusive
+os desativados no inventário; desativados não serão ativados automaticamente.
+A aplicação permanece em ondas de até cinco hosts, com export anterior,
+precondição, teste e rollback. Não remover histórico, substituir templates em
+massa ou inferir tenant/owner/criticidade sem evidência. Cavan continua sendo
+o piloto obrigatório para o corte; ampliar o escopo não dispensa os gates.
+
+Fotografia em leitura da origem nesta execução: 325 hosts (323 habilitados,
+2 desabilitados); 21 sem template diretamente vinculado; 1.850 itens
+habilitados não suportados em 149 hosts habilitados. Tenant: 19 Cavan e 306
+sem tag. Ausências de tags: criticality 325, service 311, tenant/site/owner/
+technology 306, environment/role/scope 305. Ausência de template diretamente
+vinculado exige investigação, não comprova erro por si só. Valores são uma
+baseline datada, não indicadores de saúde permanentemente atuais.
+
+Ordem: classificar todos os hosts; corrigir causas comprovadas de coleta em
+ondas pequenas; reconciliar metadados com cadastro existente; medir cada onda;
+ampliar dashboards de qualidade para o inventário completo. Lacunas de negócio
+seguem em issues, sem impedir correções técnicas independentes.
+
 - Uma entrega funcional em implementação por vez. Observação, backup e ações
   humanas seguem em trilhas auxiliares, sem ocupar a entrega ativa.
 - Cada retomada lê o cartão ativo, verifica somente suas precondições e executa
