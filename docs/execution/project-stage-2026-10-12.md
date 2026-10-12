@@ -35,3 +35,15 @@ root-only 0600 no destino. Login pela API HTTP normal, leitura administrativa
 e logout aprovados. Não foi criado token permanente nem elevado o usuário Hub.
 Isso desbloqueia correção SAML/API UAT; não é homologação SSO ou corte.
 Remover conta/grupo emergencial após validar contas nominais e recuperação.
+
+## SAML UAT reconciliado
+
+Aplicado por userdirectory.update autenticado via API normal. Issuer e endpoint
+obtidos do metadata HTTPS do provider UAT (ID 13); SP EntityID atualizado para
+https://zabbix-uat.ness.com.br. Certificado de assinatura UAT instalado a partir
+do metadata, preservando certificado e parâmetros anteriores em arquivos
+root-only em restore-evidence. Preflight e repetição idempotente aprovados.
+Redirecionamento público HTTP 302 agora segue /application/saml/zabbix-uat/.
+Login nominal, MFA, logout federado e cenários negativos ainda não homologados.
+Uma tentativa de probe público a partir da própria VPS recebeu 403; a estação
+cliente recebeu o 302 esperado. Não tratar bloqueio desse probe como queda da UI.
