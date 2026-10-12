@@ -35,3 +35,33 @@ não comprovam inventário recente. Evidências de setembro são históricas.
 
 Aceite exige menor privilégio, isolamento, inventário qualificado e fluxo
 idempotente atual. Processo running ou testes históricos não aprovam gate.
+
+## Auditoria corrente — 12/10/2026 22:51 UTC
+
+Consultas agregadas somente leitura, exit 0; nenhuma configuração ou registro
+alterado. Totais variam durante ingestão: 76119 tickets não excluídos nesta
+amostra, todos criados por userid 94; 76118 estado 1 (novo), um estado 5.
+76118 possuem marcador Hub. Agrupamento pelo marcador completo extraído
+por REGEXP_SUBSTR encontrou zero grupos duplicados. Isso não comprova ausência
+de duplicidade semântica entre eventos distintos nem teste de retry/replay.
+
+Criações por data: 06/10 2326; 07/10 2213; 08/10 2600; 09/10 2302;
+10/10 2344; 11/10 2301; 12/10 1964 até a consulta. Volume significativo
+e backlog novo exigem análise da política evento/incidente/ticket; não apagar
+ou resolver em massa nem desligar ingestão para maquiar o resultado.
+
+Achados confirmados:
+
+- 646 tickets com marcador Hub sem vínculo de ativo;
+- zero tickets marcados sem acompanhamento;
+- zero tickets não excluídos com SLA de atendimento/resolução atribuído;
+- sete agentes registrados, nenhum last_contact nas últimas 24 horas,
+  nenhum last_contact nulo (não comprova serviço parado ou causa);
+- campo otherserial vazio em todos os computadores/equipamentos de rede.
+  Não é prova de ausência de vínculo: mapeamento existente está no Hub e
+  deve ser consultado antes de qualquer escrita nesse campo.
+
+Próxima entrega: conciliar identificadores do Hub com GLPI e registro Zabbix,
+quantificar causas dos 646 vínculos ausentes e correlacionar backlog com eventos
+distintos. Não repetir esta auditoria sem alteração relevante. SLA continua
+dependência contratual; nenhuma duração presumida.
