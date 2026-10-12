@@ -80,6 +80,17 @@ Ela verifica regras de papel, isolamento de tenant, sessão e proteção da API;
 não substitui a homologação de login com dispositivos MFA nem a recuperação
 independente do cofre pelos custodians.
 
+Em uma rodada complementar, **26 testes** de cookie de sessão, logout,
+política OIDC e PKCE passaram. As verificações estáticas de readiness Authentik
+e plumbing de segredos também passaram. O plano antigo cita
+`test_oidc_session_lifecycle.py`, mas o arquivo existente é
+`test_oidc_session_policy.py`; este foi o arquivo executado.
+
+No runtime `ninf-api`, as rotas `/api/contabo/compute`, `/api/incidents` e
+`/api/auth/me` retornaram **401** sem token, mesmo com headers
+`X-Authentik-Username` e `X-Authentik-Groups` forjados. A checagem foi feita na
+API interna do contêiner, não cobre o proxy público nem sessões autenticadas.
+
 ## Próxima mudança controlada
 
 1. Cadastrar TOTP ou WebAuthn individualmente para os três custodians, gerar
