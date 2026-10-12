@@ -84,3 +84,20 @@ capacidade zero; Windows 63249/63256 não tem dados suficientes nas dependência
 Próximo passo técnico é conferir capacidade real do appliance e disponibilidade
 dos itens-base Windows antes de alterar fórmulas. Não mascarar coleta inválida
 com valores artificiais ou propagar edição de template raiz aos outros tenants.
+
+### Verificação das dependências — continuação 12:22 BRT
+
+Importação na mesma unidade continua ativa; diretório de banco agora 15 GiB.
+Nenhum restart ou novo restore foi iniciado.
+
+Leitura pontual indexada do último histórico das dependências do piloto:
+FortiGate 97469/97846 (capacidade) e 97470/97847 (uso) têm último valor zero.
+Os itens estão habilitados e sem erro próprio; isso não torna o cálculo de
+percentual válido. Investigar se os appliances realmente possuem storage
+antes de declarar aplicabilidade; não trocar divisão por zero por saúde falsa.
+
+Windows 63235 (Paging file), 63250 (swap total), 63254 (memória total) e 63255
+(memória usada) estão habilitados e sem erro próprio, mas não há histórico nas
+tabelas correspondentes ao value_type. A falha é ausência de amostras, não uma
+fórmula comprovadamente errada. Priorizar disponibilidade/agente/intervalos e
+retenção antes de editar os dois itens calculados; trends não foram consultadas.
