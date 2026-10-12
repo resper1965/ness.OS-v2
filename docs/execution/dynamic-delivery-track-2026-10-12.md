@@ -64,6 +64,13 @@ exija evidência atual. RPO de 24h continua obrigatório para promoção/produç
 
 **Ativo: Z1 — pacote de cinco ativos.**
 
+Execução de 12/10: ferramenta de onda implementada, cinco testes aprovados,
+dry-run do host interno 10084 preparado com templates preservados. Cadastro
+dos outros quatro ativos e atributos de negócio aguardam issue #70; instruções
+enviadas a Ismael com cópia a Ricardo. Z1 permanece parcial, não aceito.
+Próxima tarefa independente: Z3, preparar/reconciliar o dashboard NOC existente,
+sem regressar ao backup ou aguardar resposta da #70.
+
 1. Reutilizar `zabbix-offline-quality-2026-10-12.md` e o relatório restaurado.
 2. Identificar os ativos internos da plataforma e sua configuração existente
    no destino; selecionar cinco sem alterar produção.

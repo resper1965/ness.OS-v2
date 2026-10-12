@@ -1,0 +1,10 @@
+[
+  {
+    "hostid": "10084",
+    "tags": [],
+    "parentTemplates": [
+      {"templateid": "10001", "name": "Linux by Zabbix agent"},
+      {"templateid": "10047", "name": "Zabbix server health"}
+    ]
+  }
+]

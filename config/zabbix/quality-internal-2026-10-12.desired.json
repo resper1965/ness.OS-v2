@@ -1,0 +1,12 @@
+[
+  {
+    "hostid": "10084",
+    "tags": {
+      "tenant": "ness",
+      "service": "monitoring",
+      "technology": "linux",
+      "scope": "platform",
+      "role": "zabbix-server"
+    }
+  }
+]
