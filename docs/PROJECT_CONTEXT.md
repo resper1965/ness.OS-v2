@@ -1,8 +1,8 @@
 # Contexto canônico — ness.OS
 
-Atualizado em: 2026-10-11 (BRT)  
-Estado: planejamento ativo; nenhum gate é considerado aprovado sem evidência
-datada e reproduzível.
+Atualizado em: 2026-10-12 (BRT)
+Estado: execução retomada; G0 tem promoção real do Hub/AIOps comprovada, mas
+permanece **PARCIAL** até CI limpo e integração protegida do workflow.
 
 ## Propósito
 
@@ -25,7 +25,8 @@ esse fluxo, não como pré-requisito para o MVP.
 | Plano por ativo e gates | `docs/execution/ness-os-asset-activation-master-plan-2026-08-28.md` |
 | Matriz de pendências | `docs/execution/goal-completion-audit-2026-09-08.md` |
 | Recuperação e release | `docs/execution/gates/phase-0-recovery-release.md` |
-| Plano de execução atual | `docs/superpowers/plans/2026-10-11-ness-os-complete-implementation-route.md` |
+| Evidência da promoção Hub/AIOps | `docs/execution/evidence/hub-immutable-release-2026-10-12.md` |
+| Plano de execução atual | `docs/superpowers/plans/2026-10-12-g1-hub-recovery-evidence.md` |
 
 Documentos históricos permanecem como evidência; não substituem uma validação
 atual de ambiente, credenciais, backup ou serviço.
@@ -34,10 +35,10 @@ atual de ambiente, credenciais, backup ou serviço.
 
 | Componente | Situação | Próximo gate |
 | --- | --- | --- |
-| Repositório e release | Git sincronizado; release ainda bloqueada pela Fase 0 | árvore limpa, CI, digests e rollback comprovados |
+| Repositório e release | branch de entrega sincronizada; Hub/AIOps promovido com imagens GHCR por digest e rollback ensaiado | CI limpo e integração protegida do workflow antes de aprovar G0 global |
 | Zabbix | destino permanente restaurado em UAT isolada; origem é rollback | revalidar estado atual, UAT de identidade e piloto Cavan antes de corte |
-| Object Storage/Restic | restores de Zabbix, AIOps e Psono documentados | renovar prova dentro do RPO e monitorar timers |
-| Hub | fluxo local e testes avançados, mas sem UAT real aceita | Authentik + Zabbix + GLPI reais, tenant e replay |
+| Object Storage/Restic | prova histórica existe; conjunto AIOps local de 12/10/2026 08:55 BRT aguarda nova cópia externa | enviar, verificar e restaurar isoladamente o conjunto atual dentro do RPO |
+| Hub | runtime real promovido, `/ready` aprovado, workers saudáveis e rollback/re-promoção ensaiados | recuperação atual e MVP Authentik + Zabbix + GLPI reais |
 | GLPI | fundação, catálogo e reconciliação parcial prontos | API de máquina e jornada de ticket ponta a ponta |
 | Authentik | base e integrações parciais | MFA, revogação e teste por aplicação/tenant |
 | Psono Community | PoC funcional e recuperável na AIOps | dois custodians, MFA, SMTP/recovery e promoção dedicada |

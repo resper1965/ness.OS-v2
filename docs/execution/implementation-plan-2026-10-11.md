@@ -1,5 +1,14 @@
 # Plano de implementação — ness.OS
 
+> **Atualização de execução — 12/10/2026 (BRT):** a promoção real do
+> Hub/AIOps foi feita a partir do commit `144317f`, com API, workers e frontend
+> em imagens GHCR imutáveis, backup anterior e rollback/re-promoção ensaiados.
+> A evidência está em
+> [`evidence/hub-immutable-release-2026-10-12.md`](evidence/hub-immutable-release-2026-10-12.md).
+> G0 global segue **PARCIAL**: o workflow publicado ainda precisa da revisão e
+> dos checks exigidos no PR #65; o próximo trabalho ativo é G1 do Hub/AIOps,
+> descrito em `docs/superpowers/plans/2026-10-12-g1-hub-recovery-evidence.md`.
+
 Data: 2026-10-11 (BRT)  
 Objetivo: transformar evidências dispersas em uma sequência de entrega
 operacional, recuperável e mensurável.

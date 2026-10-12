@@ -1,5 +1,13 @@
 # Gate 0 — estado de execução
 
+> **Atualização vigente — 12/10/2026 (BRT): PARCIAL.** O Hub/AIOps foi
+> promovido em runtime real com imagens GHCR imutáveis, `/ready` aprovado e
+> rollback/re-promoção ensaiados. A prova detalhada está em
+> [`evidence/hub-immutable-release-2026-10-12.md`](evidence/hub-immutable-release-2026-10-12.md).
+> O gate global não está aprovado: falta CI integral em runner limpo e a
+> integração protegida do workflow no PR #65. A recuperação externa atual do
+> conjunto AIOps de 12/10/2026 é tratada no G1, sem alterar Zabbix.
+
 > **Estado corrente da Fase 0 (26/09/2026): FAIL.** Para decisão de release,
 > backups/restores e corte, prevalece [`gates/phase-0-recovery-release.md`](gates/phase-0-recovery-release.md), atualizado após este histórico. As atualizações datadas abaixo preservam decisões e observações do período em que foram registradas; prazos históricos não são autorização vigente.
 
