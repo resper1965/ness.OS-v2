@@ -91,6 +91,11 @@ No runtime `ninf-api`, as rotas `/api/contabo/compute`, `/api/incidents` e
 `X-Authentik-Username` e `X-Authentik-Groups` forjados. A checagem foi feita na
 API interna do contêiner, não cobre o proxy público nem sessões autenticadas.
 
+Na rodada seguinte, as mesmas três rotas foram verificadas por HTTPS em
+`https://hub.ness.com.br`, com validação TLS e os mesmos headers forjados:
+todas retornaram **401**. Isso estende a prova negativa ao proxy público;
+login nominal, MFA e sessões autenticadas continuam sem aceite nesta rodada.
+
 ## Próxima mudança controlada
 
 1. Cadastrar TOTP ou WebAuthn individualmente para os três custodians, gerar
