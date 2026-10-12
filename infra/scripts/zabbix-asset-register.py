@@ -19,9 +19,10 @@ def build_register(rows, observed_at):
         hostid = str(row['hostid'])
         flags, status = int(row['flags']), int(row['status'])
         items, errors = int(row['item_count']), int(row['unsupported_count'])
+        enabled = int(row['enabled_item_count'])
         if (not hostid.isdigit() or int(hostid) <= 0 or hostid in seen
                 or flags not in (0, 2, 4) or status not in (0, 1)
-                or items < 0 or not 0 <= errors <= items):
+                or items < 0 or not 0 <= errors <= enabled <= items):
             raise ValueError('Invalid or duplicate asset identity/status/counters')
         seen.add(hostid)
         tags = [dict(t) for t in row.get('tags', []) if t['tag'] in REQUIRED_TAGS]
@@ -30,6 +31,7 @@ def build_register(rows, observed_at):
         clean = {'hostid': hostid, 'flags': flags, 'status': status,
                  'name': row['name'], 'templates': row.get('templates', []),
                  'tags': tags, 'item_count': items, 'unsupported_count': errors,
+                 'enabled_item_count': enabled,
                  'error_categories': row.get('error_categories', {}),
                  'missing_tags': [k for k, v in values.items() if not v],
                  'conflicted_tags': sorted(k for k, v in values.items() if len(v) > 1),
@@ -39,12 +41,15 @@ def build_register(rows, observed_at):
                            'needs_remediation' if errors else 'assessment_required')}
         (prototypes if flags == 2 else assets).append(clean)
     waves = [[h['hostid'] for h in assets[i:i + 5]] for i in range(0, len(assets), 5)]
+    enabled_total = sum(h['enabled_item_count'] for h in assets if h['status'] == 0)
+    unsupported_total = sum(h['unsupported_count'] for h in assets if h['status'] == 0)
     return {'observed_at': observed_at, 'source': 'origin_readonly_configuration_and_runtime',
             'fresh_collection': 'NOT_VERIFIED', 'assets': assets, 'prototypes': prototypes,
             'waves': waves, 'totals': {'real_hosts': len(assets), 'prototypes': len(prototypes),
                 'active': sum(h['status'] == 0 for h in assets),
                 'disabled': sum(h['status'] == 1 for h in assets), 'accepted': 0,
-                'unsupported_active': sum(h['unsupported_count'] for h in assets if h['status'] == 0)}}
+                'unsupported_active': unsupported_total, 'enabled_items_active': enabled_total,
+                'unsupported_rate_active': unsupported_total / enabled_total if enabled_total else None}}
 
 
 def collect_rows():
@@ -70,6 +75,7 @@ def collect_rows():
         'tags',COALESCE((SELECT JSON_ARRAYAGG(JSON_OBJECT('tag',tag,'value',value)) FROM host_tag WHERE hostid=h.hostid AND tag IN ('tenant','site','service','environment','technology','scope','owner','role','criticality')),JSON_ARRAY()))
         FROM hosts h WHERE h.status IN (0,1) ORDER BY h.hostid;
       SELECT JSON_OBJECT('kind','metrics','hostid',i.hostid,'item_count',COUNT(*),
+        'enabled_item_count',SUM(i.status=0),
         'unsupported_count',SUM(i.status=0 AND COALESCE(rt.state,0)=1))
         FROM items i LEFT JOIN item_rtdata rt ON rt.itemid=i.itemid
         JOIN hosts h ON h.hostid=i.hostid WHERE h.status IN (0,1) AND i.flags IN (0,4) GROUP BY i.hostid;
@@ -89,10 +95,11 @@ def collect_rows():
         row = json.loads(line)
         hostid = str(row['hostid'])
         if row['kind'] == 'host':
-            row.update(item_count=0, unsupported_count=0, error_categories={})
+            row.update(item_count=0, enabled_item_count=0, unsupported_count=0, error_categories={})
             hosts[hostid] = row
         elif row['kind'] == 'metrics':
-            hosts[hostid].update(item_count=row['item_count'], unsupported_count=row['unsupported_count'])
+            hosts[hostid].update(item_count=row['item_count'], enabled_item_count=row['enabled_item_count'],
+                                 unsupported_count=row['unsupported_count'])
         else:
             hosts[hostid]['error_categories'][row['category']] = row['count']
     return list(hosts.values())

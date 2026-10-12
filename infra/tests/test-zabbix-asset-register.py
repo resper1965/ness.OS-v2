@@ -10,6 +10,7 @@ spec.loader.exec_module(register)
 def row(hostid, flags=0, status=0, items=3, unsupported=0):
     return {'hostid': str(hostid), 'flags': flags, 'status': status, 'name': 'Asset',
             'templates': ['Linux'], 'tags': [], 'item_count': items,
+            'enabled_item_count': items,
             'unsupported_count': unsupported, 'error_categories': {}}
 
 
@@ -52,3 +53,12 @@ def test_errors_and_ambiguous_metadata_remain_visible_without_secret_fields():
 def test_refuses_invalid_or_ambiguous_scope(rows):
     with pytest.raises(ValueError):
         register.build_register(rows, '2026-10-12T20:00:00Z')
+
+
+def test_unsupported_rate_uses_enabled_real_items_not_disabled_or_prototypes():
+    active = row(1, items=100, unsupported=1)
+    active['enabled_item_count'] = 10
+    result = register.build_register([active, row(2, status=1, items=1000),
+                                     row(3, flags=2, items=1000)], '2026-10-12T20:00:00Z')
+    assert result['totals']['enabled_items_active'] == 10
+    assert result['totals']['unsupported_rate_active'] == 0.1

@@ -7,6 +7,11 @@ import socket
 import subprocess
 import sys
 import urllib.request
+import importlib.util
+
+spec = importlib.util.spec_from_file_location('recovery', Path(__file__).with_name('link-transition-recovery.py'))
+recovery = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(recovery)
 
 if os.geteuid() != 0 or socket.gethostname() != 'zbx-prd-01':
     raise RuntimeError('Isolated UAT only')
@@ -70,6 +75,7 @@ try:
         with report.open('x') as output:
             json.dump({'before': before, 'result': 'STARTED'}, output)
         changed = False
+        after, failure, restored = None, None, None
         try:
             changed = True  # Return even if a successful write loses its response.
             call('host.update', {'hostid': hostid, 'templates': [{'templateid': templateid}]}, token)
@@ -83,20 +89,22 @@ try:
                     or after['macros'][0]['value'] != expression
                     or any(after[k] != before[k] for k in ['items', 'triggers', 'status'])):
                 raise RuntimeError('Link transition changed IDs/status or filter mismatch')
+        except Exception as error:
+            failure = type(error).__name__
         finally:
             if changed:
-                # Query identity rather than rely on the create response surviving.
-                macros = call('usermacro.get', {'hostids': [hostid], 'filter': {'macro': MACRO},
-                                              'output': ['hostmacroid']}, token)
-                if macros:
-                    call('usermacro.delete', [m['hostmacroid'] for m in macros], token)
-                call('host.update', {'hostid': hostid, 'templates': [{'templateid': '10604'}]}, token)
-        restored = snapshot(hostid)
-        if restored != before:
-            raise RuntimeError('Rollback mismatch; investigate without collection')
-        with report.open('w') as output:
-            json.dump({'before': before, 'after': after, 'restored': restored,
-                       'result': 'PASS', 'collection_tested': False}, output)
+                compensation = recovery.recover_link(call, hostid, '10604', token)
+                try:
+                    restored = snapshot(hostid)
+                except Exception:
+                    failure = failure or 'ReadbackUnavailable'
+                passed = failure is None and compensation['restored'] and restored == before
+                with report.open('w') as output:
+                    json.dump({'before': before, 'after': after, 'restored': restored,
+                        'result': 'PASS' if passed else 'FAIL', 'failure': failure,
+                        'compensation': compensation, 'collection_tested': False}, output)
+        if not passed:
+            raise RuntimeError('Rehearsal/rollback incomplete; keep collection off and inspect protected evidence')
         print('link_transition=PASS; hostid=' + hostid + '; items=' + str(len(before['items']))
               + '; triggers=' + str(len(before['triggers'])) + '; ids_preserved=true; rollback=PASS')
 finally:

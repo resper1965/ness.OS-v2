@@ -271,3 +271,39 @@ ao atingir 15:47:35 BRT; isso não cancela a janela de 24h nem aprova o corte.
 Retomada usa este cartão e deltas versionados, preserva os serviços correntes
 e não recomeça pelo backup. A próxima implementação independente é a variante
 LLD de transição, não a alteração direta de filtros com lifetime=7d.
+
+## Novo plano completo e execução — 12/10 17:25–17:40 BRT
+
+Ordem do usuário: plano inequívoco e execução até o fim para todos os ativos.
+Plano versionado: docs/superpowers/plans/2026-10-12-zabbix-complete-delivery.md.
+Esta ordem retoma execução; a janela até13/10 11:47:35BRT permanece, sem
+dispensar gates/GO/SSO ou autorizar dupla coleta. Não repetir a migração validada.
+
+Registro sanitizado completo em config/zabbix/asset-register-20261012.json:
+262hosts reais (261ativos/1desativado),63protótipos,53ondas de até5. Estado de
+avaliação:149needs_remediation,14unconfigured,98assessment_required e1disabled.
+Nenhum accepted, intencionalmente: ausência de erro não prova coleta/adequação.
+Protótipos ainda exigem revisão parent/rule; sua presença não é aceite LLD.
+Módulo/testes versionados; RED10falhas antes da implementação e GREEN10testes.
+Revisão identificou denominador ausente: corrigido por teste RED→GREEN.
+A amostra atual tem1741unsupported/35849itens habilitados de hosts reais ativos,
+taxa4,856%; não comparar como ganho com baselines antigas ou descontar exceções.
+
+Template10989 FortiGate by SNMP - UAT link transition importado por API normal:
+somente net.if.discovery passa a DELETE_NEVER; timeout original preservado.
+Importcompare somente adições, template10604 exportado idêntico antes/depois,
+variante sem hosts após ensaio. Protegidos fortigate-link-source/candidate/
+importcompare-20261012.json em restore-evidence.
+
+Ensaio UAT de10873/^wan$ e10874/^lan3$: retenção1 confirmada antes da macro;
+319itens120triggers por host comIDs/chaves/status preservados; rollback devolveu
+10604 e removeu somente macro de ensaio. Evidências link-transition-test-ID-
+20261012.json e teste explícito versionado. Não observou coleta nem ciclos LLD;
+não se declara redução de erro ou reativação em retorno de descoberta.
+
+Revisão independente apontou retorno incompleto em falha de API: helper de
+compensação agora verifica estado após resposta perdida, tenta limitadamente,
+mantém DELETE_NEVER se não conseguir confirmar remoção do filtro e grava FAIL
+com estado observado. Testes adversariais RED→GREEN; suíte infra57testes e3
+subtestes PASS. Ensaios vivos já aprovados não foram repetidos por essa mudança.
+Fonte protegida permanece ativa, destino mascarado; identidade/corte pendentes.
