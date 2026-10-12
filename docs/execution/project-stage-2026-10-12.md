@@ -516,3 +516,27 @@ finally desativa somente os12probes novos e preserva dados. Não relançar.
 Não trocar template/chaves existentes antes de provar todos os contadores
 e ensaiar preservação de IDs/histórico emUAT. Pendentes continuam originais,
 sem ocultarerro/zerovalores para meta. Jobrodando não equivale aPASS.
+
+### Resultado do lote de compatibilidade — 12/10 após19:20BRT
+
+Unidade full10696 terminou FULL_COMPATIBILITY_NOT_PROVEN:
+os12probes não receberam histórico float/uint durante10min; cleanup
+ALL_PROBES_DISABLED_HISTORY_PRESERVED confirmado viaAPI e SQLstatus1.
+Nenhum item/template original foi alterado, nem117erros marcados resolvidos.
+Probe único anterior continua com comprovação limitada de um contador, não
+extrapolar para os12. Interface do agente apareceavailable1, mas isso não
+comprova que novas definições foram recebidas/executadas pelo proxy.
+
+Proxy1 versão70028, compatibility1, state2ONLINE, última comunicação~3s.
+Native CheckNow foi solicitado uma vez paraos12: tasks50–61 status3done;
+isso é ackde tarefa, não sucesso de coleta. Refresh de configuração do
+proxy solicitado uma vez porAPI task.create tipo2/request.proxyids:[1],
+task62; sem reiniciar serviço. Ainda não comprovou propagação das12definições.
+Primeira chamada CheckNow com request.itemids foi rejeitada sem efeitos;
+payload correto request.itemid em array foi confirmado na fontePHP7.0.27.
+
+Não recriar probes ou repetir consulta TCP da origem por timeout; investigar
+configuração/cache/execução no proxy usando diagnóstico nativo e percurso
+autorizado. Não culpar o agente ou trocar template antes de evidência.
+UUIDsVMware continuam sem fonte autoritativa; não escrever macros por nome.
+Os dois hostsSNMP já aceitos não foram revertidos/refeitos. Corte não feito.
