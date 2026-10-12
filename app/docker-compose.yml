@@ -61,7 +61,7 @@ services:
       resources:
         limits:
           memory: 512M
- 
+
   # --- Celery Worker (ML + Post-mortem) ---
   worker-ml:
     image: ${NINF_API_IMAGE:?NINF_API_IMAGE is required}

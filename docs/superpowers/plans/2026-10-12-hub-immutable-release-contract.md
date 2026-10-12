@@ -38,25 +38,25 @@
 
 **Interfaces:** `python3 infra/scripts/ness-release-manifest.py --output PATH --compose-file PATH [--compose-file PATH ...] --image-ref SERVICE=REFERENCE`; `--image-ref` is repeatable and its reference must match `^.+@sha256:[0-9a-f]{64}$`.
 
-- [ ] **Step 1: Write failing pytest cases**
+- [x] **Step 1: Write failing pytest cases**
 
 Add `test_explicit_compose_scope_ignores_unselected_files`, `test_manifest_accepts_immutable_service_image_override`, `test_manifest_rejects_mutable_service_image_override`, `test_manifest_rejects_unknown_override_service`, and `test_manifest_rejects_different_api_worker_image_override`.
 
-- [ ] **Step 2: Run the new cases**
+- [x] **Step 2: Run the new cases**
 
-Run: `python3 -m pytest -q infra/tests/test-ness-release-manifest.py -k 'explicit_compose_scope or service_image_override'`  
+Run: `python3 -m pytest -q infra/tests/test-ness-release-manifest.py -k 'explicit_compose_scope or service_image_override'`
 Expected: FAIL because the CLI has no scoped Compose or service-image contract.
 
-- [ ] **Step 3: Implement the minimal contract**
+- [x] **Step 3: Implement the minimal contract**
 
 Add parser arguments and pure validation that scopes discovery to requested files, replaces only selected service image references, rejects unknown services, and rejects inconsistent API-worker references before writing output.
 
-- [ ] **Step 4: Verify Task 1**
+- [x] **Step 4: Verify Task 1**
 
-Run: `python3 -m pytest -q infra/tests/test-ness-release-manifest.py`  
+Run: `python3 -m pytest -q infra/tests/test-ness-release-manifest.py`
 Expected: PASS.
 
-- [ ] **Step 5: Update the runbook and commit**
+- [x] **Step 5: Update the runbook and commit**
 
 Use explicit production Compose files and four service-image arguments; state that image publication is an approved external workflow.
 
@@ -74,22 +74,22 @@ git commit -m "feat(release): scope immutable image manifests"
 
 **Interfaces:** Production Compose requires `NINF_API_IMAGE` for API and both workers and `NINF_FRONTEND_IMAGE` for frontend. `app/docker-compose.dev.yml` supplies `ness-api:dev`, `ness-frontend:dev`, existing builds, and existing source mounts.
 
-- [ ] **Step 1: Write the failing contract test**
+- [x] **Step 1: Write the failing contract test**
 
 Create a shell test asserting production has the four required image references and no production build/source mount; development has three API builds, frontend build, and both original source mounts.
 
-- [ ] **Step 2: Run the contract test**
+- [x] **Step 2: Run the contract test**
 
-Run: `bash infra/tests/test-release-compose-contract.sh`  
+Run: `bash infra/tests/test-release-compose-contract.sh`
 Expected: FAIL because production currently contains builds and bind mounts.
 
-- [ ] **Step 3: Make the smallest Compose split**
+- [x] **Step 3: Make the smallest Compose split**
 
 Move only the local-build and source-bind-mount settings for API, both workers, and frontend to `app/docker-compose.dev.yml`. Preserve production networks, healthchecks, environment, volumes, dependencies, limits, and external services.
 
-- [ ] **Step 4: Verify Task 2 and commit**
+- [x] **Step 4: Verify Task 2 and commit**
 
-Run: `bash infra/tests/test-release-compose-contract.sh`  
+Run: `bash infra/tests/test-release-compose-contract.sh`
 Expected: PASS.
 
 ```bash
@@ -106,22 +106,22 @@ git commit -m "feat(release): separate production images from dev builds"
 
 **Interfaces:** Backend CI validates production and development Compose with non-secret fixture values. SBOM builds the backend/frontend sources that later become the immutable artifacts; it does not publish them.
 
-- [ ] **Step 1: Write a failing workflow assertion**
+- [x] **Step 1: Write a failing workflow assertion**
 
 Extend `test-release-compose-contract.sh` to require a contract-test invocation and immutable placeholder values for both image variables in `ci-backend.yml`.
 
-- [ ] **Step 2: Run the assertion**
+- [x] **Step 2: Run the assertion**
 
-Run: `bash infra/tests/test-release-compose-contract.sh`  
+Run: `bash infra/tests/test-release-compose-contract.sh`
 Expected: FAIL because CI lacks image references and the contract test.
 
-- [ ] **Step 3: Update CI minimally**
+- [x] **Step 3: Update CI minimally**
 
 Add two non-secret digest-shaped placeholders and the contract-test invocation to the existing Compose validation step. Modify SBOM only if the Compose split changes a build context; add no registry credential or publish step.
 
-- [ ] **Step 4: Verify Task 3 and commit**
+- [x] **Step 4: Verify Task 3 and commit**
 
-Run: `bash infra/tests/test-release-compose-contract.sh && python3 -m pytest -q infra/tests/test-ness-release-manifest.py && bash infra/tests/test-aiops-runtime-preflight.sh`  
+Run: `bash infra/tests/test-release-compose-contract.sh && python3 -m pytest -q infra/tests/test-ness-release-manifest.py && bash infra/tests/test-aiops-runtime-preflight.sh`
 Expected: PASS.
 
 ```bash
@@ -132,6 +132,16 @@ git commit -m "test(release): enforce immutable compose contract"
 ## Execution boundary
 
 Registry publication, AIOps deployment, database migration, and rollback rehearsal are excluded. They are external/security-sensitive actions requiring an approved registry, GLPI change, release candidate digests, backup identifier, maintenance window, and rollback operator.
+
+## Execution notes — 2026-10-12
+
+- Tasks 1–3 were implemented locally. Release-manifest tests (`16 passed`), the
+  release Compose contract, and AIOps runtime preflight passed.
+- Docker Desktop WSL integration is disabled on this workstation, so local
+  `docker compose config` could not run. CI now validates both production and
+  development Compose forms with non-secret fixture values.
+- Registry publication, remote deployment, migrations, and rollback rehearsal
+  remain outside this implementation and have not been attempted.
 
 ## Self-review
 
