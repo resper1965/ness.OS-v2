@@ -24,3 +24,15 @@ ness-zabbix-migration-stage-20261012. Restore no banco definitivo ainda depende
 de staging íntegro e preservação do rollback. Origem continua coletando até o
 freeze final de corte; destino permanece mascarado/inativo para impedir dupla
 coleta. Toda evidência deve distinguir preparação, aplicação e produção.
+
+Staging concluído às 11:54:38 BRT: dump 5.261.041.778 bytes, SHA256SUMS e gzip
+aprovados. Snapshot restaurou seu conteúdo na raiz de restic-f0b19cf8. A primeira
+tentativa de refresh usou caminho inexistente e abortou antes de tocar o banco;
+caminho corrigido após inspeção. Importação corrente na unidade
+ness-zabbix-refresh-validated-20261012, PID inicial 556425.
+
+Leitura corrente na origem via credencial runtime do Hub e leitura SQL restrita:
+os cinco hosts Cavan possuem um template vinculado cada. Itens não suportados:
+10873=1, 10874=1, 10877=2, 10878=0, 10885=0. A ausência de parentTemplates
+na resposta do token Hub não comprova ausência de template; a consulta de banco
+confirmou os vínculos. O pacote antigo de correção não deve sobrescrever isso.
