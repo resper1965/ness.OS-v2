@@ -110,3 +110,25 @@ reaplicação. Seis testes do mecanismo/escopo aprovados; arquivos root-only
 unconfigured-wave-2-20261012.json e unconfigured-wave-3-20261012.json
 preservam antes/depois. Nenhum host foi habilitado/desabilitado, nenhum template
 foi vinculado, e a origem não recebeu essas alterações.
+
+## Variante SNMP isolada preparada e importada
+
+Masters 85756/85977 confirmados como herança de net.if.walk 46234, no template
+10604 FortiGate by SNMP. Export real gerou variante 10988:
+FortiGate by SNMP - UAT walk 5s. Copiados 55 itens e nove regras LLD; somente
+o timeout de net.if.walk passou a 5s. UUIDs dos novos objetos renovados e
+referências de template reescritas, preservando grupos e export original.
+
+TDD da transformação: três testes falharam antes da implementação e passaram;
+suíte Python de infraestrutura: 40 testes e três subtestes aprovados. A execução
+por diretório inicialmente não descobriu arquivos test-*.py; a seleção explícita
+correta executou a suíte. Não foi repetida a suíte de backend ou backup.
+
+Importcompare aprovou apenas adições; import via API normal com updateExisting
+desligado. Export do template 10604 permaneceu idêntico antes/depois, variante
+sem hosts vinculados e timeout 5s confirmado. Arquivos de export/candidato/
+comparação/resultado root-only em restore-evidence, sem credenciais no Git.
+Rollback do preparo: excluir apenas 10988 depois de comprovar ausência de
+hosts vinculados. Próxima etapa: ensaio de vínculo em host UAT com preservação
+de IDs/histórico e rollback. Não há coleta ativa ou redução comprovada de erros;
+5s é hipótese de teste, não tuning produtivo aprovado.
