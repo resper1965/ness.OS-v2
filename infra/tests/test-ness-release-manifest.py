@@ -43,7 +43,12 @@ def initialize_git(root: Path) -> str:
     ).strip()
 
 
-def generate(root: Path, output: Path, facts: dict | None = None) -> dict:
+def generate(
+    root: Path,
+    output: Path,
+    facts: dict | None = None,
+    extra_args: list[str] | None = None,
+) -> dict:
     command = [
         sys.executable,
         str(GENERATOR),
@@ -56,6 +61,8 @@ def generate(root: Path, output: Path, facts: dict | None = None) -> dict:
         facts_file = output.with_suffix(".production-facts.json")
         facts_file.write_text(json.dumps(facts), encoding="utf-8")
         command.extend(["--production-facts", str(facts_file)])
+    if extra_args:
+        command.extend(extra_args)
     subprocess.run(command, check=True, capture_output=True, text=True)
     return json.loads(output.read_text(encoding="utf-8"))
 
@@ -185,6 +192,125 @@ def test_compose_discovery_skips_git_worktree_checkouts(tmp_path: Path) -> None:
     assert [(row["compose_file"], row["service"]) for row in manifest["images"]] == [
         ("app/docker-compose.yml", "db")
     ]
+
+
+def test_explicit_compose_scope_ignores_unselected_files(tmp_path: Path) -> None:
+    root = write_fixture_repo(
+        tmp_path / "repo",
+        "services:\n  db:\n    image: postgres:17@sha256:" + "a" * 64 + "\n",
+    )
+    extra = root / "extra-compose.yml"
+    extra.write_text(
+        "services:\n  excluded:\n    image: registry.example/excluded:latest\n",
+        encoding="utf-8",
+    )
+    initialize_git(root)
+
+    manifest = generate(
+        root,
+        tmp_path / "manifest.json",
+        extra_args=["--compose-file", "app/docker-compose.yml"],
+    )
+
+    assert [(row["compose_file"], row["service"]) for row in manifest["images"]] == [
+        ("app/docker-compose.yml", "db")
+    ]
+
+
+def test_manifest_accepts_immutable_service_image_override(tmp_path: Path) -> None:
+    root = write_fixture_repo(
+        tmp_path / "repo",
+        "services:\n  api:\n    build: .\n",
+    )
+    initialize_git(root)
+    reference = "registry.example/ness/api@sha256:" + "b" * 64
+
+    manifest = generate(
+        root,
+        tmp_path / "manifest.json",
+        extra_args=[
+            "--compose-file",
+            "app/docker-compose.yml",
+            "--image-ref",
+            f"api={reference}",
+        ],
+    )
+
+    assert manifest["images"] == [
+        {
+            "compose_file": "app/docker-compose.yml",
+            "digest": "sha256:" + "b" * 64,
+            "immutable": True,
+            "reference": reference,
+            "service": "api",
+            "source": "build",
+        }
+    ]
+
+
+def test_manifest_rejects_mutable_service_image_override(tmp_path: Path) -> None:
+    root = write_fixture_repo(tmp_path / "repo", "services:\n  api:\n    build: .\n")
+    initialize_git(root)
+
+    command = [
+        sys.executable,
+        str(GENERATOR),
+        "--repo-root",
+        str(root),
+        "--output",
+        str(tmp_path / "manifest.json"),
+        "--image-ref",
+        "api=registry.example/ness/api:latest",
+    ]
+    result = subprocess.run(command, capture_output=True, text=True)
+
+    assert result.returncode == 2
+    assert "immutable image reference" in result.stderr
+
+
+def test_manifest_rejects_unknown_override_service(tmp_path: Path) -> None:
+    root = write_fixture_repo(tmp_path / "repo", "services:\n  api:\n    build: .\n")
+    initialize_git(root)
+
+    command = [
+        sys.executable,
+        str(GENERATOR),
+        "--repo-root",
+        str(root),
+        "--output",
+        str(tmp_path / "manifest.json"),
+        "--image-ref",
+        "absent=registry.example/ness/api@sha256:" + "c" * 64,
+    ]
+    result = subprocess.run(command, capture_output=True, text=True)
+
+    assert result.returncode == 2
+    assert "unknown image-ref service" in result.stderr
+
+
+def test_manifest_rejects_different_api_worker_image_override(tmp_path: Path) -> None:
+    root = write_fixture_repo(
+        tmp_path / "repo",
+        "services:\n  api:\n    build: .\n  worker-alerts:\n    build: .\n",
+    )
+    initialize_git(root)
+
+    command = [
+        sys.executable,
+        str(GENERATOR),
+        "--repo-root",
+        str(root),
+        "--output",
+        str(tmp_path / "manifest.json"),
+        "--image-ref",
+        "api=registry.example/ness/api@sha256:" + "d" * 64,
+        "--image-ref",
+        "worker-alerts=registry.example/ness/api@sha256:" + "e" * 64,
+    ]
+    result = subprocess.run(command, capture_output=True, text=True)
+
+    assert result.returncode == 2
+    assert "API worker image references must match" in result.stderr
 
 
 def test_unpinned_image_is_reported_as_a_release_blocker(tmp_path: Path) -> None:

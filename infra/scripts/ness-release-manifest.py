@@ -19,6 +19,8 @@ SENSITIVE_KEY = re.compile(
     re.IGNORECASE,
 )
 VERSION_KEYS = ("zabbix_version", "mariadb_version", "php_version", "wazuh_version")
+IMMUTABLE_IMAGE_REFERENCE = re.compile(r"^.+@sha256:[0-9a-f]{64}$")
+API_IMAGE_SERVICES = frozenset({"api", "worker-alerts", "worker-ml"})
 DEPLOYED_NAMES = {
     "app/docker-compose.yml",
     "app/Caddyfile",
@@ -106,6 +108,59 @@ def compose_files(root: Path) -> list[Path]:
         current_path = Path(current)
         candidates.extend(current_path / filename for filename in compose_names.intersection(filenames))
     return sorted(candidates, key=lambda path: path.relative_to(root).as_posix())
+
+
+def selected_compose_files(root: Path, requested: list[str]) -> list[Path]:
+    if not requested:
+        return compose_files(root)
+    selected: list[Path] = []
+    for value in requested:
+        candidate = (root / value).resolve()
+        try:
+            candidate.relative_to(root)
+        except ValueError as error:
+            raise ValueError(f"compose file must be inside repo: {value}") from error
+        if not candidate.is_file():
+            raise ValueError(f"compose file does not exist: {value}")
+        selected.append(candidate)
+    return sorted(set(selected), key=lambda path: path.relative_to(root).as_posix())
+
+
+def parse_image_refs(values: list[str]) -> dict[str, str]:
+    references: dict[str, str] = {}
+    for value in values:
+        service, separator, reference = value.partition("=")
+        if not separator or not service or not IMMUTABLE_IMAGE_REFERENCE.fullmatch(reference):
+            raise ValueError(f"immutable image reference required: {value}")
+        if service in references and references[service] != reference:
+            raise ValueError(f"conflicting image-ref service: {service}")
+        references[service] = reference
+    return references
+
+
+def apply_image_refs(images: list[dict[str, Any]], references: dict[str, str]) -> list[dict[str, Any]]:
+    known_services = {str(image["service"]) for image in images}
+    unknown = sorted(set(references) - known_services)
+    if unknown:
+        raise ValueError(f"unknown image-ref service: {unknown[0]}")
+    api_worker_references = {
+        reference for service, reference in references.items() if service in API_IMAGE_SERVICES
+    }
+    if len(api_worker_references) > 1:
+        raise ValueError("API worker image references must match")
+    updated: list[dict[str, Any]] = []
+    for image in images:
+        reference = references.get(str(image["service"]), image["reference"])
+        digest_match = re.search(r"@sha256:([0-9a-fA-F]{64})$", reference or "")
+        updated.append(
+            {
+                **image,
+                "reference": reference,
+                "digest": f"sha256:{digest_match.group(1).lower()}" if digest_match else None,
+                "immutable": digest_match is not None,
+            }
+        )
+    return updated
 
 
 def parse_images(root: Path, paths: list[Path]) -> list[dict[str, Any]]:
@@ -313,11 +368,16 @@ def compare_production(
     }
 
 
-def build_manifest(root: Path, production_facts: dict[str, Any] | None) -> dict[str, Any]:
+def build_manifest(
+    root: Path,
+    production_facts: dict[str, Any] | None,
+    requested_compose: list[str] | None = None,
+    image_refs: list[str] | None = None,
+) -> dict[str, Any]:
     commit = run_git(root, "rev-parse", "HEAD")
     dirty = bool(run_git(root, "status", "--porcelain"))
-    compose = compose_files(root)
-    images = parse_images(root, compose)
+    compose = selected_compose_files(root, requested_compose or [])
+    images = apply_image_refs(parse_images(root, compose), parse_image_refs(image_refs or []))
     deployed_file_hashes = file_hashes(root, deployed_paths(root, compose))
     versions = read_versions(root)
     units = sorted(
@@ -370,6 +430,8 @@ def main() -> int:
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--repo-root", type=Path, default=Path(__file__).resolve().parents[2])
     parser.add_argument("--production-facts", type=Path)
+    parser.add_argument("--compose-file", action="append", default=[])
+    parser.add_argument("--image-ref", action="append", default=[])
     args = parser.parse_args()
 
     try:
@@ -378,7 +440,12 @@ def main() -> int:
             facts = json.loads(args.production_facts.read_text(encoding="utf-8"))
             if not isinstance(facts, dict):
                 raise ValueError("production facts must be a JSON object")
-        manifest = build_manifest(args.repo_root.resolve(), facts)
+        manifest = build_manifest(
+            args.repo_root.resolve(),
+            facts,
+            requested_compose=args.compose_file,
+            image_refs=args.image_ref,
+        )
         args.output.parent.mkdir(parents=True, exist_ok=True)
         temporary = args.output.with_name(f".{args.output.name}.tmp")
         temporary.write_text(json.dumps(manifest, sort_keys=True, indent=2) + "\n", encoding="utf-8")

@@ -8,7 +8,24 @@ sem plano de reversão.
 ## Preparar a release
 
 1. Confirme árvore limpa, CI aprovada e tag ligada ao commit revisado.
-2. Gere o manifesto: `python3 infra/scripts/ness-release-manifest.py --output release-manifest.json`.
+2. Depois de publicar as imagens pelo workflow de registry aprovado, gere o
+   manifesto da composição de produção (não use o override de desenvolvimento):
+
+   ```bash
+   python3 infra/scripts/ness-release-manifest.py \
+     --output release-manifest.json \
+     --compose-file app/docker-compose.yml \
+     --compose-file app/docker-compose.tickets.yml \
+     --image-ref "api=${NINF_API_IMAGE:?}" \
+     --image-ref "worker-alerts=${NINF_API_IMAGE:?}" \
+     --image-ref "worker-ml=${NINF_API_IMAGE:?}" \
+     --image-ref "frontend=${NINF_FRONTEND_IMAGE:?}"
+   ```
+
+   `NINF_API_IMAGE` e `NINF_FRONTEND_IMAGE` devem ser referências completas
+   por digest (`registry/name@sha256:<digest>`), obtidas do registry aprovado;
+   o comando falha para tag mutável, serviço inexistente ou imagens diferentes
+   entre API e workers.
 3. Confira `release_ready`, `blockers`, `images` e `deployed_file_hashes`. Uma imagem
    sem `@sha256:` é bloqueio. Para imagens construídas pelo projeto, publique a
    imagem no registry, registre seu digest e atualize o Compose para referenciá-lo.
