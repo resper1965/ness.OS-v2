@@ -398,3 +398,26 @@ piloto; permissão de escrita, identidade/expiração e escopo negativo ainda
 devem ser verificados. Não aplicar em massa nem considerarG2 aprovado por
 esse teste. Próximo passo: conferir privilégios e precondições do delta bulk25,
 aplicar somente primeiro host e observar três ciclos antes do segundo.
+
+### Primeira correção na origem — 12/10 18:45 BRT
+
+Token entregue corresponde aoid6 da conta nominalresper, tipoSuperadmin,
+sem expiração inicial. Identidade confirmada em memória por hash, sem publicar
+segredo/hash. ViaAPI normal, expires_at limitado a13/10 11:47:35BRT e lido de
+volta; conta/role não alterados. Acesso fora do piloto existe: privilégio
+mínimo NÃO aceito, pendência deG2; uso operacional restringido aos IDs do
+delta autorizado, não à conta Hub. Token5 svc_ninfraops_api não foi modificado.
+
+Origem10768/interface116 passou precondiçõesv2/bulk1/reps10; export antes
+root-only source-bulk25-10768-20261012.json em /var/lib/ness-os/diagnostics/.
+API alterou somente details.max_repetitions25, readback confirmou os demais
+campos intactos,717itens304triggers preservados. Antes497unsupported, master
+85756unsupported,504dependentes, intervalo1m. Host10769/interface117 segue10.
+
+Observação real iniciada na unidade systemd
+ness-zabbix-bulk25-observe-10768-20261012.service: consulta de clocks/estado
+sem valores brutos, exige três clocks pós-alteração com master suportado e
+sem piora dos unsupported. Limite10min; falha retorna10 viaAPI normal e
+confirma readback. Não relançar unidade por timeout de consulta; acompanhar
+o mesmo job/evidência. Não aplicar segundo host enquanto primeiro não passar.
+Status neste registro: APPLIED_OBSERVATION_PENDING, não redução comprovada.

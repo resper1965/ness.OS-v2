@@ -1,5 +1,8 @@
 {
-  "state": "UAT_REHEARSED_NOT_PRODUCTIVE",
+  "state": "FIRST_SOURCE_HOST_APPLIED_OBSERVATION_PENDING",
+  "applied_hostids": ["10768"],
+  "pending_hostids": ["10769"],
+  "observation_unit": "ness-zabbix-bulk25-observe-10768-20261012.service",
   "hostids": ["10768", "10769"],
   "preconditions": {"snmp_version": 2, "bulk": 1, "max_repetitions": 10},
   "change": {"details": {"max_repetitions": 25}},
@@ -7,6 +10,6 @@
   "preserve": ["interfaceid", "hostid", "ip", "dns", "port", "community", "version", "bulk"],
   "diagnostic_hostid": "10768",
   "diagnostic": {"columns": 13, "values": 936, "bulk10_seconds": 21.905, "bulk25_seconds": 8.273},
-  "limits": "CLI diagnostic is not a Zabbix session acceptance test. Source API write identity is expired; no production configuration changed.",
+  "limits": "CLI diagnostic is not acceptance. Temporary owner-admin token verified and bounded to the authorized window; it is not a least-privilege G2 acceptance. First source host only; productive error reduction awaits three collection cycles.",
   "promotion": "Observe one authorized host for three complete polling cycles, compare master/dependent state, coverage, packet loss and poller load before the second host. Do not increase global timeout or change the shared template."
 }
