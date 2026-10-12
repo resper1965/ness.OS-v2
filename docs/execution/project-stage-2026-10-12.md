@@ -7,12 +7,12 @@ Owner operacional: plataforma ness.; ticket GLPI 75426.
 | --- | --- |
 | Origem | Continua sendo produção e rollback; DNS não alterado |
 | Refresh definitivo | PASS: snapshot f0b19cf8 importado no destino, frontend sincronizado |
-| Paridade de inventário | PASS: 325 hosts, tags e vínculos de templates iguais na origem/destino |
+| Paridade de inventário | PASS: 325 registros (262 hosts reais + 63 protótipos), tags e templates iguais na origem/destino |
 | Banco/API/frontend | Schema 7.0; API 7.0.27; HTTP 200; durabilidade=1 |
 | Isolamento | Server inativo/mascarado; sem listener 10051; canais externos desligados |
 | Marca | Hook nativo e assets servidos; referência de login confirmada; renderização ainda não inspecionada |
 | Qualidade de coleta | Todos os hosts no escopo; causas SNMP prioritárias identificadas; não corrigidas ainda |
-| SSO/API de escrita UAT | Bloqueados: SAML restaurado aponta à origem; acesso mínimo na #71 |
+| SSO/API UAT | Recuperação e configuração SAML aprovadas; login nominal/MFA ainda pendentes |
 | Corte produtivo | Não executado; gates/SSO, freeze final e rollback de corte ainda necessários |
 
 Próxima sequência: recuperar acesso administrativo UAT pelo canal autorizado;
@@ -47,3 +47,17 @@ Redirecionamento público HTTP 302 agora segue /application/saml/zabbix-uat/.
 Login nominal, MFA, logout federado e cenários negativos ainda não homologados.
 Uma tentativa de probe público a partir da própria VPS recebeu 403; a estação
 cliente recebeu o 302 esperado. Não tratar bloqueio desse probe como queda da UI.
+
+## Inventário autenticado e correção de escopo
+
+API administrativa host.get retornou 262 hosts. Conferência SQL por flags:
+261 hosts habilitados + 1 desabilitado com flags=0; 62 protótipos habilitados
++ 1 desabilitado com flags=2. Portanto os 325 registros anteriormente chamados
+de hosts incluíam 63 protótipos. O escopo continua todos os hosts reais; protótipos
+são revisados como configuração LLD, não como 63 dispositivos adicionais.
+O hash anterior prova igualdade de registros, mas não valida essa classificação.
+
+Dashboards existentes preservados: 1 NOC — Visão Operacional (8 widgets),
+2 Zabbix server health (8), 57 Zabbix server (1), 405 NOC — Operação e Clientes
+(32). Não substituir pelo candidato genérico menor sem revisão. Próxima tarefa:
+exportar dashboard 405, validar filtros/layout e produzir delta reversível.
