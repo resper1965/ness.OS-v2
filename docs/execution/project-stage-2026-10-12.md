@@ -482,3 +482,37 @@ Próxima prioridade: causas restantes por famílias (agentes/VMware/calculados)
 e SSO/gates, não maps/polimento. G2 leastprivilege/nominalMFA não aprovado;
 token6temporário continua limitado à janela. Origem única coletora e destino
 mascarado; corteDNS não realizado. Janela e GO continuam pré-requisitos.
+
+### Próxima onda: compatibilidade de agentes e VMware — 12/10 após19hBRT
+
+Leitura de causas restantes:117perf_counter_en em9hosts;67vfs.fs.pfree,
+40system.sw.os,30system.swap.free; seis hosts VMware com erros de parâmetro.
+10787/10788/10789/10790/10792/10793 não têm HV.UUID próprio; não há macro
+global configurada. Suas descobertas estãounsupported e sem históricoJSON.
+UUIDs de outros hosts existentes não têm correspondência inequívoca de IP
+com esses seis: não copiar pelo nome nem inventar identificador. Coleta/UUID
+porvSphere autoritativo ainda necessário; nenhuma macroVMware alterada.
+
+Oito agentes do lote10696/97/98/99/10700/10703/10704/10705 são monitorados
+pelo proxy1. Consulta TCP direta da origem a10696 expirou; isso não é prova
+de falha do agente, pois rota correta éproxy1. Proxy comunicou há7s na
+consulta. Última versão registrada10696 é3.2.6, amostra~8h antiga: não
+afirmar versão atual pela fotografia. Diagnóstico ocorre na coleta normal.
+
+Probe temporário120217 em10696, mesmo contador original com chave
+perf_counter em vez deperf_counter_en, recebeu três clocks2798/2857/2917
+(prefixo179184), valor numérico finito e state0. Unidade
+ness-zabbix-agent-compatibility-10696-20261012 terminou
+COMPATIBILITY_ONE_COUNTER_THREE_CYCLES_PASS; probe desativado viaAPI,
+histórico preservado, itens/templates originais intocados. Isso comprova
+um contador compatível, não corrige os117unsupported automaticamente.
+
+Iniciados os outros12contadores do mesmo host como diagnósticos tag
+scope=maintenance_probe, sem triggers, intervalo1m/history1h/trends0.
+Unidade ness-zabbix-agent-compatibility-full-10696-20261012; JSONroot-only
+/var/lib/ness-os/diagnostics/agent-compatibility-full-10696-20261012.json.
+Exige três clocks pós-criação numéricos/state0 por item, limite10min;
+finally desativa somente os12probes novos e preserva dados. Não relançar.
+Não trocar template/chaves existentes antes de provar todos os contadores
+e ensaiar preservação de IDs/histórico emUAT. Pendentes continuam originais,
+sem ocultarerro/zerovalores para meta. Jobrodando não equivale aPASS.
