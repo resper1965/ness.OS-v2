@@ -253,3 +253,21 @@ de recuperação/configuração já executadas. E-mail de procedimento restante
 enviado a Ismael com Ricardo em cópia, Gmail SENT 1a1316cace7b0677.
 Permanecem abertos SSO nominal/MFA/logout/negativos e identidade técnica
 permanente mínima; sessões emergenciais não equivalem a esses aceites.
+
+## Fechamento da meta de quatro horas — preparação às 15:45 BRT
+
+Verificação final após o delta: origem zabbix-srv01 active/enabled, listener
+10051 presente; destino zbx-prd-01 inactive/masked, listener 10051 ausente.
+Não houve corte DNS, ativação do destino, dupla coleta ou modificação de
+templates/LLD na origem. GitHub recebeu o delta de nome em 9050565; árvore
+limpa após push. Não foi repetido dump, restore ou ensaio de backup.
+
+Entrega produtiva completa NÃO atingida na meta. Continuam pendentes:
+homologação nominal SSO/MFA/negativos; gates de promoção; perfil de links
+com preservação de recursos LLD; observação das correções SNMP; freeze/snapshot
+final, GO, corte e D+1/D+3/D+7. Painéis/tags/nome são UAT, não evidência de
+redução produtiva de erros. A continuação automática desta meta será pausada
+ao atingir 15:47:35 BRT; isso não cancela a janela de 24h nem aprova o corte.
+Retomada usa este cartão e deltas versionados, preserva os serviços correntes
+e não recomeça pelo backup. A próxima implementação independente é a variante
+LLD de transição, não a alteração direta de filtros com lifetime=7d.
