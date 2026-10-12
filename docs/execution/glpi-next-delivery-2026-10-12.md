@@ -65,3 +65,35 @@ Próxima entrega: conciliar identificadores do Hub com GLPI e registro Zabbix,
 quantificar causas dos 646 vínculos ausentes e correlacionar backlog com eventos
 distintos. Não repetir esta auditoria sem alteração relevante. SLA continua
 dependência contratual; nenhuma duração presumida.
+
+## Reconciliação do Hub — 12/10/2026 após 23:00 UTC
+
+Leitura via modelos SQLAlchemy existentes, sem escrever: 255 ativos com
+source=zabbix+glpi, zero host IDs duplicados, todos com glpi_item_id,
+glpi_itemtype e glpi_entity_id preenchidos. Isso não comprova existência ou
+entidade correta de cada referência no GLPI; readback cruzado ainda pendente.
+
+76250 incidentes de origem Zabbix consultados; 646 sem asset_id e 115 sem
+ticket na amostra. Não classificar os 115 como falha definitiva sem verificar
+idade, estado, fila/retry e política de exclusão. Contagens são concorrentes.
+
+Os 646 sem asset_id estão exatamente nestes host IDs:
+
+| Host ID | Incidentes sem ativo |
+| --- | ---: |
+| 10983 | 532 |
+| 10984 | 111 |
+| 10987 | 2 |
+| 10978 (sintético) | 1 |
+
+Registro Zabbix datado 21:58 UTC confirma os três primeiros como hosts reais
+ativos; o quarto é o trapper sintético conhecido. Não inferir tenant pelo nome
+visível: confirmar grupos/mapeamento autorizado antes de criar ativos ou
+reparar tickets. Igualdade da contagem 646 no Hub e GLPI é indício consistente,
+não substitui comparação dos ticket IDs linha a linha.
+
+Primeira consulta de diagnóstico falhou por referência a Asset.host_id
+inexistente; corrigida para Asset.zabbix_host_id conforme modelo, sem efeitos
+de escrita. Consultas corrigidas exit 0. Próximo passo: readback das 255
+referências GLPI e classificação autorizada dos três hosts sem vínculo, antes
+de qualquer lote de correção. Não repetir auditoria ampla de tickets.
