@@ -36,6 +36,12 @@ atual de ambiente, credenciais, backup ou serviço.
 
 ## Estado consolidado
 
+Execução independente em 12/10: ensaio isolado com PostgreSQL/Redis reais
+aprovado para retry GLPI, três replays, auditoria e tenant; APIs externas
+simuladas. Baseline de qualidade renovada no Zabbix isolado, com 2.887 itens
+não suportados históricos. Evidências: `hub-isolated-flow-2026-10-12.md` e
+`zabbix-offline-quality-2026-10-12.md` em `docs/execution/evidence`.
+
 | Componente | Situação | Próximo gate |
 | --- | --- | --- |
 | Repositório e release | branch de entrega sincronizada; Hub/AIOps promovido com imagens GHCR por digest e rollback ensaiado | CI limpo e integração protegida do workflow antes de aprovar G0 global |
