@@ -73,6 +73,15 @@ alterada nenhuma etapa de autenticação nesta coleta.
 
 ## Próxima mudança controlada
 
+## Verificação do backend — 12/10
+
+A suíte local de identidade e controle de acesso passou com **81 testes**:
+`test_authentik_rbac.py`, `test_contabo_read_only_rbac.py`,
+`test_core_auth.py`, `test_incidents_auth.py` e `test_tenant_secops_auth.py`.
+Ela verifica regras de papel, isolamento de tenant, sessão e proteção da API;
+não substitui a homologação de login com dispositivos MFA nem a recuperação
+independente do cofre pelos custodians.
+
 1. Cadastrar TOTP ou WebAuthn individualmente para os três custodians, gerar
    códigos de recuperação sob dupla custódia e testar revogação.
 2. Impor MFA especificamente a `platform_admin` somente depois dos três testes

@@ -8,7 +8,9 @@
 > G0 global segue **PARCIAL**: o workflow de publicação ainda precisa da
 > revisão e dos checks exigidos no PR #65. O PR de entrega atual, #64, também
 > está bloqueado porque os jobs de Actions não receberam runner (`runner_id=0`),
-> e não por uma falha de teste registrada. G1-Hub/AIOps foi renovado com restore
+> por falha de pagamento ou limite de gastos da conta, conforme a annotation
+> oficial do job `114826066735`. A regularização de Billing & plans é a ação
+> necessária para executar os checks. G1-Hub/AIOps foi renovado com restore
 > externo; o trabalho ativo é G2 (identidade e cofre), documentado nas
 > evidências de 12/10.
 
