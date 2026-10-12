@@ -7,7 +7,8 @@ After=docker.service
 Type=oneshot
 User=root
 UMask=0077
-ExecStart=/usr/local/sbin/ness-aiops-isolated-restore-test
+# Verify the encrypted off-site snapshot, not merely the local backup set.
+ExecStart=/usr/local/sbin/ness-aiops-isolated-restore-test --remote
 TimeoutStartSec=30min
 TimeoutStopSec=120
 Nice=15
