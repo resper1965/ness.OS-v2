@@ -1,0 +1,25 @@
+# Zabbix — estágio de 12/10/2026
+
+Atualização: restore terminou 12:38:46 BRT / 15:38:46 UTC.
+Owner operacional: plataforma ness.; ticket GLPI 75426.
+
+| Entrega | Estado comprovado |
+| --- | --- |
+| Origem | Continua sendo produção e rollback; DNS não alterado |
+| Refresh definitivo | PASS: snapshot f0b19cf8 importado no destino, frontend sincronizado |
+| Paridade de inventário | PASS: 325 hosts, tags e vínculos de templates iguais na origem/destino |
+| Banco/API/frontend | Schema 7.0; API 7.0.27; HTTP 200; durabilidade=1 |
+| Isolamento | Server inativo/mascarado; sem listener 10051; canais externos desligados |
+| Marca | Hook nativo e assets servidos; referência de login confirmada; renderização ainda não inspecionada |
+| Qualidade de coleta | Todos os hosts no escopo; causas SNMP prioritárias identificadas; não corrigidas ainda |
+| SSO/API de escrita UAT | Bloqueados: SAML restaurado aponta à origem; acesso mínimo na #71 |
+| Corte produtivo | Não executado; gates/SSO, freeze final e rollback de corte ainda necessários |
+
+Próxima sequência: recuperar acesso administrativo UAT pelo canal autorizado;
+conferir provider UAT e certificado; homologar login e API mínima; corrigir
+coleta em ondas de até cinco; executar critérios de corte. Dependência humana
+registrada na issue #51 com instruções enviadas por e-mail. Não repetir o
+restore concluído nem elevar a identidade de leitura do Hub.
+
+Evidências detalhadas: [janela e resultado](zabbix-production-window-2026-10-12.md).
+Este estágio não declara entrega total em produção nem aceita G2 por exceção.

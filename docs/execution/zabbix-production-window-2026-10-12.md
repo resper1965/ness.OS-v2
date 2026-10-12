@@ -101,3 +101,41 @@ Windows 63235 (Paging file), 63250 (swap total), 63254 (memória total) e 63255
 tabelas correspondentes ao value_type. A falha é ausência de amostras, não uma
 fórmula comprovadamente errada. Priorizar disponibilidade/agente/intervalos e
 retenção antes de editar os dois itens calculados; trends não foram consultadas.
+
+## Resultado do refresh — 12/10/2026 12:38:46 BRT
+
+`ness-zabbix-refresh-validated-20261012` terminou com Result=success,
+restore=PASS e isolated_refresh=PASS. Import nativo: 2.471 segundos,
+203 tabelas, 687 registros em hosts (325 hosts + 362 templates), 64.688 itens,
+26.927 triggers, dbversion obrigatório 7000000. Snapshot f0b19cf8 e SHA do dump
+a1db6a00f97582f035004ceee8201a9fbb735099667da5c5625c31f7f2379f36.
+Não repetir esta transferência/importação sem mudança relevante.
+
+Durabilidade voltou automaticamente a 1, com unidade de reset aprovada.
+MariaDB/Apache ativos; Zabbix inativo/mascarado, listener 10051 ausente,
+ações/mídias/conectores habilitados=0. API pública 7.0.27 e frontend HTTP 200,
+sem erro de conexão ao banco, com referência nativa ao logo oficial.
+
+Paridade corrente origem/destino: mesmos totais de hosts/itens/triggers.
+Inventário normalizado de IDs/status/proxy/monitored_by, tags e templates
+diretamente vinculados: 325 hosts, 262 tags, 315 vínculos, SHA-256 idêntico
+48c80da9959e9013a21024fcc45ef453b678cf3ad5450589e7c43bd4acce45f8.
+Isso prova paridade desses campos, não igualdade de todo histórico produtivo
+após o snapshot. Cavan conserva tags e um template por host do piloto.
+
+Correção factual: 10877 está desabilitado na origem e no destino; seus erros
+históricos não entram na prioridade de coleta ativa. Não será reativado.
+Dois masters SNMP 85756/85977 nos hosts 10768/10769 propagaram erros para
+992 dependentes. Hosts respondem ICMP e walk recebe dados parciais antes de
+timeout. Global SNMP=3s; itens herdam 46234 sem timeout específico. Timeout
+de objeto herdado é somente leitura; não aplicar override inválido nem editar
+template compartilhado. Variante isolada exige acesso de escrita e teste.
+
+SSO não aprovado: snapshot restaurou SP EntityID da origem e endpoint IdP
+da aplicação zabbix; ness_uat_breakglass não existe no banco restaurado.
+Nenhum usuário/autenticação foi alterado por SQL. Issue #51 atualizada e
+instruções enviadas a Ismael/Ricardo; acesso API mínimo continua na #71.
+Token do Hub permite leitura/ACK e não será elevado para editar itens/hosts.
+DNS, coleta e notificações produtivas permanecem na origem; corte ainda não
+executado. Próximo passo obrigatório: regularizar SSO/API UAT e validar login,
+antes de promover as correções e preparar o freeze final autorizado.
