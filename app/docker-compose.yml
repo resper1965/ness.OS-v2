@@ -8,9 +8,7 @@ services:
 
   # --- API Backend (FastAPI) ---
   api:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ${NINF_API_IMAGE:?NINF_API_IMAGE is required}
     container_name: ninf-api
     restart: unless-stopped
     env_file:
@@ -22,8 +20,6 @@ services:
       NINF_JWT_SECRET: ${NINF_JWT_SECRET:?NINF_JWT_SECRET is required}
       NINF_DASHBOARD_BASE_URL: ${NINF_DASHBOARD_BASE_URL:-https://hub.ness.com.br}
       NINF_SESSION_COOKIE_SECURE: ${NINF_SESSION_COOKIE_SECURE:-true}
-    volumes:
-      - ./backend/app:/app/app:ro   # bind-mount: codigo atualizado sem rebuild
     depends_on:
       postgres:
         condition: service_healthy
@@ -38,9 +34,7 @@ services:
 
   # --- Celery Worker (Alertas) ---
   worker-alerts:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ${NINF_API_IMAGE:?NINF_API_IMAGE is required}
     container_name: ninf-worker-alerts
     restart: unless-stopped
     command: >
@@ -53,8 +47,6 @@ services:
       - .env
       - /etc/ness-os/glpi-integration.env
       - /etc/ness-os/zabbix-integration.env
-    volumes:
-      - ./backend/app:/app/app:ro
     depends_on:
       - api
     networks:
@@ -72,9 +64,7 @@ services:
  
   # --- Celery Worker (ML + Post-mortem) ---
   worker-ml:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ${NINF_API_IMAGE:?NINF_API_IMAGE is required}
     container_name: ninf-worker-ml
     restart: unless-stopped
     command: >
@@ -84,8 +74,6 @@ services:
       --loglevel=info
       --hostname=ml@%h
     env_file: .env
-    volumes:
-      - ./backend/app:/app/app:ro
     depends_on:
       - api
     networks:
@@ -193,8 +181,7 @@ services:
 
   # --- Frontend (React/Vite, API same-origin via Caddy) ---
   frontend:
-    build:
-      context: ./frontend
+    image: ${NINF_FRONTEND_IMAGE:?NINF_FRONTEND_IMAGE is required}
     container_name: ninf-frontend
     restart: unless-stopped
     depends_on:
