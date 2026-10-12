@@ -378,3 +378,11 @@ mostrando somente zabbix-cutover-bootstrap.env0600 para Zabbix; nenhuma nova
 credencial de manutenção disponível nesse percurso. Não reativar token
 desativado nem redefinir conta akadmin em produção. Bloqueioissue72 permanece.
 Não houve backup/restore ou novo ensaio UAT repetido nesta retomada.
+
+### URL de manutenção da origem confirmada — 12/10 18:35 BRT
+
+Apache da origem declara ServerName zabbix.ness.com.br; DNS atual resolve
+144.91.72.202 e HTTPS /index.php respondeu200 com validaçãoTLS normal.
+Percurso correto para criar acesso mínimo: https://zabbix.ness.com.br/,
+não zabbix-uat.ness.com.br. Resposta pública não prova login/API nem muda
+o bloqueioissue72. Não houve criação de token ou escrita de configuração.
