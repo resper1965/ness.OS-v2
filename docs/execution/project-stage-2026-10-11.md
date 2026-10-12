@@ -33,6 +33,13 @@ pública confirmada e RTO de 36 segundos. A evidência está em
 Ele continua uma PoC na VPS AIOps: promoção dedicada e dupla custódia com MFA
 seguem obrigatórias para G2.
 
+A leitura F2 atual confirmou os dois custodians ativos, superusuários e com
+primeiro acesso concluído; Ismael já possui MFA, Ricardo ainda não. Não há
+códigos de recuperação ou emergência e MFA ainda não é imposto. A mesma leitura
+detectou recuperação por senha e SMTP ativos, divergindo da documentação
+histórica. O comportamento foi registrado como pendência, sem mudança
+automática que pudesse comprometer a recuperação.
+
 O Hub/AIOps foi promovido em janela controlada para o commit
 `144317fd5262ecf242b118774573a62df8e88d78`, com imagens privadas GHCR por
 digest, backup prévio `20261012T085531-0300`, migração aditiva, canário,

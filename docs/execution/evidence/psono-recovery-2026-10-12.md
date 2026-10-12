@@ -18,3 +18,24 @@ e o timer semanal de recuperação permanecem ativos.
 Esta prova confirma recuperação, não promove o cofre a produção. O Psono ainda
 compartilha a VPS AIOps e a custódia/MFA dos dois responsáveis ainda não está
 homologada; ambos são pré-requisitos de G2.
+
+## Readiness F2 atual — 2026-10-12 10:08 BRT
+
+O relatório root-only `f2-readiness-report.sh` foi executado na VPS AIOps sem
+imprimir segredos. Psono e PostgreSQL estavam `healthy`; HTTPS respondeu,
+timer de backup estava ativo, a última execução teve `success` e os dois
+arquivos de ambiente permaneceram `root:root 0600`.
+
+| Controle | Ismael (`iaraujo`) | Ricardo (`resper`) |
+| --- | --- | --- |
+| Conta ativa e superuser | sim | sim |
+| Primeiro acesso concluído | sim | sim |
+| MFA cadastrado | sim | não |
+| Códigos de recuperação | 0 | 0 |
+
+`MULTIFACTOR_ENABLED` continua `false`; não pode ser imposto enquanto Ricardo
+não cadastrar e provar seu fator. Não há emergency codes. A recuperação de
+senha e SMTP estão atualmente habilitados, divergindo do registro histórico
+que os descrevia como desabilitados. Essa divergência é uma pendência de
+decisão/controlada antes da promoção: não foi alterada automaticamente, pois
+interfere no percurso de recuperação dos custodians.
