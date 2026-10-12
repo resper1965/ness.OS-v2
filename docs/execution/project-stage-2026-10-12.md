@@ -71,3 +71,17 @@ Filtros, tipos de widget e geometria copiados, sem substituir o NOC existente.
 Preflight, quantidade de widgets e privacidade aprovados. Rollback: excluir
 somente dashboard 406 via API; não restaurar banco nem substituir o original.
 Renderização e aceite nominal continuam pendentes; não declarar dados atuais.
+
+## Qualidade — baseline dos hosts reais
+
+Leitura corrente na origem excluindo protótipos (flags 0/4): 261 hosts ativos,
+1 desativado; 15 sem template diretamente vinculado. Nesta amostra existem
+2.068 itens habilitados não suportados em 149 hosts ativos. Contagem varia em
+produção; não comparar amostras distintas como redução causada por correção.
+
+Tags ausentes nos 262 hosts reais: criticality=262, service=262, tenant=243,
+site=243, technology=243, owner=243, role=243, environment=242, scope=242.
+Tags de protótipos não serão tomadas como cadastro dos dispositivos reais.
+Ausência de template não comprova incompatibilidade; exige verificar coleta
+local e descoberta. O próximo pacote precisa classificar esses 15 hosts e
+qualificar fontes dos atributos antes de qualquer alteração de tenant.
