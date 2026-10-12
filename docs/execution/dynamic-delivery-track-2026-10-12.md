@@ -91,6 +91,12 @@ reais de capacidade/fila identificados no banco restaurado, sem inventar IDs.
 22:00–00:00 BRT para ações e leitura intensiva. Destino continua isolado até
 aprovação dos gates; esta trilha não autoriza unmask, DNS ou dupla coleta.
 
+Exceção autorizada em 12/10: janela de 24h e Cavan liberada para piloto,
+conforme `zabbix-production-window-2026-10-12.md`. A leitura corrente da origem
+mostrou que as tags Cavan já existem e que a UAT está desatualizada; prioridade
+é sincronizar essa configuração antes de aplicar candidatos. A evidência nova
+substitui a inferência de ausência de tags produtivas feita sobre o restore.
+
 ## Reporte de progresso
 
 Em cada entrega informar: resultado funcional, ambiente, teste, commit,
