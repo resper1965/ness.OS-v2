@@ -441,3 +441,21 @@ confirmada, permite medir clocks reais. Finally restaura history0; falha
 também devolve bulk10 e confirma. Não imprime valores brutos. Não iniciar
 terceira unidade/reaplicar enquanto esta estiver rodando. Host10769 intacto.
 Critério de aplicação continua pendente até resultado terminal e cleanupPASS.
+
+### Primeira melhora produtiva comprovada e segunda observação
+
+10768 unidadev2 terminou THREE_CYCLES_PASS_FIRST_HOST_ONLY:
+clocks1791841884/1791841943/1791842004, master0, unsupported349/1/1,
+referência497antes da primeira alteração. Original history0 restauradoPASS,
+cleanupsemfalha, bulk25 mantido. Redução observada496/497=99,80% neste host,
+não taxa global ou aceite dos demais ativos. LLD adicionou recursos, nenhum
+ID original foi removido. Helper e suíteinfra89testes+3subtestes PASS;
+não repetidos restore/backups. Contexto/testes publicados emf3d67bf.
+
+Após resultado terminal/cleanup, segundo10769/interface117 iniciou somente
+delta bulk25 e retenção temporária1h no mestre85977. Unidade independente
+ness-zabbix-bulk25-observe-10769-20261012.service; evidência root-only
+source-bulk25-10769-20261012.json. Mesmos guards/3ciclos/10min/rollback10 e
+finallyhistory0. Antes de ampliar novamente, acompanhar este job, não
+recriá-lo; nunca considerar processo running como PASS. Origem continua
+única coletora; DNS e destino inalterados; SSO/gates seguem pendentes.
