@@ -20,6 +20,11 @@ operacional, recuperável e mensurável.
 
 ## Critério de avanço
 
+Trilha ativa: `dynamic-delivery-track-2026-10-12.md`. Prioridade exclusiva
+Zabbix, cartões Z1–Z8 com entregas visíveis e testes proporcionais. Z1 está
+ativo; backup e dependências humanas seguem fora do caminho das tarefas
+independentes. A trilha substitui a ordem de execução, não os gates produtivos.
+
 Atualização autorizada em 12/10: G2 permanece aberto em issues #43, #45, #48,
 #51 e #66; GitHub/Actions em #67, índice em #68. Implementação e ensaios
 isolados das etapas seguintes continuam. Toda dependência humana gera issue

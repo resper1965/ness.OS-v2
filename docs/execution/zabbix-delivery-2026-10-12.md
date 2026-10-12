@@ -6,6 +6,10 @@ exige gates e janela 22:00–00:00 BRT, sem presumir a exceção de agosto vigen
 
 ## Ordem e evidências de aceite
 
+Ordem operacional substituída pela trilha `dynamic-delivery-track-2026-10-12.md`:
+Z1 (cinco ativos) é o cartão ativo. A lista abaixo conserva os critérios de
+aceite, não exige concluir backup antes de qualquer entrega independente.
+
 1. Backup destino: unidade offline funcional, COMPLETED/checksum/gzip, cópia
    externa e restore isolado atual; origem preservada.
 2. Baseline origem/destino: inventário, templates, unsupported, fila, NVPS,

@@ -19,6 +19,10 @@ esse fluxo, não como pré-requisito para o MVP.
 
 ## Fontes canônicas
 
+Prioridade de execução: `docs/execution/dynamic-delivery-track-2026-10-12.md`.
+Cartão ativo: Z1, pacote de qualidade para cinco ativos. Retomar nesse cartão;
+backup em trilha auxiliar, sem repetir verificações sem mudança relevante.
+
 | Tema | Documento de referência |
 | --- | --- |
 | Estado do MVP e evidências recentes | `docs/execution/project-stage-2026-09-28.md` |
@@ -29,7 +33,7 @@ esse fluxo, não como pré-requisito para o MVP.
 | Recuperação externa atual do Hub/AIOps | `docs/execution/evidence/hub-aiops-recovery-2026-10-12.md` |
 | Inventário de identidade atual | `docs/execution/evidence/authentik-g2-readonly-inventory-2026-10-12.md` |
 | Recuperação atual do Psono | `docs/execution/evidence/psono-recovery-2026-10-12.md` |
-| Plano de execução atual | `docs/superpowers/plans/2026-10-12-g1-hub-recovery-evidence.md` |
+| Plano de execução atual | `docs/execution/dynamic-delivery-track-2026-10-12.md` |
 
 Documentos históricos permanecem como evidência; não substituem uma validação
 atual de ambiente, credenciais, backup ou serviço.
