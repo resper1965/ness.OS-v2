@@ -1,0 +1,12 @@
+{
+  "state": "UAT_REHEARSED_NOT_PRODUCTIVE",
+  "hostids": ["10768", "10769"],
+  "preconditions": {"snmp_version": 2, "bulk": 1, "max_repetitions": 10},
+  "change": {"details": {"max_repetitions": 25}},
+  "rollback": {"details": {"max_repetitions": 10}},
+  "preserve": ["interfaceid", "hostid", "ip", "dns", "port", "community", "version", "bulk"],
+  "diagnostic_hostid": "10768",
+  "diagnostic": {"columns": 13, "values": 936, "bulk10_seconds": 21.905, "bulk25_seconds": 8.273},
+  "limits": "CLI diagnostic is not a Zabbix session acceptance test. Source API write identity is expired; no production configuration changed.",
+  "promotion": "Observe one authorized host for three complete polling cycles, compare master/dependent state, coverage, packet loss and poller load before the second host. Do not increase global timeout or change the shared template."
+}

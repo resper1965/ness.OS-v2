@@ -5,6 +5,9 @@ from pathlib import Path
 import subprocess
 import os
 import socket
+import runpy
+
+summarize_freshness = runpy.run_path(str(Path(__file__).with_name('zabbix-freshness.py')))['summarize_freshness']
 
 REQUIRED_TAGS = ('tenant', 'site', 'service', 'environment', 'technology',
                  'scope', 'owner', 'role', 'criticality')
@@ -32,6 +35,7 @@ def build_register(rows, observed_at):
                  'name': row['name'], 'templates': row.get('templates', []),
                  'tags': tags, 'item_count': items, 'unsupported_count': errors,
                  'enabled_item_count': enabled,
+                 'freshness': summarize_freshness(row.get('essential_metrics', []), int(stamp.timestamp())),
                  'error_categories': row.get('error_categories', {}),
                  'missing_tags': [k for k, v in values.items() if not v],
                  'conflicted_tags': sorted(k for k, v in values.items() if len(v) > 1),
@@ -44,7 +48,9 @@ def build_register(rows, observed_at):
     enabled_total = sum(h['enabled_item_count'] for h in assets if h['status'] == 0)
     unsupported_total = sum(h['unsupported_count'] for h in assets if h['status'] == 0)
     return {'observed_at': observed_at, 'source': 'origin_readonly_configuration_and_runtime',
-            'fresh_collection': 'NOT_VERIFIED', 'assets': assets, 'prototypes': prototypes,
+            'fresh_collection': 'ESSENTIAL_PULSES_ONLY_NOT_HEALTH_ACCEPTANCE',
+            'freshness_scope': ['agent.ping', 'icmpping', 'system.uptime'],
+            'assets': assets, 'prototypes': prototypes,
             'waves': waves, 'totals': {'real_hosts': len(assets), 'prototypes': len(prototypes),
                 'active': sum(h['status'] == 0 for h in assets),
                 'disabled': sum(h['status'] == 1 for h in assets), 'accepted': 0,
@@ -83,6 +89,17 @@ def collect_rows():
         FROM items i JOIN item_rtdata rt ON rt.itemid=i.itemid JOIN hosts h ON h.hostid=i.hostid
         WHERE h.status IN (0,1) AND i.flags IN (0,4) AND i.status=0 AND rt.state=1
         GROUP BY i.hostid,CATEGORY;
+      SELECT JSON_OBJECT('kind','pulse','hostid',i.hostid,'itemid',i.itemid,
+        'delay',CASE WHEN i.type=18 THEN master.delay ELSE i.delay END,
+        'state',COALESCE(rt.state,0),'lastclock',CASE i.value_type
+          WHEN 3 THEN (SELECT MAX(clock) FROM history_uint WHERE itemid=i.itemid)
+          WHEN 0 THEN (SELECT MAX(clock) FROM history WHERE itemid=i.itemid)
+          ELSE NULL END)
+        FROM items i JOIN hosts h ON h.hostid=i.hostid
+        LEFT JOIN items master ON master.itemid=i.master_itemid
+        LEFT JOIN item_rtdata rt ON rt.itemid=i.itemid
+        WHERE h.status IN (0,1) AND i.flags IN (0,4) AND i.status=0
+          AND i.key_ IN ('agent.ping','icmpping','system.uptime');
       COMMIT;""".replace('CATEGORY', category)
     env = dict(os.environ, MYSQL_PWD=config['DBPassword'])
     result = subprocess.run(['mariadb', '--batch', '--raw', '--skip-column-names',
@@ -100,6 +117,11 @@ def collect_rows():
         elif row['kind'] == 'metrics':
             hosts[hostid].update(item_count=row['item_count'], enabled_item_count=row['enabled_item_count'],
                                  unsupported_count=row['unsupported_count'])
+        elif row['kind'] == 'pulse':
+            hosts[hostid].setdefault('essential_metrics', []).append({
+                'itemid': str(row['itemid']), 'delay': row['delay'],
+                'state': int(row['state']),
+                'lastclock': int(row['lastclock']) if row['lastclock'] is not None else None})
         else:
             hosts[hostid]['error_categories'][row['category']] = row['count']
     return list(hosts.values())

@@ -1,0 +1,10 @@
+{
+  "manifest_version": 2.0,
+  "id": "ness_mobile",
+  "name": "Layout móvel de painéis",
+  "author": "ness.",
+  "version": "1.0",
+  "namespace": "NessMobile",
+  "description": "Read-only narrow-screen dashboard layout; desktop and edit geometry stay native.",
+  "assets": {"css": ["ness-mobile.css"]}
+}

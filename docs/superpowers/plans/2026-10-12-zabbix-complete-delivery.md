@@ -72,7 +72,9 @@ Reutilizar `infra/scripts/zabbix-quality-wave.py`, scripts de SAML, NOC, brandin
 
 ### Task 4: Executar o registro inteiro, não só Cavan
 
-**Files:** asset-register e `infra/scripts/zabbix-quality-wave.py`; Create `config/zabbix/quality-waves/` com deltas sanitizados; ledger por host.
+**Files:** asset-register e `infra/scripts/zabbix-quality-wave.py`; Create `infra/scripts/zabbix-freshness.py`, Test `infra/tests/test-zabbix-freshness.py`; Create `config/zabbix/quality-waves/` com deltas sanitizados; ledger por host.
+
+**Interfaces:** `summarize_freshness(metrics: list[dict], observed_epoch: int) -> dict` consome itemid/delay/lastclock/state; intervalos positivos em segundos/s/m/h/d, sem macros/agenda presumida. Fresh exige clock>0, clock≤observação e idade≤3×intervalo. Relógio futuro, ausência, unsupported ou intervalo não resolvido são unknown; vazio é UNKNOWN. Resultado com fresh/stale/unknown e estado não equivale a disponibilidade ou aceite de saúde. Coletor lê somente pulsações agent.ping/icmpping/system.uptime e identifica esse escopo, não alega testar todos os serviços.
 
 - [ ] Para cada onda: export before, verificar estado de origem e ambiente, causa, template atual e aplicabilidade comprovada; aplicar candidato UAT; verificar replay e rollback.
 - [ ] Zero itens: os 14 hosts sinalizados precisam coleta real configurada ou exceção formal de ausência; a tag unconfigured não fecha o host. Sintético 10978 mantém trapper, não ganha template artificial.
@@ -83,7 +85,7 @@ Reutilizar `infra/scripts/zabbix-quality-wave.py`, scripts de SAML, NOC, brandin
 
 ### Task 5: Painéis, mapas e acabamento para inventário completo
 
-**Files:** `config/zabbix/`, `infra/tests/verify-zabbix-noc-browser.cjs`, branding/config existente.
+**Files:** `config/zabbix/`, `infra/tests/verify-zabbix-noc-browser.cjs`, `infra/tests/verify-zabbix-mobile-browser.cjs`, `infra/zabbix/modules/ness_mobile/`, branding/config existente.
 
 - [ ] Preservar 405, 406/407 e deltas existentes. Construir visão qualidade (unsupported, sem coleta/template/tags, atraso) e capacidade (fila/NVPS/busy) sem fonte fictícia.
 - [ ] Disponibilidade: mostrar denominador elegível e total cadastrado separadamente; 259 não representa automaticamente 261 hosts ativos.

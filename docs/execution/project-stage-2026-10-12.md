@@ -307,3 +307,48 @@ mantém DELETE_NEVER se não conseguir confirmar remoção do filtro e grava FAI
 com estado observado. Testes adversariais RED→GREEN; suíte infra57testes e3
 subtestes PASS. Ensaios vivos já aprovados não foram repetidos por essa mudança.
 Fonte protegida permanece ativa, destino mascarado; identidade/corte pendentes.
+
+## Continuação integral — 12/10 18:24 BRT
+
+Diagnóstico SNMP somente leitura na origem, sem outra coletora ou configuração:
+10768 respondeu os mesmos 13 OIDs/936 valores em 21,905s com bulk10 e8,273s
+com bulk25, timeout3s. Valores/comunidade não foram publicados; ferramentas
+Debian extraídas em diretório protegido, sem instalação global. Evidência
+root-only snmp-bulk-comparison-20261012.json. Não equivale a redução de erros
+no Zabbix. Ensaio API UAT dos10768/10769 alterou apenas max_repetitions25,
+preservou os demais campos de interface e voltou a10; delta reversível em
+config/zabbix/snmp-bulk-25-uat-delta.json. Aplicação produtiva pendente.
+
+Credencial bootstrap da origem id4 está desativada/expirada, verificado por
+metadados sem segredo. Não foi reativada ou substituída por SQL. Issue72 e
+email SENT1a131f121718e061 orientam identidade API mínima temporária para
+Ismael/Ricardo; conta Hub não elevada. Usuário indicou "akadimin", mas isso
+ainda não distingue entrada no cofre de conta Authentik; não existe sessão
+de manutenção da origem comprovada por essa indicação.
+
+Módulo nativo ness_mobile31 habilitado somente UAT, sem editar core:
+infra/zabbix/modules/ness_mobile/. CSS somente leitura móvel ≤600px;
+desktop/edit mantêm grid nativo. Teste Edge390x844 passou geometria, texto
+sem corte, alcance do último widget, desktop, modo edição e logout. Leitura
+API posterior confirmou layouts405/406/407 intactos. Capturas fora do Git.
+Escopo testado: primeira página406 (11widgets) e407 (6widgets), não todos
+os perfis/páginas. Rollback module.update id31 status0; não remover core.
+
+Registro renovado por mudança de schema para incluir frescor das pulsações
+agent.ping/icmpping/system.uptime, nunca valores. Observação21:24:03UTC:
+262reais/63protótipos/53ondas;185FRESH,1STALE,76UNKNOWN;24sem itens de pulso.
+Intervalo flexível/macro, dependente sem intervalo resolvido, clock ausente/
+futuro e unsupported permanecem UNKNOWN. Frescor não é disponibilidade ou
+aceite. Erros atuais1849/35847habilitados=5,158%; nenhuma melhora atribuída
+às mudanças UAT. Source SQL é transação read-only com clocks indexados.
+
+Testes do frescor RED25→GREEN25; integração registro RED2→GREEN38.
+Suíte infra84testes+3subtestes PASS. Teste amplo do helper encontrou72falhas
+backend por dependência pywebpush ausente (339pass/1skip), sem relação com
+estes scripts; não instalar dependências fora do escopo Zabbix para mascarar
+essa limitação. Não houve novo backup, restore ou corte DNS.
+
+Continuação reativada a cada10min até13/10 11:47:35BRT, respeitando janela,
+gates e silêncio sem mudança. Próximos trabalhos: revisão de63protótipos,
+causas/intervalos por host, evidências por onda e acesso normal de origem;
+SSO nominal/MFA/negativos, coleta corrigida e corte continuam pendentes.

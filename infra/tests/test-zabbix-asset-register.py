@@ -62,3 +62,18 @@ def test_unsupported_rate_uses_enabled_real_items_not_disabled_or_prototypes():
                                      row(3, flags=2, items=1000)], '2026-10-12T20:00:00Z')
     assert result['totals']['enabled_items_active'] == 10
     assert result['totals']['unsupported_rate_active'] == 0.1
+
+
+def test_freshness_is_sanitized_and_does_not_accept_asset():
+    host = row(1)
+    host['essential_metrics'] = [{'itemid': '42', 'delay': '1m',
+        'lastclock': 1791835200, 'state': 0, 'value': 'private'}]
+    asset = register.build_register([host], '2026-10-12T20:00:00Z')['assets'][0]
+    assert asset['freshness']['state'] == 'FRESH'
+    assert asset['state'] == 'assessment_required'
+    assert 'private' not in str(asset)
+
+
+def test_missing_essential_metrics_remain_unknown():
+    asset = register.build_register([row(1)], '2026-10-12T20:00:00Z')['assets'][0]
+    assert asset['freshness']['state'] == 'UNKNOWN'
