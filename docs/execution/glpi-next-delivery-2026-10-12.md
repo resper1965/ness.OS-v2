@@ -97,3 +97,28 @@ inexistente; corrigida para Asset.zabbix_host_id conforme modelo, sem efeitos
 de escrita. Consultas corrigidas exit 0. Próximo passo: readback das 255
 referências GLPI e classificação autorizada dos três hosts sem vínculo, antes
 de qualquer lote de correção. Não repetir auditoria ampla de tickets.
+
+## Readback cruzado e escopo confirmado — 12/10 após 23:10 UTC
+
+Comparação em memória entre referências do Hub e tabelas GLPI, somente leitura:
+255/255 ativos existem, não estão excluídos e têm a entidade esperada; marcador
+Zabbix de cada referência é único e corresponde ao mesmo item. Zero divergências
+de marcador/referência. GLPI tem 259 host IDs marcados ativos no total, sem
+duplicação desses IDs. Os quatro adicionais exigem classificação separada,
+não exclusão automática. Nenhum dos três hosts 10983/10984/10987 possui marcador
+GLPI: lacuna confirmada, não mera ausência de otherserial.
+
+API normal da origem confirma os três como flags0/status0; grupos autorizados
+22 ([ Alupar ]) e 26 (servidores) presentes nos três. 10983/10984 também no24
+(Matriz); 10983/10987 no42 e10984 no61 (grupos de servidores virtuais).
+Templates Windows10081 nos dois primeiros, Linux10001 no terceiro. Tags vazias.
+Cliente dos incidentes Alupar coincide com grupos autorizados e resolução nativa
+resolve_glpi_entity_id para entidade1; não deduzido apenas do nome do host.
+
+Lote candidato: três Computer na entidade1, identidade externa pelo marcador
+Zabbix Host ID, sem inventar serial/hardware/owner/criticidade. Aplicação ainda
+pendente: export anterior, comparação de qualquer registro sem marcador para
+evitar duplicata física, criação por modelo/API nativo, atualização do vínculo
+Hub pelo caminho existente, readback e rollback. Não executar antigo aplicador
+sem rever essas precondições; três registros criados isoladamente não corrigem
+automaticamente os645 tickets/incidentes anteriores.
