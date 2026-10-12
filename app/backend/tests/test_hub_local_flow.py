@@ -118,8 +118,9 @@ async def test_problem_partial_glpi_failure_replay_recovery_and_tenant_scope(
         assert incident.tags["ninf_customer_name"] == "Cavan"
 
     result = await _async_process_alert_v1(data, fingerprint)
-    replay = await _async_process_alert_v1(data, fingerprint)
-    assert result["ticket_id"] == replay["ticket_id"] == 501
+    for _ in range(3):
+        replay = await _async_process_alert_v1(data, fingerprint)
+        assert result["ticket_id"] == replay["ticket_id"] == 501
     assert calls == {"created": 1, "followups": 0}
 
     async with SessionLocal() as session:
