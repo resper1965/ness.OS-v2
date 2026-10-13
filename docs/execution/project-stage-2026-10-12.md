@@ -32,9 +32,10 @@ o ledger para não repetir ondas já aprovadas.
 
 Plano canônico para a próxima implementação:
 [GLPI no ness.OS — implementação completa](../superpowers/plans/2026-10-12-glpi-ness-os-complete-delivery.md).
-Estado: planejamento concluído; implementação deste plano não iniciada.
-O usuário determinou não executar com o modelo autor. Na retomada, ler o
-handoff do plano e as evidências de [execução GLPI](glpi-next-delivery-2026-10-12.md).
+Estado: implementação retomada pelo modelo executor; T03/G2 bloqueados e
+conta técnica 106 inativa. O usuário determinou não executar com o modelo
+autor. Na retomada, ler o handoff do plano e as evidências de
+[execução GLPI](glpi-next-delivery-2026-10-12.md).
 São 14 tarefas com dependências, testes, rollback e aceite; não repetir
 trabalhos anteriores aprovados. Os registros abaixo preservam o histórico
 Zabbix e não substituem a prioridade atual GLPI.

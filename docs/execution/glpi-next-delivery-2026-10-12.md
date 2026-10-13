@@ -1,5 +1,24 @@
 # GLPI — retomada operacional de 12/10/2026
 
+## T07 — preflight de inventário, 13/10 06:18 UTC
+
+Relatórios existentes executados via `ssh ... bash -s`, sem instalar script nem
+alterar GLPI. A consulta agregada somente leitura retornou
+`enabled_inventory=0`, sete registros de agentes com último contato em julho
+de 2026, seis registros com padrão de varredura `SLEEP(` e nenhum desses seis
+vinculado a ativo; os sete têm versão vazia e módulo de inventário de computador
+desabilitado. A API interna `/Inventory` e `/front/inventory.php` respondeu 403
+em GET a partir do container Hub. Na rota pública, GET sem sessão para
+`/front/inventory.php` redirecionou ao Authentik (302). Esses GETs não são
+prova de que um POST legítimo do agente falharia, nem identificam a configuração
+dos endpoints; nenhum agente foi instalado, reiniciado ou ativado.
+
+Ruling: não tratar os sete registros antigos como sete agentes operacionais nem
+abrir exceção pública sem autenticação própria. T07 começa por identidade dos
+cinco ativos internos elegíveis, configuração real do agente/servidor e teste
+isolado de submissão; só então habilitar a coleta e expandir em ondas. Custo se
+errado: diagnóstico mais lento, evitando expor uma rota de ingestão sem controle.
+
 ## Retomada do plano master — 13/10 UTC
 
 Cliente compartilhado do Hub passou a confirmar `getActiveEntities` após

@@ -141,6 +141,14 @@ G2 e a promoção de release continuam abertos. Próximo: reconciliador de
 backlog em dry-run, isolamento nativo estrito e só então ensaio controlado
 de escrita/idempotência, release e promoção.
 
+Preflight T07 em 13/10 06:18 UTC: inventário nativo GLPI está desativado
+(`enabled_inventory=0`). Os sete registros de agente tiveram último contato
+em julho; seis têm padrão de varredura e nenhum desses seis vínculo a ativo.
+GET interno da rota de inventário retornou 403; GET público sem sessão
+redirecionou ao Authentik. Isso não é teste de POST de agente. Não contar os
+sete como frota operacional nem abrir exceção pública sem testar autenticação,
+origem e rejeição; plano de cinco ativos internos permanece pendente.
+
 O ness.OS é a camada operacional que reúne monitoramento, ITSM, automação e
 SecOps em uma experiência segura por tenant. O primeiro produto aceito é o
 fluxo autenticado:
