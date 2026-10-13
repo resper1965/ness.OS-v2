@@ -19,6 +19,17 @@ cinco ativos internos elegíveis, configuração real do agente/servidor e teste
 isolado de submissão; só então habilitar a coleta e expandir em ondas. Custo se
 errado: diagnóstico mais lento, evitando expor uma rota de ingestão sem controle.
 
+Leitura adicional em 13/10 06:33 UTC, sem instalação ou alteração: nos três
+VPS conhecidos da plataforma — aplicação/GLPI, Zabbix origem e Zabbix destino
+— `command -v glpi-agent` não localizou executável; as unidades systemd
+retornaram `inactive`, `inactive` e `not-found`, respectivamente. Isso não
+prova ausência de pacote em todos os caminhos nem define cinco candidatos.
+Não iniciar um agente nesses nós antes de identificar a entidade/ativo
+canônico, provar a rota autenticada de inventário em isolamento e registrar
+o estado de rollback. A documentação oficial do GLPI Agent foi consultada
+para fixar a preparação; nenhuma versão ou parâmetro de instalação foi
+escolhido neste preflight.
+
 ## Retomada do plano master — 13/10 UTC
 
 Cliente compartilhado do Hub passou a confirmar `getActiveEntities` após
