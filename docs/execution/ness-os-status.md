@@ -1,6 +1,6 @@
 # ness.OS — indicador de entrega
 
-Última verificação: **13/10/2026, 20:11 BRT**. Fonte: plano master,
+Última verificação: **13/10/2026, 20:25 BRT**. Fonte: plano master,
 `PROJECT_CONTEXT.md`, estágio operacional, ledger e GitHub. Este quadro é um
 checkpoint, não telemetria em tempo real. Atualizar quando uma entrega, gate,
 bloqueio ou prazo mudar; preservar a data da última verificação.
@@ -39,8 +39,10 @@ com nova senha aceita, antiga recusada, leitura da conta `zabbix` e serviços
 ativos. A senha Restic foi rotacionada com o lock livre: a nova abriu os
 snapshots, a antiga foi recusada e o manifesto externo coincidiu byte a byte
 com o local. O primeiro restore completo terminou após perda da conexão que
-capturaria seu resultado; uma nova prova completa está em execução com
-keepalive e exit code observável. Ainda não há aceite final da restauração.
+capturaria seu resultado. A nova prova externa isolada, com keepalive e exit
+code observável, terminou com código 0: `isolated_restore=PASS` e
+`external_restore=PASS` para o mesmo conjunto de backup. Isto comprova a
+recuperação desse conjunto, não a prontidão do release ou um gate global.
 Após a rotação, o histórico das 34 branches e uma tag foi reescrito e
 publicado no remoto privado com leases; a `main` exigiu exceção temporária de
 administrador e sua proteção foi restaurada (PR, quatro checks, admin, sem
@@ -48,9 +50,11 @@ force-push). Um clone novo contendo apenas heads/tags reproduziu as 35
 referências e passou no scan histórico com exceções pontuais revisadas para
 falsos positivos. Os refs de PR e caches do GitHub ainda podem conter o
 histórico antigo; solicitar limpeza ao GitHub Support. A restauração externa
-completa pós-rotação ainda está em verificação; leitura de manifesto passou.
+completa pós-rotação terminou com código 0 e PASS isolado/externo para o
+conjunto `20261012T220019-0300`.
 Nenhum valor secreto foi incluído neste indicador. PRs 64/81 seguem draft,
-sem checks externos, revisão ou imagem publicada.
+sem checks externos, revisão ou deploy; as imagens candidatas do PR81 foram
+publicadas e lidas por digest, mas não promovidas.
 
 **Atualização F3:** gateway GLPI candidato agora encerra o cliente mesmo
 quando recusa URL não privada; teste RED→GREEN e backend 486 PASS/1 SKIP.
