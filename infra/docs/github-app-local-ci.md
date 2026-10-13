@@ -45,6 +45,11 @@ exato de checkout limpo e ID imutável da imagem local; roda os testes backend
 com rede desativada, fonte somente leitura, UID sem privilégio, sem chave e sem
 Docker socket. No commit `f9076cf`, 24 testes backend passaram nesse modo;
 dois testes do launcher comprovaram o contrato e a recusa de SHA divergente.
+Com `--frontend-image` (ID imutável), o mesmo launcher envia somente o arquivo
+Git do frontend por stdin a outro contêiner sem rede/mount do host e executa
+lint e build. No commit `1b1abde`, backend 24/24, frontend lint (zero avisos)
+e build passaram juntos; três testes do launcher e oito testes de infra
+passaram. Esta opção não executa ainda Black/Flake8/Ruff/Mypy nem Gitleaks.
 Antes de aceitar PRs não confiáveis, instalar uma cópia revisada do launcher
 fora do checkout submetido e acrescentar os demais checks isolados. Esse
 ensaio não emitiu status externo nem mudou a proteção da `main`.
