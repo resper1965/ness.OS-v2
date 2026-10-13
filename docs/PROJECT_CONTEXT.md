@@ -56,6 +56,10 @@ no Actions, assim como os outros quatro jobs; o Backend CI parou depois num
 fixture de preflight sem `NINF_API_IMAGE` e `NINF_FRONTEND_IMAGE`. O fixture foi
 completado com referências fictícias e seu teste local passou. Novo run remoto
 é necessário; G0 permanece pendente.
+O teste separado de preflight também assumia sete variáveis obrigatórias,
+quando o Compose exige nove; seus fixtures foram atualizados e ambos os
+testes de readiness/preflight passaram localmente. A suíte de histórico,
+relatório de integração e payload n8n também passou; ainda falta CI remoto.
 
 Para GLPI, a [ADR 0020](adr/0020-glpi-maintenance-entity-boundary.md) registra
 uma direção de protótipo para isolar a conta técnica 106, que continua inativa.

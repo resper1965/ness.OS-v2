@@ -20,6 +20,8 @@ NINF_GLPI_DB_PASSWORD=do-not-print-glpi
 NINF_GLPI_DB_ROOT_PASSWORD=do-not-print-glpi-root
 NINF_JWT_SECRET=do-not-print-jwt
 NINF_RESEND_API_KEY=do-not-print-resend
+NINF_API_IMAGE=example.invalid/ness-api@sha256:0000000000000000000000000000000000000000000000000000000000000000
+NINF_FRONTEND_IMAGE=example.invalid/ness-frontend@sha256:0000000000000000000000000000000000000000000000000000000000000000
 EOF
 
 cat >"${missing_env}" <<'EOF'
@@ -30,6 +32,8 @@ NINF_GLPI_DB_PASSWORD=do-not-print-glpi
 NINF_GLPI_DB_ROOT_PASSWORD=
 NINF_JWT_SECRET=do-not-print-jwt
 NINF_RESEND_API_KEY=do-not-print-resend
+NINF_API_IMAGE=example.invalid/ness-api@sha256:0000000000000000000000000000000000000000000000000000000000000000
+NINF_FRONTEND_IMAGE=example.invalid/ness-frontend@sha256:0000000000000000000000000000000000000000000000000000000000000000
 EOF
 
 cat >"${fake_bin}/docker" <<'EOF'
@@ -59,6 +63,8 @@ unset_required=(
   NINF_GLPI_DB_ROOT_PASSWORD
   NINF_JWT_SECRET
   NINF_RESEND_API_KEY
+  NINF_API_IMAGE
+  NINF_FRONTEND_IMAGE
 )
 
 run_isolated() {
@@ -74,7 +80,7 @@ run_isolated() {
 bash -n "${preflight}"
 
 success_output="$(run_isolated bash "${preflight}" --env-file "${complete_env}" 2>&1)"
-grep -q '^required_variables=7$' <<<"${success_output}"
+grep -q '^required_variables=9$' <<<"${success_output}"
 grep -q '^compose_files=2$' <<<"${success_output}"
 grep -q '^containers_started=0$' <<<"${success_output}"
 grep -q '^AIOps runtime preflight: PASS$' <<<"${success_output}"
