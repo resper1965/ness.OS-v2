@@ -10,6 +10,10 @@ ampliado e aplicado; API normal/variantes codificadas 403, GLPI/SSO 302,
 Hub 200, Caddy sem reinício. Ver ADR 0020. Não prova isolamento direto:
 conta 106 permanece inativa, T03/G2 pendentes.
 
+T03 adaptador privado ainda não implantado: `kill_session()` sem confirmação
+explícita passou a negar a leitura, após teste RED→GREEN; suíte backend 461
+PASS/1 SKIP. Isso não resolve a rota direta nem reativa a conta 106.
+
 GLPI issue #76, 13/10 08:30 BRT: GO explícito de Ricardo; `/var/glpi`
 migrado do volume anônimo para `app_glpi-state` com GLPI parado, manutenção
 pública 503, backup `COMPLETED`/checksums, comparação integral de 5.780

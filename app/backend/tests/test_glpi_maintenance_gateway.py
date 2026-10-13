@@ -37,7 +37,7 @@ def test_gateway_returns_only_approved_computer_fields():
             }
 
         async def kill_session(self):
-            pass
+            return True
 
     app = create_app(
         Client,
@@ -126,6 +126,7 @@ def test_gateway_hides_upstream_failure_details_and_closes_session(error, status
 
         async def kill_session(self):
             closed.append(True)
+            return True
 
     app = create_app(
         Client, entity_id=1, approved_ids={41}, bearer_token="local-adapter-token"

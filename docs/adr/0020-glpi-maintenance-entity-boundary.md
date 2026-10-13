@@ -162,6 +162,12 @@ e da allowlist, isolamento de rede e rota pública, criação/exclusão,
 deploy e matriz negativa ponta a ponta. Portanto essa fatia não autoriza
 reativar o usuário 106 nem criar os três ativos.
 
+Revisão local de 13/10: a política deixou de aceitar um `kill_session()` sem
+confirmação explícita `True`. Teste RED mostrou que `None` ainda devolvia o
+Computer; GREEN passou em 29 testes focados e 461 testes backend (1 pulado).
+As fakes de teste agora retornam o booleano exigido do cliente real. Essa
+falha fechada não equivale a isolamento de rede, deploy ou aceite T03.
+
 ## Condições antes de implantar
 
 Leitura do runtime em 13/10/2026: `ninf-api` e `ninf-glpi` usam ambos

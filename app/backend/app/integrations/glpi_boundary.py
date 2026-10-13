@@ -42,7 +42,7 @@ class MaintenanceBoundary:
                 "entities_id": item["entities_id"],
             }
         finally:
-            if await client.kill_session() is False:
+            if await client.kill_session() is not True:
                 raise GLPITransientError("GLPI maintenance session cleanup failed")
 
 

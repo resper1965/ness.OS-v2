@@ -41,6 +41,7 @@ async def test_approved_computer_uses_fixed_entity_and_returns_only_safe_fields(
 
         async def kill_session(self):
             calls.append(("logout",))
+            return True
 
     boundary = MaintenanceBoundary(Client, entity_id=1, approved_ids={41})
 
@@ -68,6 +69,7 @@ async def test_child_entity_computer_is_never_returned_even_if_glpi_exposes_it()
         async def kill_session(self):
             nonlocal closed
             closed = True
+            return True
 
     boundary = MaintenanceBoundary(Client, entity_id=1, approved_ids={41})
 
@@ -87,7 +89,7 @@ async def test_response_with_different_computer_id_is_denied():
             return {"id": 42, "entities_id": 1, "name": "other-computer"}
 
         async def kill_session(self):
-            pass
+            return True
 
     boundary = MaintenanceBoundary(Client, entity_id=1, approved_ids={41})
 
@@ -122,7 +124,7 @@ async def test_boolean_entity_in_glpi_response_is_denied():
             return {"id": 41, "entities_id": True, "name": "ambiguous"}
 
         async def kill_session(self):
-            pass
+            return True
 
     boundary = MaintenanceBoundary(Client, entity_id=1, approved_ids={41})
 
@@ -163,6 +165,7 @@ async def test_missing_entity_in_glpi_response_fails_closed_and_logs_out():
         async def kill_session(self):
             nonlocal closed
             closed = True
+            return True
 
     boundary = MaintenanceBoundary(Client, entity_id=1, approved_ids={41})
 
@@ -182,7 +185,7 @@ async def test_non_object_glpi_response_is_denied():
             return [{"id": 41, "entities_id": 1}]
 
         async def kill_session(self):
-            pass
+            return True
 
     boundary = MaintenanceBoundary(Client, entity_id=1, approved_ids={41})
 
@@ -200,7 +203,7 @@ async def test_missing_name_in_glpi_response_is_denied():
             return {"id": 41, "entities_id": 1}
 
         async def kill_session(self):
-            pass
+            return True
 
     boundary = MaintenanceBoundary(Client, entity_id=1, approved_ids={41})
 
@@ -229,6 +232,24 @@ async def test_failed_session_cleanup_does_not_return_computer_data():
 
         async def kill_session(self):
             return False
+
+    boundary = MaintenanceBoundary(Client, entity_id=1, approved_ids={41})
+
+    with pytest.raises(GLPITransientError):
+        await boundary.read_computer(41)
+
+
+@pytest.mark.asyncio
+async def test_unconfirmed_session_cleanup_does_not_return_computer_data():
+    class Client:
+        async def change_active_entity(self, entity_id):
+            assert entity_id == 1
+
+        async def get_item(self, itemtype, item_id):
+            return {"id": 41, "entities_id": 1, "name": "approved-host"}
+
+        async def kill_session(self):
+            return None
 
     boundary = MaintenanceBoundary(Client, entity_id=1, approved_ids={41})
 
