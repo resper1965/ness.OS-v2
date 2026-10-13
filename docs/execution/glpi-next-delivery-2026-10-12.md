@@ -27,6 +27,14 @@ somente leitura pelo marcador idempotente, verificando entidade e vínculo
 antes de propor lote de correção. Manter a conta técnica 106 inativa e
 nenhuma escrita enquanto T03 não provar isolamento nativo da rota direta.
 
+Uma amostra cronológica dos três primeiros registros do grupo de 115 foi
+consultada pela API GLPI com sessão temporária e marcador completo, na
+entidade correspondente. Resultado: zero tickets encontrados, três buscas
+sem resultado, zero erro; sessão encerrada. Isso não permite extrapolar
+para os outros 112 nem autoriza criação automática. A busca remota deve
+continuar por cursor e tratar explicitamente acesso negado e marcador
+duplicado antes de qualquer escrita.
+
 ## T12 — estado dos plugins, 13/10 06:45 UTC
 
 `php /var/www/glpi/bin/console plugin:list --format=json --no-interaction`
