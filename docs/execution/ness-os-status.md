@@ -1,6 +1,6 @@
 # ness.OS — indicador de entrega
 
-Última verificação: **13/10/2026, 20:46 BRT**. Fonte: plano master,
+Última verificação: **13/10/2026, 20:56 BRT**. Fonte: plano master,
 `PROJECT_CONTEXT.md`, estágio operacional, ledger e GitHub. Este quadro é um
 checkpoint, não telemetria em tempo real. Atualizar quando uma entrega, gate,
 bloqueio ou prazo mudar; preservar a data da última verificação.
@@ -125,6 +125,15 @@ fonte somente leitura e UID sem privilégio concluiu `24/24` testes backend.
 Ainda é código na branch de PR, não instalado como runner confiável fora do
 checkout; frontend, lint/tipos, secret scan e emissor permanecem pendentes.
 Nenhum check externo, mudança de proteção ou deploy decorre desse ensaio.
+
+**Sandbox conjunto (20:56 BRT):** PR #81 commit `5a184a9` ampliou o launcher
+candidato com frontend opcional: arquivo Git do SHA alimenta contêiner sem
+rede/montagem do host; backend segue em montagem somente leitura. No commit
+limpo `1b1abde`, backend `24/24`, frontend lint zero avisos e build PASS.
+Três testes do launcher e oito testes de infra PASS. Ainda faltam Black,
+Flake8, Ruff, Mypy e Gitleaks em execução isolada, cópia confiável do launcher
+fora do PR, emissor da App e falhas negativas ponta a ponta. Sem check externo,
+mudança de proteção, merge ou deploy.
 
 **Foco agora:** GLPI T03 e substituição segura do pipeline. PR 65 foi integrado;
 próxima liberação depende da revisão técnica do PR 64, publicação segura de
