@@ -3,7 +3,7 @@
 Indicador resumido e datado: [estado global](execution/ness-os-status.md).
 
 F0, 13/10 15:00 BRT: por solicitação do usuário, substituir GitHub Actions
-sem perder as garantias de release. PR #81 draft (`b4725e4`) contém publicador
+sem perder as garantias de release. PR #81 draft (`ea7aa96`) contém publicador
 local candidato; 28 testes iniciais passaram. Docker Desktop/Buildx no Windows
 construiu API e frontend localmente, sem push. O lockfile do frontend foi
 atualizado: `npm ci`, lint, build e auditoria passaram com zero vulnerabilidades;
