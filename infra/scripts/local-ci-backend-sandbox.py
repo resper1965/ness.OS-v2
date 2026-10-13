@@ -31,9 +31,14 @@ def main() -> None:
     parser.add_argument("--repo", type=Path, required=True)
     parser.add_argument("--commit", required=True)
     parser.add_argument("--image", required=True, help="Immutable local image ID")
+    parser.add_argument("--frontend-image", help="Immutable local frontend image ID")
     args = parser.parse_args()
     repo = args.repo.resolve(strict=True)
-    if not SHA.fullmatch(args.commit) or not IMAGE.fullmatch(args.image):
+    if (
+        not SHA.fullmatch(args.commit)
+        or not IMAGE.fullmatch(args.image)
+        or (args.frontend_image and not IMAGE.fullmatch(args.frontend_image))
+    ):
         parser.error("commit or image ID is not immutable")
     if git(repo, "rev-parse", "HEAD") != args.commit or git(
         repo, "status", "--porcelain", "--untracked-files=all"
@@ -82,6 +87,58 @@ def main() -> None:
         check=True,
     )
     print("backend_sandbox=PASS")
+
+    if args.frontend_image:
+        archive = subprocess.check_output(
+            [
+                "git",
+                "-C",
+                str(repo),
+                "-c",
+                "core.fsmonitor=false",
+                "-c",
+                "core.hooksPath=/dev/null",
+                "archive",
+                args.commit,
+                "app/frontend",
+            ]
+        )
+        subprocess.run(
+            [
+                "docker",
+                "run",
+                "--rm",
+                "-i",
+                "--network",
+                "none",
+                "--read-only",
+                "--tmpfs",
+                "/tmp:rw,nosuid,nodev,size=64m",
+                "--tmpfs",
+                "/work:rw,nosuid,nodev,mode=1777,size=512m",
+                "--cap-drop",
+                "ALL",
+                "--security-opt",
+                "no-new-privileges",
+                "--pids-limit",
+                "256",
+                "--memory",
+                "2g",
+                "--user",
+                "65534:65534",
+                "--workdir",
+                "/work",
+                "--entrypoint",
+                "sh",
+                args.frontend_image,
+                "-c",
+                "tar -xf - -C /work && ln -s /app/node_modules /work/app/frontend/node_modules && cd /work/app/frontend && npm run lint && npm run build -- --configLoader runner",
+            ],
+            input=archive,
+            cwd=repo,
+            check=True,
+        )
+        print("frontend_sandbox=PASS")
 
 
 if __name__ == "__main__":

@@ -17,6 +17,8 @@ def checkout(tmp_path):
     repo = tmp_path / "repo"
     repo.mkdir()
     (repo / "tracked").write_text("test\n")
+    (repo / "app/frontend").mkdir(parents=True)
+    (repo / "app/frontend/package.json").write_text('{"name":"frontend-test"}\n')
     subprocess.run(["git", "init", "-q", str(repo)], check=True)
     subprocess.run(["git", "-C", str(repo), "config", "user.name", "Test"], check=True)
     subprocess.run(
@@ -34,7 +36,8 @@ def checkout(tmp_path):
     docker.write_text(
         "#!/usr/bin/env python3\n"
         "import json, os, pathlib, sys\n"
-        "pathlib.Path(os.environ['DOCKER_CALLS']).write_text(json.dumps(sys.argv[1:]))\n"
+        "entry = {'args': sys.argv[1:], 'stdin_bytes': len(sys.stdin.buffer.read()) if '-i' in sys.argv else 0}\n"
+        "with open(os.environ['DOCKER_CALLS'], 'a') as out: out.write(json.dumps(entry) + '\\n')\n"
     )
     docker.chmod(0o755)
     env = {
@@ -63,7 +66,7 @@ def test_backend_tests_run_without_network_socket_or_secret_mount(checkout):
         text=True,
     )
     assert result.returncode == 0, result.stderr
-    args = json.loads(Path(env["DOCKER_CALLS"]).read_text())
+    args = json.loads(Path(env["DOCKER_CALLS"]).read_text().splitlines()[0])["args"]
     assert args[:2] == ["run", "--rm"]
     assert args[args.index("--network") + 1] == "none"
     assert "--read-only" in args
@@ -101,3 +104,43 @@ def test_wrong_commit_stops_before_docker(checkout):
     )
     assert result.returncode != 0
     assert not Path(env["DOCKER_CALLS"]).exists()
+
+
+def test_frontend_archive_runs_lint_and_build_without_host_mount(checkout):
+    repo, commit, env = checkout
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            "--repo",
+            str(repo),
+            "--commit",
+            commit,
+            "--image",
+            IMAGE,
+            "--frontend-image",
+            "sha256:" + "b" * 64,
+        ],
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    calls = [
+        json.loads(line) for line in Path(env["DOCKER_CALLS"]).read_text().splitlines()
+    ]
+    assert len(calls) == 2
+    frontend = calls[1]["args"]
+    assert calls[1]["stdin_bytes"] > 0
+    assert frontend[:2] == ["run", "--rm"]
+    assert frontend[frontend.index("--network") + 1] == "none"
+    assert frontend[frontend.index("--user") + 1] == "65534:65534"
+    assert "--read-only" in frontend
+    assert "--mount" not in frontend
+    assert frontend[frontend.index("--entrypoint") + 1] == "sh"
+    assert frontend[-2] == "-c"
+    assert "npm run lint" in frontend[-1]
+    assert "npm run build -- --configLoader runner" in frontend[-1]
+    assert not any(
+        "docker.sock" in value or "/etc/ness-os" in value for value in frontend
+    )
