@@ -273,14 +273,26 @@ class GLPIClient:
                     page = response.json()
                     if not isinstance(page, list):
                         raise ValueError("GLPI returned an invalid collection")
-                    items.extend(page)
-                    total = response.headers.get("Content-Range", "").rsplit("/", 1)[-1]
-                    start += len(page)
-                    if not page and total.isdigit() and start < int(total):
-                        raise RuntimeError("GLPI returned incomplete collection")
-                    if (total.isdigit() and len(items) >= int(total)) or (
-                        not total.isdigit() and len(page) < 100
+                    content_range = response.headers.get("Content-Range", "")
+                    parsed_range = re.fullmatch(
+                        r"(?:(\d+)-(\d+)|\*)/(\d+)", content_range
+                    )
+                    if parsed_range is None:
+                        raise RuntimeError("GLPI returned invalid pagination")
+                    first, last, total_text = parsed_range.groups()
+                    total = int(total_text)
+                    if page and (
+                        first is None
+                        or int(first) != start
+                        or int(last) != start + len(page) - 1
+                        or total < start + len(page)
                     ):
+                        raise RuntimeError("GLPI returned inconsistent pagination")
+                    if not page and start < total:
+                        raise RuntimeError("GLPI returned incomplete collection")
+                    items.extend(page)
+                    start += len(page)
+                    if start >= total:
                         return items
         except httpx.HTTPStatusError as exc:
             raise _glpi_failure("lista de itens", exc) from exc
