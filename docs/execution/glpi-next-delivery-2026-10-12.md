@@ -39,11 +39,14 @@ O verificador `infra/scripts/glpi_backlog_reconcile.py` formaliza essa busca
 somente leitura: até cinco registros por página, cursor por ID, transação
 PostgreSQL `READ ONLY`, sessão GLPI encerrada e saída agregada sem
 fingerprint/ticket/tenant. Um erro ou cliente sem entidade mapeada conserva o
-cursor para revisão, sem interpretar 403 como ausência. Primeira página
-executada no runtime: cinco ausentes, zero encontrados/erros, cursor 35425;
-não houve escrita. Três testes RED→GREEN, Ruff, Black e suíte infra/backend
-482 PASS, 1 SKIP. Os 110 registros restantes do grupo histórico ainda não
-foram consultados remotamente; o resultado parcial não libera replay.
+cursor para revisão, sem interpretar 403 como ausência. Vinte e três páginas
+de cinco foram executadas no runtime para o grupo histórico: 115 marcadores
+ausentes na entidade mapeada, zero encontrados, zero erros, cursor final
+75304; uma página seguinte vazia confirmou o fim. Nenhuma escrita ocorreu.
+Três testes RED→GREEN, Ruff, Black e suíte infra/backend 482 PASS, 1 SKIP.
+Isso não autoriza criar tickets: T03 ainda bloqueia a identidade técnica;
+os 29 `ticket_failed` recentes e 15 registros sem evento exigem
+classificação própria, sem replay em massa.
 
 ## T12 — estado dos plugins, 13/10 06:45 UTC
 
