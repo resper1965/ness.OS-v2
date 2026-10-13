@@ -12,6 +12,14 @@ pública voltou ao redirect SSO 302. Volume original preservado para rollback
 explícito. Login nominal/perfil/ticket/anexos ainda pendentes; conta técnica
 106 inativa, T03/G2 não aprovados. Ver runbook do corte e issue #76.
 
+GLPI login, 13/10 ~08:47 BRT: a primeira tentativa nominal retornou HTTP 500
+por username duplicado (IDs 49/59). A API normal renomeou e desativou o
+cadastro antigo ID 49; o ID 59 (LDAP) foi preservado. Readback PASS; novo
+login nominal, perfil, ticket e anexos ainda aguardam teste do usuário.
+Auditoria agregada: 34 outros nomes duplicados, 33 grupos com dois ativos.
+Reconciliar via issue #77, sem renomeação em massa; não atribuir o erro ao
+volume sem evidência.
+
 T03 borda pública, 13/10 08:36 BRT: guarda Caddy de `/apirest.php` em
 produção; quatro variantes reais retornaram 403, UI GLPI/SSO mantiveram
 redirect 302 e Hub 200. Caddy foi recriado sozinho para alinhar o bind mount;

@@ -6,6 +6,17 @@ observação e o retorno. Este procedimento não aprova T03/G2 nem reativa a
 conta 106. O GLPI produtivo agora monta `app_glpi-state` em `/var/glpi`;
 o volume anônimo original permanece preservado para rollback.
 
+Incidente pós-corte, 13/10 ~08:47 BRT: login nominal HTTP 500 por
+`TooManyResultsException` no GLPI ao encontrar o mesmo nome nos IDs 49/59.
+Não há evidência de erro no volume. Pela API nativa, ID 49 (antigo,
+`authtype=0`) foi renomeado e desativado; ID 59 (LDAP), perfil e vínculos
+foram preservados. Readback PASS; login nominal ainda exige novo teste.
+Rollback fino, se outro registro for escolhido como canônico: restaurar
+nome/estado do ID 49 pela API, ciente de que isso reabre a colisão.
+Auditoria agregada: 34 outros nomes duplicados, 33 grupos com dois ativos;
+issue #77 controla a reconciliação. Não alterar em lote antes de validar a
+identidade canônica.
+
 ## Resultado do corte de 13/10
 
 - GO explícito de Ricardo neste chat, com Ismael como responsável técnico,
