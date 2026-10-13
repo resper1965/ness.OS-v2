@@ -13,7 +13,20 @@ Verificar a entidade efetiva no cliente Hub evita um erro do consumidor, mas
 não restringe quem possui o token e chama a API GLPI diretamente. O perfil 13
 não deve ganhar privilégios para contornar essa falha. A conta Hub 94 não muda.
 
-## Direção escolhida para protótipo
+## Opções a ensaiar, em ordem
+
+A [documentação REST oficial do GLPI 11](https://github.com/glpi-project/glpi/blob/11.0/bugfixes/apirest.md)
+prevê filtro de cliente API por faixa IPv4/IPv6 e App-Token. Primeiro testar
+se um cliente exclusivo da manutenção pode aceitar apenas o IP do adaptador,
+negando a mesma credencial pelo Hub e pela rota pública. Não presumir que o
+filtro vale para toda combinação de `user_token`, sessão e reverse proxy: o
+GLPI pode ver o IP do proxy, não o do chamador. Verificar no ambiente sintético
+os caminhos permitidos e negados antes de escolher essa alternativa.
+
+Se o filtro nativo não cobrir todos os caminhos, prototipar a fronteira
+privada abaixo. Nenhuma das duas alternativas está aprovada hoje.
+
+## Direção de protótipo da fronteira privada
 
 Testar em ambiente isolado um adaptador privado com operações específicas de
 inventário para a entidade 1. O adaptador guarda o token GLPI upstream e
@@ -45,7 +58,8 @@ retornou `BLOCKED_DIRECT_PATH`, com uma rede compartilhada. O comando não
 emite `PASS`, mesmo que as redes venham a ser separadas; a fronteira requer
 prova de rotas, identidade e objetos. Três testes locais passaram.
 
-1. Projetar e ensaiar separação de rede/rota mantendo UI/SSO legítimos.
+1. Projetar e ensaiar filtro nativo por cliente/IP ou separação de rede/rota
+   mantendo UI/SSO legítimos.
    Confirmar também se a rota pública expõe `apirest.php`; bloquear o token
    técnico fora do adaptador sem interromper usuários e outras integrações.
    O Compose de raiz não é prova da topologia atual. Sem bloqueio direto,
