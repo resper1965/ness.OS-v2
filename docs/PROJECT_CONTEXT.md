@@ -35,7 +35,9 @@ busca de ticket por marcador e a classificar 401/403 como falha permanente.
 A entrega seguinte classifica falhas de transporte, HTTP 429 e 5xx como
 transitórias e aplica retry exponencial limitado (30–900 s, 12 tentativas),
 sem ampliar permissões. A seleção de entidade também classifica queda de
-transporte e encerra a sessão. Suíte backend: 423 PASS, 1 SKIP. Nenhuma dessas
+transporte e encerra a sessão. Ao esgotar 12 retries, o worker mantém a
+falha visível e registra ação `ticket_retry_exhausted` sem payload. Suíte
+backend: 426 PASS, 1 SKIP; classificador: 3 PASS. Nenhuma dessas
 alterações foi promovida ao runtime produtivo.
 
 Diagnóstico somente leitura encontrou 159 incidentes sem ticket: 115 antigos

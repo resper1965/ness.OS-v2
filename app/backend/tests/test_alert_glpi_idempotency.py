@@ -276,6 +276,54 @@ def test_glpi_connection_failure_retries_with_bounded_backoff(monkeypatch):
     redis.eval.assert_called_once()
 
 
+def test_glpi_retry_exhaustion_is_audited_and_stays_failed(monkeypatch):
+    redis = MagicMock()
+    redis.set.return_value = True
+    failure = GLPITransientError("GLPI unavailable")
+    record = AsyncMock()
+    retry = MagicMock(side_effect=AssertionError("exhausted retry must not reschedule"))
+    monkeypatch.setattr(alerts, "_get_sync_redis", lambda: redis)
+    monkeypatch.setattr(alerts, "_async_process_alert_v1", AsyncMock(side_effect=failure))
+    monkeypatch.setattr(alerts, "_record_glpi_delivery_exhausted", record, raising=False)
+    monkeypatch.setattr(alerts.process_alert_v1.request, "retries", 12)
+    monkeypatch.setattr(alerts.process_alert_v1, "retry", retry)
+
+    with pytest.raises(GLPITransientError):
+        alerts.process_alert_v1.run({}, "fingerprint")
+
+    record.assert_awaited_once_with("fingerprint", retries=12)
+    retry.assert_not_called()
+    redis.eval.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_retry_exhaustion_audit_uses_existing_incident_without_payload(monkeypatch):
+    session = MagicMock()
+    session.execute = AsyncMock(
+        return_value=MagicMock(scalar_one_or_none=lambda: 77)
+    )
+
+    @asynccontextmanager
+    async def transaction():
+        yield
+
+    @asynccontextmanager
+    async def session_factory():
+        yield session
+
+    session.begin.side_effect = transaction
+    monkeypatch.setattr(alerts, "SessionLocal", session_factory)
+
+    await alerts._record_glpi_delivery_exhausted("f" * 64, retries=12)
+
+    action = session.add.call_args.args[0]
+    assert isinstance(action, IncidentAction)
+    assert action.incident_id == 77
+    assert action.action == "ticket_retry_exhausted"
+    assert action.actor_source == "glpi"
+    assert action.note == "retries=12"
+
+
 def test_recovery_uses_separate_inhibition_key(monkeypatch):
     redis = MagicMock()
     redis.set.return_value = True

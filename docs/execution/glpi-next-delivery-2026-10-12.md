@@ -357,5 +357,7 @@ não inferir que os 115 antigos são seguros para replay automático.
 
 Ensaio unitário adicional de timeout após POST: a resposta é perdida, mas o
 ticket fica pesquisável; o replay o reutiliza sem novo POST. Suíte backend:
-424 PASS, 1 SKIP. Isto não prova corrida entre workers ou consistência
+426 PASS, 1 SKIP. Depois de 12 retries transitórios, o worker grava ação
+`ticket_retry_exhausted` sem payload e mantém a tarefa falha; o classificador
+reporta essa classe separadamente. Isto não prova corrida entre workers ou consistência
 imediata da busca GLPI; ainda falta teste concorrente e canário real.

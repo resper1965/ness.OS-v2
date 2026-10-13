@@ -19,3 +19,4 @@ def test_permission_and_old_unknown_have_distinct_reasons():
     old = datetime(2026, 10, 12, 1, 0, tzinfo=timezone.utc)
     assert classify("open", old, "100", "ticket_failed", "error=GLPIPermanentError", now) == "permission_blocked"
     assert classify("open", old, "100", None, None, now) == "historical_unclassified"
+    assert classify("open", old, "100", "ticket_retry_exhausted", "retries=12", now) == "retry_exhausted"

@@ -20,6 +20,8 @@ def classify(status, created_at, source_event_id, action, note, now):
         return "non_open_without_ticket"
     if action in {"ticket_created", "ticket_reused"}:
         return "inconsistent_ticket_audit"
+    if action == "ticket_retry_exhausted":
+        return "retry_exhausted"
     if action == "ticket_failed":
         if note and note.startswith("error=GLPIPermanentError"):
             return "permission_blocked"

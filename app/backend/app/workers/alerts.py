@@ -663,6 +663,26 @@ async def _has_persisted_inhibition_completion(
         return (await session.execute(statement)).scalar_one_or_none() is not None
 
 
+async def _record_glpi_delivery_exhausted(fingerprint: str, *, retries: int) -> None:
+    """Leave a durable, payload-free marker when automatic GLPI retry ends."""
+    async with SessionLocal() as session:
+        async with session.begin():
+            incident_id = (
+                await session.execute(
+                    select(Incident.id).where(Incident.fingerprint == fingerprint)
+                )
+            ).scalar_one_or_none()
+            if incident_id is not None:
+                session.add(
+                    IncidentAction(
+                        incident_id=incident_id,
+                        actor_source="glpi",
+                        action="ticket_retry_exhausted",
+                        note=f"retries={retries}",
+                    )
+                )
+
+
 def _publish_incident_event(event_data: dict) -> None:
     redis_client = None
     try:
@@ -762,6 +782,20 @@ def process_alert_v1(
                 "reason": "glpi_permission",
             }
         if isinstance(exc, GLPITransientError):
+            if self.request.retries >= 12:
+                try:
+                    asyncio.run(
+                        _record_glpi_delivery_exhausted(
+                            fingerprint, retries=self.request.retries
+                        )
+                    )
+                except Exception as audit_exc:
+                    logger.error(
+                        "Could not audit exhausted GLPI delivery: %s",
+                        type(audit_exc).__name__,
+                    )
+                logger.error("GLPI delivery retries exhausted; incident retained")
+                raise
             countdown = min(30 * 2 ** min(self.request.retries, 5), 900)
             logger.warning("GLPI temporarily unavailable; retry scheduled")
             raise self.retry(exc=exc, countdown=countdown, max_retries=12)
