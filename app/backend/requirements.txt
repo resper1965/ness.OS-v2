@@ -18,7 +18,7 @@ pgvector==0.3.*
 alembic==1.15.*
 
 # --- ML ---
-numpy==2.2.*
+numpy==2.5.*
 
 # --- HTTP Client ---
 httpx==0.28.*
