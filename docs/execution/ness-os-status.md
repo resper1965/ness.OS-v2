@@ -1,6 +1,6 @@
 # ness.OS — indicador de entrega
 
-Última verificação: **13/10/2026, 20:36 BRT**. Fonte: plano master,
+Última verificação: **13/10/2026, 20:46 BRT**. Fonte: plano master,
 `PROJECT_CONTEXT.md`, estágio operacional, ledger e GitHub. Este quadro é um
 checkpoint, não telemetria em tempo real. Atualizar quando uma entrega, gate,
 bloqueio ou prazo mudar; preservar a data da última verificação.
@@ -117,6 +117,14 @@ falha de pull RED→GREEN; cinco testes do publicador e Flake8 focado PASS.
 Nenhuma nova imagem foi construída/publicada nesse ajuste. O script ainda
 executa checks no host; não rodá-lo diretamente de PR não revisado nem junto
 da chave da App. Runner isolado e emissor de checks continuam pendentes.
+
+**Launcher backend (20:46 BRT):** PR #81 commit `a219bde` contém launcher
+candidato para checkout limpo/SHA exato e imagem local por ID imutável. Dois
+testes de contrato passaram; execução real no Docker sem rede/socket/chave,
+fonte somente leitura e UID sem privilégio concluiu `24/24` testes backend.
+Ainda é código na branch de PR, não instalado como runner confiável fora do
+checkout; frontend, lint/tipos, secret scan e emissor permanecem pendentes.
+Nenhum check externo, mudança de proteção ou deploy decorre desse ensaio.
 
 **Foco agora:** GLPI T03 e substituição segura do pipeline. PR 65 foi integrado;
 próxima liberação depende da revisão técnica do PR 64, publicação segura de
