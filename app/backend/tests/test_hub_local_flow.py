@@ -75,9 +75,13 @@ async def test_problem_partial_glpi_failure_replay_recovery_and_tenant_scope(
             )
         if path == "/apirest.php/Ticket/":
             marker = request.url.params["searchText[name]"]
+            matches = [ticket for ticket in tickets if marker in ticket["name"]]
             return httpx.Response(
                 200,
-                json=[ticket for ticket in tickets if marker in ticket["name"]],
+                headers={
+                    "Content-Range": f"0-{max(0, len(matches) - 1)}/{len(matches)}"
+                },
+                json=matches,
             )
         if path == "/apirest.php/Ticket" and request.method == "POST":
             ticket = json.loads(request.content)["input"]

@@ -4,6 +4,11 @@ Atualizado em: 2026-10-13 (BRT)
 Estado: execução retomada; G0 tem promoção real do Hub/AIOps comprovada, mas
 permanece **PARCIAL** até CI limpo e integração protegida do workflow.
 
+Janela Zabbix: usuário ampliou por 48 horas a partir do limite anterior;
+novo término adotado **15/10/2026 11:47:35 BRT**. O token de manutenção
+anterior expirou em 13/10; não reutilizar. Origem segue única coletora,
+destino mascarado. Prazo ampliado não substitui gates, GO ou rollback.
+
 GLPI T03, 13/10 ~11:20 BRT: candidata de gateway privado no commit `fd56543`
 foi versionada, **sem deploy**. A entrada exige URL privada, allowlist de
 um a cinco IDs e três segredos em arquivos; o Compose opt-in passou `config
@@ -29,6 +34,9 @@ GLPI T04, 13/10 ~11:46 BRT: busca idempotente agora recusa resposta sem
 `Content-Range`; página curta sem total não comprova ausência de ticket e
 poderia gerar duplicata em retry. Teste RED→GREEN, backend 476 PASS/1 SKIP;
 sem deploy ou replay. A conta 106 continua inativa.
+O CI do commit `da7e865` encontrou fixture do fluxo integrado sem o header;
+fixture corrigida para simular o contrato GLPI, suíte local 476 PASS/1 SKIP.
+Novo CI ainda precisa passar antes de aceitar a alteração como release.
 
 GLPI T05, 13/10 ~11:10 BRT: sincronização agora falha antes de atualizar
 Asset existente se cliente ou referência GLPI conhecida mudar; código não

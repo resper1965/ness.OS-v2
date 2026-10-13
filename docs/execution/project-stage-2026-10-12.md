@@ -683,3 +683,17 @@ Zabbix origem única coletora/destino mascarado continuam preservados.
   deploy. A documentação oficial de paginação é `apirest.md` do GLPI 11.
 - Após 11:47:35 BRT a autorização de mutação Zabbix expira; nenhuma mudança
   nessa frente ocorreu neste checkpoint. Origem permanece coletora única.
+
+### Janela Zabbix renovada — 13/10/2026, 11:53 BRT
+
+- O usuário ampliou a janela anterior por 48 horas. Novo limite adotado:
+  **15/10/2026 11:47:35 BRT**, contado do vencimento anterior. A automação
+  do plano master foi atualizada com esse prazo, mantendo GLPI como ferramenta
+  principal e Zabbix sem mutação neste registro.
+- A credencial temporária de manutenção venceu em 13/10 às 11:47:35 BRT;
+  a ampliação não a renova. Sem credencial válida e gates/GO/freeze/rollback,
+  não ativar destino, fazer dupla coleta nem cortar DNS.
+- O Backend CI de `da7e865` falhou no fixture do fluxo integrado: a resposta
+  simulada de Ticket não trazia `Content-Range`, agora obrigatório. Fixture
+  corrigida com total real; backend local 476 PASS/1 SKIP, Ruff/Black PASS.
+  Aguardar novo CI; nenhum runtime produtivo foi alterado.

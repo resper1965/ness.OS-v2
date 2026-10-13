@@ -4,7 +4,11 @@ Autorização direta do usuário: 24 horas de janela; prioridade de entrega
 produtiva em quatro horas, permitindo Cavan como piloto.
 
 Registro: 12/10/2026 11:47:35 BRT (14:47:35 UTC). Limite operacional adotado:
-13/10/2026 11:47:35 BRT. Após esse limite volta a janela 22:00–00:00 BRT.
+13/10/2026 11:47:35 BRT. O usuário ampliou a mesma janela por 48 horas em
+13/10; o novo limite adotado é **15/10/2026 11:47:35 BRT**. A restrição
+22:00–00:00 só volta após esse novo limite, se não houver outra autorização.
+A extensão da janela não renova o token temporário que expirou em 13/10,
+não aprova gates, freeze, GO, DNS ou dupla coleta.
 A meta de quatro horas não elimina rollback, isolamento ou evidência de corte.
 Observação 24–72h/D+1/D+3/D+7 continua posterior, sem aceite fictício imediato.
 

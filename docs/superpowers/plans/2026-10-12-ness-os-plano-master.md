@@ -77,7 +77,11 @@ Na retomada, usar o fim dos registros específicos para o último resultado. Nã
 9. Um commit por entrega coerente, staging explícito e push após verificação. Nunca versionar segredo, dump, QR, token ou log pessoal.
 10. Durante trabalho ativo, informar tarefa/resultado/próximo passo em até 60s. Registrar `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `VERIFIED` ou `RELEASED`, com evidência; nenhuma porcentagem baseada em quantidade de arquivos.
 
-**Janela:** a autorização histórica termina em 13/10/2026 11:47:35 BRT. Na futura execução, conferir horário, token e janela vigente; este plano não a renova. Não retomar automação ou mutações com credenciais expiradas.
+**Janela:** o usuário ampliou em 48 horas a autorização de mutações Zabbix;
+novo limite adotado: **15/10/2026 11:47:35 BRT**. Conferir horário, token e
+janela vigente antes de agir. O token temporário anterior expirou em 13/10;
+esta extensão não renova credenciais nem aprova gates, GO, corte ou dupla
+coleta. Não usar credenciais expiradas.
 
 ## 4. Fases e dependências
 
