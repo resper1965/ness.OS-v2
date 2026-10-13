@@ -391,6 +391,16 @@ produtiva e não reativar 106. A revisão/integração da branch já é acompanh
 na issue #67; após disponibilizar o workflow, publicar a imagem, conferir o
 digest e repetir apenas o preflight afetado antes do canário.
 
+Guard local `infra/scripts/glpi_maintenance_preflight.py`, ainda sem promoção:
+antes de resolver o Compose, exige referência `@sha256` da imagem, subnet
+IPv4 privada com IP de host utilizável e três arquivos regulares não vazios
+sem permissões de grupo/outros. A saída contém somente códigos de resultado,
+não caminhos ou segredos. Rodar no host com as variáveis do override; PASS
+**não** comprova que a imagem existe no registry, que a subnet não colide
+com rotas recém-criadas ou que a matriz GLPI/Hub está isolada. Esses testes
+continuam obrigatórios. Quatro testes de unidade e 31 testes de infra com
+`PYTHONPATH=app/backend` passaram.
+
 1. Projetar e ensaiar filtro nativo por cliente/IP ou separação de rede/rota
    mantendo UI/SSO legítimos.
    Confirmar também se a rota pública expõe `apirest.php`; bloquear o token

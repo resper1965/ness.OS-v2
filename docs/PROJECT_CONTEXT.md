@@ -17,6 +17,9 @@ rotas IPv4 vistas; deve ser refeito imediatamente antes de criar a rede.
 Publicação da imagem nova segue bloqueada: `workflow_dispatch` da branch
 retornou 404 porque o workflow de publish ainda não está na branch padrão;
 cinco checks verdes não equivalem a imagem por digest. Issue #67. Sem deploy.
+Guard local da candidata valida digest, subnet/IP e permissões dos três
+arquivos de segredo sem expor valores; não substitui imagem publicada nem
+ensaio negativo de rota. Conta 106 segue inativa.
 
 GLPI T05, 13/10 ~11:10 BRT: sincronização agora falha antes de atualizar
 Asset existente se cliente ou referência GLPI conhecida mudar; código não
