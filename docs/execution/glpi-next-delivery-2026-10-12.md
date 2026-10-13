@@ -1,5 +1,25 @@
 # GLPI — retomada operacional de 12/10/2026
 
+## T12 — estado dos plugins, 13/10 06:45 UTC
+
+`php /var/www/glpi/bin/console plugin:list --format=json --no-interaction`
+foi executado no contêiner produtivo somente para leitura. Retornou dez
+registros (`fields`, `credit`, `escalade`, `formcreator`, `gantt`, `nessai`,
+`oauthimap`, `singlesignon`, `customlogin`, `tag`), todos com estado nativo
+`Erro / para limpar`. As três localizações verificadas de código de plugins
+(`/var/www/glpi/plugins`, `/var/www/glpi/marketplace`,
+`/var/glpi/marketplace`) não contêm entradas. Não confundir esses dez
+registros com o aviso visual histórico de sete atualizações disponíveis;
+um não mede o outro. Não houve instalação, limpeza, ativação ou upgrade.
+
+Próximo: identificar a proveniência e compatibilidade de cada pacote com
+GLPI 11, em especial `nessai`, `customlogin` e `singlesignon`, antes de
+reintroduzir código ou limpar registro. O SSO via proxy/Authentik e o core
+GLPI devem ser testados separadamente; estado de plugin não prova sua falha.
+Não executar os sete upgrades em bloco nem reconstruir o contêiner enquanto
+o volume anônimo `/var/glpi` e o rollback da issue #76 não estiverem
+resolvidos.
+
 ## T07 — preflight de inventário, 13/10 06:18 UTC
 
 Relatórios existentes executados via `ssh ... bash -s`, sem instalar script nem
