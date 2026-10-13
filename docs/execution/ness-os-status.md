@@ -1,6 +1,6 @@
 # ness.OS — indicador de entrega
 
-Última verificação: **13/10/2026, 20:13 BRT**. Fonte: plano master,
+Última verificação: **13/10/2026, 20:11 BRT**. Fonte: plano master,
 `PROJECT_CONTEXT.md`, estágio operacional, ledger e GitHub. Este quadro é um
 checkpoint, não telemetria em tempo real. Atualizar quando uma entrega, gate,
 bloqueio ou prazo mudar; preservar a data da última verificação.
@@ -99,6 +99,13 @@ mudou. A primeira chave, baixada na pasta OneDrive (informada pelo usuário
 como não sincronizada), teve sua cópia local removida; a UI do GitHub ainda
 mostra essa chave ativa e desabilita a exclusão mesmo com duas chaves. Tratá-la
 como pendência de revogação, sem usar a chave anterior.
+
+**Sandbox local (20:11 BRT):** checkout limpo da branch PR #81 teve
+backend `24/24` e frontend lint/build PASS em contêineres sem rede, sem
+Docker socket e sem chave; hashes do lock/requirements coincidiram com as
+imagens de dependências. Frontend recebeu arquivo Git do SHA; backend recebeu
+montagem somente leitura. É prova de viabilidade, não runner integrado nem
+check emitido. PR #81 continua draft e a proteção da `main` inalterada.
 
 **Foco agora:** GLPI T03 e substituição segura do pipeline. PR 65 foi integrado;
 próxima liberação depende da revisão técnica do PR 64, publicação segura de
