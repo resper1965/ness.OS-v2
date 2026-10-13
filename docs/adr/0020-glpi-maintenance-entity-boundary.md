@@ -102,6 +102,14 @@ Leitura do runtime em 13/10/2026: `ninf-api` e `ninf-glpi` usam ambos
 `app_ninf-net`; de `ninf-api`, `ninf-glpi` resolve por DNS interno. GLPI não
 publica porta Docker diretamente. Há, portanto, caminho direto entre Hub e
 API GLPI; apenas adicionar um adaptador nessa rede **não** isola o token.
+Readback de `docker inspect` em 13/10 confirmou que `ninf-api`, `ninf-glpi`,
+`ninf-glpi-db`, `ninf-caddy` e os serviços Authentik compartilham essa rede.
+O container GLPI foi criado pelo projeto Compose `app` com arquivos de
+configuração em `/opt/n-infraops/app/docker-compose.yml` e
+`/opt/n-infraops/app/docker-compose.tickets.yml`; já o container API tem
+proveniência de uma release em `/opt/n-infraops/releases/...`. A fronteira
+precisa ser aplicada à topologia efetiva, preservando UI/SSO, banco e demais
+integrações; editar apenas o Compose histórico do repositório não basta.
 Uma requisição pública não autenticada a `n-ticket.ness.com.br/apirest.php`
 foi encaminhada ao fluxo Authentik. Isso não prova bloqueio para usuário
 autenticado ou portador de token; a rota pública exige teste negativo próprio.
