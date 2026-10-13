@@ -85,6 +85,7 @@ try {
 
     $ticketData = [
         'id'       => $ticketId,
+        'entities_id' => (int) ($ticket->fields['entities_id'] ?? 0),
         'name'     => $ticket->fields['name'],
         'content'  => $ticket->fields['content'],
         'type'     => $ticket->fields['type'],

@@ -4,6 +4,14 @@ Atualizado em: 2026-10-13 (BRT)
 Estado: execução retomada; G0 tem promoção real do Hub/AIOps comprovada, mas
 permanece **PARCIAL** até CI limpo e integração protegida do workflow.
 
+T12 GLPI/ness.AI, 13/10 ~09:25 BRT: a busca de artigos no plugin (ainda não
+instalado) foi restringida à entidade exata do chamado e à permissão nativa
+`KnowbaseItem::canViewItem()`. Sem entidade ou sem vínculo explícito não há
+enriquecimento; artigos recursivos/globais ficam fora por decisão conservadora.
+Teste RED→GREEN e sete testes PHP isolados sem rede passaram. A integração
+com provedor, política de PII e implantação do plugin continuam pendentes;
+isto não aprova T12, T03 nem G2.
+
 GLPI borda pública, 13/10 ~09:08 BRT: teste sintético encontrou caminho
 duplamente codificado que alcançava o upstream sintético. Matcher Caddy
 ampliado e aplicado; API normal/variantes codificadas 403, GLPI/SSO 302,

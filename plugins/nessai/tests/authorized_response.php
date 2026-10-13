@@ -13,6 +13,7 @@ class Session {
 class Ticket {
     public array $fields = [
         'itilcategories_id' => 0,
+        'entities_id' => 1,
         'name' => 'visible ticket',
         'content' => 'visible content',
         'type' => 1,
@@ -30,6 +31,9 @@ class FakeDB {
 $DB = new FakeDB();
 class PluginNessaiAssistant {
     public static function suggest(array $ticket, array $followups): array {
+        if (($ticket['entities_id'] ?? null) !== 1) {
+            throw new RuntimeException('Authorized ticket entity missing');
+        }
         return ['text' => 'Approved reply', 'prompt_tokens' => 1, 'completion_tokens' => 2];
     }
 }

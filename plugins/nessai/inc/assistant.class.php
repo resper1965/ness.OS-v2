@@ -231,6 +231,12 @@ class PluginNessaiAssistant
             return '';
         }
 
+        // A missing entity cannot be used as authorization for KB enrichment.
+        $entityId = (int) ($ticketData['entities_id'] ?? 0);
+        if ($entityId <= 0) {
+            return '';
+        }
+
         $searchTerms = trim(
             ($ticketData['name'] ?? '') . ' ' . strip_tags($ticketData['content'] ?? '')
         );
@@ -239,7 +245,7 @@ class PluginNessaiAssistant
             return '';
         }
 
-        $articles = self::searchKnowledgeBase($searchTerms);
+        $articles = self::searchKnowledgeBase($searchTerms, $entityId);
         if (empty($articles)) {
             return '';
         }
@@ -264,48 +270,59 @@ class PluginNessaiAssistant
      * NATURAL LANGUAGE MODE.
      *
      * @param string $searchTerms Free-text query.
+     * @param int $entityId Exact entity of the authorized ticket.
      *
      * @return array<int, array{name: string, answer: string}> Top results.
      */
-    private static function searchKnowledgeBase(string $searchTerms): array
+    private static function searchKnowledgeBase(string $searchTerms, int $entityId): array
     {
         /** @var \DBmysql $DB */
         global $DB;
 
         $results = [];
+        if ($entityId <= 0) {
+            return $results;
+        }
 
         // Truncate search terms to avoid overly long queries.
         $searchTerms = mb_substr($searchTerms, 0, 200);
 
-        $query = "SELECT `name`, `answer`,
-                         MATCH(`name`, `answer`) AGAINST(? IN NATURAL LANGUAGE MODE) AS `relevance`
-                  FROM `glpi_knowbaseitems`
-                  WHERE MATCH(`name`, `answer`) AGAINST(? IN NATURAL LANGUAGE MODE)
+        $query = "SELECT DISTINCT kbi.`id`,
+                         MATCH(kbi.`name`, kbi.`answer`) AGAINST(? IN NATURAL LANGUAGE MODE) AS `relevance`
+                  FROM `glpi_knowbaseitems` AS kbi
+                  INNER JOIN `glpi_entities_knowbaseitems` AS eki
+                    ON eki.`knowbaseitems_id` = kbi.`id` AND eki.`entities_id` = ?
+                  WHERE MATCH(kbi.`name`, kbi.`answer`) AGAINST(? IN NATURAL LANGUAGE MODE)
                   ORDER BY `relevance` DESC
-                  LIMIT " . self::KB_MAX_RESULTS;
+                  LIMIT 30";
 
         try {
             $stmt = $DB->prepare($query);
-            $stmt->bind_param('ss', $searchTerms, $searchTerms);
+            $stmt->bind_param('sis', $searchTerms, $entityId, $searchTerms);
             $stmt->execute();
             $res = $stmt->get_result();
 
             while ($row = $res->fetch_assoc()) {
+                $article = new KnowbaseItem();
+                if (!$article->getFromDB((int) ($row['id'] ?? 0)) || !$article->canViewItem()) {
+                    continue;
+                }
                 $results[] = [
-                    'name'   => $row['name'] ?? '',
+                    'name'   => $article->fields['name'] ?? '',
                     'answer' => mb_substr(
-                        strip_tags($row['answer'] ?? ''),
+                        strip_tags($article->fields['answer'] ?? ''),
                         0,
                         self::KB_ARTICLE_MAX_CHARS
                     ),
                 ];
+                if (count($results) >= self::KB_MAX_RESULTS) {
+                    break;
+                }
             }
 
             $stmt->close();
         } catch (\Throwable $e) {
-            Toolbox::logError(
-                '[nessai] Knowledge Base search failed: ' . $e->getMessage()
-            );
+            Toolbox::logError('[nessai] Knowledge Base search failed.');
         }
 
         return $results;
