@@ -1,5 +1,10 @@
 # Zabbix — encerramento completo do capítulo
 
+> **Ordem de execução substituída:** usar [plano enxuto de liberação](2026-10-12-zabbix-fluid-delivery.md).
+> Este arquivo preserva requisitos e histórico. A ordem antiga de execução
+> imediata ao final não se aplica: o usuário pediu somente planejamento com
+> o modelo autor e retomada da implementação por outro modelo.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans para executar tarefa por tarefa. Não pedir confirmação entre tarefas; parar somente em operação sem autorização, destrutiva ou dependência indispensável.
 
 **Goal:** Entregar o Zabbix definitivo com todos os ativos existentes reconciliados, coleta qualificada, identidade, painéis, marca, operação e retorno comprovados.

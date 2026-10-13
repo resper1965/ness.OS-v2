@@ -1,5 +1,14 @@
 # Zabbix — estágio de 12/10/2026
 
+## Plano de retomada Zabbix — Ponytail full
+
+[Plano enxuto de liberação](../superpowers/plans/2026-10-12-zabbix-fluid-delivery.md):
+seis etapas, reuso das entregas aprovadas, coleta/acesso antes do corte e
+acabamento após liberação. Planejamento concluído; implementação não iniciada
+pelo modelo autor, conforme instrução humana. Automação permanece pausada.
+O plano substitui a sequência antiga, não os critérios de aceite. Ler também
+o ledger para não repetir ondas já aprovadas.
+
 ## Retomada atual — plano completo GLPI
 
 Plano canônico para a próxima implementação:
