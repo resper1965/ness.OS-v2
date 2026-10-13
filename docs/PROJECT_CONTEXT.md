@@ -39,6 +39,9 @@ o volume `/var/glpi`, acrescentando rede interna sem porta pública no
 gateway. Backend+escopo 486 PASS/1 SKIP, lint/formatação PASS. Ainda faltam
 subnet/secret/image de release, matriz negativa real e contrato de escrita.
 Conta 106 inativa; três ativos não criados. Issue #74 e ADR 0020.
+Em 13/10 ~15:10 BRT, a candidata passou a encerrar o cliente também quando
+recusa URL não privada (teste RED→GREEN; backend 486 PASS/1 SKIP). Sem deploy
+ou aceite do isolamento direto.
 Endurecimento adicional na branch `14cde84`: a validação da URL de manutenção
 não aceita mais IPs reservados como 198.18/15 nem link-local como se fossem
 rede privada; aceita apenas RFC1918 ou loopback para IP literal. Testes

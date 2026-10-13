@@ -22,7 +22,9 @@ async def test_unapproved_computer_id_is_denied_before_glpi_session():
 
 
 @pytest.mark.asyncio
-async def test_public_glpi_url_is_denied_before_session():
+async def test_public_glpi_url_is_denied_and_client_is_closed():
+    closed = False
+
     class Client:
         base_url = "https://n-ticket.ness.com.br/apirest.php"
 
@@ -30,12 +32,16 @@ async def test_public_glpi_url_is_denied_before_session():
             raise AssertionError("Public GLPI must not be contacted")
 
         async def kill_session(self):
+            nonlocal closed
+            closed = True
             return True
 
     boundary = MaintenanceBoundary(Client, entity_id=1, approved_ids={41})
 
     with pytest.raises(GLPIPermanentError):
         await boundary.read_computer(41)
+
+    assert closed
 
 
 @pytest.mark.asyncio

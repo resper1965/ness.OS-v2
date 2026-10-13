@@ -26,11 +26,11 @@ class MaintenanceBoundary:
         if type(computer_id) is not int or computer_id not in self.approved_ids:
             raise PermissionError("Computer is not approved for maintenance access")
         client = self.client_factory()
-        if not isinstance(
-            getattr(client, "base_url", None), str
-        ) or not is_private_glpi_api_url(client.base_url):
-            raise GLPIPermanentError("GLPI maintenance transport must be private")
         try:
+            if not isinstance(
+                getattr(client, "base_url", None), str
+            ) or not is_private_glpi_api_url(client.base_url):
+                raise GLPIPermanentError("GLPI maintenance transport must be private")
             await client.change_active_entity(self.entity_id)
             item = await client.get_item("Computer", computer_id)
             if not isinstance(item, dict):

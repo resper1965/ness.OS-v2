@@ -1,6 +1,6 @@
 # ness.OS — indicador de entrega
 
-Última verificação: **13/10/2026, 15:00 BRT**. Fonte: plano master,
+Última verificação: **13/10/2026, 15:10 BRT**. Fonte: plano master,
 `PROJECT_CONTEXT.md`, estágio operacional, ledger e GitHub. Este quadro é um
 checkpoint, não telemetria em tempo real. Atualizar quando uma entrega, gate,
 bloqueio ou prazo mudar; preservar a data da última verificação.
@@ -24,6 +24,10 @@ preparação UAT ou documentação isolada.
 **Atualização F0:** Ubuntu/WSL acessa Docker Desktop 29.8.0 e Buildx 0.37.
 O impedimento de integração foi removido; o scan de segredos da issue #82
 ainda bloqueia o publicador completo. Nenhum push de imagem ocorreu.
+
+**Atualização F3:** gateway GLPI candidato agora encerra o cliente mesmo
+quando recusa URL não privada; teste RED→GREEN e backend 486 PASS/1 SKIP.
+Ainda sem deploy, isolamento direto real ou reativação da conta 106.
 
 **Foco agora:** GLPI T03 e substituição segura do pipeline. PR 65 foi integrado;
 próxima liberação depende da revisão técnica do PR 64, publicação segura de
