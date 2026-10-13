@@ -42,7 +42,8 @@ class MaintenanceBoundary:
                 "entities_id": item["entities_id"],
             }
         finally:
-            await client.kill_session()
+            if await client.kill_session() is False:
+                raise GLPITransientError("GLPI maintenance session cleanup failed")
 
 
 def create_app(

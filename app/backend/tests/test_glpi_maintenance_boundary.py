@@ -1,5 +1,6 @@
 import pytest
 
+from app.integrations.glpi import GLPITransientError
 from app.integrations.glpi_boundary import MaintenanceBoundary
 
 
@@ -215,3 +216,21 @@ def test_boolean_entity_configuration_is_rejected():
 def test_boolean_approved_id_configuration_is_rejected():
     with pytest.raises(ValueError):
         MaintenanceBoundary(lambda: None, entity_id=1, approved_ids={True})
+
+
+@pytest.mark.asyncio
+async def test_failed_session_cleanup_does_not_return_computer_data():
+    class Client:
+        async def change_active_entity(self, entity_id):
+            assert entity_id == 1
+
+        async def get_item(self, itemtype, item_id):
+            return {"id": 41, "entities_id": 1, "name": "approved-host"}
+
+        async def kill_session(self):
+            return False
+
+    boundary = MaintenanceBoundary(Client, entity_id=1, approved_ids={41})
+
+    with pytest.raises(GLPITransientError):
+        await boundary.read_computer(41)
