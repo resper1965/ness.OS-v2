@@ -95,6 +95,11 @@ replay da sessão, cabeçalho de origem forjado e login sem App-Token no frontal
 também foram negados. Recursos temporários removidos. Falta provar Caddy
 autenticado, IP estável, operações de objeto e o Compose produtivo; 106 segue
 inativa, T03/G2 não aprovados.
+Preflight somente leitura da topologia produtiva encontrou outra dependência
+para T03: a imagem GLPI usa `/var/glpi` num volume anônimo com configuração e
+arquivos, enquanto o Compose versionado monta `app_glpi-data` em
+`/var/www/html/glpi`. Não recriar o container com esse Compose antes de
+migrar/preservar o estado de `/var/glpi` e testar retorno; ADR 0020 detalha.
 No fluxo de incidentes para tickets, um teste RED mostrou que o log INFO
 continha toda a análise de IA. A mensagem passou a registrar apenas a conclusão,
 sem conteúdo da análise; 95 testes focados e 456 testes backend passaram.

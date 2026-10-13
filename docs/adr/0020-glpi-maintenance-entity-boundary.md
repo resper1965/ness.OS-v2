@@ -145,6 +145,19 @@ configuração em `/opt/n-infraops/app/docker-compose.yml` e
 proveniência de uma release em `/opt/n-infraops/releases/...`. A fronteira
 precisa ser aplicada à topologia efetiva, preservando UI/SSO, banco e demais
 integrações; editar apenas o Compose histórico do repositório não basta.
+Há também uma precondição de persistência: o Compose atual monta
+`app_glpi-data` em `/var/www/html/glpi` (4 KiB observados), enquanto a imagem
+declara `VOLUME /var/glpi`. O container produtivo usa ali um volume anônimo
+separado, com configuração e 16 MiB de arquivos observados. Recriar `glpi`
+com o Compose atual pode associar **outro** volume anônimo e perder o estado
+visível, mesmo mantendo banco e `app_glpi-data`. Antes de qualquer mudança de
+rede/recriação, identificar e preservar o volume atual, migrá-lo para volume
+nomeado montado em `/var/glpi`, verificar conteúdo/permissões e ensaiar retorno
+ao volume original. Não trocar só a linha do Compose nem executar `up
+--force-recreate` com o estado ainda anônimo; manter o volume antigo até a
+observação pós-mudança. Esta é uma dependência nova de T03, não prova de que
+alguma recriação anterior perdeu dados. A correção está rastreada na
+[issue #76](https://github.com/resper1965/n-infraops/issues/76).
 Uma requisição pública não autenticada a `n-ticket.ness.com.br/apirest.php`
 foi encaminhada ao fluxo Authentik. Isso não prova bloqueio para usuário
 autenticado ou portador de token; a rota pública exige teste negativo próprio.
