@@ -75,8 +75,9 @@ negar a descendente 5 e ambos os percursos diretos. Se qualquer rota direta
 funcionar, descartar filtro IP isolado e implantar separação de rede/rota antes
 de continuar. A conta produtiva 106 fica desativada durante o ensaio.
 
-Se o filtro nativo não cobrir todos os caminhos, prototipar a fronteira
-privada abaixo. Nenhuma das duas alternativas está aprovada hoje.
+Como o filtro nativo não cobre a troca de entidade na sessão permitida,
+**descartar o filtro IP isolado como solução T03** e prototipar a fronteira
+privada abaixo. A solução completa ainda não está aprovada.
 
 ## Direção de protótipo da fronteira privada
 
