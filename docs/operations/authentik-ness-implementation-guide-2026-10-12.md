@@ -288,3 +288,20 @@ Implementação de recuperação, após identidade/janela aprovadas:
    não reverte senhas reais para valores antigos nem apaga auditoria.
 
 Esta rodada foi somente leitura; recuperação/G2 permanecem PENDENTES.
+
+## 10. Escopo da fonte Google — 12/10 após21:37 BRT
+
+Source google habilitada, authentication_flow=default-source-authentication,
+enrollment_flow=default-source-enrollment, user_matching_mode=email_link e
+group_matching_mode=identifier, confirmados por leitura de modelo nativo.
+Portanto o fluxo sem MFA local identificado na seção9 é realmente usado pela
+fonte Google configurada; não apenas um fluxo sem consumidor conhecido.
+
+email_link é configuração de associação por email, não prova de takeover.
+Antes de alterar, validar email verificado fornecido pela fonte, restrição de
+domínios/organizações e autorização do vínculo de conta no enrollment. Não
+trocar modo de matching sem export e ensaio: pode criar identidades duplicadas
+ou interromper logins existentes. Não afirmar ausência de MFA externo por
+ausência de etapa local. Aceite administrativo deve cobrir login local e Google,
+incluindo mesma conta nominal, fatores e recuperação, sem privilégios automáticos
+por sufixo do email. Nenhuma associação, policy ou fluxo foi alterado.
