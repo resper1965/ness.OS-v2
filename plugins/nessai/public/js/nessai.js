@@ -93,7 +93,7 @@ $(document).ready(function () {
          },
          success: function (response) {
             var text = (typeof response === 'object' && response !== null)
-               ? (response.content || response.data || response.message || JSON.stringify(response))
+               ? (response.response || response.content || response.data || response.message || JSON.stringify(response))
                : String(response);
 
             switch (action) {

@@ -6,6 +6,7 @@ const vm = require('node:vm');
 const document = {};
 let click;
 let request;
+let inserted;
 const toolbar = { on: (_event, _selector, handler) => { click = handler; } };
 const button = {
   data: () => 'suggest',
@@ -29,10 +30,13 @@ vm.runInNewContext(source, {
   document,
   window: { location: { href: 'https://glpi.test/front/ticket.form.php?id=41', pathname: '/front/ticket.form.php' } },
   CFG_GLPI: { root_doc: '' },
+  tinymce: { activeEditor: { setContent: (text) => { inserted = text; } } },
   $,
   Date,
 });
 assert.equal(typeof click, 'function');
 click.call(button, { preventDefault() {} });
 assert.equal(request.headers?.['X-Glpi-Csrf-Token'], 'csrf-test');
-console.log('PASS: AJAX request carries the GLPI CSRF header');
+request.success({ success: true, response: 'Approved reply', tokens: { prompt: 1, completion: 2 } });
+assert.equal(inserted, 'Approved reply');
+console.log('PASS: nessai AJAX contract');

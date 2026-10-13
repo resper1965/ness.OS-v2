@@ -156,7 +156,7 @@ try {
     // ---- Return success response ----
     echo json_encode([
         'success'  => true,
-        'response' => $result['response'] ?? '',
+        'response' => $result['text'] ?? '',
         'tokens'   => [
             'prompt'     => (int) ($result['prompt_tokens'] ?? 0),
             'completion' => (int) ($result['completion_tokens'] ?? 0),

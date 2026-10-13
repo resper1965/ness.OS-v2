@@ -26,6 +26,12 @@ cabeçalho, preservando o corpo por compatibilidade. Typecheck/lint do frontend
 passaram (um aviso existente). Isso não prova o POST HTTP end-to-end,
 compatibilidade integral nem sanitização adequada para envio ao provedor
 externo.
+Dois testes RED→GREEN adicionais corrigiram a resposta vazia: a classe do
+assistente entrega `text`, mas o endpoint lia `response`; o endpoint agora
+publica `response` a partir de `text`, e o JavaScript prioriza esse campo
+em vez de inserir o objeto JSON inteiro no editor. Testes PHP de leitura
+negada/permitida, lint PHP, teste JS, typecheck/lint e backend 460 PASS,
+1 SKIP. Tudo ainda é código não implantado.
 
 Próximo: identificar a proveniência e compatibilidade dos demais pacotes com
 GLPI 11, em especial `customlogin` e `singlesignon`, antes de
