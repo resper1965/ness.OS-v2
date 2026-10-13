@@ -28,7 +28,7 @@ foi gravada como `RuntimeError` genérico e ainda não está determinada.
 | `source_id_missing` | Quarentena e investigação da origem | Identidade estável comprovada e decisão de operação |
 | `inconsistent_ticket_audit` | Conferir ticket e ação por leitura | Reparar vínculo, nunca criar segundo ticket por suposição |
 | `permission_blocked` | Diagnosticar perfil/entidade sem retry | Isolamento T03 aprovado e credencial mínima ativa |
-| `transient_failed_queue_unverified` / `failed_unclassified` | Conferir fila, ação e ticket remoto | Causa corrigida, busca negativa íntegra e retry controlado |
+| `transient_failed_queue_unverified` / `failed_unclassified` | Conferir fila, ação e ticket remoto | Causa corrigida e desfecho do POST comprovado; busca negativa após timeout não prova ausência do ticket |
 | `retry_exhausted` | Inspecionar falha e ticket remoto | Nova tentativa explícita, limitada e auditada |
 | `historical_unclassified` / `recent_unconfirmed` | Aguardar ou reconciliar por leitura | Fonte/entidade/ausência remota comprovadas |
 | `non_open_without_ticket` | Verificar recovery e política | Decisão de ciclo de vida; não abrir ticket retrospectivo automaticamente |
@@ -48,6 +48,13 @@ falha de logout ou entidade divergente aborta a onda; não prosseguir para o
 próximo item. O rollback da onda interrompe novos envios e restaura o vínculo
 local somente se a evidência demonstrar erro; ticket já criado no GLPI não é
 apagado automaticamente. Preservar histórico e abrir correção individual.
+
+Se o POST puder ter sido aceito mas a resposta se perder, colocar o incidente
+em quarentena: não repetir POST por busca negativa imediata nem por expiração
+do lock. Reconciliar remotamente e registrar o desfecho antes de nova tentativa.
+O fluxo automático atual ainda não persiste esse estado **antes** do POST;
+T04/replay produtivo permanecem bloqueados até implementação e teste da
+barreira durável.
 
 Nenhuma contagem baixa por exclusão/encerramento em massa. A operação aprova
 separadamente a política de transições de tickets históricos.

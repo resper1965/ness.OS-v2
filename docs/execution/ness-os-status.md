@@ -1,6 +1,6 @@
 # ness.OS — indicador de entrega
 
-Última verificação: **13/10/2026, 16:24 BRT**. Fonte: plano master,
+Última verificação: **13/10/2026, 16:37 BRT**. Fonte: plano master,
 `PROJECT_CONTEXT.md`, estágio operacional, ledger e GitHub. Este quadro é um
 checkpoint, não telemetria em tempo real. Atualizar quando uma entrega, gate,
 bloqueio ou prazo mudar; preservar a data da última verificação.
@@ -39,6 +39,10 @@ privilégios antes de servir. Preflight exige root/dono correto; ensaio local
 com UID/GID 999, capacidades efetivas zero e healthcheck saudável; backend+infra
 524 PASS/1 SKIP. Sem imagem publicada, deploy ou credencial real.
 Ainda sem deploy, isolamento direto real ou reativação da conta 106.
+T04: a revisão do caminho de timeout após POST confirmou que o lock transacional
+termina antes do registro do incidente, e uma busca negativa imediata não
+comprova ausência remota. Replay continua bloqueado; o runbook exige quarentena
+até barreira durável anterior ao POST e reconciliação do resultado ambíguo.
 
 **Foco agora:** GLPI T03 e substituição segura do pipeline. PR 65 foi integrado;
 próxima liberação depende da revisão técnica do PR 64, publicação segura de
