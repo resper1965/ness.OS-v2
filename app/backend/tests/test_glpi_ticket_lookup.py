@@ -103,6 +103,31 @@ async def test_ticket_lookup_rejects_malformed_pagination_before_creating_duplic
 
 
 @pytest.mark.asyncio
+async def test_ticket_lookup_does_not_assume_short_page_is_complete_without_range(
+    monkeypatch,
+):
+    def handler(_request):
+        return httpx.Response(
+            200,
+            json=[{"id": 1, "entities_id": 5, "name": "unrelated"}],
+        )
+
+    original = httpx.AsyncClient
+    monkeypatch.setattr(
+        httpx,
+        "AsyncClient",
+        lambda **kwargs: original(transport=httpx.MockTransport(handler), **kwargs),
+    )
+    client = GLPIClient(
+        base_url="http://glpi/apirest.php", app_token="app", user_token="user"
+    )
+    client.session_token = "session"
+
+    with pytest.raises(RuntimeError, match="Content-Range"):
+        await client.find_ticket_by_name_marker("[n.infraops:abc]", 1)
+
+
+@pytest.mark.asyncio
 async def test_ticket_lookup_classifies_forbidden_response_as_permanent(monkeypatch):
     def handler(request):
         return httpx.Response(403, request=request)

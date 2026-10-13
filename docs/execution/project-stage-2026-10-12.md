@@ -671,3 +671,15 @@ Zabbix origem única coletora/destino mascarado continuam preservados.
   publica digest. Teste da factory com tokens sintéticos passou para bearer
   errado, entidade 1 permitida, entidade 5 negada e logout; backend 475 PASS,
   1 SKIP. GLPI produtivo permaneceu intocado.
+
+### Incremento independente GLPI T04 — 13/10/2026, 11:46 BRT
+
+- O reconciliador histórico já completou 115+29 marcadores por leitura; não
+  foi reexecutado. Revisão do cliente encontrou falso fim possível quando o
+  GLPI omitia `Content-Range` numa página curta. O código agora falha fechado,
+  em vez de declarar ticket ausente e arriscar duplicata.
+- Teste RED→GREEN e fixture ajustada ao contrato documentado do GLPI 11;
+  backend 476 PASS/1 SKIP. Alteração apenas na branch, sem replay, escrita ou
+  deploy. A documentação oficial de paginação é `apirest.md` do GLPI 11.
+- Após 11:47:35 BRT a autorização de mutação Zabbix expira; nenhuma mudança
+  nessa frente ocorreu neste checkpoint. Origem permanece coletora única.

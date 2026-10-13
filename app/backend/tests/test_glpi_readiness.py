@@ -206,6 +206,7 @@ async def test_ticket_marker_search_returns_single_exact_entity_match(monkeypatc
         assert request.url.params["searchText[entities_id]"] == "8"
         return httpx.Response(
             200,
+            headers={"Content-Range": "0-0/1"},
             json=[
                 {
                     "id": 321,

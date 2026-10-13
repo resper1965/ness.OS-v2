@@ -420,17 +420,17 @@ class GLPIClient:
                             "GLPI retornou tickets idempotentes duplicados"
                         )
                     content_range = res.headers.get("Content-Range", "")
+                    if not content_range:
+                        raise RuntimeError("GLPI omitiu Content-Range da busca")
                     total = content_range.rsplit("/", 1)[-1]
-                    if content_range and not total.isdigit():
+                    if not total.isdigit():
                         raise RuntimeError("GLPI retornou paginação inválida")
                     if not page and total.isdigit() and start < int(total):
                         raise RuntimeError(
                             "GLPI retornou página vazia antes do fim da busca"
                         )
                     start += len(page)
-                    if (total.isdigit() and start >= int(total)) or (
-                        not total.isdigit() and len(page) < 100
-                    ):
+                    if start >= int(total):
                         return matches[0]["id"] if matches else None
         except RuntimeError:
             raise

@@ -25,6 +25,11 @@ runner, não publicou digest. Teste sintético adicional da factory negou bearer
 incorreto e entidade 5, permitiu somente Computer 41 da entidade 1 e encerrou
 sessões; não substitui teste na rede GLPI real.
 
+GLPI T04, 13/10 ~11:46 BRT: busca idempotente agora recusa resposta sem
+`Content-Range`; página curta sem total não comprova ausência de ticket e
+poderia gerar duplicata em retry. Teste RED→GREEN, backend 476 PASS/1 SKIP;
+sem deploy ou replay. A conta 106 continua inativa.
+
 GLPI T05, 13/10 ~11:10 BRT: sincronização agora falha antes de atualizar
 Asset existente se cliente ou referência GLPI conhecida mudar; código não
 implantado. A paleta `ness.` permanece opt-in e sem aceite visual na issue
