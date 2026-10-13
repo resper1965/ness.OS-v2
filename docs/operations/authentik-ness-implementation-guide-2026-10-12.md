@@ -108,6 +108,9 @@ sem sessão, não usuário autenticado atacando outro tenant ou backend direto.
 4. Registrar somente usuário nominal, método, horário e resultado; nunca seed.
 5. Criar/usar etapa MFA específica vinculada condicionalmente a platform_admin,
    preservando fluxo de usuários comuns. Não alterar skip de etapa global.
+   Cobrir também fluxos de fontes externas antes de abrir sessão; exigir fator
+   somente no fluxo de senha deixa outro caminho sem essa etapa. Não presumir
+   MFA do Google sem prova de política/claim confiável.
 6. Só após os três testes e break-glass PASS exigir fator para esse grupo.
    Testar login do grupo e usuário fora do grupo; reverter binding se houver
    lockout. Não apresentar cadastro de factor como prova de uso obrigatório.
@@ -250,3 +253,38 @@ Dependências humanas já existentes foram localizadas, evitando duplicar issue
 ou enviar nova cobrança: #66 cadastro MFA nominal, #51 jornadas/RBAC e #59
 recuperação/notificação. Procedimentos já enviados continuam válidos. Não
 fabricar fatores em nome dos usuários ou aprovar G2 com testes sem sessão.
+
+## 9. Recuperação e caminhos de autenticação — 12/10 após21:27 BRT
+
+Leitura nativa nova: nenhuma Flow com designation=recovery, nenhuma EmailStage,
+Brand.flow_recovery nula. SMTP historicamente configurado não cria fluxo de
+recuperação nem comprova recebimento. Issue59 é dependência existente; não
+criar issue/email de cobrança duplicados. Não ativada recuperação sem provas.
+
+PasswordStage atual cancela o fluxo após cinco tentativas falhas; isso não é
+rate limit global nem prova de proteção entre múltiplos fluxos/IPs. Não foram
+executados logins errados, testes de volume ou senhas de usuários.
+
+default-authentication-flow: identificação10 → senha20 → MFA30(skip sem fator)
+→ login100. default-source-authentication: somente UserLoginStage ordem0.
+Isso demonstra ausência de etapa MFA local nesse fluxo de fonte, não ausência
+de MFA no Google externo nem prova de exploração. Antes de endurecer, verificar
+qual source usa esse fluxo e aplicar condição nominal administrativa em todos
+os caminhos relevantes; testes positivos/negativos e rollback são obrigatórios.
+
+Implementação de recuperação, após identidade/janela aprovadas:
+
+1. Preparar fluxo nativo isolado, ainda não vinculado à Brand; usar conta de
+   teste nominal autorizada e email verificado, nunca custodian real para ensaio.
+2. Identification + EmailStage global + validação do link/token + escrita de
+   senha pela etapa nativa, com autorização do usuário recuperado. Não ativar
+   automaticamente usuários desativados; preservar proteção MFA existente.
+3. Documentar expiração e tentativas; provar uso único, token errado/expirado,
+   conta inexistente sem enumeração, envio indisponível e rate limit. Não
+   habilitar outro caminho que ignore MFA ou permita vincular conta indevida.
+4. Após recebimento e todos os negativos PASS, exportar Brand atual e vincular
+   flow_recovery. Sessão nominal e break-glass disponíveis durante promoção.
+5. Rollback desvincula somente flow_recovery e preserva objetos/evidências;
+   não reverte senhas reais para valores antigos nem apaga auditoria.
+
+Esta rodada foi somente leitura; recuperação/G2 permanecem PENDENTES.
