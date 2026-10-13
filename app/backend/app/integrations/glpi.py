@@ -15,10 +15,19 @@ class GLPIPermanentError(PermissionError):
     """GLPI denied the configured identity; retries cannot repair its grants."""
 
 
+class GLPITransientError(RuntimeError):
+    """A GLPI transport or capacity failure may recover on a later attempt."""
+
+
 def _glpi_failure(operation: str, exc: Exception) -> Exception:
     logger.error("GLPI %s failed: %s", operation, type(exc).__name__)
-    if isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code in (401, 403):
-        return GLPIPermanentError(f"GLPI {operation} sem autorização")
+    if isinstance(exc, httpx.HTTPStatusError):
+        if exc.response.status_code in (401, 403):
+            return GLPIPermanentError(f"GLPI {operation} sem autorização")
+        if exc.response.status_code == 429 or exc.response.status_code >= 500:
+            return GLPITransientError(f"GLPI {operation} temporariamente indisponível")
+    if isinstance(exc, httpx.TransportError):
+        return GLPITransientError(f"GLPI {operation} temporariamente indisponível")
     return RuntimeError(f"GLPI {operation} indisponível")
 
 

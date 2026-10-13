@@ -13,7 +13,7 @@ from sqlalchemy import select
 
 from app.config import get_settings
 from app.database import SessionLocal
-from app.integrations.glpi import GLPIClient, GLPIPermanentError
+from app.integrations.glpi import GLPIClient, GLPIPermanentError, GLPITransientError
 from app.integrations.loki import LokiClient
 from app.integrations.whatsapp import WhatsAppClient
 from app.integrations.zabbix import ZabbixClient
@@ -761,5 +761,9 @@ def process_alert_v1(
                 "fingerprint": fingerprint,
                 "reason": "glpi_permission",
             }
+        if isinstance(exc, GLPITransientError):
+            countdown = min(30 * 2 ** min(self.request.retries, 5), 900)
+            logger.warning("GLPI temporarily unavailable; retry scheduled")
+            raise self.retry(exc=exc, countdown=countdown, max_retries=12)
         logger.exception("Falha ao processar alerta v1 AIOps: %s", exc)
         raise self.retry(exc=exc)

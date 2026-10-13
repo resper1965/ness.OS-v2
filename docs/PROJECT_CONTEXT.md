@@ -27,6 +27,27 @@ de 12/10; retomar pelo master e pelo último resultado da ferramenta foco.
 
 ## Propósito
 
+### Retomada GLPI — 13/10/2026 (execução do master)
+
+No checkout `feat/incidents-rbac-local`, o cliente do Hub passou a conferir a
+entidade efetiva após `changeActiveEntities`, a percorrer toda a paginação da
+busca de ticket por marcador e a classificar 401/403 como falha permanente.
+A entrega seguinte classifica falhas de transporte, HTTP 429 e 5xx como
+transitórias e aplica retry exponencial limitado (30–900 s, 12 tentativas),
+sem ampliar permissões. Suíte backend: 422 PASS, 1 SKIP. Nenhuma dessas
+alterações foi promovida ao runtime produtivo.
+
+Diagnóstico somente leitura encontrou 159 incidentes sem ticket: 115 antigos
+sem falha registrada, 29 recentes com `ticket_failed` não classificado e 15
+sem ID de evento de origem. Os 29 surgiram na hora 02:00 UTC e o worker
+registrou 116 erros `ConnectError`, compatíveis com quatro tentativas por
+incidente; não está provada a causa raiz da interrupção. Sonda de leitura
+GLPI voltou a `ready`, mas não comprova escrita. Não houve replay em massa.
+O usuário técnico GLPI 106 segue inativo pelo teste negativo de isolamento;
+G2 e a promoção de release continuam abertos. Próximo: reconciliador de
+backlog em dry-run, isolamento nativo estrito e só então ensaio controlado
+de escrita/idempotência, release e promoção.
+
 O ness.OS é a camada operacional que reúne monitoramento, ITSM, automação e
 SecOps em uma experiência segura por tenant. O primeiro produto aceito é o
 fluxo autenticado:

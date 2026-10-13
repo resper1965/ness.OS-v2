@@ -97,3 +97,21 @@ async def test_glpi_resource_permission_denial_is_permanent(monkeypatch, operati
             await client.get_item("Ticket", 10)
         else:
             await client.list_items("Ticket")
+
+
+@pytest.mark.asyncio
+async def test_glpi_connection_failure_is_transient(monkeypatch):
+    def handler(request):
+        raise httpx.ConnectError("unavailable", request=request)
+
+    original = httpx.AsyncClient
+    monkeypatch.setattr(
+        httpx,
+        "AsyncClient",
+        lambda **kwargs: original(transport=httpx.MockTransport(handler), **kwargs),
+    )
+    client = GLPIClient(base_url="http://glpi/apirest.php", app_token="app", user_token="user")
+
+    with pytest.raises(RuntimeError) as error:
+        await client.init_session()
+    assert type(error.value).__name__ == "GLPITransientError"

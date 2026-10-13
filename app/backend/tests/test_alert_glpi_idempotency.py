@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from celery.exceptions import Retry
 
-from app.integrations.glpi import GLPIPermanentError
+from app.integrations.glpi import GLPIPermanentError, GLPITransientError
 from app.ml.analyzer import AIAnalysisResult
 from app.models import Incident, IncidentAction
 from app.workers import alerts
@@ -235,6 +235,23 @@ def test_glpi_permission_failure_does_not_consume_automatic_retries(monkeypatch)
 
     assert result == {"status": "blocked", "fingerprint": "fingerprint", "reason": "glpi_permission"}
     retry.assert_not_called()
+    redis.eval.assert_called_once()
+
+
+def test_glpi_connection_failure_retries_with_bounded_backoff(monkeypatch):
+    redis = MagicMock()
+    redis.set.return_value = True
+    failure = GLPITransientError("GLPI unavailable")
+    process = AsyncMock(side_effect=failure)
+    retry = MagicMock(side_effect=Retry())
+    monkeypatch.setattr(alerts, "_get_sync_redis", lambda: redis)
+    monkeypatch.setattr(alerts, "_async_process_alert_v1", process)
+    monkeypatch.setattr(alerts.process_alert_v1, "retry", retry)
+
+    with pytest.raises(Retry):
+        alerts.process_alert_v1.run({}, "fingerprint")
+
+    retry.assert_called_once_with(exc=failure, countdown=30, max_retries=12)
     redis.eval.assert_called_once()
 
 

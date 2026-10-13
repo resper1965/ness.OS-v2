@@ -333,3 +333,20 @@ mas não corrige uso direto de token na API nativa; não reativar106 nem aprovar
 G2 por esse guard. Solução definitiva exige caminho suportado de autorização
 estrita (plugin/gateway isolado ou desenho de entidades aprovado), export,
 ensaio e rollback; não editar core ou mover entidades/tickets em massa.
+
+### Execução independente — confiabilidade da entrega de tickets
+
+O cliente do Hub agora verifica a entidade efetiva, percorre páginas da
+busca do marcador e trata 401/403 como recusa permanente. Uma mudança ainda
+não promovida distingue transporte/429/5xx e agenda retry exponencial
+limitado para falha transitória. Testes backend: 422 PASS, 1 SKIP. Isso não
+substitui o isolamento da API nativa nem reativa o usuário 106.
+
+Consulta agregada e somente leitura do banco do Hub: 159 incidentes sem
+ticket, divididos em 115 antigos sem falha registrada, 29 recentes com
+falha de entrega não classificada e 15 sem ID de evento. Os 29 recentes
+surgiram em 13/10 02:00 UTC; logs sanitizados mostraram 116 `ConnectError`
+do GLPI. O probe `glpi_readiness` voltou a ready/dry-run, sem testar escrita.
+Não houve replay, alteração de ticket ou deploy. A próxima unidade é um
+relatório de elegibilidade dry-run, seguido de ensaio idempotente restrito;
+não inferir que os 115 antigos são seguros para replay automático.
