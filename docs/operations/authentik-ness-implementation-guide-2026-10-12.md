@@ -219,3 +219,19 @@ interseção em memória dos IDs, exit0, sem exportar identidades ou alterar gru
 Próximo passo é prova nominal/MFA/logout e análise de sessões/consumidores,
 não exclusão de providers ou mais sincronização de grupos. MFA continua
 dependência humana de cadastro/recuperação; nenhum fator foi criado pelo agente.
+
+## 7. Callback OIDC do Hub — 12/10 após 21:07 BRT
+
+Provider9 efetivo, client ID lido do runtime, requisições HTTPS de autorização
+sem sessão/cookie, com state diagnóstico e challengeS256. Três casos recusados
+antes de login, todos HTTP400 e nenhum Location:
+
+- origem externa invalid.example;
+- domínio Hub correto com caminho não aprovado;
+- downgrade HTTP da callback Hub.
+
+PASS restrito à validação negativa de redirect_uri do provider9. Não testa
+callback válido pós-login, state/nonce no cliente, troca de código, revogação,
+MFA ou sessão autenticada. Nenhum token/código/segredo utilizado ou exportado,
+nenhuma configuração alterada. Critérios satisfeitos encerraram a rodada sem
+ampliar para testes repetidos de branding ou outros providers.
