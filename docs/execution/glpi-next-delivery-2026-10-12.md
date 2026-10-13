@@ -689,3 +689,14 @@ recente; isso não prova saúde das demais. Nenhuma ação foi selecionada para
 conversão automática: mesmo as de manutenção exigem conferir código, efeitos
 e estado anterior antes do canário. Nenhuma tarefa foi executada ou teve o
 modo alterado.
+
+### T07 — frescor dos agentes, 13/10 12:47 BRT
+
+Reuso do relatório nativo existente, executado em leitura e filtrado antes
+de exibir identificadores/contato: os sete registros têm `last_contact`
+entre 15/07 e 27/07/2026; nenhum comprova inventário recente. Da rede do
+Hub, `/Inventory` e `/front/inventory.php` sem autenticação retornaram 403.
+Isso confirma negativa sem credencial, não demonstra que um agente autorizado
+consegue entregar inventário. Nenhum agente, ativo, regra de entidade ou
+endpoint foi modificado; não iniciar o piloto de cinco sem identidade de
+inventário e teste de associação entre entidades.

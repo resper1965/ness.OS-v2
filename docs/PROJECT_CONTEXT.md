@@ -67,6 +67,11 @@ dias. Não mudar em bloco: há notificações, coleta de e-mail, SLA e fechament
 de ticket. Diagnóstico e ordem controlada em
 `docs/execution/glpi-next-delivery-2026-10-12.md`; nenhuma ação forçada ou
 configuração alterada. T03/conta 106 continuam bloqueados.
+GLPI T07, 13/10 ~12:47 BRT: leitura filtrada dos sete agentes mostrou
+último contato entre 15/07 e 27/07/2026. Rotas internas de inventário sem
+autenticação responderam 403; isso não prova entrega autenticada. Nenhuma
+instalação ou regra alterada. Piloto de cinco requer identidade de inventário
+e negativa de associação entre entidades.
 
 GLPI T05, 13/10 ~11:10 BRT: sincronização agora falha antes de atualizar
 Asset existente se cliente ou referência GLPI conhecida mudar; código não
