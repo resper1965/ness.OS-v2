@@ -104,6 +104,9 @@ Um guard de pré-deploy versionado bloqueia a recriação quando o volume
 de `/var/glpi` no Compose não é o mesmo em execução; passou nos testes e
 bloqueou o Compose produtivo atual em leitura, sem alterar dados. Issue #76
 continua aberta para migração reversível.
+Um comparador offline versionado verifica conteúdo e metadados entre o volume
+original e o novo sem expor caminhos ou dados; falta a janela de cópia/corte,
+bloqueio de escrita, readback e rollback efetivo.
 No fluxo de incidentes para tickets, um teste RED mostrou que o log INFO
 continha toda a análise de IA. A mensagem passou a registrar apenas a conclusão,
 sem conteúdo da análise; 95 testes focados e 456 testes backend passaram.

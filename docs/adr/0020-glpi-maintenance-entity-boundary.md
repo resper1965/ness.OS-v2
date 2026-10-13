@@ -166,6 +166,13 @@ Cinco testes de unidade passaram. A execução somente leitura no host
 produtivo retornou `BLOCKED` para o Compose atual, como esperado. O guard
 não migra dados nem autoriza uma recriação: a migração reversível da issue
 #76 continua necessária.
+Para o ensaio offline, `infra/scripts/glpi_state_volume_compare.py` compara
+árvore, conteúdo SHA-256, tipo, dono/grupo, modo, links e atributos estendidos
+do volume original e do novo, sem imprimir nomes ou conteúdo. Nove testes de
+infraestrutura passaram. A comparação só é evidência de cópia consistente com
+GLPI parado e escrita bloqueada; ela não substitui o plano de tráfego,
+snapshot, rollback do Compose e validação de banco/SSO. Não foi executada
+cópia ou troca de volume em produção.
 Uma requisição pública não autenticada a `n-ticket.ness.com.br/apirest.php`
 foi encaminhada ao fluxo Authentik. Isso não prova bloqueio para usuário
 autenticado ou portador de token; a rota pública exige teste negativo próprio.
