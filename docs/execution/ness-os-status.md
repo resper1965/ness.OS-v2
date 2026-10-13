@@ -1,6 +1,6 @@
 # ness.OS — indicador de entrega
 
-Última verificação: **13/10/2026, 16:49 BRT**. Fonte: plano master,
+Última verificação: **13/10/2026, 17:28 BRT**. Fonte: plano master,
 `PROJECT_CONTEXT.md`, estágio operacional, ledger e GitHub. Este quadro é um
 checkpoint, não telemetria em tempo real. Atualizar quando uma entrega, gate,
 bloqueio ou prazo mudar; preservar a data da última verificação.
@@ -22,8 +22,17 @@ preparação UAT ou documentação isolada.
 | F8 — marca/sustentação | 🟡 Parcial | Camadas ness. aplicadas em algumas superfícies; render nominal GLPI, marca completa, runbooks testados e observação D+1/D+3/D+7 após cortes ainda pendentes. |
 
 **Atualização F0:** Ubuntu/WSL acessa Docker Desktop 29.8.0 e Buildx 0.37.
-O impedimento de integração foi removido; o scan de segredos da issue #82
-ainda bloqueia o publicador completo. Nenhum push de imagem ocorreu.
+O impedimento de integração foi removido; o scan histórico de segredos da
+issue #82 ainda bloqueia o publicador completo. Varredura local redigida na
+branch atual encontrou 11 achados históricos em sete caminhos; os três
+campos sensíveis do inventário já usam referência de ambiente no HEAD, mas
+o histórico continua exigindo classificação e remediação. Dois candidatos
+antigos do inventário foram recusados nos serviços consultados, o que não
+prova revogação universal. Uma consulta de diagnóstico também expôs a
+credencial S3 e a senha Restic ativas na saída da ferramenta; rotação nominal
+do S3 e rotação segura da chave do repositório Restic são obrigatórias antes
+de liberar publicação. Nenhum valor foi incluído neste indicador. PRs 64/81
+seguem draft, sem checks externos, revisão ou imagem publicada.
 
 **Atualização F3:** gateway GLPI candidato agora encerra o cliente mesmo
 quando recusa URL não privada; teste RED→GREEN e backend 486 PASS/1 SKIP.
