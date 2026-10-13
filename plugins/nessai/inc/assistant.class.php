@@ -367,7 +367,8 @@ class PluginNessaiAssistant
                 default  => throw new \RuntimeException("Provedor LLM desconhecido: {$provider}"),
             };
         } catch (\Throwable $e) {
-            return $errorResult($e->getMessage());
+            Toolbox::logError('[nessai] Provider request setup failed: ' . get_class($e));
+            return $errorResult('Falha ao preparar requisição ao provedor LLM.');
         }
 
         // ── Execute HTTP request ─────────────────────────────────

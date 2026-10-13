@@ -464,3 +464,7 @@ dados enviados à IA ainda precisam de revisão antes de qualquer ativação.
 O assistente também deixou de concatenar a mensagem interna de uma falha ao
 descriptografar a chave na resposta. Teste sintético RED→GREEN e lint PHP
 passaram; erros HTTP do provedor ainda requerem sanitização independente.
+
+### T12 — ness. AI: configuração de provedor não exposta (13/10 07:37 UTC)
+
+Teste sintético RED demonstrou que um valor inválido de `llm_provider` aparecia na resposta ao operador. A preparação da requisição agora retorna erro genérico e registra apenas a classe da exceção. Cinco testes PHP do plugin e lint do arquivo alterado passaram em contêiner descartável sem rede; o plugin **não** foi instalado nem ativado. Permanecem bloqueios de privacidade do prompt, KB por tenant, erros HTTP externos e validação integrada. T03/G2 e a conta 106 não mudam.
