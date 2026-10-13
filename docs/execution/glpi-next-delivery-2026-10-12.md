@@ -11,6 +11,13 @@ somente; conta 106 permanece inativa. Essa proteção do consumidor não resolve
 o acesso direto da identidade técnica à API nativa: T02 ainda exige política
 de grants/concorrência e T03 exige fronteira suportada antes do lote de ativos.
 
+Incremento T04: busca idempotente por marcador deixou de examinar somente
+`range=0-1`; percorre páginas até o total informado, inclusive quando a API
+limita o tamanho retornado, e recusa Content-Range malformado. Testes RED/green
+dos três casos; suíte backend 416 PASS, 1 SKIP. Ainda falta provar concorrência,
+timeout após POST e reconciliação do backlog; nenhuma migração, ticket ou
+deploy produtivo foi executado por essa alteração.
+
 ## Plano canônico de continuidade
 
 Consultar [GLPI no ness.OS — implementação completa](../superpowers/plans/2026-10-12-glpi-ness-os-complete-delivery.md)

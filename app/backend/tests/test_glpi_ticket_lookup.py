@@ -1,0 +1,88 @@
+import httpx
+import pytest
+
+from app.integrations.glpi import GLPIClient
+
+
+@pytest.mark.asyncio
+async def test_ticket_lookup_reads_later_pages_before_declaring_absent(monkeypatch):
+    seen_ranges = []
+    marker = "[n.infraops:abc]"
+
+    def handler(request):
+        seen_ranges.append(request.url.params["range"])
+        start = int(request.url.params["range"].split("-", 1)[0])
+        if start == 0:
+            return httpx.Response(
+                206,
+                headers={"Content-Range": "0-99/101"},
+                json=[{"id": index, "entities_id": 5, "name": marker} for index in range(1, 101)],
+            )
+        return httpx.Response(
+            200,
+            headers={"Content-Range": "100-100/101"},
+            json=[{"id": 501, "entities_id": 1, "name": f"{marker} incident"}],
+        )
+
+    original = httpx.AsyncClient
+    monkeypatch.setattr(
+        httpx,
+        "AsyncClient",
+        lambda **kwargs: original(transport=httpx.MockTransport(handler), **kwargs),
+    )
+    client = GLPIClient(base_url="http://glpi/apirest.php", app_token="app", user_token="user")
+    client.session_token = "session"
+
+    assert await client.find_ticket_by_name_marker(marker, 1) == 501
+    assert seen_ranges == ["0-99", "100-199"]
+
+
+@pytest.mark.asyncio
+async def test_ticket_lookup_follows_server_capped_page_size(monkeypatch):
+    seen_ranges = []
+    marker = "[n.infraops:abc]"
+
+    def handler(request):
+        seen_ranges.append(request.url.params["range"])
+        start = int(request.url.params["range"].split("-", 1)[0])
+        if start < 100:
+            return httpx.Response(
+                206,
+                headers={"Content-Range": f"{start}-{start + 49}/101"},
+                json=[{"id": index, "entities_id": 5, "name": marker} for index in range(start, start + 50)],
+            )
+        return httpx.Response(
+            200,
+            headers={"Content-Range": "100-100/101"},
+            json=[{"id": 501, "entities_id": 1, "name": f"{marker} incident"}],
+        )
+
+    original = httpx.AsyncClient
+    monkeypatch.setattr(
+        httpx,
+        "AsyncClient",
+        lambda **kwargs: original(transport=httpx.MockTransport(handler), **kwargs),
+    )
+    client = GLPIClient(base_url="http://glpi/apirest.php", app_token="app", user_token="user")
+    client.session_token = "session"
+
+    assert await client.find_ticket_by_name_marker(marker, 1) == 501
+    assert seen_ranges == ["0-99", "50-149", "100-199"]
+
+
+@pytest.mark.asyncio
+async def test_ticket_lookup_rejects_malformed_pagination_before_creating_duplicate(monkeypatch):
+    def handler(_request):
+        return httpx.Response(206, headers={"Content-Range": "invalid"}, json=[])
+
+    original = httpx.AsyncClient
+    monkeypatch.setattr(
+        httpx,
+        "AsyncClient",
+        lambda **kwargs: original(transport=httpx.MockTransport(handler), **kwargs),
+    )
+    client = GLPIClient(base_url="http://glpi/apirest.php", app_token="app", user_token="user")
+    client.session_token = "session"
+
+    with pytest.raises(RuntimeError, match="pagina"):
+        await client.find_ticket_by_name_marker("[n.infraops:abc]", 1)

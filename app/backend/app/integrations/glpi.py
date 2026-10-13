@@ -331,39 +331,50 @@ class GLPIClient:
             raise ValueError("Marcador de idempotência GLPI inválido")
 
         url = f"{self.base_url}/Ticket/"
+        matches = []
+        start = 0
         try:
             async with httpx.AsyncClient(
                 timeout=10.0, follow_redirects=False
             ) as client:
-                res = await client.get(
-                    url,
-                    headers=self.headers,
-                    params=[
-                        ("searchText[name]", marker),
-                        ("searchText[entities_id]", str(entity_id)),
-                        ("range", "0-1"),
-                        ("get_hateoas", "false"),
-                    ],
-                )
-                res.raise_for_status()
-                data = res.json()
+                for _ in range(100):
+                    res = await client.get(
+                        url,
+                        headers=self.headers,
+                        params=[
+                            ("searchText[name]", marker),
+                            ("searchText[entities_id]", str(entity_id)),
+                            ("range", f"{start}-{start + 99}"),
+                            ("get_hateoas", "false"),
+                        ],
+                    )
+                    res.raise_for_status()
+                    page = res.json()
+                    if not isinstance(page, list):
+                        raise RuntimeError("GLPI retornou busca de tickets em formato inválido")
+                    matches.extend(
+                        item for item in page
+                        if isinstance(item, dict)
+                        and marker in str(item.get("name", ""))
+                        and int(item.get("entities_id", -1)) == entity_id
+                        and isinstance(item.get("id"), int)
+                    )
+                    if len(matches) > 1:
+                        raise RuntimeError("GLPI retornou tickets idempotentes duplicados")
+                    content_range = res.headers.get("Content-Range", "")
+                    total = content_range.rsplit("/", 1)[-1]
+                    if content_range and not total.isdigit():
+                        raise RuntimeError("GLPI retornou paginação inválida")
+                    if not page and total.isdigit() and start < int(total):
+                        raise RuntimeError("GLPI retornou página vazia antes do fim da busca")
+                    start += len(page)
+                    if (total.isdigit() and start >= int(total)) or (not total.isdigit() and len(page) < 100):
+                        return matches[0]["id"] if matches else None
+        except RuntimeError:
+            raise
         except Exception as exc:
             raise _glpi_failure("consulta de ticket", exc) from exc
-
-        if not isinstance(data, list):
-            raise RuntimeError("GLPI retornou busca de tickets em formato inválido")
-
-        matches = [
-            item
-            for item in data
-            if isinstance(item, dict)
-            and marker in str(item.get("name", ""))
-            and int(item.get("entities_id", -1)) == entity_id
-            and isinstance(item.get("id"), int)
-        ]
-        if len(matches) > 1:
-            raise RuntimeError("GLPI retornou tickets idempotentes duplicados")
-        return matches[0]["id"] if matches else None
+        raise RuntimeError("GLPI ticket lookup exceeded pagination limit")
 
     async def add_comment(
         self, ticket_id: int, content: str, private: bool = False
