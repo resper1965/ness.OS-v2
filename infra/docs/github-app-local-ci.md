@@ -7,13 +7,16 @@ esses checks com um PAT: a API de *check runs* exige GitHub App. Não alterar a
 proteção para aceitar qualquer emissor nem marcar checks manualmente como
 sucesso.
 
-1. Criar uma GitHub App privada sob `resper1965`, chamada
-   `ness-os-local-ci`, com webhook inativo. Permissões do repositório:
-   `Checks: Read & write`, `Contents: Read-only` e `Metadata: Read-only`
-   (implícita); nenhuma permissão de administração, issues ou secrets.
-2. Instalar a App **somente** em `resper1965/ness.OS-v2`. Gerar a chave privada
-   e guardá-la fora do checkout no builder isolado, com acesso exclusivo ao
-   operador. Nunca transmitir PEM, installation token ou JWT em Git/chat/log.
+1. App privada `ness-os-local-ci` criada sob `resper1965` (ID `5307771`),
+   webhook inativo; `Checks: Read & write`, `Contents: Read-only` e
+   `Metadata: Read-only` (implícita), sem administração, issues ou secrets.
+2. Instalação `171160625` limitada a `resper1965/ness.OS-v2`. Segunda chave
+   validada por fingerprint e guardada fora do checkout em arquivo
+   `root:root 0600`; JWT e token efêmero testados somente com leitura. As
+   cópias baixadas no Windows foram removidas. A primeira chave ainda aparece
+   ativa: o GitHub desabilita sua exclusão mesmo após gerar a segunda.
+   Revogá-la antes de liberar o emissor. Nunca transmitir PEM, installation
+   token ou JWT em Git/chat/log.
 3. Implementar e revisar um emissor separado do checkout submetido ao PR.
    Ele deve obter um installation token de curta duração, conferir SHA local
    limpo igual ao head remoto do PR, validar a evidência dos quatro checks e
@@ -27,6 +30,15 @@ sucesso.
 
 Até essa prova, PR #81 permanece draft/bloqueado; imagem publicada por digest
 não equivale a aprovação de merge ou autorização de deploy.
+
+Ensaio de isolamento em 13/10: no checkout do PR #81, backend `24/24` e
+frontend lint/build passaram em contêineres sem rede, sem Docker socket e sem
+chave. O backend recebeu o checkout limpo em montagem somente leitura; o
+frontend recebeu apenas um arquivo Git do SHA. Hashes do lock/requirements
+coincidiram com as imagens de dependências locais. Isso prova viabilidade do
+sandbox, não um runner reproduzível nem a emissão segura dos quatro checks.
+Executar testes do PR no usuário do host, que acessa o Docker socket, não é
+substituto para o sandbox mesmo quando a chave está `root:root 0600`.
 
 Referências: [registro da App](https://docs.github.com/en/apps/creating-github-apps/registering-a-github-app/registering-a-github-app),
 [API de check runs](https://docs.github.com/en/rest/checks/runs),
