@@ -1,5 +1,16 @@
 # GLPI — retomada operacional de 12/10/2026
 
+## Retomada do plano master — 13/10 UTC
+
+Cliente compartilhado do Hub passou a confirmar `getActiveEntities` após
+`changeActiveEntities`. HTTP 200 com entidade efetiva diferente, escopo
+recursivo ou formato inesperado é recusado e a sessão é encerrada. Teste
+RED/green da divergência e da resposta com metadados adicionais; suíte backend
+em ambiente isolado com dependências declaradas: 413 PASS, 1 SKIP. Código local
+somente; conta 106 permanece inativa. Essa proteção do consumidor não resolve
+o acesso direto da identidade técnica à API nativa: T02 ainda exige política
+de grants/concorrência e T03 exige fronteira suportada antes do lote de ativos.
+
 ## Plano canônico de continuidade
 
 Consultar [GLPI no ness.OS — implementação completa](../superpowers/plans/2026-10-12-glpi-ness-os-complete-delivery.md)

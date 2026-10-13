@@ -4,6 +4,13 @@ Atualizado em: 2026-10-12 (BRT)
 Estado: execução retomada; G0 tem promoção real do Hub/AIOps comprovada, mas
 permanece **PARCIAL** até CI limpo e integração protegida do workflow.
 
+Retomada pelo modelo executor em 13/10 UTC: início da proteção de entidade
+efetiva no cliente GLPI do Hub. Código e testes locais verificados; ainda sem
+deploy ou reativação da conta técnica 106. Ver ledger do plano master em
+`.superpowers/sdd/2026-10-12-ness-os-plano-master/progress.md` e o registro
+operacional GLPI. A antiga restrição “somente planejamento” foi substituída
+pela autorização explícita de execução; gates e janela continuam vigentes.
+
 ## Ponto único de retomada — plano master
 
 Destino atualizado por instrução humana: **produção completa**, cobrindo todas

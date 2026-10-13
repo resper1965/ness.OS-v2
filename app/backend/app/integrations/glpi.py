@@ -91,15 +91,38 @@ class GLPIClient:
         """Select exactly one authorized entity before ticket operations."""
         if not self.session_token:
             await self.init_session()
-        async with httpx.AsyncClient(timeout=10.0, follow_redirects=False) as client:
-            response = await client.post(
-                f"{self.base_url}/changeActiveEntities",
-                headers=self.headers,
-                json={"entities_id": entity_id, "is_recursive": False},
-            )
-            response.raise_for_status()
-            if response.json() is not True:
-                raise PermissionError("GLPI refused the requested entity")
+        try:
+            async with httpx.AsyncClient(timeout=10.0, follow_redirects=False) as client:
+                response = await client.post(
+                    f"{self.base_url}/changeActiveEntities",
+                    headers=self.headers,
+                    json={"entities_id": entity_id, "is_recursive": False},
+                )
+                response.raise_for_status()
+                if response.json() is not True:
+                    raise PermissionError("GLPI refused the requested entity")
+                current = await client.get(
+                    f"{self.base_url}/getActiveEntities", headers=self.headers
+                )
+                current.raise_for_status()
+                payload = current.json()
+                active = payload.get("active_entity") if isinstance(payload, dict) else None
+                selected = active.get("active_entities") if isinstance(active, dict) else None
+                if (
+                    not isinstance(active, dict)
+                    or type(active.get("id")) is not int
+                    or active["id"] != entity_id
+                    or active.get("active_entity_recursive") is not False
+                    or not isinstance(selected, list)
+                    or len(selected) != 1
+                    or not isinstance(selected[0], dict)
+                    or type(selected[0].get("id")) is not int
+                    or selected[0]["id"] != entity_id
+                ):
+                    raise PermissionError("GLPI effective entity differs from requested entity")
+        except BaseException:
+            await self.kill_session()
+            raise
 
     async def kill_session(self) -> bool:
         """Encerra a sessão ativa no GLPI."""
