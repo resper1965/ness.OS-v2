@@ -164,6 +164,24 @@ com ausência posterior verificada. Isso prova apenas viabilidade de roteamento
 Docker, **não** bloqueio da rota pública autenticada, isolamento do token no
 adaptador, operações permitidas, nem compatibilidade do Compose produtivo.
 
+Segundo ensaio descartável em 13/10, agora com **GLPI 11.0.8 real** e MariaDB
+isolados, sem portas publicadas nem dados produtivos: o GLPI ficou nas redes
+privada e frontal; adaptador apenas na privada e Hub sintético apenas na
+frontal. Um cliente API nativo criado pelo modelo GLPI foi limitado ao IP
+privado observado do adaptador. Após habilitar a API apenas nesse laboratório,
+o login sintético com App-Token retornou HTTP 200 no adaptador e 400 no Hub.
+Uma sessão obtida no adaptador leu `getFullSession` ali (200), mas o replay
+da mesma sessão pelo Hub retornou 400, inclusive com `X-Forwarded-For`
+forjado. Login frontal sem App-Token e com cabeçalho forjado também retornou
+400. Foram usados somente usuário/token sintéticos; nenhum valor de sessão
+foi exibido. Os quatro containers, seus dois volumes anônimos, duas redes e
+arquivos temporários exclusivos foram removidos após inspeção de vínculos,
+mounts e readback de ausência. Isso comprova filtro nativo por IP de origem
+para **esse cliente nesse arranjo isolado**. Ainda não testa a rota pública
+autenticada/Caddy real, IP estável após recriação, os demais clientes API,
+operações de objeto/entidade, credencial 106 nem aplicação no Compose atual.
+Logo T03/G2 continuam bloqueados e 106 permanece desativada.
+
 1. Projetar e ensaiar filtro nativo por cliente/IP ou separação de rede/rota
    mantendo UI/SSO legítimos.
    Confirmar também se a rota pública expõe `apirest.php`; bloquear o token

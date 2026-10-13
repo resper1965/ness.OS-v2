@@ -89,6 +89,12 @@ dual-homed, Hub na rede frontal e adaptador na privada: ambos mantiveram
 seus caminhos próprios, com IPs de origem distintos; os recursos de teste
 foram removidos. Não testou token, API GLPI nem rota pública autenticada e
 não alterou a topologia produtiva. A ADR 0020 contém a matriz e o limite.
+Ensaio seguinte com GLPI 11.0.8 descartável e cliente API sintético limitado
+ao IP privado confirmou login pelo adaptador HTTP 200 versus Hub frontal 400;
+replay da sessão, cabeçalho de origem forjado e login sem App-Token no frontal
+também foram negados. Recursos temporários removidos. Falta provar Caddy
+autenticado, IP estável, operações de objeto e o Compose produtivo; 106 segue
+inativa, T03/G2 não aprovados.
 No fluxo de incidentes para tickets, um teste RED mostrou que o log INFO
 continha toda a análise de IA. A mensagem passou a registrar apenas a conclusão,
 sem conteúdo da análise; 95 testes focados e 456 testes backend passaram.
