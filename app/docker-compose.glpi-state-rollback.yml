@@ -1,0 +1,13 @@
+# Use only during a controlled GLPI state-volume rollback.
+# Set GLPI_ROLLBACK_VOLUME to the original volume name from docker inspect.
+services:
+  glpi:
+    volumes:
+      - type: volume
+        source: glpi-state-original
+        target: /var/glpi
+
+volumes:
+  glpi-state-original:
+    name: ${GLPI_ROLLBACK_VOLUME:?Original GLPI state volume is required}
+    external: true

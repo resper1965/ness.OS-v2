@@ -1,5 +1,19 @@
 # GLPI — retomada operacional de 12/10/2026
 
+## T01/issue #76 — persistência de `/var/glpi`, 13/10 08:30 BRT
+
+Ricardo deu GO explícito para a migração produtiva com Ismael como responsável
+técnico; registro na issue #76. Backup `COMPLETED` de 12/10 23:07 BRT e
+checksums íntegros. Rota GLPI isolada com 503 GET/POST sem afetar Hub/SSO;
+GLPI parado, volume anônimo copiado para `app_glpi-state`, comparação integral
+PASS (5.780 arquivos; 8.490.431.469 bytes). Compose corrigido, somente GLPI
+recriado, guard de mount PASS. UI/API internas 200, esquema do banco PASS;
+rota pública reaberta ao redirect SSO anterior 302. Volume anônimo original
+e configuração de rollback explícita preservados. Login nominal, perfil,
+ticket e anexos ainda pendem; conta 106 continua desativada e T03/G2 não são
+aprovados. Procedimento e incidente de bind mount em
+`docs/operations/glpi-state-volume-cutover-2026-10-13.md`.
+
 ## T04 — backlog sem ticket, 13/10 07:55 UTC
 
 Consulta agregada somente leitura no PostgreSQL do Hub, com transação

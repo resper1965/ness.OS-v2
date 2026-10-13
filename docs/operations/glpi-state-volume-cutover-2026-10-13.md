@@ -1,9 +1,37 @@
 # GLPI — troca controlada do volume de estado
 
-Estado: **preparado, não liberado para execução produtiva**. A issue #76 é o
-controle da mudança. Este procedimento não aprova T03/G2 nem reativa a conta
-106. O GLPI produtivo ainda usa um volume anônimo em `/var/glpi`; o Compose
-atual monta outro volume em `/var/www/html/glpi`.
+Estado: **corte produtivo concluído em 13/10/2026, ~08:30 BRT**;
+validação nominal SSO/perfil/ticket ainda pendente. A issue #76 controla a
+observação e o retorno. Este procedimento não aprova T03/G2 nem reativa a
+conta 106. O GLPI produtivo agora monta `app_glpi-state` em `/var/glpi`;
+o volume anônimo original permanece preservado para rollback.
+
+## Resultado do corte de 13/10
+
+- GO explícito de Ricardo neste chat, com Ismael como responsável técnico,
+  registrado na issue #76. Janela vigente até 11:47:35 BRT.
+- Backup `COMPLETED` de 12/10 23:07 BRT, com `SHA256SUMS` íntegro, inclui
+  banco GLPI e o volume original. Caddyfile anterior e Compose anterior foram
+  preservados em `/opt/n-infraops/rollback/glpi-state-20261013/` (root-only).
+- Primeira tentativa de reload da manutenção não isolou a rota porque
+  `install` trocou o inode do bind mount somente leitura. O Caddyfile no host
+  foi restaurado antes de parar o GLPI. O candidato foi então carregado pela
+  API de administração do Caddy a partir de `/tmp` no contêiner, sem restart:
+  GET/POST públicos GLPI=503; Hub=200 e SSO=302 preservados.
+- GLPI parado; cópia `cp -a` do volume anônimo original para
+  `app_glpi-state`; comparador integral PASS: 5.780 arquivos e
+  8.490.431.469 bytes. Compose corrigido montou o volume nomeado exatamente
+  em `/var/glpi`; somente `ninf-glpi` foi recriado. Guard de volume PASS,
+  contêiner `running` com zero reinícios, diretórios de configuração/arquivos
+  presentes, UI/API internas=200 e `database:check_schema_integrity` PASS.
+- Caddy original recarregado; GET/POST públicos GLPI=302 (redirect SSO
+  pré-existente), Hub=200, SSO=302. O teste nominal de login, perfil, ticket e
+  anexos ainda precisa ser observado; não declarar aceite funcional completo.
+- Rollback preparado por override explícito
+  `app/docker-compose.glpi-state-rollback.yml` com o nome do volume original
+  fornecido em `GLPI_ROLLBACK_VOLUME`. Nunca usar apenas o Compose antigo.
+  Após reabertura, fechar rota e reconciliar novas escritas antes de qualquer
+  retorno; não executar rollback cego.
 
 ## Entrada obrigatória
 
@@ -25,11 +53,13 @@ atual monta outro volume em `/var/www/html/glpi`.
 
 ## Corte sem escrita
 
-1. Instalar o candidato no mesmo bind mount e executar `caddy reload
-   --config /etc/caddy/Caddyfile` no container `ninf-caddy`. Confirmar GET e
-   POST públicos para `n-ticket.ness.com.br` = 503; Hub e SSO continuam
-   disponíveis. Falha em qualquer verificação: restaurar Caddyfile original,
-   recarregar e abortar antes de tocar GLPI.
+1. O bind mount de `/etc/caddy/Caddyfile` é somente leitura: **não substituir
+   seu inode no host**. Copiar o candidato para um arquivo temporário root-only
+   dentro de `ninf-caddy`, validar e executar `caddy reload --config` apontando
+   para esse arquivo. Confirmar GET e POST públicos para
+   `n-ticket.ness.com.br` = 503; Hub e SSO continuam disponíveis. Falha em
+   qualquer verificação: recarregar `/etc/caddy/Caddyfile` original e abortar
+   antes de tocar GLPI.
 2. Parar somente `ninf-glpi`. Confirmar parado e sem rota interna direta.
    O banco permanece intacto; não modificar credenciais nem tickets.
 3. Criar volume nomeado **novo** para `/var/glpi`. Copiar do volume anônimo

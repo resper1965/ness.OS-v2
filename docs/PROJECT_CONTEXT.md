@@ -1,8 +1,16 @@
 # Contexto canônico — ness.OS
 
-Atualizado em: 2026-10-12 (BRT)
+Atualizado em: 2026-10-13 (BRT)
 Estado: execução retomada; G0 tem promoção real do Hub/AIOps comprovada, mas
 permanece **PARCIAL** até CI limpo e integração protegida do workflow.
+
+GLPI issue #76, 13/10 08:30 BRT: GO explícito de Ricardo; `/var/glpi`
+migrado do volume anônimo para `app_glpi-state` com GLPI parado, manutenção
+pública 503, backup `COMPLETED`/checksums, comparação integral de 5.780
+arquivos, guard de mount, UI/API internas e esquema do banco aprovados. Rota
+pública voltou ao redirect SSO 302. Volume original preservado para rollback
+explícito. Login nominal/perfil/ticket/anexos ainda pendentes; conta técnica
+106 inativa, T03/G2 não aprovados. Ver runbook do corte e issue #76.
 
 Retomada pelo modelo executor em 13/10 UTC: início da proteção de entidade
 efetiva no cliente GLPI do Hub. Código e testes locais verificados; ainda sem

@@ -31,6 +31,7 @@ services:
       - DB_DATABASE=glpi
     volumes:
       - glpi-data:/var/www/html/glpi
+      - glpi-state:/var/glpi
     networks:
       - ninf-net
     deploy:
@@ -41,6 +42,8 @@ services:
 volumes:
   glpi-db-data:
   glpi-data:
+  glpi-state:
+    name: app_glpi-state
 
 networks:
   ninf-net:
