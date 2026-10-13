@@ -1,6 +1,6 @@
 # ness.OS — indicador de entrega
 
-Última verificação: **13/10/2026, 19:30 BRT**. Fonte: plano master,
+Última verificação: **13/10/2026, 19:59 BRT**. Fonte: plano master,
 `PROJECT_CONTEXT.md`, estágio operacional, ledger e GitHub. Este quadro é um
 checkpoint, não telemetria em tempo real. Atualizar quando uma entrega, gate,
 bloqueio ou prazo mudar; preservar a data da última verificação.
@@ -11,7 +11,7 @@ preparação UAT ou documentação isolada.
 
 | Frente do master | Estado | Evidência e próximo marco |
 |---|---|---|
-| F0 — release/continuidade | 🟡 Parcial | PR 65 integrado antes da reescrita; SHA antigo substituído. PRs 64/81 seguem draft; SHAs, diffs e checks anteriores requerem nova validação. O publicador local no commit `92eced4` passou nos checks completos, publicou API/frontend no GHCR privado e ambos foram puxados por digest; nenhum deploy. O run Actions antigo `38433314272` falhara com `write_package`, agora sem relevância para o builder local. Histórico de heads/tags sanitizado e escaneado; refs de PR/caches ainda dependem do GitHub Support (issue #82). Actions desativado; quatro checks da `main` preservados, porém vinculados ao app Actions (`app_id=15368`): merges bloqueados até emissor externo confiável e troca controlada da origem dos checks. Repositório PRIVATE `resper1965/ness.OS-v2`. G0/G1 globais não declarados PASS. |
+| F0 — release/continuidade | 🟡 Parcial | PR 65 integrado antes da reescrita; SHA antigo substituído. PRs 64/81 seguem draft; SHAs, diffs e checks anteriores requerem nova validação. O publicador local no commit `92eced4` passou nos checks completos, publicou API/frontend no GHCR privado e ambos foram puxados por digest; nenhum deploy. O run Actions antigo `38433314272` falhara com `write_package`, agora sem relevância para o builder local. Histórico de heads/tags sanitizado e escaneado; refs de PR/caches ainda dependem do GitHub Support (issue #82). Actions desativado; App privada `ness-os-local-ci` criada/instalada somente em `ness.OS-v2`, chave nova local `0600` e token temporário usado apenas para leitura no ensaio. Quatro checks da `main` continuam vinculados ao app Actions (`app_id=15368`): merges bloqueados até emissor externo confiável e troca controlada da origem. Repositório PRIVATE `resper1965/ness.OS-v2`. G0/G1 globais não declarados PASS. |
 | F1 — Authentik/tenant/Psono | 🟡 Parcial | Marca e login público Authentik verificados; MFA nominal, recuperação, jornadas autenticadas/tenant e Psono dedicado ainda sem aceite. G2 aberto. |
 | F2 — Zabbix definitivo | 🟡 UAT preparada | Destino restaurado e isolado; origem segue única coletora. Referência: 262 hosts reais + 63 protótipos; 2,086% unsupported na última amostra. SSO nominal, qualidade da frota, gates, freeze e GO faltam antes do corte. Janela até 15/10 11:47:35 BRT; token anterior expirado. |
 | F3 — GLPI | 🟡 Em execução | Volume persistente e borda pública corrigidos; busca idempotente, paginação, alias privado fixo e importação isolada do gateway endurecidos na branch, sem deploy. API real confirmou o contrato de paginação; imagem local sem rede importou o gateway sem inicializar VAPID. Conta 106 desativada; gateway candidato, três ativos e replay aguardam T03. Ações automáticas: 18 internas atrasadas, sem conversão; `graph` elimina arquivos antigos e não serve como canário sem efeito. Os sete agentes têm último contato em julho; piloto autenticado/isolamento registrados na issue #79, não executados. Deduplicação restante e tema ness. aguardam decisão/teste nominal. |
@@ -86,6 +86,17 @@ scans Git/checkout também passaram. O publicador integrou o fluxo e gerou
 digests de API/frontend; pull por digest passou e ambos os pacotes GHCR seguem
 privados. O PR permanece draft/bloqueado: falta status externo confiável,
 revisão e prova de pull com a identidade de produção antes de qualquer deploy.
+
+**App local de CI (19:59 BRT):** GitHub App privada `ness-os-local-ci`
+(`App ID 5307771`, instalação `171160625`) criada com webhook desligado,
+`Checks: write`, `Contents: read` e somente o repositório privado
+`resper1965/ness.OS-v2`. Chave nova fora do Git em arquivo local `0600`;
+fingerprint e emissão de token de instalação de curta duração verificados,
+sem registrar o token. Nenhum check foi emitido e a proteção da `main` não
+mudou. A primeira chave, baixada na pasta OneDrive (informada pelo usuário
+como não sincronizada), teve sua cópia local removida; a UI do GitHub ainda
+mostra essa chave ativa e desabilita a exclusão mesmo com duas chaves. Tratá-la
+como pendência de revogação, sem usar a chave anterior.
 
 **Foco agora:** GLPI T03 e substituição segura do pipeline. PR 65 foi integrado;
 próxima liberação depende da revisão técnica do PR 64, publicação segura de
