@@ -35,6 +35,16 @@ para os outros 112 nem autoriza criação automática. A busca remota deve
 continuar por cursor e tratar explicitamente acesso negado e marcador
 duplicado antes de qualquer escrita.
 
+O verificador `infra/scripts/glpi_backlog_reconcile.py` formaliza essa busca
+somente leitura: até cinco registros por página, cursor por ID, transação
+PostgreSQL `READ ONLY`, sessão GLPI encerrada e saída agregada sem
+fingerprint/ticket/tenant. Um erro ou cliente sem entidade mapeada conserva o
+cursor para revisão, sem interpretar 403 como ausência. Primeira página
+executada no runtime: cinco ausentes, zero encontrados/erros, cursor 35425;
+não houve escrita. Três testes RED→GREEN, Ruff, Black e suíte infra/backend
+482 PASS, 1 SKIP. Os 110 registros restantes do grupo histórico ainda não
+foram consultados remotamente; o resultado parcial não libera replay.
+
 ## T12 — estado dos plugins, 13/10 06:45 UTC
 
 `php /var/www/glpi/bin/console plugin:list --format=json --no-interaction`
