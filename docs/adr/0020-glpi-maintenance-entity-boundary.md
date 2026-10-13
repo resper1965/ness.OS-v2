@@ -6,6 +6,21 @@
 
 ## Estado produtivo em 13/10, 08:34 BRT
 
+Em 13/10, ~09:08 BRT, um teste HTTP sintético adicional mostrou que
+`/apirest%252Ephp/initSession` atravessava o matcher anterior e alcançava o
+upstream **sintético**. Não foi demonstrado que o GLPI real interpretava essa
+URL como API. O matcher público passou a negar também qualquer escape `%XX`
+remanescente no path, cobrindo codificação dupla/tripla e letras codificadas;
+query string codificada de `/front/central.php` continuou permitida no teste.
+O Caddyfile novo foi validado, aplicado com cópia anterior root-only em
+`/opt/n-infraops/rollback/glpi-api-guard-encoded-20261013/Caddyfile.before`
+e reload sem recriação. Readback: hashes host/contêiner idênticos, Caddy
+`running`/restart count 0; na rota pública, API normal e duas variantes
+codificadas deram 403, GLPI/SSO 302 e Hub 200. Rollback: copiar o arquivo
+anterior sobre `/opt/n-infraops/app/Caddyfile` e recarregar o Caddy. Isso
+endurece apenas a borda pública: caminho interno Hub/worker→GLPI e seleção
+indevida da entidade descendente continuam pendentes; 106 segue inativa.
+
 A dependência de persistência da issue #76 foi migrada para o volume nomeado
 `app_glpi-state`, com backup, comparação e guard aprovados; o volume original
 permanece intacto. A issue fica aberta para smoke nominal/observação. O

@@ -29,13 +29,15 @@ caddy run --config /tmp/ness-glpi-http/Caddyfile --adapter caddyfile >/tmp/ness-
 pid=$!
 trap 'kill "$pid" 2>/dev/null || true' EXIT
 sleep 1
-for path in /apirest.php/initSession /APIRest.PHP/initSession /apirest.php%2FinitSession /apirest.php%252FinitSession; do
+for path in /apirest.php/initSession /APIRest.PHP/initSession /apirest.php%2FinitSession /apirest.php%252FinitSession /apirest%2Ephp/initSession /apirest%252Ephp/initSession /apirest%25252Ephp/initSession /api%2572est.php/initSession /apirest.php%3B/initSession; do
     result="$(wget -S -O - -T 3 "http://127.0.0.1:8080$path" 2>&1 || true)"
     printf '%s' "$result" | grep -q 'HTTP/1.1 403' || { echo "FAIL: API path $path was not denied"; printf '%s\n' "$result" | head -c 500; tail -10 /tmp/ness-glpi-http/caddy.log; exit 1; }
     printf '%s' "$result" | grep -q 'UPSTREAM_OK' && { echo "FAIL: API path $path reached upstream"; exit 1; }
 done
 result="$(wget -S -O - -T 3 http://127.0.0.1:8080/front/central.php 2>&1 || true)"
 printf '%s' "$result" | grep -q 'UPSTREAM_OK' || { echo 'FAIL: GLPI UI did not reach upstream'; exit 1; }
+result="$(wget -S -O - -T 3 'http://127.0.0.1:8080/front/central.php?example=%25' 2>&1 || true)"
+printf '%s' "$result" | grep -q 'UPSTREAM_OK' || { echo 'FAIL: GLPI UI query was blocked'; exit 1; }
 echo 'PASS: public GLPI API denied; UI reached synthetic upstream'
 """
 
@@ -52,7 +54,7 @@ def main() -> int:
     command = [
         "ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=8",
         "-i", sys.argv[2], sys.argv[1],
-        "docker run --rm --network none -i --entrypoint sh caddy:2-alpine -c "
+        "sudo -n docker run --rm --network none -i --entrypoint sh caddy:2-alpine -c "
         + shlex.quote(PROBE),
     ]
     result = subprocess.run(command, input=bundle.getvalue(), capture_output=True)

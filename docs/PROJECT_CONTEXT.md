@@ -4,6 +4,12 @@ Atualizado em: 2026-10-13 (BRT)
 Estado: execução retomada; G0 tem promoção real do Hub/AIOps comprovada, mas
 permanece **PARCIAL** até CI limpo e integração protegida do workflow.
 
+GLPI borda pública, 13/10 ~09:08 BRT: teste sintético encontrou caminho
+duplamente codificado que alcançava o upstream sintético. Matcher Caddy
+ampliado e aplicado; API normal/variantes codificadas 403, GLPI/SSO 302,
+Hub 200, Caddy sem reinício. Ver ADR 0020. Não prova isolamento direto:
+conta 106 permanece inativa, T03/G2 pendentes.
+
 GLPI issue #76, 13/10 08:30 BRT: GO explícito de Ricardo; `/var/glpi`
 migrado do volume anônimo para `app_glpi-state` com GLPI parado, manutenção
 pública 503, backup `COMPLETED`/checksums, comparação integral de 5.780

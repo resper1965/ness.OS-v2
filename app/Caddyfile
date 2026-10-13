@@ -54,7 +54,7 @@ waba.ness.com.br {
 # GLPI Service Desk with Authentik Forward Auth SSO
 n-ticket.ness.com.br {
     route {
-        @glpi_api path_regexp (?i)apirest\.php
+        @glpi_api path_regexp (?i)(apirest\.php|%[0-9a-f]{2})
         respond @glpi_api 403
 
         # Autenticar via Authentik Forward Auth
