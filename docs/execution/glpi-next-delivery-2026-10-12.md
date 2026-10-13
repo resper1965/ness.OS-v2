@@ -207,3 +207,28 @@ de API. Implementação administrativa depende de credencial administrativa
 normal e protegida, ou de concluir perfil/vínculo/token nominalmente no GLPI;
 autorização humana já foi dada, mas não fornece autenticação técnica.
 Não contornar restrição via SQL ou callAsSystem para escrever configuração.
+
+### Credencial disponibilizada e primeira correção por API
+
+Usuário forneceu arquivo local de token sem conteúdo no chat. Transferido para
+/etc/ness-os/glpi-maintenance.token root0600, temporário de transferência
+removido. Login API normal confirmou userid58/perfil4; sessão encerrada.
+Não imprimir token, incluir em argumentos/logs ou reusar no runtime Hub.
+
+Snapshot protegido em /opt/n-infraops/rollback/glpi-maintenance-20261012/
+profile-before.json: perfil13,computer1059,user106,sem bindings observadas.
+Primeira execução abortou antes de escrita porque GET User106 foi403;
+GET Profile13 funciona. Essa negação não foi contornada por SQL/modelo system.
+
+Correção explícita do perfil13 via PUT Profile/13 com campo nativo _computer:
+READ1+CREATE4+DELETE8; GET normal confirmou computer13. Demais direitos não
+alterados; contaHub94/perfil12 intactos. API nativa Profile_User para associação
+userid106/perfil13/entidade1/não-recursiva retornou400; nenhuma associação
+aprovada nesta rodada. Sessão finally encerrada, nenhum ativo criado.
+Preservada correção segura do perfil, sem alegar identidade pronta.
+
+Próximo passo: diagnosticar contrato/escopo ativo da associação e confirmar
+estado antes de nova tentativa; não repetir PUT da correção já comprovada.
+Não gerar credencial do usuário106 até autorização de entidade válida.
+Token administrativo temporário continua protegido somente para esta mudança,
+com revogação ao término; ainda não revogado porque execução não concluída.
