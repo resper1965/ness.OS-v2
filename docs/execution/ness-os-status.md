@@ -1,6 +1,6 @@
 # ness.OS — indicador de entrega
 
-Última verificação: **13/10/2026, 13:08 BRT**. Fonte: plano master,
+Última verificação: **13/10/2026, 13:22 BRT**. Fonte: plano master,
 `PROJECT_CONTEXT.md`, estágio operacional, ledger e GitHub. Este quadro é um
 checkpoint, não telemetria em tempo real. Atualizar quando uma entrega, gate,
 bloqueio ou prazo mudar; preservar a data da última verificação.
@@ -11,7 +11,7 @@ preparação UAT ou documentação isolada.
 
 | Frente do master | Estado | Evidência e próximo marco |
 |---|---|---|
-| F0 — release/continuidade | 🟡 Parcial | Cinco workflows PASS no commit `07ea365`; promoção anterior do Hub/rollback registrados. PRs 64/65 exigem revisão, workflow de publicação ainda sem integração protegida e imagem nova sem digest. G0/G1 globais não declarados PASS. |
+| F0 — release/continuidade | 🟡 Parcial | Cinco workflows PASS no commit `07ea365`; PR 65 corrigiu Dockerfile/lockfile e passou CI com build da imagem no `ed53a59`. PR 64 segue draft; ambos exigem aprovação formal. Workflow de publicação ainda não está na branch principal e não há imagem nova por digest. G0/G1 globais não declarados PASS. |
 | F1 — Authentik/tenant/Psono | 🟡 Parcial | Marca e login público Authentik verificados; MFA nominal, recuperação, jornadas autenticadas/tenant e Psono dedicado ainda sem aceite. G2 aberto. |
 | F2 — Zabbix definitivo | 🟡 UAT preparada | Destino restaurado e isolado; origem segue única coletora. Referência: 262 hosts reais + 63 protótipos; 2,086% unsupported na última amostra. SSO nominal, qualidade da frota, gates, freeze e GO faltam antes do corte. Janela até 15/10 11:47:35 BRT; token anterior expirado. |
 | F3 — GLPI | 🟡 Em execução | Volume persistente e borda pública corrigidos; busca idempotente, paginação e URL privada do gateway endurecidas na branch, sem deploy. API real confirmou o contrato de paginação. Conta 106 desativada; gateway candidato, três ativos e replay aguardam T03. Ações automáticas: 18 internas atrasadas, sem conversão; `graph` elimina arquivos antigos e não serve como canário sem efeito. Os sete agentes têm último contato em julho; piloto autenticado/isolamento registrados na issue #79, não executados. Deduplicação restante e tema ness. aguardam decisão/teste nominal. |
