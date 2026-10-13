@@ -1,6 +1,6 @@
 # ness.OS — indicador de entrega
 
-Última verificação: **13/10/2026, 13:40 BRT**. Fonte: plano master,
+Última verificação: **13/10/2026, 13:45 BRT**. Fonte: plano master,
 `PROJECT_CONTEXT.md`, estágio operacional, ledger e GitHub. Este quadro é um
 checkpoint, não telemetria em tempo real. Atualizar quando uma entrega, gate,
 bloqueio ou prazo mudar; preservar a data da última verificação.
@@ -11,7 +11,7 @@ preparação UAT ou documentação isolada.
 
 | Frente do master | Estado | Evidência e próximo marco |
 |---|---|---|
-| F0 — release/continuidade | 🟡 Parcial | Cinco workflows PASS no commit `07ea365`; PR 65 corrigiu Dockerfile/lockfile e passou CI com build da imagem no `ed53a59`. A conversa P1 foi resolvida após verificação. Override administrativo de merge recusado pelo GitHub: falta aprovação externa com write e três checks obrigatórios (`test-and-lint`, `lint`, `gitleaks`) não foram executados; os dois primeiros têm filtro de backend, o terceiro não tem workflow na `main`. PR 64 segue draft. Workflow de publicação ainda não está na branch principal e não há imagem nova por digest. G0/G1 globais não declarados PASS. |
+| F0 — release/continuidade | 🟡 Parcial | PR 65 integrado na `main` pelo commit `8563f69`, com exceção pontual autorizada pelo usuário: revisão sem segundo colaborador e três checks não executáveis nesse PR foram suspensos só durante o merge. Proteção restaurada e conferida (mesmos quatro checks, ordem de retorno da API diferente; uma aprovação obrigatória, resolução de conversas e admins protegidos). Workflow de publicação disponível, mas nenhuma imagem nova publicada por digest. PR 64 segue draft, atrás da `main`, com cinco checks no SHA anterior; exige nova revisão técnica e CI após atualização. G0/G1 globais não declarados PASS. |
 | F1 — Authentik/tenant/Psono | 🟡 Parcial | Marca e login público Authentik verificados; MFA nominal, recuperação, jornadas autenticadas/tenant e Psono dedicado ainda sem aceite. G2 aberto. |
 | F2 — Zabbix definitivo | 🟡 UAT preparada | Destino restaurado e isolado; origem segue única coletora. Referência: 262 hosts reais + 63 protótipos; 2,086% unsupported na última amostra. SSO nominal, qualidade da frota, gates, freeze e GO faltam antes do corte. Janela até 15/10 11:47:35 BRT; token anterior expirado. |
 | F3 — GLPI | 🟡 Em execução | Volume persistente e borda pública corrigidos; busca idempotente, paginação e URL privada do gateway endurecidas na branch, sem deploy. API real confirmou o contrato de paginação. Conta 106 desativada; gateway candidato, três ativos e replay aguardam T03. Ações automáticas: 18 internas atrasadas, sem conversão; `graph` elimina arquivos antigos e não serve como canário sem efeito. Os sete agentes têm último contato em julho; piloto autenticado/isolamento registrados na issue #79, não executados. Deduplicação restante e tema ness. aguardam decisão/teste nominal. |
@@ -21,9 +21,8 @@ preparação UAT ou documentação isolada.
 | F7 — Wazuh/Workspace | ⚪ Sem aceite | Capacidade/custo, isolamento, ingestão e rollout por faixa ainda pendentes. G5 não aprovado. |
 | F8 — marca/sustentação | 🟡 Parcial | Camadas ness. aplicadas em algumas superfícies; render nominal GLPI, marca completa, runbooks testados e observação D+1/D+3/D+7 após cortes ainda pendentes. |
 
-**Foco agora:** GLPI T03. PR 65 exige decisão sobre a proteção da `main` ou
-colaborador habilitado, além de corrigir os checks obrigatórios que não rodam.
-Próxima liberação depende de integração dos PRs 64/65,
+**Foco agora:** GLPI T03. PR 65 foi integrado; próxima liberação depende da
+revisão técnica, atualização e integração do PR 64,
 imagem publicada por digest e matriz negativa real da rota direta, rota
 pública autenticada e entidade descendente; só então considerar ativar a
 identidade mínima 106 e reconciliar ativos/tickets em ondas. Trabalho
