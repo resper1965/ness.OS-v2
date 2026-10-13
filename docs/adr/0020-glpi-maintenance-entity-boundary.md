@@ -234,6 +234,16 @@ mas esta mudança do Caddyfile completo **ainda não passou por HTTP real com
 SSO e GLPI**. Não há reload produtivo; nem a rota pública candidata resolve
 o caminho interno ou autoriza a conta 106.
 
+Ensaio complementar de 13/10 07:27 UTC, reproduzível por
+`infra/tests/test_glpi_public_api_http.py`: o bloco GLPI do Caddyfile
+versionado foi executado em Caddy descartável com `--network none`, Authentik
+sintético respondendo 200 e upstream GLPI sintético. URLs API normal, com
+maiúsculas e codificadas uma ou duas vezes receberam 403 e não alcançaram o
+upstream; `/front/central.php` alcançou o upstream. O contêiner usou `--rm`
+e nenhum arquivo/rede/porta produtiva foi alterado. Isso valida o
+comportamento HTTP **da candidata com serviços sintéticos**, não SSO/GLPI
+produtivos, sessão real ou a rota direta interna.
+
 O diagnóstico sem credenciais `infra/scripts/glpi_network_boundary_probe.py`
 retornou `BLOCKED_DIRECT_PATH`, com uma rede compartilhada. O comando não
 emite `PASS`, mesmo que as redes venham a ser separadas; a fronteira requer
