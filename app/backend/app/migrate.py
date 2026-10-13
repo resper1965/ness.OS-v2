@@ -91,6 +91,10 @@ async def run_migrations():
                 );
                 """
         await conn.execute(text(actions_ddl))
+        reservation_ddl = (
+            backend_root / "sql" / "003_glpi_ticket_post_reservations.sql"
+        ).read_text(encoding="utf-8")
+        await conn.execute(text(reservation_ddl))
         await conn.execute(
             text(
                 "CREATE INDEX IF NOT EXISTS idx_incident_actions_incident_created "

@@ -54,7 +54,8 @@ em quarentena: não repetir POST por busca negativa imediata nem por expiração
 do lock. Reconciliar remotamente e registrar o desfecho antes de nova tentativa.
 A branch candidata grava uma reserva única `(entidade, fingerprint)` **antes**
 do POST; se a busca ainda vier vazia, tentativas posteriores só consultam e
-não reenviam. O esquema `003_glpi_ticket_post_reservations.sql` foi ensaiado
+não reenviam. O esquema `003_glpi_ticket_post_reservations.sql` também integra
+o caminho de upgrade idempotente `app.migrate` e foi ensaiado
 em PostgreSQL descartável; não foi aplicado ao banco produtivo. Antes de
 promover, aplicar o esquema aditivo, verificar a tabela/PK e só então iniciar
 o worker novo. Se houver retorno à versão antiga, parar primeiro os envios de
