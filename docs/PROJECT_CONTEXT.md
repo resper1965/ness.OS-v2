@@ -4,6 +4,12 @@ Atualizado em: 2026-10-13 (BRT)
 Estado: execução retomada; G0 tem promoção real do Hub/AIOps comprovada, mas
 permanece **PARCIAL** até CI limpo e integração protegida do workflow.
 
+GLPI T03, 13/10 ~10:30 BRT: o protótipo de adaptador agora recusa URL GLPI
+pública/ausente antes de abrir sessão. Teste RED→GREEN, 30 testes focados e
+suíte backend 462 PASS/1 SKIP. Sem deploy nem alteração de topologia: a rota
+direta interna e a seleção indevida da entidade descendente permanecem; conta
+106 inativa, T03/G2 bloqueados. Ver ADR 0020 e ledger do plano master.
+
 T12 GLPI/ness.AI, 13/10 ~09:25 BRT: a busca de artigos no plugin (ainda não
 instalado) foi restringida à entidade exata do chamado e à permissão nativa
 `KnowbaseItem::canViewItem()`. Sem entidade ou sem vínculo explícito não há

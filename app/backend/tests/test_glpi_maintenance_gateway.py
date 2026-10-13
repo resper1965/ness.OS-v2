@@ -23,6 +23,8 @@ def test_gateway_rejects_missing_token_before_opening_glpi_session():
 
 def test_gateway_returns_only_approved_computer_fields():
     class Client:
+        base_url = "http://ninf-glpi/apirest.php"
+
         async def change_active_entity(self, entity_id):
             assert entity_id == 1
 
@@ -121,6 +123,8 @@ def test_gateway_hides_upstream_failure_details_and_closes_session(error, status
     closed = []
 
     class Client:
+        base_url = "http://ninf-glpi/apirest.php"
+
         async def change_active_entity(self, entity_id):
             raise error
 

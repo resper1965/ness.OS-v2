@@ -168,6 +168,14 @@ Computer; GREEN passou em 29 testes focados e 461 testes backend (1 pulado).
 As fakes de teste agora retornam o booleano exigido do cliente real. Essa
 falha fechada não equivale a isolamento de rede, deploy ou aceite T03.
 
+Revisão local adicional de 13/10: a leitura no protótipo agora recusa URL
+GLPI pública ou ausente **antes** de selecionar entidade/abrir sessão. O teste
+RED demonstrou a tentativa anterior de contato com a URL pública; GREEN
+passou em 30 testes focados e 462 testes backend (1 pulado) no ambiente de
+dependências declarado. É somente uma precondição de configuração: hostname
+privado não comprova rede exclusiva, sigilo do token, bloqueio de rota direta
+nem autorização do objeto. Sem deploy; T03/G2 e conta 106 seguem bloqueados.
+
 ## Condições antes de implantar
 
 Leitura do runtime em 13/10/2026: `ninf-api` e `ninf-glpi` usam ambos
