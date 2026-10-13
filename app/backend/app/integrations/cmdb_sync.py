@@ -27,6 +27,23 @@ def exact_match(index, host_id, entity):
     return None
 
 
+def assert_existing_asset_identity(asset, row):
+    """Never silently rebind an existing monitored asset to another GLPI identity."""
+    if asset.customer_id != row["customer_id"]:
+        raise ValueError(
+            "Existing asset identity changed; manual reconciliation required"
+        )
+    previous = asset.tags or {}
+    incoming = row["tags"]
+    for key in ("glpi_entity_id", "glpi_itemtype", "glpi_item_id"):
+        if previous.get(key) is not None and str(previous[key]) != str(
+            incoming.get(key)
+        ):
+            raise ValueError(
+                "Existing asset identity changed; manual reconciliation required"
+            )
+
+
 def scoped_hosts(hostids):
     if hostids is None:
         return None
@@ -200,6 +217,7 @@ async def reconcile(apply=False, hostids=None):
                         asset = Asset(**row)
                         session.add(asset)
                     else:
+                        assert_existing_asset_identity(asset, row)
                         row["tags"] = {**(asset.tags or {}), **row["tags"]}
                         for key, value in row.items():
                             setattr(asset, key, value)
