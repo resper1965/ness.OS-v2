@@ -49,6 +49,11 @@ curta sem total e range de outra página. Correção `09d03b9` teve 26 testes
 focados e cinco workflows GitHub PASS no SHA exato. Nenhum ativo foi criado
 ou sincronizado e não houve deploy; um servidor que omita o header fará a
 leitura falhar fechada até diagnóstico, sem inferir inventário completo.
+Leitura nativa posterior no GLPI existente, com sessão temporária encerrada,
+confirmou `Content-Range` coerente nas páginas 0 e 1 de Computer; o probe
+versionado em `infra/scripts/glpi_pagination_probe.py` imprime só PASS/FAIL,
+sem conteúdo de ativo. Isso reduz o risco de incompatibilidade do guard,
+mas não prova a rota isolada nem autoriza reativar a conta 106.
 
 GLPI T05, 13/10 ~11:10 BRT: sincronização agora falha antes de atualizar
 Asset existente se cliente ou referência GLPI conhecida mudar; código não

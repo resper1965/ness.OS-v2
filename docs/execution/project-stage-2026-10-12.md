@@ -729,3 +729,9 @@ Zabbix origem única coletora/destino mascarado continuam preservados.
   API real omitir `Content-Range`, a sincronização para e requer diagnóstico
   antes de qualquer relaxamento. Conta 106 inativa, três ativos não criados,
   T03/G2 sem aprovação.
+- Probe nativo somente leitura em 13/10 12:19 BRT: Computer offsets 0 e 1
+  retornaram páginas de um registro com `Content-Range` coerente; ambos PASS.
+  Sessão temporária encerrada e saída sem dados de ativos ou segredos. Script
+  `infra/scripts/glpi_pagination_probe.py`, dois testes RED→GREEN e
+  compile/Black/Ruff PASS. Esse
+  resultado valida o contrato consultado, não o isolamento da rota direta.
