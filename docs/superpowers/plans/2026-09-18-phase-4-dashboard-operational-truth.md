@@ -12,6 +12,8 @@
 
 ## Global Constraints
 
+- Experiência e marca seguem a [matriz transversal ness.](2026-10-12-ness-branding-cross-product-plan.md), linha Hub/PWA. Preservar os critérios de verdade operacional abaixo.
+
 - Gate de produção: Fases 0–3 aprovadas. Implementação e testes locais podem usar contratos das Fases 1–3 verificados antes do gate; deploy e aceite do dashboard aguardam aprovação.
 - Remover dados demonstrativos e timestamps fixos das rotas usadas em produção.
 - Não atualizar `last_success_at` quando uma coleta falhar.

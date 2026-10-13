@@ -103,6 +103,8 @@ Evidências registradas, não nova auditoria de produção:
 
 ## 5. Entregar painéis, mapas e marca sobre dados reais
 
+**Cobertura ampliada:** seguir a linha Zabbix da [matriz transversal ness.](2026-10-12-ness-branding-cross-product-plan.md), incluindo navegação, relatórios e mobile, além de logo/painéis. Preservar severidades, licença e funcionalidades técnicas.
+
 **Usar:** dashboards existentes em `config/zabbix/`, módulo `infra/zabbix/modules/ness_mobile/` e verificadores de navegador existentes. Não recriar painéis 405/406/407 ou reinstalar branding aprovado.
 
 - [ ] Reaplicar/promover somente deltas necessários; preservar originais. Remover rótulo UAT/snapshot apenas após fonte produtiva realmente ativa.

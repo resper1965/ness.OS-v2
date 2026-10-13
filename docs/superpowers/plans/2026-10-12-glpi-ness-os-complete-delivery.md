@@ -217,6 +217,8 @@ Os caminhos marcados “criar” abaixo são propostos; não existem por este pl
 
 ## T10 — personalização ness. e jornadas de uso
 
+**Cobertura ampliada:** aplicar a linha GLPI da [matriz transversal ness.](2026-10-12-ness-branding-cross-product-plan.md), incluindo catálogo, base de conhecimento, relatórios, exportações e prévias de emails. Canais externos continuam desligados; máximo de personalização suportada, sem modificar core.
+
 **Criar:** `docs/operations/glpi-ness-experience.md`, `config/glpi/ness-branding-manifest.json`, `infra/tests/inspect-glpi-branding.cjs`. Implementar assets/CSS somente no caminho de extensão confirmado por inventário T01; registrar esse caminho no manifesto antes de editar.
 
 - [ ] Ler skill `ness-branding` e referências visuais; reutilizar logo aprovado, fonte Montserrat Medium 500 e ponto #00ade8. Marca em preto/branco, sem itálico e sem descritor anexado ao logo. Preservar nome técnico ness.OS nos identificadores existentes; marca visual segue ness.

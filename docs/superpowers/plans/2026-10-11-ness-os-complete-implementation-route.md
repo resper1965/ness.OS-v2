@@ -426,6 +426,8 @@ As etapas 1–3 podem produzir artefatos em paralelo, mas nenhuma escrita produt
 
 ### Task 10.3: Aplicar branding transversal
 
+Referência consolidada de cobertura: [customização transversal ness.](2026-10-12-ness-branding-cross-product-plan.md). Aplicar a todos os produtos deste roteiro por mecanismo suportado. A elaboração dessa matriz foi somente planejamento; execução pelo modelo autor está vedada por instrução humana.
+
 - [ ] Aplicar fundação visual em Hub/PWA, Authentik, Psono, Zabbix, GLPI, Grafana e consoles operacionais com camadas suportadas e reversíveis.
 - [ ] Validar pt-BR, contraste, responsividade, densidade, navegação, empty/error states, favicon e títulos sem duplicação.
 - [ ] Testar atualização de cada produto para garantir que branding não altera core nem bloqueia patch de segurança.

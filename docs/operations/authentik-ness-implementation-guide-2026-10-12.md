@@ -1,5 +1,12 @@
 # Authentik — análise, personalização ness. e implementação
 
+> Próxima sequência: [plano Authentik enxuto](../superpowers/plans/2026-10-12-authentik-fluid-delivery.md)
+> e [matriz transversal de marca](../superpowers/plans/2026-10-12-ness-branding-cross-product-plan.md).
+> Planejamento persistido, sem execução pelo modelo autor. Este guia preserva
+> evidências históricas; a conta GLPI 106 foi posteriormente desativada após
+> falha de isolamento, conforme registro GLPI. Não seguir instrução antiga de
+> reativação/manutenção sem o gate do plano GLPI atual.
+
 Data: 12/10/2026, horário BRT. Responsáveis: Ricardo Esper (aprovação e
 custódia), Ismael Araujo (operação), Rogerio Salerno (administrador nominal).
 Este documento distingue mudança aplicada de requisito ainda não homologado.

@@ -1,5 +1,13 @@
 # Zabbix — estágio de 12/10/2026
 
+## Planos atuais persistidos — execução por outro modelo
+
+- [Authentik: identidade e experiência ness.](../superpowers/plans/2026-10-12-authentik-fluid-delivery.md).
+- [Customização transversal de todos os produtos](../superpowers/plans/2026-10-12-ness-branding-cross-product-plan.md), incorporada aos planos GLPI/Zabbix e roteiro geral.
+
+Elaboração documental apenas, usando Ponytail full. Nenhuma aplicação,
+autenticação ou marca foi alterada nesta rodada; automação continua pausada.
+
 ## Plano de retomada Zabbix — Ponytail full
 
 [Plano enxuto de liberação](../superpowers/plans/2026-10-12-zabbix-fluid-delivery.md):

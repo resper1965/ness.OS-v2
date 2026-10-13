@@ -1,5 +1,11 @@
 # Customização Semântica e Visual do GLPI (Processo NOC/Help Desk)
 
+> **Histórico substituído — não executar as instruções SQL abaixo.** Usar o
+> [plano GLPI atual](../superpowers/plans/2026-10-12-glpi-ness-os-complete-delivery.md)
+> e a [matriz de marca](../superpowers/plans/2026-10-12-ness-branding-cross-product-plan.md).
+> Configuração por API/interface nativa e extensão compatível; nenhum plugin
+> citado aqui tem instalação ou compatibilidade autorizada por este registro.
+
 ## Goal
 Customizar visual e semanticamente o GLPI (n-ticket.ness.com.br) para alinhar-se perfeitamente com os fluxos operacionais de NOC/Help Desk da ness., incluindo nomenclatura de chamados, perfis de acesso, e identidade visual Montserrat.
 
