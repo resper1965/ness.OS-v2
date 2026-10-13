@@ -74,6 +74,9 @@ filha após `changeActiveEntities`; antes recebeu 403. O mesmo ocorreu por
 `user_token`. Filtro IP/App-Token negou o Hub simulado, mas não conteve a
 troca de entidade na sessão do adaptador. O primeiro fixture tinha hierarquia
 não validada e foi descartado. T03/G2 seguem bloqueados; 106 não foi reativada.
+Topologia frontal/privada passou em laboratório Docker descartável; código de
+leitura restrita de Computer passou em 12 testes, sem rota ou deploy. Isso não
+isola a API produtiva nem autoriza criar os três ativos pendentes.
 Sonda sem credenciais no runtime confirmou uma rede compartilhada entre
 `ninf-api` e `ninf-glpi` (`BLOCKED_DIRECT_PATH`); a issue #74 foi corrigida
 com esse bloqueio e a instrução de manter 106 inativa.
