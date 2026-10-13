@@ -203,6 +203,24 @@ reabertura; permanece uma prova da mecânica de handoff, não do corte.
 Uma requisição pública não autenticada a `n-ticket.ness.com.br/apirest.php`
 foi encaminhada ao fluxo Authentik. Isso não prova bloqueio para usuário
 autenticado ou portador de token; a rota pública exige teste negativo próprio.
+Ensaio adicional em 13/10, com a **imagem Caddy efetiva** em contêiner
+descartável `--network none`, sem porta publicada, segredo ou GLPI real:
+`forward_auth` sintético retornou 200 e a configuração equivalente à rota
+atual encaminhou `/apirest.php/initSession` ao upstream sintético (200).
+Portanto autenticação pública bem-sucedida não bloqueia, por si só, a API.
+Uma primeira candidata com `path /apirest.php /apirest.php/*` negou o caminho
+normal (403), mas deixou `/apirest.php%252FinitSession` chegar ao upstream
+(200). Uma segunda candidata com matcher `path_regexp (?i)apirest\.php`
+negou os caminhos normal, uma vez codificado, duas vezes codificado e com
+maiúsculas (403), mantendo `/front/central.php` encaminhado (200). O
+contêiner e os três arquivos de teste foram removidos, com ausência
+verificada. A resposta 200 do upstream foi **sintética**: não demonstra que
+o GLPI interpretaria o caminho duas vezes codificado, nem que Authentik,
+sessões reais ou todas as variantes de URL foram homologadas. Não houve
+reload do Caddy produtivo. Qualquer bloqueio público futuro requer teste
+negativo autenticado de método, codificação e rota real, além de rollback;
+ele não substitui o isolamento da rota direta Hub/worker → GLPI nem resolve
+a seleção indevida da entidade descendente.
 O diagnóstico sem credenciais `infra/scripts/glpi_network_boundary_probe.py`
 retornou `BLOCKED_DIRECT_PATH`, com uma rede compartilhada. O comando não
 emite `PASS`, mesmo que as redes venham a ser separadas; a fronteira requer
