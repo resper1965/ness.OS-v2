@@ -48,6 +48,16 @@ Isso não autoriza criar tickets: T03 ainda bloqueia a identidade técnica;
 os 29 `ticket_failed` recentes e 15 registros sem evento exigem
 classificação própria, sem replay em massa.
 
+Leitura complementar dos 29 recentes: a última ação GLPI de todos contém
+somente `error=RuntimeError`; o registro não distingue autorização, transporte
+ou validação. Seis lotes de até cinco buscaram o marcador completo na
+entidade mapeada: 29 ausentes, zero encontrados, zero erros de consulta e
+zero entidades sem mapeamento. Não houve tentativa de criação. A causa da
+falha original continua desconhecida; a ausência remota não libera replay
+com a identidade técnica 106 desativada e T03 pendente. Os 15 legados sem
+evento permanecem em quarentena de reconciliação, pois não têm identidade
+de origem suficiente para criação idempotente.
+
 ## T12 — estado dos plugins, 13/10 06:45 UTC
 
 `php /var/www/glpi/bin/console plugin:list --format=json --no-interaction`
