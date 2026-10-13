@@ -1,6 +1,6 @@
 # ness.OS — indicador de entrega
 
-Última verificação: **13/10/2026, 17:28 BRT**. Fonte: plano master,
+Última verificação: **13/10/2026, 17:49 BRT**. Fonte: plano master,
 `PROJECT_CONTEXT.md`, estágio operacional, ledger e GitHub. Este quadro é um
 checkpoint, não telemetria em tempo real. Atualizar quando uma entrega, gate,
 bloqueio ou prazo mudar; preservar a data da última verificação.
@@ -26,13 +26,16 @@ O impedimento de integração foi removido; o scan histórico de segredos da
 issue #82 ainda bloqueia o publicador completo. Varredura local redigida na
 branch atual encontrou 11 achados históricos em sete caminhos; os três
 campos sensíveis do inventário já usam referência de ambiente no HEAD, mas
-o histórico continua exigindo classificação e remediação. Dois candidatos
-antigos do inventário foram recusados nos serviços consultados, o que não
-prova revogação universal. Uma consulta de diagnóstico também expôs a
-credencial S3 e a senha Restic ativas na saída da ferramenta; rotação nominal
-do S3 e rotação segura da chave do repositório Restic são obrigatórias antes
-de liberar publicação. Nenhum valor foi incluído neste indicador. PRs 64/81
-seguem draft, sem checks externos, revisão ou imagem publicada.
+o histórico continua exigindo classificação e remediação. A tentativa
+anterior de validar os candidatos antigos leu essas referências, não os
+valores históricos; seu resultado foi invalidado. Uma consulta de diagnóstico
+expôs a credencial S3 e a senha Restic ativas na saída da ferramenta.
+A nova chave S3 nominal foi testada com leitura do bucket e instalada no
+EnvironmentFile root-only; leitura do repositório Restic passou. Verificação
+isolada de restauração ainda em curso, sem aceite final. A senha Restic ainda
+deve ser rotacionada antes de liberar publicação. Nenhum valor foi incluído
+neste indicador. PRs 64/81 seguem draft, sem checks externos, revisão ou
+imagem publicada.
 
 **Atualização F3:** gateway GLPI candidato agora encerra o cliente mesmo
 quando recusa URL não privada; teste RED→GREEN e backend 486 PASS/1 SKIP.
