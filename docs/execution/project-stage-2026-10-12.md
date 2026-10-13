@@ -2,6 +2,10 @@
 
 ## Plano master — entrada única do programa
 
+Escopo atualizado: produção completa, com liberações contínuas P1–P4 e canário
+como teste inicial, não ponto final. Esta atualização é documental; nenhuma
+promoção, janela ou acesso foi ativado.
+
 [ness.OS — plano master](../superpowers/plans/2026-10-12-ness-os-plano-master.md)
 reúne todas as frentes em nove fases, com sequência, dependências, aceites e
 referências detalhadas. Compilação documental apenas; implementação pelo modelo

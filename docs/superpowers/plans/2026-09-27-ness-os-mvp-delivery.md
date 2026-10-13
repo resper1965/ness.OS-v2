@@ -1,5 +1,10 @@
 # ness.OS MVP Delivery and Post-MVP Evolution Plan
 
+> **Escopo superado pelo [plano master de produção](2026-10-12-ness-os-plano-master.md).**
+> Reusar testes e contratos deste documento como canário. A entrega atual
+> continua até produção para todos os tenants/ativos elegíveis e fases ampliadas;
+> o encerramento no MVP descrito abaixo é histórico.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:executing-plans` to execute this delivery plan task-by-task. Follow each referenced phase plan for its exact code edits, TDD steps, commands, and commits.
 
 **Goal:** Deliver and accept a usable ness.OS AIOps MVP for the Zabbix-to-Hub-to-GLPI operator workflow, then onboard Wazuh as a post-MVP security source.

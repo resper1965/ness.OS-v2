@@ -13,7 +13,7 @@
 ## 1. Limites e decisões fixadas
 
 - GLPI é o cadastro mestre. Hub, Zabbix e RMM preservam referências; não criam cadastros mestres concorrentes.
-- Primeiro aceite funcional: plataforma interna ness., 5–10 ativos, canais Hub e GLPI. Reconciliação posterior cobre todo o inventário existente por ondas de até cinco alterações de ativos.
+- Destino da entrega: GLPI/Hub em produção para todas as entidades e ativos existentes elegíveis. Os 5–10 ativos internos são apenas canário; depois expandir continuamente por ondas de até cinco alterações, conforme o plano master de produção.
 - Cavan é uma empresa; Matriz e unidades fabris são localidades. Não remodelar entidades existentes sem mapa de impactos aprovado. Alupar tem o primeiro lote técnico já preparado.
 - Conta Hub 94/perfil 12 permanecem intactos. Conta de manutenção 106 está desativada após falha de isolamento; perfil 13 e associação 125 não provam segurança de entidade.
 - Não usar SQL de configuração/autenticação ou `callAsSystem` para contornar direitos. Consultas de diagnóstico somente leitura devem ser limitadas e sanitizadas.

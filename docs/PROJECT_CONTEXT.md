@@ -6,6 +6,11 @@ permanece **PARCIAL** até CI limpo e integração protegida do workflow.
 
 ## Ponto único de retomada — plano master
 
+Destino atualizado por instrução humana: **produção completa**, cobrindo todas
+as entidades/ativos existentes e fases de operação assistida/segurança. Piloto
+interno é somente canário; não encerrar no MVP. Planejamento continua sem execução
+pelo modelo autor. Aplicam-se os gates específicos, sem dispensar segurança.
+
 [Plano master ness.OS](superpowers/plans/2026-10-12-ness-os-plano-master.md)
 consolida sequência, decisões e aceites; planos de produto detalham tarefas e
 registros de execução mantêm evidências. Planejamento concluído, sem execução
