@@ -1,5 +1,15 @@
 # GLPI — retomada operacional de 12/10/2026
 
+## Plano canônico de continuidade
+
+Consultar [GLPI no ness.OS — implementação completa](../superpowers/plans/2026-10-12-glpi-ness-os-complete-delivery.md)
+para a sequência completa de 14 tarefas, customização, implantação, testes,
+rollback e critérios de encerramento. Plano concluído e persistido; execução
+não iniciada. Por instrução humana, o modelo autor não deve implementá-lo.
+A retomada por outro modelo deve seguir o handoff e conferir as evidências
+mais recentes ao final deste registro, especialmente a conta 106 desativada
+após falha de isolamento. Heartbeats antigos não autorizam reativação.
+
 Usuário solicitou terminar Zabbix e começar GLPI. Transição de foco não
 aprova corte: origem continua única coletora; destino mascarado. SSO/MFA
 nominal (issue 51), diagnóstico local do proxy (issue 73), qualidade da
