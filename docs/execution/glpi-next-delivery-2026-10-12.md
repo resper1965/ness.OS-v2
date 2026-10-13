@@ -275,3 +275,26 @@ Não reativar manutenção até diagnóstico de seleção de entidades nativa e
 teste negativo passar. Tokens permanecem protegidos; nenhum segredo no Git.
 Próximo passo: localizar causa na seleção de entidades/API e corrigir com
 regressão/rollback, sem declarar G2 ou lote3 aprovado. Criação continua pendente.
+
+### Causa identificada — seleção nativa de descendentes
+
+Session::changeActiveEntities na instalação permite seleção quando o ID
+é a própria entidade ou descendente; se pedido is_recursive=false, condição
+(!$is_recursive || $val['is_recursive']) autoriza mesmo binding não recursivo.
+Depois haveAccessToEntity confia nas entidades ativas da sessão. Isso explica
+GET Computer da entidade5 passar após seleção, sem mudar Profile_User125.
+Não foi problema de payload ignorado, token incorreto ou privilégio do Hub.
+
+Código oficial tag11.0.11 inspecionado contém a mesma condição. Não afirmar
+que upgrade sozinho resolve, nem rotular como CVE/vulnerabilidade upstream
+sem avaliação da semântica suportada e reprodução na versão atual. É um gap
+comprovado em relação ao requisito do projeto de acesso somente entidade1.
+Fonte: https://github.com/glpi-project/glpi/blob/11.0.11/src/Session.php
+
+Contenção mantém106 inativo. Próxima implementação independente: guard no
+cliente do Hub que confira grants e entidade efetiva antes de operação, com
+regressão de seleção silenciosa/fallback. Isso evita erro do nosso consumidor,
+mas não corrige uso direto de token na API nativa; não reativar106 nem aprovar
+G2 por esse guard. Solução definitiva exige caminho suportado de autorização
+estrita (plugin/gateway isolado ou desenho de entidades aprovado), export,
+ensaio e rollback; não editar core ou mover entidades/tickets em massa.
