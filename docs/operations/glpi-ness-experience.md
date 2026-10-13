@@ -10,8 +10,11 @@ branco. A paleta não altera logo, favicon, login nem core.
 Em 13/10/2026, o arquivo foi instalado em
 `/var/glpi/files/_themes/ness-light.scss` no volume persistente, sem alterar
 preferência de usuário ou default global. O hash local/remoto é
-`024adb75a77d01f4887d501e7bf7d9e60bfd76a9dc93fb3c10c1679afa00b010`;
+`afa23f55708a77787370a1fdf02c15845c2b61edd36d201f656a9974c1de6fcf`;
 permissões `644:33:33`; GET público do login permaneceu `302` para SSO.
+O ThemeManager nativo, consultado pelo verificador read-only
+[`glpi-theme-readback.php`](../../infra/scripts/glpi-theme-readback.php),
+retornou `ness-light` com rótulo `ness.`. Nenhum tema foi selecionado.
 Não houve renderização autenticada ou seleção piloto, portanto T10 continua
 **não aceito**. O arquivo temporário de transferência foi removido após o
 readback; o arquivo versionado é a fonte de retorno.
