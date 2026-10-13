@@ -1,5 +1,10 @@
 """Isolated prototype for the GLPI maintenance object boundary."""
 
+from hmac import compare_digest
+
+from fastapi import FastAPI, Header, HTTPException
+from fastapi.responses import JSONResponse
+
 
 class MaintenanceBoundary:
     def __init__(self, client_factory, *, entity_id: int, approved_ids: set[int]):
@@ -36,3 +41,26 @@ class MaintenanceBoundary:
             }
         finally:
             await client.kill_session()
+
+
+def create_app(
+    client_factory, *, entity_id: int, approved_ids: set[int], bearer_token: str
+):
+    if not isinstance(bearer_token, str) or not bearer_token.strip():
+        raise ValueError("A nonempty adapter token is required")
+    boundary = MaintenanceBoundary(
+        client_factory, entity_id=entity_id, approved_ids=approved_ids
+    )
+    app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+
+    @app.get("/v1/computers/{computer_id}")
+    async def read_computer(computer_id: int, authorization: str | None = Header(None)):
+        if not compare_digest(authorization or "", f"Bearer {bearer_token}"):
+            raise HTTPException(status_code=401)
+        try:
+            item = await boundary.read_computer(computer_id)
+        except PermissionError:
+            raise HTTPException(status_code=404) from None
+        return JSONResponse(item, headers={"Cache-Control": "no-store"})
+
+    return app
