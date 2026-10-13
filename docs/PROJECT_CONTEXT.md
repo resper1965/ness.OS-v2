@@ -97,6 +97,9 @@ No plugin ness. AI ainda não instalado, um teste sintético RED mostrou
 exposição do valor inválido de configuração do provedor; a resposta agora é
 genérica (commit `d1b669d`). Isso não libera o plugin: KB por tenant, política
 de dados enviados à IA e erros HTTP externos permanecem pendentes.
+Em seguida, um provedor HTTP local sintético reproduziu vazamento de mensagem
+429 e de corpo JSON inválido para o log. Ambos foram removidos do retorno/log
+sem ativar o plugin; detalhes em `docs/execution/glpi-next-delivery-2026-10-12.md`.
 Na listagem de subitens, o cliente agora segue o total informado pelo GLPI
 mesmo quando o servidor limita a página a 50 registros e recusa página vazia
 antes do total. Os dois testes RED→GREEN e a suíte backend passaram em 460

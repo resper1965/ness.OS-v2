@@ -413,17 +413,13 @@ class PluginNessaiAssistant
         $response = json_decode($responseRaw, true);
 
         if (json_last_error() !== JSON_ERROR_NONE) {
-            Toolbox::logError("[nessai] Invalid JSON from {$provider}: " . mb_substr($responseRaw, 0, 500));
+            Toolbox::logError("[nessai] Invalid JSON from {$provider}");
             return $errorResult('Resposta inválida do provedor LLM (JSON inválido).');
         }
 
         if ($httpStatus >= 400) {
-            $errMsg = $response['error']['message']
-                ?? $response['error']['status']
-                ?? $response['message']
-                ?? "HTTP {$httpStatus}";
-            Toolbox::logError("[nessai] API error [{$provider}] HTTP {$httpStatus}: {$errMsg}");
-            return $errorResult("Erro da API ({$provider}): {$errMsg}");
+            Toolbox::logError("[nessai] API error [{$provider}] HTTP {$httpStatus}");
+            return $errorResult("Erro da API ({$provider}): HTTP {$httpStatus}");
         }
 
         // ── Parse response per provider ──────────────────────────

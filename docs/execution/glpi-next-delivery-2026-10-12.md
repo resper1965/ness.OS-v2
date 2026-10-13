@@ -468,3 +468,7 @@ passaram; erros HTTP do provedor ainda requerem sanitização independente.
 ### T12 — ness. AI: configuração de provedor não exposta (13/10 07:37 UTC)
 
 Teste sintético RED demonstrou que um valor inválido de `llm_provider` aparecia na resposta ao operador. A preparação da requisição agora retorna erro genérico e registra apenas a classe da exceção. Cinco testes PHP do plugin e lint do arquivo alterado passaram em contêiner descartável sem rede; o plugin **não** foi instalado nem ativado. Permanecem bloqueios de privacidade do prompt, KB por tenant, erros HTTP externos e validação integrada. T03/G2 e a conta 106 não mudam.
+
+### T12 — ness. AI: erros HTTP e JSON do provedor (13/10 07:45 UTC)
+
+Um provedor HTTP local sintético reproduziu dois vazamentos: mensagem do erro 429 enviada ao operador e corpo JSON inválido copiado ao log. Os dois casos falharam antes da correção e passaram depois; resposta e log agora incluem só a classe de falha/status, sem texto externo. Seis testes PHP do plugin, lint dos arquivos afetados e backend 460 PASS/1 SKIP (25 avisos preexistentes) foram executados. O plugin continua fora do runtime. Ainda faltam revisão de dados enviados à IA, KB por tenant, transporte/parse de sucesso e validação integrada; T03/106 não mudam.
