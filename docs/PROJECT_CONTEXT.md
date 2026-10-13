@@ -20,6 +20,10 @@ cinco checks verdes não equivalem a imagem por digest. Issue #67. Sem deploy.
 Guard local da candidata valida digest, subnet/IP e permissões dos três
 arquivos de segredo sem expor valores; não substitui imagem publicada nem
 ensaio negativo de rota. Conta 106 segue inativa.
+Os cinco checks de `1328116` passaram; o job SBOM construiu imagem apenas no
+runner, não publicou digest. Teste sintético adicional da factory negou bearer
+incorreto e entidade 5, permitiu somente Computer 41 da entidade 1 e encerrou
+sessões; não substitui teste na rede GLPI real.
 
 GLPI T05, 13/10 ~11:10 BRT: sincronização agora falha antes de atualizar
 Asset existente se cliente ou referência GLPI conhecida mudar; código não

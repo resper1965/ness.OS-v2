@@ -667,3 +667,7 @@ Zabbix origem única coletora/destino mascarado continuam preservados.
   branch não equivalem a imagem publicada. Sem digest verificado e matriz
   negativa Hub/rota pública/entidade descendente/rollback, T03 e G2 seguem
   bloqueados. Ver ADR 0020 e ledger do master.
+- Os cinco checks de `1328116` fecharam PASS; build do SBOM é efêmero e não
+  publica digest. Teste da factory com tokens sintéticos passou para bearer
+  errado, entidade 1 permitida, entidade 5 negada e logout; backend 475 PASS,
+  1 SKIP. GLPI produtivo permaneceu intocado.

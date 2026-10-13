@@ -401,6 +401,16 @@ com rotas recém-criadas ou que a matriz GLPI/Hub está isolada. Esses testes
 continuam obrigatórios. Cinco testes de unidade e 32 testes de infra com
 `PYTHONPATH=app/backend` passaram.
 
+Teste integrado **sintético** do entrypoint em 13/10 ~11:38 BRT: a factory
+carregou três arquivos de teste e fixou URL/entidade 1; bearer incorreto foi
+negado antes de criar cliente, Computer 41 da entidade 1 retornou somente os
+três campos permitidos e a resposta simulada da entidade 5 foi negada com
+logout em ambos os percursos. Sem contato com GLPI real, sem token real e
+sem rede/container produtivo. Backend 475 PASS/1 SKIP; cinco checks do commit
+`1328116` concluíram PASS, incluindo build efêmero da imagem no job SBOM.
+Esse build de CI **não** publicou imagem por digest e não substitui a matriz
+negativa direta nem o GO de implantação.
+
 1. Projetar e ensaiar filtro nativo por cliente/IP ou separação de rede/rota
    mantendo UI/SSO legítimos.
    Confirmar também se a rota pública expõe `apirest.php`; bloquear o token
