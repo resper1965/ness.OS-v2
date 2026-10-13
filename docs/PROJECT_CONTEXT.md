@@ -93,6 +93,10 @@ Quedas de transporte durante `get_item` e `list_items` no cliente compartilhado
 agora são classificadas como transitórias; testes RED reproduziram os
 `ConnectError` crus e a suíte backend passou depois em 458 testes, 1 pulado.
 Ainda sem deploy.
+No plugin ness. AI ainda não instalado, um teste sintético RED mostrou
+exposição do valor inválido de configuração do provedor; a resposta agora é
+genérica (commit `d1b669d`). Isso não libera o plugin: KB por tenant, política
+de dados enviados à IA e erros HTTP externos permanecem pendentes.
 Na listagem de subitens, o cliente agora segue o total informado pelo GLPI
 mesmo quando o servidor limita a página a 50 registros e recusa página vazia
 antes do total. Os dois testes RED→GREEN e a suíte backend passaram em 460
