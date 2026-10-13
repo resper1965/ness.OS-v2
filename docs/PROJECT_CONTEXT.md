@@ -2,13 +2,14 @@
 
 Indicador resumido e datado: [estado global](execution/ness-os-status.md).
 
-F0, 13/10 14:26 BRT: por solicitação do usuário, substituir GitHub Actions
+F0, 13/10 15:00 BRT: por solicitação do usuário, substituir GitHub Actions
 sem perder as garantias de release. PR #81 draft (`b4725e4`) contém publicador
 local candidato; 28 testes iniciais passaram. Docker Desktop/Buildx no Windows
 construiu API e frontend localmente, sem push. O lockfile do frontend foi
 atualizado: `npm ci`, lint, build e auditoria passaram com zero vulnerabilidades;
-quatro testes focados do publicador passaram. O publicador completo ainda não
-rodou: Docker não está integrado à distro WSL e o scan de segredos bloqueia.
+quatro testes focados do publicador passaram. Ubuntu/WSL agora alcança Docker
+Desktop 29.8.0/Buildx 0.37. O publicador completo ainda não rodou: o scan de
+segredos bloqueia.
 Actions está desativado; os quatro checks obrigatórios da `main` permanecem,
 impedindo merges até substituição segura. O repositório é privado como
 `resper1965/ness.OS-v2`; remoto local atualizado. Possíveis segredos
