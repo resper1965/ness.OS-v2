@@ -138,6 +138,9 @@ class GLPIClient:
         except httpx.HTTPStatusError as exc:
             await self.kill_session()
             raise _glpi_failure("seleção de entidade", exc) from exc
+        except httpx.TransportError as exc:
+            await self.kill_session()
+            raise _glpi_failure("seleção de entidade", exc) from exc
         except BaseException:
             await self.kill_session()
             raise

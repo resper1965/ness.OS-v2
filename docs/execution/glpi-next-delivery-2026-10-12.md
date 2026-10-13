@@ -339,7 +339,8 @@ ensaio e rollback; não editar core ou mover entidades/tickets em massa.
 O cliente do Hub agora verifica a entidade efetiva, percorre páginas da
 busca do marcador e trata 401/403 como recusa permanente. Uma mudança ainda
 não promovida distingue transporte/429/5xx e agenda retry exponencial
-limitado para falha transitória. Testes backend: 422 PASS, 1 SKIP. Isso não
+limitado para falha transitória. A seleção de entidade também trata queda de
+transporte e fecha a sessão. Testes backend: 423 PASS, 1 SKIP. Isso não
 substitui o isolamento da API nativa nem reativa o usuário 106.
 
 Consulta agregada e somente leitura do banco do Hub: 159 incidentes sem

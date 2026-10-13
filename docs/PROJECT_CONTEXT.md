@@ -34,7 +34,8 @@ entidade efetiva após `changeActiveEntities`, a percorrer toda a paginação da
 busca de ticket por marcador e a classificar 401/403 como falha permanente.
 A entrega seguinte classifica falhas de transporte, HTTP 429 e 5xx como
 transitórias e aplica retry exponencial limitado (30–900 s, 12 tentativas),
-sem ampliar permissões. Suíte backend: 422 PASS, 1 SKIP. Nenhuma dessas
+sem ampliar permissões. A seleção de entidade também classifica queda de
+transporte e encerra a sessão. Suíte backend: 423 PASS, 1 SKIP. Nenhuma dessas
 alterações foi promovida ao runtime produtivo.
 
 Diagnóstico somente leitura encontrou 159 incidentes sem ticket: 115 antigos

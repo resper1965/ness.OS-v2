@@ -1,7 +1,7 @@
 import httpx
 import pytest
 
-from app.integrations.glpi import GLPIClient, GLPIPermanentError
+from app.integrations.glpi import GLPIClient, GLPIPermanentError, GLPITransientError
 
 
 @pytest.mark.asyncio
@@ -115,3 +115,24 @@ async def test_glpi_connection_failure_is_transient(monkeypatch):
     with pytest.raises(RuntimeError) as error:
         await client.init_session()
     assert type(error.value).__name__ == "GLPITransientError"
+
+
+@pytest.mark.asyncio
+async def test_entity_selection_connection_failure_is_transient_and_closes_session(monkeypatch):
+    def handler(request):
+        if request.url.path.endswith("/killSession"):
+            return httpx.Response(200, json=True)
+        raise httpx.ConnectError("unavailable", request=request)
+
+    original = httpx.AsyncClient
+    monkeypatch.setattr(
+        httpx,
+        "AsyncClient",
+        lambda **kwargs: original(transport=httpx.MockTransport(handler), **kwargs),
+    )
+    client = GLPIClient(base_url="http://glpi/apirest.php", app_token="app", user_token="user")
+    client.session_token = "session"
+
+    with pytest.raises(GLPITransientError):
+        await client.change_active_entity(1)
+    assert client.session_token is None
