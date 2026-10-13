@@ -2,17 +2,16 @@
 
 Indicador resumido e datado: [estado global](execution/ness-os-status.md).
 
-F0, 13/10 14:10 BRT: por solicitação do usuário, substituir GitHub Actions
+F0, 13/10 14:17 BRT: por solicitação do usuário, substituir GitHub Actions
 sem perder as garantias de release. PR #81 draft (`e913a1b`) contém publicador
 local candidato; 28 testes passaram, mas não houve build/push real porque Docker
-não está disponível. Varredura local encontrou possíveis segredos versionados;
-tratar/rotacionar antes de publicar. Repositório está público, Actions e proteção
-da `main` estavam ativos no checkpoint anterior. GitHub Actions foi desativado
-em 13/10 a pedido do usuário; os quatro checks obrigatórios permanecem na
-proteção, impedindo merges sem substituição segura. Não remover checks até
-comprovar builder isolado,
-registro privado, digest e status externo equivalentes. A mudança temporária
-de visibilidade foi revertida após esclarecimento do usuário.
+não está disponível. Actions está desativado; os quatro checks obrigatórios da
+`main` permanecem, impedindo merges até substituição segura. O usuário tornou
+o repositório privado e o renomeou para `resper1965/ness.OS-v2`; remoto local
+atualizado. Varredura anterior encontrou possíveis segredos versionados:
+privatização não desfaz exposição histórica, portanto investigar/rotacionar.
+Não remover checks até comprovar builder isolado, registro privado, digest e
+status externo equivalentes.
 
 Atualizado em: 2026-10-13 (BRT)
 Estado: execução retomada; G0 tem promoção real do Hub/AIOps e CI da branch
@@ -405,7 +404,7 @@ nas demais tarefas. Índice: issue #68 e
 
 - WSL: `/home/resper/ness.OS`
 - Windows: `\\wsl.localhost\\Ubuntu\\home\\resper\\ness.OS`
-- Git remoto: `https://github.com/resper1965/n-infraops.git`
+- Git remoto: `https://github.com/resper1965/ness.OS-v2.git`
 
 Arquivos temporários de execução não pertencem ao checkout. Os encontrados em
 2026-10-11 foram preservados em quarentena externa, com checksum, antes da
