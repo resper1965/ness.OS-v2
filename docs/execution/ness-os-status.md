@@ -1,6 +1,6 @@
 # ness.OS — indicador de entrega
 
-Última verificação: **13/10/2026, 18:02 BRT**. Fonte: plano master,
+Última verificação: **13/10/2026, 19:02 BRT**. Fonte: plano master,
 `PROJECT_CONTEXT.md`, estágio operacional, ledger e GitHub. Este quadro é um
 checkpoint, não telemetria em tempo real. Atualizar quando uma entrega, gate,
 bloqueio ou prazo mudar; preservar a data da última verificação.
@@ -35,8 +35,15 @@ EnvironmentFile root-only; leitura do repositório Restic passou. O segredo S3
 histórico pertence ao mesmo Access ID regenerado. A senha MariaDB histórica
 ainda autenticava `root@localhost`; foi rotacionada pelo mecanismo nativo,
 com nova senha aceita, antiga recusada, leitura da conta `zabbix` e serviços
-ativos. Verificação isolada de restauração ainda em curso, sem aceite final.
-A senha Restic ainda deve ser rotacionada antes de liberar publicação. Nenhum
+ativos. A senha Restic foi rotacionada com o lock livre: a nova abriu os
+snapshots, a antiga foi recusada e o manifesto externo coincidiu byte a byte
+com o local. O primeiro restore completo terminou após perda da conexão que
+capturaria seu resultado; uma nova prova completa está em execução com
+keepalive e exit code observável. Ainda não há aceite final da restauração.
+No ensaio isolado de limpeza histórica, o scan passou após substituição dos
+três valores comprometidos e revisão de seis falsos positivos específicos;
+nenhuma reescrita foi aplicada ao remoto. O histórico publicado ainda bloqueia
+o publicador. Nenhum
 valor foi incluído neste indicador. PRs 64/81 seguem draft, sem checks
 externos, revisão ou imagem publicada.
 
