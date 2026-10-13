@@ -679,3 +679,13 @@ dependência, verificar notificações/coletores/SLA aprovados, migrar só uma
 ação segura por vez para CLI com estado anterior, readback e rollback; medir
 execução antes de ampliar. Não houve mudança de modo, envio, limpeza de fila
 ou execução forçada nesta leitura.
+
+Leitura detalhada posterior por `infra/scripts/glpi_automatic_actions_report.php`
+(somente SELECT, PHP lint PASS, temporários removidos): as 20 ações
+agendadas em modo interno incluem fechamento/criação de chamados,
+SLA/OLA, fila de notificação, coletor de e-mail, alertas de contrato e
+manutenção de sessão/temporários. `graph` e `olaticket` tinham execução
+recente; isso não prova saúde das demais. Nenhuma ação foi selecionada para
+conversão automática: mesmo as de manutenção exigem conferir código, efeitos
+e estado anterior antes do canário. Nenhuma tarefa foi executada ou teve o
+modo alterado.
