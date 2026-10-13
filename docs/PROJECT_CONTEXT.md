@@ -4,8 +4,12 @@ Indicador resumido e datado: [estado global](execution/ness-os-status.md).
 
 Atualizado em: 2026-10-13 (BRT)
 Estado: execução retomada; G0 tem promoção real do Hub/AIOps e CI da branch
-comprovados, mas permanece **PARCIAL** até integração protegida do workflow,
-imagem publicada por digest e correspondência da release em produção.
+comprovados, mas permanece **PARCIAL**. O workflow de publicação entrou na
+`main` pelo PR #65 (`8563f69`), com exceção de revisão autorizada e proteção
+restaurada. A publicação candidata do PR #64 (`3737172`) falhou no push GHCR
+por `write_package` negado nos dois pacotes privados existentes; issue #80
+instrui o grant específico. Não há novo digest nem correspondência da release
+atual da branch em produção. PR #64 segue draft, cinco checks PASS, sem deploy.
 
 Janela Zabbix: usuário ampliou por 48 horas a partir do limite anterior;
 novo término adotado **15/10/2026 11:47:35 BRT**. O token de manutenção
@@ -27,9 +31,9 @@ RED→GREEN e 49 testes locais afetados passaram. Não há deploy nem prova da
 rota direta real; T03 e a conta 106 continuam bloqueados.
 Preflight read-only da subnet candidata não encontrou colisão nas bridges e
 rotas IPv4 vistas; deve ser refeito imediatamente antes de criar a rede.
-Publicação da imagem nova segue bloqueada: `workflow_dispatch` da branch
-retornou 404 porque o workflow de publish ainda não está na branch padrão;
-cinco checks verdes não equivalem a imagem por digest. Issue #67. Sem deploy.
+Histórico: `workflow_dispatch` da branch retornou 404 antes do PR #65. Esse
+bloqueio foi superado; o bloqueio atual é a permissão GHCR da issue #80.
+Cinco checks verdes não equivalem a imagem por digest. Sem deploy.
 Guard local da candidata valida digest, subnet/IP e permissões dos três
 arquivos de segredo sem expor valores; não substitui imagem publicada nem
 ensaio negativo de rota. Conta 106 segue inativa.
@@ -357,7 +361,7 @@ não suportados históricos. Evidências: `hub-isolated-flow-2026-10-12.md` e
 
 | Componente | Situação | Próximo gate |
 | --- | --- | --- |
-| Repositório e release | branch de entrega sincronizada; Hub/AIOps promovido com imagens GHCR por digest e rollback ensaiado | CI limpo e integração protegida do workflow antes de aprovar G0 global |
+| Repositório e release | branch de entrega sincronizada; Hub/AIOps anterior promovido com imagens GHCR por digest e rollback ensaiado; PR #65 integrado, novo push GHCR bloqueado | liberar escrita segura nos pacotes privados, obter digests do PR #64, revisar pacote e comprovar correspondência runtime antes de aprovar G0 global |
 | Zabbix | destino permanente restaurado em UAT isolada; origem é rollback | revalidar estado atual, UAT de identidade e piloto Cavan antes de corte |
 | Object Storage/Restic | conjunto AIOps de 12/10/2026 08:55 BRT copiado, verificado e restaurado externamente | repetir a evidência atual para os demais produtores e revisar 3-2-1 |
 | Hub | runtime real promovido, `/ready` aprovado, workers saudáveis e rollback/re-promoção ensaiados | recuperação atual e MVP Authentik + Zabbix + GLPI reais |

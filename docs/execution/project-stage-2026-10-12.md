@@ -1,5 +1,14 @@
 # Zabbix — estágio de 12/10/2026
 
+Checkpoint de release em 13/10, 13:50 BRT: PR #65 integrado na `main`
+(`8563f69`), regras de proteção restauradas; PR #64 atualizado para
+`3737172`, cinco checks PASS e ainda draft. Publicação candidata no run
+`38433314272` construiu API/frontend, mas ambos os pushes GHCR foram negados
+por `write_package` nos pacotes privados não vinculados ao repositório.
+Issue #80 e email ao titular registram a ação necessária. Nenhum digest
+novo/deploy; GLPI 106 permanece inativa. Abaixo, referências antigas ao
+workflow ausente descrevem o estado anterior ao PR #65.
+
 ## Plano master — entrada única do programa
 
 Escopo atualizado: produção completa, com liberações contínuas P1–P4 e canário
