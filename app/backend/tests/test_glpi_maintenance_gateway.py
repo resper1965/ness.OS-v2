@@ -1,6 +1,7 @@
 import pytest
 from fastapi.testclient import TestClient
 
+from app.integrations.glpi import GLPIPermanentError, GLPITransientError
 from app.integrations.glpi_boundary import create_app
 
 
@@ -107,3 +108,32 @@ def test_gateway_has_no_native_api_proxy_or_write_route(method, path):
         method, path, headers={"Authorization": "Bearer local-adapter-token"}
     )
     assert response.status_code in {404, 405}
+
+
+@pytest.mark.parametrize(
+    ("error", "status"),
+    [
+        (GLPIPermanentError("upstream auth detail"), 502),
+        (GLPITransientError("upstream transport detail"), 503),
+    ],
+)
+def test_gateway_hides_upstream_failure_details_and_closes_session(error, status):
+    closed = []
+
+    class Client:
+        async def change_active_entity(self, entity_id):
+            raise error
+
+        async def kill_session(self):
+            closed.append(True)
+
+    app = create_app(
+        Client, entity_id=1, approved_ids={41}, bearer_token="local-adapter-token"
+    )
+    response = TestClient(app).get(
+        "/v1/computers/41",
+        headers={"Authorization": "Bearer local-adapter-token"},
+    )
+    assert response.status_code == status
+    assert "upstream" not in response.text
+    assert closed == [True]

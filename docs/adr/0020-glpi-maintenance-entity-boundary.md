@@ -104,11 +104,12 @@ GLPI, confere ID e entidade do objeto retornado, reduz a resposta a três campos
 e encerra a sessão. A segunda fatia adiciona uma aplicação FastAPI **não ligada
 ao runtime** com uma única rota GET `/v1/computers/{id}`, bearer interno
 obrigatório, lista de IDs aprovada em memória, 404 para ID não autorizado,
-resposta mínima e `Cache-Control: no-store`. Não há proxy genérico da API GLPI,
-rota de escrita ou documentação interativa. Treze testes da rota e doze da
-política passaram; suíte backend 453 PASS, 1 SKIP, Black/Ruff PASS. Ainda
-faltam armazenamento/rotação do token e da allowlist, tratamento seguro de
-falha upstream, isolamento de rede e rota pública, criação/exclusão,
+resposta mínima e `Cache-Control: no-store`. Falhas permanentes/transitórias
+do upstream retornam 502/503 sem detalhes internos, preservando encerramento
+da sessão. Não há proxy genérico da API GLPI, rota de escrita ou documentação
+interativa. Quinze testes da rota e doze da política passaram; suíte backend
+455 PASS, 1 SKIP, Black/Ruff PASS. Ainda faltam armazenamento/rotação do token
+e da allowlist, isolamento de rede e rota pública, criação/exclusão,
 deploy e matriz negativa ponta a ponta. Portanto essa fatia não autoriza
 reativar o usuário 106 nem criar os três ativos.
 

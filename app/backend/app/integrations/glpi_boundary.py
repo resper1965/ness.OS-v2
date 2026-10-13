@@ -5,6 +5,8 @@ from hmac import compare_digest
 from fastapi import FastAPI, Header, HTTPException
 from fastapi.responses import JSONResponse
 
+from app.integrations.glpi import GLPIPermanentError, GLPITransientError
+
 
 class MaintenanceBoundary:
     def __init__(self, client_factory, *, entity_id: int, approved_ids: set[int]):
@@ -59,6 +61,10 @@ def create_app(
             raise HTTPException(status_code=401)
         try:
             item = await boundary.read_computer(computer_id)
+        except GLPIPermanentError:
+            raise HTTPException(status_code=502) from None
+        except GLPITransientError:
+            raise HTTPException(status_code=503) from None
         except PermissionError:
             raise HTTPException(status_code=404) from None
         return JSONResponse(item, headers={"Cache-Control": "no-store"})

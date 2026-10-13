@@ -76,8 +76,9 @@ troca de entidade na sessão do adaptador. O primeiro fixture tinha hierarquia
 não validada e foi descartado. T03/G2 seguem bloqueados; 106 não foi reativada.
 Topologia frontal/privada passou em laboratório Docker descartável; política
 de leitura restrita de Computer passou em 12 testes. Uma rota FastAPI privada
-independente passou em 13 testes, mas não está conectada ao runtime nem
-implantada. A suíte backend total passou em 453 testes, 1 pulado. Isso não
+independente passou em 15 testes, inclusive falha upstream sanitizada, mas não
+está conectada ao runtime nem implantada. A suíte backend total passou em
+455 testes, 1 pulado. Isso não
 isola a API produtiva nem autoriza criar os três ativos pendentes.
 Sonda sem credenciais no runtime confirmou uma rede compartilhada entre
 `ninf-api` e `ninf-glpi` (`BLOCKED_DIRECT_PATH`); a issue #74 foi corrigida
