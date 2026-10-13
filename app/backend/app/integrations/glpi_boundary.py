@@ -64,6 +64,10 @@ def create_app(
     )
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 
+    @app.get("/live")
+    async def live():
+        return {"status": "alive"}
+
     @app.get("/v1/computers/{computer_id}")
     async def read_computer(computer_id: int, authorization: str | None = Header(None)):
         if not compare_digest(authorization or "", f"Bearer {bearer_token}"):

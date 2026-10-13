@@ -4,6 +4,26 @@ import pytest
 from app.integrations.glpi import GLPIClient, is_private_glpi_api_url
 
 
+def test_explicit_glpi_credentials_do_not_load_unrelated_application_settings(
+    monkeypatch,
+):
+    import app.integrations.glpi as glpi_module
+
+    monkeypatch.setattr(
+        glpi_module,
+        "get_settings",
+        lambda: (_ for _ in ()).throw(AssertionError("settings must not load")),
+    )
+
+    client = GLPIClient(
+        base_url="http://glpi-maintenance-private/apirest.php",
+        app_token="app",
+        user_token="user",
+    )
+
+    assert client.base_url == "http://glpi-maintenance-private/apirest.php"
+
+
 def _client(monkeypatch, handler, *, base_url="http://ninf-glpi/apirest.php"):
     transport = httpx.MockTransport(handler)
     original = httpx.AsyncClient

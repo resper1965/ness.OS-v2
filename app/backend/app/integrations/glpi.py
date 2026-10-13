@@ -59,12 +59,17 @@ class GLPIClient:
         app_token: Optional[str] = None,
         user_token: Optional[str] = None,
     ):
-        settings = get_settings()
-        self.base_url = (settings.glpi_url if base_url is None else base_url).rstrip(
-            "/"
-        )
-        self.app_token = settings.glpi_app_token if app_token is None else app_token
-        self.user_token = settings.glpi_user_token if user_token is None else user_token
+        if base_url is None or app_token is None or user_token is None:
+            settings = get_settings()
+            if base_url is None:
+                base_url = settings.glpi_url
+            if app_token is None:
+                app_token = settings.glpi_app_token
+            if user_token is None:
+                user_token = settings.glpi_user_token
+        self.base_url = base_url.rstrip("/")
+        self.app_token = app_token
+        self.user_token = user_token
 
         self.headers = {
             "Content-Type": "application/json",

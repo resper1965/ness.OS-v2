@@ -5,6 +5,20 @@ from app.integrations.glpi import GLPIPermanentError, GLPITransientError
 from app.integrations.glpi_boundary import create_app
 
 
+def test_gateway_liveness_does_not_claim_upstream_readiness():
+    app = create_app(
+        lambda: (_ for _ in ()).throw(AssertionError("GLPI must not be contacted")),
+        entity_id=1,
+        approved_ids={41},
+        bearer_token="local-adapter-token",
+    )
+
+    response = TestClient(app).get("/live")
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "alive"}
+
+
 def test_gateway_rejects_missing_token_before_opening_glpi_session():
     def client_factory():
         raise AssertionError("GLPI must not be contacted")

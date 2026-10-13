@@ -347,6 +347,32 @@ recriação; o preflight do volume e a issue #76 continuam obrigatórios antes
 de qualquer recriação ou promoção durável. Nenhuma rede/container produtivo
 foi alterado neste ensaio.
 
+Entrada executável candidata, 13/10 ~11:15 BRT, **não implantada**:
+`glpi_maintenance_runtime.build_app` só inicia com URL privada, lista explícita
+de um a cinco IDs de Computer, App-Token, user token e bearer em arquivos
+separados; os três valores não entram no Compose ou no Git. O adaptador
+continua permitindo apenas GET de Computer aprovado e devolve três campos;
+`/live` indica apenas processo vivo, não saúde do GLPI. `GLPIClient` deixou de
+carregar Settings quando URL e ambos os tokens foram dados explicitamente,
+evitando efeitos colaterais da configuração geral no sidecar. O override
+`app/docker-compose.glpi-maintenance.yml` é opt-in: acrescenta rede interna
+e IP estático ao gateway, mantém GLPI em `ninf-net`, não publica porta e monta
+três secrets. `docker compose config --quiet` na CLI real passou com valores
+**fictícios**; o modelo resolvido preservou `ninf-net` em GLPI/gateway,
+`app_glpi-state` em `/var/glpi`, rede privada `internal`, três secrets e zero
+portas publicadas para o gateway. Não foi usado token real nesse ensaio,
+nenhum container/rede foi criado ou alterado. Testes focados 25 PASS;
+backend+escopo 486 PASS/1 SKIP, Ruff/Black PASS. MyPy do módulo passou com
+o `import-untyped` preexistente de pgvector isolado na execução local.
+
+Antes de aplicar o override: comprovar subnet sem colisão, imagem da release
+contendo o entrypoint, secret files/permissions, IP estável após recriação,
+filtro de cliente GLPI limitado a esse IP, rota pública autenticada negada,
+Hub/worker com a credencial 106 negados mesmo usando a API direta, e matriz de
+objeto/entidade 1 permitida vs. 5 negada no gateway. O override deixa a rota
+nativa da identidade Hub 94 intacta; não confundir isso com isolamento geral
+da API. O contrato candidato é só leitura e não cria os três ativos.
+
 1. Projetar e ensaiar filtro nativo por cliente/IP ou separação de rede/rota
    mantendo UI/SSO legítimos.
    Confirmar também se a rota pública expõe `apirest.php`; bloquear o token
