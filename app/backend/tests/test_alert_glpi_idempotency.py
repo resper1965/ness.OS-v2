@@ -1,16 +1,18 @@
 import json
+import asyncio
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from celery.exceptions import Retry
+from sqlalchemy.exc import OperationalError
 
 from app.integrations.glpi import GLPIPermanentError, GLPITransientError
 from app.ml.analyzer import AIAnalysisResult
 from app.models import Incident, IncidentAction
 from app.workers import alerts
-from app.workers.alerts import ensure_glpi_ticket
+from app.workers.alerts import ensure_glpi_ticket, ensure_glpi_ticket_serialized
 
 
 def test_glpi_ticket_body_escapes_alert_and_analysis_text():
@@ -130,6 +132,84 @@ async def test_timeout_after_post_recovers_existing_ticket_before_reposting():
     assert await ensure_glpi_ticket(glpi, **kwargs) == (456, False)
     glpi.create_ticket.assert_awaited_once()
     glpi.add_comment.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_concurrent_workers_serialize_lookup_and_ticket_creation(monkeypatch):
+    lock = asyncio.Lock()
+    stored = {"ticket_id": None, "posts": 0}
+
+    @asynccontextmanager
+    async def session_factory():
+        session = MagicMock()
+
+        @asynccontextmanager
+        async def transaction():
+            try:
+                yield
+            finally:
+                if lock.locked():
+                    lock.release()
+
+        async def execute(statement, _params=None):
+            if "pg_advisory_xact_lock" in str(statement):
+                await lock.acquire()
+
+        session.begin.side_effect = transaction
+        session.execute = execute
+        yield session
+
+    glpi = AsyncMock()
+
+    async def find_ticket(_marker, _entity_id):
+        return stored["ticket_id"]
+
+    async def create_ticket(**_kwargs):
+        stored["posts"] += 1
+        await asyncio.sleep(0)
+        stored["ticket_id"] = 456
+        return {"id": 456}
+
+    glpi.find_ticket_by_name_marker.side_effect = find_ticket
+    glpi.create_ticket.side_effect = create_ticket
+    monkeypatch.setattr(alerts, "SessionLocal", session_factory)
+    kwargs = dict(fingerprint="e" * 64, entity_id=8, category_id=1,
+                  title="Synthetic", content="Synthetic")
+
+    results = await asyncio.gather(
+        ensure_glpi_ticket_serialized(glpi, **kwargs),
+        ensure_glpi_ticket_serialized(glpi, **kwargs),
+    )
+
+    assert sorted(results) == [(456, False), (456, True)]
+    assert stored["posts"] == 1
+
+
+@pytest.mark.asyncio
+async def test_ticket_lock_timeout_retries_without_creating_ticket(monkeypatch):
+    session = MagicMock()
+    session.execute = AsyncMock(side_effect=OperationalError("lock", {}, Exception("timeout")))
+
+    @asynccontextmanager
+    async def transaction():
+        yield
+
+    @asynccontextmanager
+    async def session_factory():
+        yield session
+
+    session.begin.side_effect = transaction
+    monkeypatch.setattr(alerts, "SessionLocal", session_factory)
+    glpi = AsyncMock()
+
+    with pytest.raises(GLPITransientError):
+        await ensure_glpi_ticket_serialized(
+            glpi, fingerprint="e" * 64, entity_id=8, category_id=1,
+            title="Synthetic", content="Synthetic",
+        )
+
+    glpi.find_ticket_by_name_marker.assert_not_awaited()
+    glpi.create_ticket.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -524,9 +604,19 @@ async def test_pipeline_persists_incident_and_retries_glpi_failure(
             raise RuntimeError("Commit failed")
         committed.append(True)
 
+    lock_session = MagicMock()
+    lock_session.execute = AsyncMock()
+
+    @asynccontextmanager
+    async def lock_transaction():
+        yield
+
+    lock_session.begin.side_effect = lock_transaction
+    sessions = iter((lock_session, session))
+
     @asynccontextmanager
     async def session_factory():
-        yield session
+        yield next(sessions)
 
     session.begin.side_effect = transaction
     whatsapp = AsyncMock()

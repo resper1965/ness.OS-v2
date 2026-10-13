@@ -1,4 +1,5 @@
 import asyncio
+from hashlib import blake2b
 import json
 import logging
 import re
@@ -9,7 +10,8 @@ from uuid import uuid4
 
 from celery.exceptions import Retry
 from redis import Redis
-from sqlalchemy import select
+from sqlalchemy import select, text
+from sqlalchemy.exc import OperationalError
 
 from app.config import get_settings
 from app.database import SessionLocal
@@ -224,6 +226,30 @@ async def ensure_glpi_ticket(
     return ticket_id, True
 
 
+async def ensure_glpi_ticket_serialized(
+    glpi: GLPIClient, *, fingerprint: str, entity_id: int,
+    category_id: int, title: str, content: str, linked_item: dict | None = None,
+) -> tuple[int, bool]:
+    """Serialize lookup and create across workers for the same tenant/event."""
+    identity = f"glpi-ticket:{entity_id}:{fingerprint}".encode("utf-8")
+    lock_key = int.from_bytes(blake2b(identity, digest_size=8).digest(), "big", signed=True)
+    async with SessionLocal() as session:
+        async with session.begin():
+            try:
+                await session.execute(text("SET LOCAL lock_timeout = '15s'"))
+                await session.execute(
+                    text("SELECT pg_advisory_xact_lock(:lock_key)"),
+                    {"lock_key": lock_key},
+                )
+            except OperationalError as exc:
+                raise GLPITransientError("GLPI ticket lock temporarily unavailable") from exc
+            return await ensure_glpi_ticket(
+                glpi, fingerprint=fingerprint, entity_id=entity_id,
+                category_id=category_id, title=title, content=content,
+                linked_item=linked_item,
+            )
+
+
 async def lookup_glpi_asset(host_id: str, customer: str) -> dict | None:
     async with SessionLocal() as session:
         asset = (
@@ -305,7 +331,7 @@ async def _async_process_alert_v1(
     try:
         await glpi.init_session()
         category_id = resolve_glpi_category_id(alert_data)
-        ticket_id, ticket_created = await ensure_glpi_ticket(
+        ticket_id, ticket_created = await ensure_glpi_ticket_serialized(
             glpi,
             fingerprint=fingerprint,
             entity_id=entity_id,

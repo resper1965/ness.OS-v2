@@ -361,3 +361,14 @@ ticket fica pesquisável; o replay o reutiliza sem novo POST. Suíte backend:
 `ticket_retry_exhausted` sem payload e mantém a tarefa falha; o classificador
 reporta essa classe separadamente. Isto não prova corrida entre workers ou consistência
 imediata da busca GLPI; ainda falta teste concorrente e canário real.
+
+Serialização entre workers foi implementada na release candidata com
+`pg_advisory_xact_lock(bigint)` por entidade+fingerprint, adquirido antes da
+busca e liberado com o fim da transação. Timeout de lock de 15 s vira falha
+transitória, sem POST. Dois workers simulados produziram um POST e sonda no
+PostgreSQL real confirmou espera serializada sem escrita. Suíte backend:
+428 PASS, 1 SKIP. Isto não garante que um POST cuja resposta se perdeu já
+estará pesquisável imediatamente no GLPI; canário real e gate de produção
+seguem pendentes. GH Actions não iniciou os cinco jobs do commit 80ee26c
+por faturamento/limite da conta (annotation do job 115098127227); issue 67
+já contém ação humana. Não foi feito deploy nem replay.

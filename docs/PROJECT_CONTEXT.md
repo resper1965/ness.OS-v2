@@ -40,6 +40,13 @@ falha visível e registra ação `ticket_retry_exhausted` sem payload. Suíte
 backend: 426 PASS, 1 SKIP; classificador: 3 PASS. Nenhuma dessas
 alterações foi promovida ao runtime produtivo.
 
+Concorrência T04: release candidata usa `pg_advisory_xact_lock` por entidade
+e fingerprint durante busca/criação de ticket, com espera máxima de 15 s e
+falha transitória em timeout. Ensaio de dois workers simulados e sonda de
+bloqueio no PostgreSQL real, sem escrita, passaram. Suíte backend: 428 PASS,
+1 SKIP. A busca GLPI após POST ainda exige canário real antes de aprovar
+idempotência de ponta a ponta.
+
 Diagnóstico somente leitura encontrou 159 incidentes sem ticket: 115 antigos
 sem falha registrada, 29 recentes com `ticket_failed` não classificado e 15
 sem ID de evento de origem. Os 29 surgiram na hora 02:00 UTC e o worker
