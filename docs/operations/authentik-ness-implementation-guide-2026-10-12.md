@@ -235,3 +235,18 @@ callback válido pós-login, state/nonce no cliente, troca de código, revogaç�
 MFA ou sessão autenticada. Nenhum token/código/segredo utilizado ou exportado,
 nenhuma configuração alterada. Critérios satisfeitos encerraram a rodada sem
 ampliar para testes repetidos de branding ou outros providers.
+
+## 8. Publicação direta de backends — 12/10 após21:17 BRT
+
+Docker NetworkSettings.Ports observado para ninf-glpi,
+ninf-authentik-server e ninf-authentik-worker: nenhum host port publicado,
+zero bindings wildcard. O proxy público não foi alterado. PASS restrito à
+ausência de publicação direta desses três containers; não é prova integral
+de firewall, rota IPv6, host-network, todos os peers internos ou acesso
+autenticado entre tenants. Não exportadas variáveis de ambiente ou inspect
+completo, nem executada varredura de rede.
+
+Dependências humanas já existentes foram localizadas, evitando duplicar issue
+ou enviar nova cobrança: #66 cadastro MFA nominal, #51 jornadas/RBAC e #59
+recuperação/notificação. Procedimentos já enviados continuam válidos. Não
+fabricar fatores em nome dos usuários ou aprovar G2 com testes sem sessão.
