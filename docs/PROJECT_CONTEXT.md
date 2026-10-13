@@ -10,6 +10,11 @@ suíte backend 462 PASS/1 SKIP. Sem deploy nem alteração de topologia: a rota
 direta interna e a seleção indevida da entidade descendente permanecem; conta
 106 inativa, T03/G2 bloqueados. Ver ADR 0020 e ledger do plano master.
 
+GLPI T10, 13/10 ~10:45 BRT: paleta nativa `ness-light.scss` instalada no
+diretório persistente de temas, com hash/permissões conferidos e sem seleção
+por usuário ou default. Rota pública de login permaneceu 302 para SSO. Falta
+login nominal e inspeção visual nas jornadas/móvel; branding não está aceito.
+
 T12 GLPI/ness.AI, 13/10 ~09:25 BRT: a busca de artigos no plugin (ainda não
 instalado) foi restringida à entidade exata do chamado e à permissão nativa
 `KnowbaseItem::canViewItem()`. Sem entidade ou sem vínculo explícito não há

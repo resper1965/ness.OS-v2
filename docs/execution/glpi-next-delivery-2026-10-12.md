@@ -54,11 +54,12 @@ core, inventar logo ou aplicar paleta global sem ensaio visual/contraste e
 rollback. Preparar primeiro paleta ness. por entidade e inspecionar render
 desktop/móvel quando houver sessão nominal.
 
-Em 13/10 ~10:40 BRT, `config/glpi/ness-light.scss`, manifesto e
-`docs/operations/glpi-ness-experience.md` foram preparados como **candidato
-não implantado**. O seletor é exclusivo do tema e não troca logo/ativo do
-GLPI. JSON válido; inspeção visual e piloto nominal ainda pendentes, logo T10
-não está aceito.
+Em 13/10 ~10:45 BRT, `config/glpi/ness-light.scss`, manifesto e
+`docs/operations/glpi-ness-experience.md` foram versionados. O arquivo foi
+instalado em `/var/glpi/files/_themes` com hash local/remoto igual e
+permissões `644:33:33`; ninguém foi migrado para o tema. GET público do login
+seguiu 302 para SSO. O seletor é exclusivo do tema e não troca logo/ativo do
+GLPI. Inspeção visual e piloto nominal ainda pendentes, logo T10 não aceito.
 
 ## T04 — backlog sem ticket, 13/10 07:55 UTC
 
