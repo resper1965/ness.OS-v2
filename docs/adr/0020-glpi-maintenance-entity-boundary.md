@@ -4,6 +4,22 @@
 - Data: 13/10/2026
 - Escopo: identidade `svc_ness_maintenance` (106), perfil 13, entidade Alupar (1)
 
+## Estado produtivo em 13/10, 08:34 BRT
+
+A dependência de persistência da issue #76 foi migrada para o volume nomeado
+`app_glpi-state`, com backup, comparação e guard aprovados; o volume original
+permanece intacto. A issue fica aberta para smoke nominal/observação. O
+`app/Caddyfile` candidato foi carregado no Caddy produtivo e passou na rota
+real: quatro variantes públicas de `/apirest.php` retornaram 403, enquanto
+UI GLPI=302 para SSO, Hub=200, SSO=302 e API interna GLPI=200. O bind mount
+do Caddy reteve inicialmente o inode antigo após `install`; a configuração
+foi carregada pelo admin endpoint e, em seguida, somente `ninf-caddy` foi
+recriado com o mesmo hash de serviço Compose. Inodes e SHA-256 do Caddyfile
+no host e no contêiner coincidem; as sete rotas reais foram novamente
+verificadas após a recriação. Este bloqueio público não remove a
+rede compartilhada Hub/worker↔GLPI nem limita a troca de entidade da conta
+106. T03/G2 seguem bloqueados e 106 permanece inativa.
+
 ## Problema comprovado
 
 A associação da conta 106 à entidade 1, marcada não recursiva, não impediu

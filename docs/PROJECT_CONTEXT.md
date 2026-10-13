@@ -12,6 +12,12 @@ pública voltou ao redirect SSO 302. Volume original preservado para rollback
 explícito. Login nominal/perfil/ticket/anexos ainda pendentes; conta técnica
 106 inativa, T03/G2 não aprovados. Ver runbook do corte e issue #76.
 
+T03 borda pública, 13/10 08:36 BRT: guarda Caddy de `/apirest.php` em
+produção; quatro variantes reais retornaram 403, UI GLPI/SSO mantiveram
+redirect 302 e Hub 200. Caddy foi recriado sozinho para alinhar o bind mount;
+hash/inode coincidem e os testes foram repetidos. API interna continua 200.
+Isto não isola a rota direta na rede Docker nem aprova a conta 106.
+
 Retomada pelo modelo executor em 13/10 UTC: início da proteção de entidade
 efetiva no cliente GLPI do Hub. Código e testes locais verificados; ainda sem
 deploy ou reativação da conta técnica 106. Ver ledger do plano master em

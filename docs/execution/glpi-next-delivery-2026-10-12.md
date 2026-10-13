@@ -14,6 +14,18 @@ ticket e anexos ainda pendem; conta 106 continua desativada e T03/G2 não são
 aprovados. Procedimento e incidente de bind mount em
 `docs/operations/glpi-state-volume-cutover-2026-10-13.md`.
 
+## T03 — guarda da API pública, 13/10 08:36 BRT
+
+O Caddyfile versionado com `route`/matcher para `apirest.php` foi validado e
+carregado no runtime. GET públicos para quatro variantes — normal, maiúsculas,
+uma e duas codificações — retornaram 403; UI GLPI=302, Hub=200, SSO=302 e API
+interna GLPI=200. Somente Caddy foi recriado para reconciliar o bind mount:
+hash de Compose idêntico ao serviço anterior, inode/hash do Caddyfile igual
+no host e contêiner, zero reinícios; os mesmos sete testes HTTP passaram após
+recriação. O rollback é o Caddyfile anterior preservado root-only. A rede
+interna compartilhada Hub/worker↔GLPI permanece, portanto a conta 106 segue
+inativa; filtro público não fecha T03/G2.
+
 ## T04 — backlog sem ticket, 13/10 07:55 UTC
 
 Consulta agregada somente leitura no PostgreSQL do Hub, com transação
