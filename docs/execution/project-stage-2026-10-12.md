@@ -711,3 +711,7 @@ Zabbix origem única coletora/destino mascarado continuam preservados.
   `pywebpush` ausente neste Python; a dependência consta em `requirements.txt`.
   Aguardar CI completo no commit desta alteração. Sem replay/deploy ou escrita
   no GLPI; a conta técnica 106 continua desativada.
+- O runbook `docs/operations/glpi-backlog-remediation.md` consolida a
+  classificação, a quarentena dos 15 casos sem evento, o gate de replay e o
+  aborto por duplicata/403/paginação incerta. É procedimento preparado;
+  nenhum ticket foi criado, reprocessado ou encerrado.
