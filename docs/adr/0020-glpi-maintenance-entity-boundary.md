@@ -65,6 +65,23 @@ isso, filtro IP isolado não aprova T03/G2 nem reativação de 106. A rota públ
 autenticada não foi testada, pois nenhuma porta foi publicada; permanece aberta.
 O laboratório não altera a configuração produtiva.
 
+Segundo ensaio de rede, 13/10 04:01 UTC, testou uma variante **menos
+disruptiva**: GLPI sintético em duas redes descartáveis; Hub só na frontal;
+adaptador só na privada. O Hub alcançou `glpi-front` (HTTP 200) e não resolveu
+`glpi-private`; o adaptador alcançou `glpi-private` (HTTP 200) e não resolveu
+`glpi-front`. O servidor registrou origens distintas, `172.21.0.3` (Hub) e
+`172.22.0.3` (adaptador), conferidas contra os endereços das redes. Três
+containers sem mounts ou portas publicadas e as duas redes exclusivas foram
+removidos; a listagem posterior ficou vazia. O teste usou somente um servidor
+HTTP sintético, **não** GLPI, App-Token, SSO ou dados produtivos. Assim, é
+viável preservar o caminho atual Hub/Caddy → GLPI enquanto uma credencial
+de manutenção fica confinada à interface privada por filtro nativo de IP.
+Ainda falta provar a restrição da credencial por todas as rotas, inclusive
+a pública autenticada, com endereço estável e rollback. O caminho direto
+Hub → GLPI permanece aberto para a integração atual; esta variante só
+resolve T03 se o token da conta 106 for inacessível e inutilizável fora do
+adaptador. Não confundir isolamento de credencial com isolamento total da API.
+
 Ensaio de decisão, antes de ativar 106: em ambiente isolado, manter o mesmo
 App-Token e testar `initSession`, `changeActiveEntities`, `getActiveEntities`
 e `GET Computer` para entidade 1 e descendente 5, por três caminhos: adaptador,

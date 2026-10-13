@@ -84,6 +84,11 @@ isola a API produtiva nem autoriza criar os três ativos pendentes.
 Sonda sem credenciais no runtime confirmou uma rede compartilhada entre
 `ninf-api` e `ninf-glpi` (`BLOCKED_DIRECT_PATH`); a issue #74 foi corrigida
 com esse bloqueio e a instrução de manter 106 inativa.
+Um ensaio Docker descartável em 13/10 04:01 UTC mostrou GLPI sintético
+dual-homed, Hub na rede frontal e adaptador na privada: ambos mantiveram
+seus caminhos próprios, com IPs de origem distintos; os recursos de teste
+foram removidos. Não testou token, API GLPI nem rota pública autenticada e
+não alterou a topologia produtiva. A ADR 0020 contém a matriz e o limite.
 
 Diagnóstico somente leitura encontrou 159 incidentes sem ticket: 115 antigos
 sem falha registrada, 29 recentes com `ticket_failed` não classificado e 15
