@@ -1,8 +1,11 @@
 # Contexto canônico — ness.OS
 
+Indicador resumido e datado: [estado global](execution/ness-os-status.md).
+
 Atualizado em: 2026-10-13 (BRT)
-Estado: execução retomada; G0 tem promoção real do Hub/AIOps comprovada, mas
-permanece **PARCIAL** até CI limpo e integração protegida do workflow.
+Estado: execução retomada; G0 tem promoção real do Hub/AIOps e CI da branch
+comprovados, mas permanece **PARCIAL** até integração protegida do workflow,
+imagem publicada por digest e correspondência da release em produção.
 
 Janela Zabbix: usuário ampliou por 48 horas a partir do limite anterior;
 novo término adotado **15/10/2026 11:47:35 BRT**. O token de manutenção
@@ -36,7 +39,9 @@ poderia gerar duplicata em retry. Teste RED→GREEN, backend 476 PASS/1 SKIP;
 sem deploy ou replay. A conta 106 continua inativa.
 O CI do commit `da7e865` encontrou fixture do fluxo integrado sem o header;
 fixture corrigida para simular o contrato GLPI, suíte local 476 PASS/1 SKIP.
-Novo CI ainda precisa passar antes de aceitar a alteração como release.
+Os cinco workflows do commit `63ab9b3` passaram no SHA exato, incluindo
+backend, frontend, lint/tipos, secret scan e SBOM. Isso valida a branch,
+mas não publica imagem por digest nem promove a nova alteração em produção.
 
 GLPI T05, 13/10 ~11:10 BRT: sincronização agora falha antes de atualizar
 Asset existente se cliente ou referência GLPI conhecida mudar; código não
