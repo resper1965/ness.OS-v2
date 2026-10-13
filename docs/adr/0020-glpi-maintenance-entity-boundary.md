@@ -97,6 +97,15 @@ ticket — ficam negadas até contrato, testes e necessidade próprios. A
 identidade upstream só recebe os direitos exatos comprovados para esse
 contrato. Nenhum endpoint passa URL, método ou itemtype ao GLPI sem allowlist.
 
+Primeira fatia de código, **não implantada**: `MaintenanceBoundary` em
+`app/backend/app/integrations/glpi_boundary.py` aceita apenas leitura de
+Computer com ID previamente aprovado pelo servidor, fixa a entidade no cliente
+GLPI, confere ID e entidade do objeto retornado, reduz a resposta a três campos
+e encerra a sessão. Doze testes de política passaram; suíte backend 440 PASS,
+1 SKIP. Não há rota HTTP, autenticação do adaptador, persistência da allowlist,
+criação/exclusão ou isolamento de rede implementados nesse módulo. Portanto
+essa fatia não autoriza token, usuário 106 ou criação dos três ativos.
+
 ## Condições antes de implantar
 
 Leitura do runtime em 13/10/2026: `ninf-api` e `ninf-glpi` usam ambos
