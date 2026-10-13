@@ -40,6 +40,10 @@ API GLPI; apenas adicionar um adaptador nessa rede **não** isola o token.
 Uma requisição pública não autenticada a `n-ticket.ness.com.br/apirest.php`
 foi encaminhada ao fluxo Authentik. Isso não prova bloqueio para usuário
 autenticado ou portador de token; a rota pública exige teste negativo próprio.
+O diagnóstico sem credenciais `infra/scripts/glpi_network_boundary_probe.py`
+retornou `BLOCKED_DIRECT_PATH`, com uma rede compartilhada. O comando não
+emite `PASS`, mesmo que as redes venham a ser separadas; a fronteira requer
+prova de rotas, identidade e objetos. Três testes locais passaram.
 
 1. Projetar e ensaiar separação de rede/rota mantendo UI/SSO legítimos.
    Confirmar também se a rota pública expõe `apirest.php`; bloquear o token

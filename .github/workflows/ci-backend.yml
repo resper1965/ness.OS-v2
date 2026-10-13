@@ -80,6 +80,7 @@ jobs:
         python -m pytest -q infra/tests/test-ness-release-manifest.py
         python -m pytest -q infra/tests/test-psono-custodian-readiness.py
         python -m pytest -q infra/tests/test-zabbix-quality-wave.py
+        python -m pytest -q infra/tests/test_glpi_network_boundary_probe.py
         bash infra/tests/test-aiops-runtime-readiness.sh
 
     - name: Validate merged AIOps Compose without starting services

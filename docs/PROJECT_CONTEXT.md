@@ -68,6 +68,9 @@ preflight, Compose e payload n8n. PR #64 segue draft, `REVIEW_REQUIRED` e
 Para GLPI, a [ADR 0020](adr/0020-glpi-maintenance-entity-boundary.md) registra
 uma direção de protótipo para isolar a conta técnica 106, que continua inativa.
 O desenho não é aprovação nem substitui testes negativos diretos da API.
+Sonda sem credenciais no runtime confirmou uma rede compartilhada entre
+`ninf-api` e `ninf-glpi` (`BLOCKED_DIRECT_PATH`); a issue #74 foi corrigida
+com esse bloqueio e a instrução de manter 106 inativa.
 
 Diagnóstico somente leitura encontrou 159 incidentes sem ticket: 115 antigos
 sem falha registrada, 29 recentes com `ticket_failed` não classificado e 15
