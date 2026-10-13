@@ -2,16 +2,19 @@
 
 Indicador resumido e datado: [estado global](execution/ness-os-status.md).
 
-F0, 13/10 14:17 BRT: por solicitação do usuário, substituir GitHub Actions
-sem perder as garantias de release. PR #81 draft (`e913a1b`) contém publicador
-local candidato; 28 testes passaram, mas não houve build/push real porque Docker
-não está disponível. Actions está desativado; os quatro checks obrigatórios da
-`main` permanecem, impedindo merges até substituição segura. O usuário tornou
-o repositório privado e o renomeou para `resper1965/ness.OS-v2`; remoto local
-atualizado. Varredura anterior encontrou possíveis segredos versionados:
-privatização não desfaz exposição histórica, portanto investigar/rotacionar.
-Não remover checks até comprovar builder isolado, registro privado, digest e
-status externo equivalentes.
+F0, 13/10 14:26 BRT: por solicitação do usuário, substituir GitHub Actions
+sem perder as garantias de release. PR #81 draft (`b4725e4`) contém publicador
+local candidato; 28 testes iniciais passaram. Docker Desktop/Buildx no Windows
+construiu API e frontend localmente, sem push. O lockfile do frontend foi
+atualizado: `npm ci`, lint, build e auditoria passaram com zero vulnerabilidades;
+quatro testes focados do publicador passaram. O publicador completo ainda não
+rodou: Docker não está integrado à distro WSL e o scan de segredos bloqueia.
+Actions está desativado; os quatro checks obrigatórios da `main` permanecem,
+impedindo merges até substituição segura. O repositório é privado como
+`resper1965/ness.OS-v2`; remoto local atualizado. Possíveis segredos
+versionados estão na issue #82: privatização não desfaz exposição histórica,
+portanto investigar/rotacionar. Não remover checks até comprovar builder,
+registro privado, digest e status externo equivalentes.
 
 Atualizado em: 2026-10-13 (BRT)
 Estado: execução retomada; G0 tem promoção real do Hub/AIOps e CI da branch

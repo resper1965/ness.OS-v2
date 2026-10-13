@@ -1,6 +1,6 @@
 # ness.OS — indicador de entrega
 
-Última verificação: **13/10/2026, 14:17 BRT**. Fonte: plano master,
+Última verificação: **13/10/2026, 14:26 BRT**. Fonte: plano master,
 `PROJECT_CONTEXT.md`, estágio operacional, ledger e GitHub. Este quadro é um
 checkpoint, não telemetria em tempo real. Atualizar quando uma entrega, gate,
 bloqueio ou prazo mudar; preservar a data da última verificação.
@@ -11,7 +11,7 @@ preparação UAT ou documentação isolada.
 
 | Frente do master | Estado | Evidência e próximo marco |
 |---|---|---|
-| F0 — release/continuidade | 🟡 Parcial | PR 65 integrado na `main` em `8563f69`, por exceção pontual autorizada; proteção restaurada e conferida. PR 64 atualizado sobre a `main` em `3737172`, cinco checks PASS, ainda draft e amplo (722 arquivos). Publicação candidata no run `38433314272` falhou no push: GHCR `write_package` negado; nenhum digest novo nem deploy. Alternativa sem Actions no PR 81 draft (`e913a1b`), 28 testes locais PASS, sem build real: Docker indisponível e varredura de segredos falhou. Actions desativado, quatro checks da `main` preservados e merges bloqueados até substituição segura. Repositório confirmado PRIVATE como `resper1965/ness.OS-v2`; privatização não desfaz possível exposição de credenciais versionadas, que exigem investigação/rotação. G0/G1 globais não declarados PASS. |
+| F0 — release/continuidade | 🟡 Parcial | PR 65 integrado na `main` em `8563f69`, por exceção pontual autorizada; proteção restaurada e conferida. PR 64 atualizado sobre a `main` em `3737172`, cinco checks PASS, ainda draft e amplo (722 arquivos). Publicação candidata no run `38433314272` falhou no push: GHCR `write_package` negado; nenhum digest novo nem deploy. Alternativa sem Actions no PR 81 draft (`b4725e4`): Buildx Windows construiu API/frontend apenas localmente; lockfile corrigido, frontend `npm ci`/lint/build/auditoria 0 vulnerabilidades e 4 testes focados PASS. Publicador completo não executado (WSL sem Docker integrado e scan de segredos bloqueado, issue #82). Actions desativado, quatro checks da `main` preservados e merges bloqueados até substituição segura. Repositório PRIVATE `resper1965/ness.OS-v2`; privatização não desfaz possível exposição histórica. G0/G1 globais não declarados PASS. |
 | F1 — Authentik/tenant/Psono | 🟡 Parcial | Marca e login público Authentik verificados; MFA nominal, recuperação, jornadas autenticadas/tenant e Psono dedicado ainda sem aceite. G2 aberto. |
 | F2 — Zabbix definitivo | 🟡 UAT preparada | Destino restaurado e isolado; origem segue única coletora. Referência: 262 hosts reais + 63 protótipos; 2,086% unsupported na última amostra. SSO nominal, qualidade da frota, gates, freeze e GO faltam antes do corte. Janela até 15/10 11:47:35 BRT; token anterior expirado. |
 | F3 — GLPI | 🟡 Em execução | Volume persistente e borda pública corrigidos; busca idempotente, paginação e URL privada do gateway endurecidas na branch, sem deploy. API real confirmou o contrato de paginação. Conta 106 desativada; gateway candidato, três ativos e replay aguardam T03. Ações automáticas: 18 internas atrasadas, sem conversão; `graph` elimina arquivos antigos e não serve como canário sem efeito. Os sete agentes têm último contato em julho; piloto autenticado/isolamento registrados na issue #79, não executados. Deduplicação restante e tema ness. aguardam decisão/teste nominal. |
