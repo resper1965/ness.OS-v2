@@ -1,10 +1,39 @@
 """The maintenance gateway must fail closed before any GLPI request."""
 
+import os
+import subprocess
+import sys
+from pathlib import Path
+
 import pytest
 from fastapi.testclient import TestClient
 
 from app.integrations import glpi_maintenance_runtime
 from app.integrations.glpi_maintenance_runtime import build_app
+
+
+def test_importing_gateway_does_not_initialize_unrelated_app_settings(tmp_path):
+    env = {
+        **os.environ,
+        "PYTHONPATH": str(Path(__file__).resolve().parents[1]),
+        "NINF_VAPID_PUBLIC_KEY": "synthetic-public",
+        "NINF_VAPID_PRIVATE_KEY": "synthetic-private",
+    }
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "import app.integrations.glpi_maintenance_runtime; "
+            "from app.config import get_settings; "
+            "assert get_settings.cache_info().currsize == 0",
+        ],
+        cwd=tmp_path,
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr
 
 
 def test_runtime_rejects_public_glpi_url(monkeypatch, tmp_path):
