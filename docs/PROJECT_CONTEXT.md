@@ -15,13 +15,13 @@ pela autorização explícita de execução; gates e janela continuam vigentes.
 
 Destino atualizado por instrução humana: **produção completa**, cobrindo todas
 as entidades/ativos existentes e fases de operação assistida/segurança. Piloto
-interno é somente canário; não encerrar no MVP. Planejamento continua sem execução
-pelo modelo autor. Aplicam-se os gates específicos, sem dispensar segurança.
+interno é somente canário; não encerrar no MVP. A execução está autorizada na
+branch de entrega; aplicam-se os gates específicos, sem dispensar segurança.
 
 [Plano master ness.OS](superpowers/plans/2026-10-12-ness-os-plano-master.md)
 consolida sequência, decisões e aceites; planos de produto detalham tarefas e
-registros de execução mantêm evidências. Planejamento concluído, sem execução
-por seu modelo autor, conforme instrução humana. Automação permanece pausada.
+registros de execução mantêm evidências. A continuação automática do plano
+master foi reativada; isso não renova a janela histórica de mutações.
 As prioridades e números abaixo são históricos onde divergem dos registros
 de 12/10; retomar pelo master e pelo último resultado da ferramenta foco.
 

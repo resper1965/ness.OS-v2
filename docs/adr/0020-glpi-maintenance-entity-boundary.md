@@ -34,6 +34,33 @@ adaptador ou rota pública chegarem ao GLPI com o mesmo IP percebido, o filtro
 não os distingue. Também não restringe, por si só, a troca de entidade da
 sessão autenticada observada no teste negativo.
 
+Ensaio sintético de 13/10/2026: no mesmo host, foram iniciados GLPI 11.0.8 e
+MariaDB descartáveis numa rede Docker interna, sem porta publicada e com base
+nova; a versão e os hashes de `API.php`/`Toolbox.php` coincidem com o runtime
+produtivo. Foram criadas entidade pai 1, filha 2, Computer em cada uma, perfil
+com somente `computer=13` e usuário ligado à pai sem recursão, sem o perfil
+padrão automático. Um cliente API com App-Token foi restrito ao IP do
+adaptador sintético. Nenhum token, senha, sessão ou dado produtivo entrou no
+laboratório ou nos relatórios.
+
+| Verificação sintética | Resultado observado |
+| --- | --- |
+| Login pelo adaptador com App-Token e senha | HTTP 200 |
+| Login do Hub simulado com o mesmo App-Token/senha | HTTP 400 |
+| Hub com `X-Forwarded-For` forjado | HTTP 400 |
+| Leitura do Computer pai no perfil mínimo | HTTP 200 |
+| Leitura do Computer filho antes/depois de `changeActiveEntities` para 2 | HTTP 403/403 |
+| Seleção da filha | HTTP 200, mas entidade efetiva permaneceu 1 |
+| Seleção prévia `all` recursiva, depois filha | entidade efetiva permaneceu 1; filho HTTP 403 |
+| Login por `user_token` e replay da sessão no Hub simulado | pai HTTP 200; filho HTTP 403; Hub HTTP 400 |
+
+O ensaio **não reproduziu** o acesso indevido à entidade 5 já observado no
+runtime produtivo com a conta 106. Portanto não invalida a falha real nem
+aprova T03/G2: investigar diferença de sessão/cache/rota/configuração,
+executar teste negativo direto sob controle após obter causa e manter 106
+desativada. A rota pública autenticada não foi testada no laboratório porque
+nenhuma porta foi publicada; esse requisito também permanece aberto.
+
 Ensaio de decisão, antes de ativar 106: em ambiente isolado, manter o mesmo
 App-Token e testar `initSession`, `changeActiveEntities`, `getActiveEntities`
 e `GET Computer` para entidade 1 e descendente 5, por três caminhos: adaptador,

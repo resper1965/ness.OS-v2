@@ -1,6 +1,6 @@
 # ness.OS — plano master de produção
 
-> **Estado: planejamento consolidado, sem execução nesta rodada.** O usuário determinou implementação por outro modelo. Na retomada, usar `ponytail:ponytail` full e `superpowers:executing-plans`. Automação antiga permanece pausada até ordem humana de execução.
+> **Estado: execução autorizada e em andamento na branch de entrega.** Usar `ponytail:ponytail` full e `superpowers:executing-plans`; conferir o ledger e o último estágio antes de agir. A continuação do plano master está ativa, mas não renova janelas nem aprova gates.
 
 **Objetivo:** entregar o ness.OS em produção, atendendo os clientes e ativos existentes com identidade, cofre, monitoração, inventário, atendimento, Hub, AIOps assistido e SecOps, experiência ness., evidência e retorno. O projeto não encerra na demonstração de um MVP.
 
