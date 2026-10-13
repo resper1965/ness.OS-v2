@@ -184,6 +184,30 @@ Não houve desativação/renomeação adicional. A issue #77 continua como trilh
 de reconciliação por grupos, com conta canônica comprovada, export,
 rollback e login nominal após cada onda de até cinco.
 
+### Dedupe controlada, 13/10 ~10:30 BRT
+
+A comparação de `glpi_profiles_users` revelou que **nenhum** dos 34 pares
+tem grants idênticos. Nos 33 pares ativo/ativo, o cadastro legado tem
+`Technician` (perfil 6; alguns também `Self-Service`), enquanto o cadastro
+LDAP tem `Observer` (perfil 2). Portanto não há regra segura para desativar
+em massa ou copiar o perfil antigo para o LDAP: a primeira opção pode
+retirar atendimento técnico; a segunda pode elevar privilégio. A decisão
+por par está solicitada na issue #77, sem nomes/e-mails públicos.
+
+O único par com legado já inativo, IDs 8/93, foi reconciliado por API nativa
+com `infra/scripts/glpi_dedupe_inactive.py`. Precondições, ensaio dry-run,
+export completo anterior root-only `0600`, PUT apenas de `name` e `is_active`
+inalterado, readback do LDAP e sessão encerrada passaram. Auditoria
+independente: 34 → 33 colisões, todas as 33 restantes ativo/ativo; usuários
+ativos continuam 75. Nenhum perfil, grupo, ticket ou e-mail foi alterado.
+O arquivo anterior fica em
+`/opt/n-infraops/rollback/glpi-dedupe-20261013/user8-before.json` no host;
+retorno usa PUT nativo do nome/status guardados nele, não SQL.
+
+Uma instrução por e-mail a Ismael/Ricardo foi tentada, mas Gmail retornou
+HTTP 403 por quota temporária. Não presumir envio; conferir Sent antes de
+repetir. O comentário da issue #77 contém requisito e passos sem PII.
+
 ## T07 — preflight de inventário, 13/10 06:18 UTC
 
 Relatórios existentes executados via `ssh ... bash -s`, sem instalar script nem

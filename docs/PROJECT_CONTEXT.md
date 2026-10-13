@@ -45,6 +45,13 @@ registros de plugins seguem sem código carregado; 24 tabelas residuais,
 incluindo 25 linhas de `escalade` e uma de `nessai`. Não desinstalar à força:
 script nativo ausente, dados e dependências ainda não reconciliados. Ver
 auditoria e decisão em `docs/execution/glpi-next-delivery-2026-10-12.md`.
+Atualização ~10:30 BRT: pares ativo/ativo têm grants divergentes — legado
+`Technician`, LDAP `Observer`. A única colisão cujo legado já estava
+inativo (IDs 8/93) foi removida por renomeação nativa do inativo, com
+snapshot root-only e readback; duplicidades 34→33, ativos permanecem 75.
+Os 33 pares restantes exigem decisão RBAC na issue #77 antes de desativar
+legados ou copiar privilégios. Nenhum plugin foi desinstalado. O envio de
+instrução por Gmail falhou por quota 403; confirmar Sent antes de repetir.
 
 T03 borda pública, 13/10 08:36 BRT: guarda Caddy de `/apirest.php` em
 produção; quatro variantes reais retornaram 403, UI GLPI/SSO mantiveram

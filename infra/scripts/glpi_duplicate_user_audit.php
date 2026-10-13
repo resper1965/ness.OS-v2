@@ -57,6 +57,20 @@ foreach ($byLogin as $ids) {
 }
 usort($groups, fn (array $a, array $b): int => $b['active'] <=> $a['active'] ?: $b['total'] <=> $a['total']);
 $references = [];
+$profileSets = array_fill_keys($duplicateIds, []);
+foreach ($DB->request([
+    'SELECT' => ['users_id', 'profiles_id', 'entities_id', 'is_recursive'],
+    'FROM' => 'glpi_profiles_users',
+    'WHERE' => ['users_id' => $duplicateIds],
+]) as $row) {
+    $profileSets[(int) $row['users_id']][] = implode(':', [
+        $row['profiles_id'], $row['entities_id'], $row['is_recursive'],
+    ]);
+}
+foreach ($profileSets as &$set) {
+    sort($set);
+}
+unset($set);
 foreach (['glpi_tickets_users', 'glpi_profiles_users', 'glpi_groups_users', 'glpi_itilfollowups'] as $table) {
     $references[$table] = array_fill_keys($duplicateIds, 0);
     foreach ($DB->request([
@@ -80,9 +94,13 @@ foreach ($groups as &$group) {
         'ever_logged_in' => !empty($users[$id]['last_login']),
         'ticket_links' => $references['glpi_tickets_users'][$id],
         'profile_links' => $references['glpi_profiles_users'][$id],
+        'profile_grants' => $profileSets[$id],
         'group_links' => $references['glpi_groups_users'][$id],
         'followups' => $references['glpi_itilfollowups'][$id],
     ], $group['ids']);
+    $group['same_profile_grants'] = count(array_unique(array_map(
+        fn (int $id): string => implode('|', $profileSets[$id]), $group['ids']
+    ))) === 1;
 }
 unset($group);
 $result = [
