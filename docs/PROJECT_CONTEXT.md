@@ -4,6 +4,21 @@ Atualizado em: 2026-10-13 (BRT)
 Estado: execução retomada; G0 tem promoção real do Hub/AIOps comprovada, mas
 permanece **PARCIAL** até CI limpo e integração protegida do workflow.
 
+GLPI T03, 13/10 ~11:20 BRT: candidata de gateway privado no commit `fd56543`
+foi versionada, **sem deploy**. A entrada exige URL privada, allowlist de
+um a cinco IDs e três segredos em arquivos; o Compose opt-in passou `config
+--quiet` na CLI real com valores fictícios, preservando GLPI em `ninf-net` e
+o volume `/var/glpi`, acrescentando rede interna sem porta pública no
+gateway. Backend+escopo 486 PASS/1 SKIP, lint/formatação PASS. Ainda faltam
+subnet/secret/image de release, matriz negativa real e contrato de escrita.
+Conta 106 inativa; três ativos não criados. Issue #74 e ADR 0020.
+
+GLPI T05, 13/10 ~11:10 BRT: sincronização agora falha antes de atualizar
+Asset existente se cliente ou referência GLPI conhecida mudar; código não
+implantado. A paleta `ness.` permanece opt-in e sem aceite visual na issue
+#78; os 33 pares de logins ativo/ativo aguardam decisão RBAC na issue #77.
+Instruções dessas duas issues foram enviadas a Ismael/Ricardo, sem segredos.
+
 GLPI T03, 13/10 ~10:30 BRT: o protótipo de adaptador agora recusa URL GLPI
 pública/ausente antes de abrir sessão. Teste RED→GREEN, 30 testes focados e
 suíte backend 462 PASS/1 SKIP. Sem deploy nem alteração de topologia: a rota
