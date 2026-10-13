@@ -450,3 +450,13 @@ passaram; backend parou em seis arquivos sem Black e lint no import de
 `blake2b`. Formatação, import e anotação MyPy corrigidos; Black `--check .`,
 flake8 estrito, Ruff lint/format, MyPy e 428 testes passaram localmente.
 Checks remotos da nova revisão ainda devem ser confirmados antes de G0.
+
+# NessAI — erro HTTP do assistente (13/10)
+
+O endpoint do plugin versionado agora devolve erro genérico HTTP 500 quando
+uma exceção interna ocorre, sem repassar a mensagem do provedor ao navegador.
+Parâmetro inválido continua HTTP 400. Teste sintético RED→GREEN, teste de
+resposta autorizada, negação de ticket e lint PHP passaram em contêiner
+isolado. O plugin **não está implantado**; a resposta de erro produzida
+normalmente por `callLLM`, a pesquisa KB entre entidades e a política de
+dados enviados à IA ainda precisam de revisão antes de qualquer ativação.
