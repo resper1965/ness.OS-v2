@@ -34,14 +34,17 @@ adaptador ou rota pública chegarem ao GLPI com o mesmo IP percebido, o filtro
 não os distingue. Também não restringe, por si só, a troca de entidade da
 sessão autenticada observada no teste negativo.
 
-Ensaio sintético de 13/10/2026: no mesmo host, foram iniciados GLPI 11.0.8 e
-MariaDB descartáveis numa rede Docker interna, sem porta publicada e com base
-nova; a versão e os hashes de `API.php`/`Toolbox.php` coincidem com o runtime
-produtivo. Foram criadas entidade pai 1, filha 2, Computer em cada uma, perfil
-com somente `computer=13` e usuário ligado à pai sem recursão, sem o perfil
-padrão automático. Um cliente API com App-Token foi restrito ao IP do
-adaptador sintético. Nenhum token, senha, sessão ou dado produtivo entrou no
-laboratório ou nos relatórios.
+Ensaio sintético **válido** de 13/10/2026: no mesmo host, GLPI 11.0.8 e MariaDB
+descartáveis rodaram em rede Docker interna sem porta publicada e banco novo;
+versão e hashes de `API.php`/`Toolbox.php` coincidem com a produção. Entidades
+pai 1 e filha 2 foram criadas pelo modelo nativo em contexto CLI cron, e o
+readback confirmou `entities_id=1` e `getAncestorsOf(2)` contendo 1. Havia um
+Computer em cada entidade, perfil só com `computer=13`, usuário ligado apenas
+à pai sem recursão e sem perfil padrão automático. Um cliente API com App-Token
+foi restrito ao IP do adaptador sintético. Nenhum dado ou segredo produtivo
+entrou no laboratório ou no relatório. O primeiro fixture, que não verificava
+a hierarquia efetiva, foi **descartado**; seus resultados não são evidência de
+isolamento.
 
 | Verificação sintética | Resultado observado |
 | --- | --- |
@@ -49,17 +52,18 @@ laboratório ou nos relatórios.
 | Login do Hub simulado com o mesmo App-Token/senha | HTTP 400 |
 | Hub com `X-Forwarded-For` forjado | HTTP 400 |
 | Leitura do Computer pai no perfil mínimo | HTTP 200 |
-| Leitura do Computer filho antes/depois de `changeActiveEntities` para 2 | HTTP 403/403 |
-| Seleção da filha | HTTP 200, mas entidade efetiva permaneceu 1 |
-| Seleção prévia `all` recursiva, depois filha | entidade efetiva permaneceu 1; filho HTTP 403 |
-| Login por `user_token` e replay da sessão no Hub simulado | pai HTTP 200; filho HTTP 403; Hub HTTP 400 |
+| Leitura do Computer filho antes de `changeActiveEntities` | HTTP 403 |
+| Seleção da filha e entidade efetiva | HTTP 200; entidade efetiva 2 |
+| Leitura do Computer filho depois da seleção | HTTP 200 — isolamento nativo falhou |
+| Mesmo fluxo por `user_token` | filho HTTP 403 → seleção HTTP 200 → filho HTTP 200 |
+| Replay da sessão/token pelo Hub simulado | HTTP 400 pelo filtro IP/App-Token |
 
-O ensaio **não reproduziu** o acesso indevido à entidade 5 já observado no
-runtime produtivo com a conta 106. Portanto não invalida a falha real nem
-aprova T03/G2: investigar diferença de sessão/cache/rota/configuração,
-executar teste negativo direto sob controle após obter causa e manter 106
-desativada. A rota pública autenticada não foi testada no laboratório porque
-nenhuma porta foi publicada; esse requisito também permanece aberto.
+O ensaio **reproduziu** a falha de isolamento observada na produção: o grant
+não recursivo não impede seleção da descendente. O filtro IP/App-Token barra
+outro IP, mas não restringe troca de entidade dentro da sessão permitida. Por
+isso, filtro IP isolado não aprova T03/G2 nem reativação de 106. A rota pública
+autenticada não foi testada, pois nenhuma porta foi publicada; permanece aberta.
+O laboratório não altera a configuração produtiva.
 
 Ensaio de decisão, antes de ativar 106: em ambiente isolado, manter o mesmo
 App-Token e testar `initSession`, `changeActiveEntities`, `getActiveEntities`

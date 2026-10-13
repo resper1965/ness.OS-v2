@@ -68,6 +68,12 @@ preflight, Compose e payload n8n. PR #64 segue draft, `REVIEW_REQUIRED` e
 Para GLPI, a [ADR 0020](adr/0020-glpi-maintenance-entity-boundary.md) registra
 uma direção de protótipo para isolar a conta técnica 106, que continua inativa.
 O desenho não é aprovação nem substitui testes negativos diretos da API.
+Ensaio sintético válido em 13/10 confirmou a falha: usuário somente na entidade
+pai, perfil mínimo e grant não recursivo recebeu HTTP 200 para Computer da
+filha após `changeActiveEntities`; antes recebeu 403. O mesmo ocorreu por
+`user_token`. Filtro IP/App-Token negou o Hub simulado, mas não conteve a
+troca de entidade na sessão do adaptador. O primeiro fixture tinha hierarquia
+não validada e foi descartado. T03/G2 seguem bloqueados; 106 não foi reativada.
 Sonda sem credenciais no runtime confirmou uma rede compartilhada entre
 `ninf-api` e `ninf-glpi` (`BLOCKED_DIRECT_PATH`); a issue #74 foi corrigida
 com esse bloqueio e a instrução de manter 106 inativa.
