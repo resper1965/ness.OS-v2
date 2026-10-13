@@ -7,7 +7,10 @@ sem perder as garantias de release. PR #81 draft (`e913a1b`) contém publicador
 local candidato; 28 testes passaram, mas não houve build/push real porque Docker
 não está disponível. Varredura local encontrou possíveis segredos versionados;
 tratar/rotacionar antes de publicar. Repositório está público, Actions e proteção
-da `main` continuam ativos. Não remover checks até comprovar builder isolado,
+da `main` estavam ativos no checkpoint anterior. GitHub Actions foi desativado
+em 13/10 a pedido do usuário; os quatro checks obrigatórios permanecem na
+proteção, impedindo merges sem substituição segura. Não remover checks até
+comprovar builder isolado,
 registro privado, digest e status externo equivalentes. A mudança temporária
 de visibilidade foi revertida após esclarecimento do usuário.
 
