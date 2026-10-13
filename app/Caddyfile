@@ -53,17 +53,22 @@ waba.ness.com.br {
 
 # GLPI Service Desk with Authentik Forward Auth SSO
 n-ticket.ness.com.br {
-    # Autenticar via Authentik Forward Auth
-    forward_auth authentik-server:9000 {
-        uri /outpost.goauthentik.io/auth/caddy
-        copy_headers X-Authentik-Username X-Authentik-Groups X-Authentik-Email X-Authentik-Name X-Authentik-Uid
+    route {
+        @glpi_api path_regexp (?i)apirest\.php
+        respond @glpi_api 403
+
+        # Autenticar via Authentik Forward Auth
+        forward_auth authentik-server:9000 {
+            uri /outpost.goauthentik.io/auth/caddy
+            copy_headers X-Authentik-Username X-Authentik-Groups X-Authentik-Email X-Authentik-Name X-Authentik-Uid
+        }
+
+        # Injetar o username do Authentik como REMOTE_USER para o GLPI
+        request_header X-Remote-User {http.request.header.X-Authentik-Username}
+        request_header Remote-User {http.request.header.X-Authentik-Username}
+
+        reverse_proxy ninf-glpi:80
     }
-
-    # Injetar o username do Authentik como REMOTE_USER para o GLPI
-    request_header X-Remote-User {http.request.header.X-Authentik-Username}
-    request_header Remote-User {http.request.header.X-Authentik-Username}
-
-    reverse_proxy ninf-glpi:80
 }
 
 # Psono Community — temporary AIOps placement; application authentication is native.

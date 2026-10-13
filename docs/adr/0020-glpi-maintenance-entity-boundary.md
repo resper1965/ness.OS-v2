@@ -221,6 +221,19 @@ reload do Caddy produtivo. Qualquer bloqueio público futuro requer teste
 negativo autenticado de método, codificação e rota real, além de rollback;
 ele não substitui o isolamento da rota direta Hub/worker → GLPI nem resolve
 a seleção indevida da entidade descendente.
+
+Em 13/10 07:16 UTC, o Caddyfile versionado recebeu uma **candidata não
+implantada**: `respond 403` para `path_regexp (?i)apirest\.php`, dentro de
+`route` que preserva a ordem antes de `forward_auth` e `reverse_proxy`. O
+teste do JSON compilado pelo Caddy real falhou primeiro sem o guard e também
+quando `respond` ficou fora de `route`: nessa forma o `forward_auth` era
+ordenado antes da negação. Com `route`, o 403 aparece primeiro e os quatro
+caminhos sintéticos normal/case/encoding combinam com o matcher, enquanto a
+UI não combina. O ensaio anterior de HTTP sintético testou o mesmo matcher,
+mas esta mudança do Caddyfile completo **ainda não passou por HTTP real com
+SSO e GLPI**. Não há reload produtivo; nem a rota pública candidata resolve
+o caminho interno ou autoriza a conta 106.
+
 O diagnóstico sem credenciais `infra/scripts/glpi_network_boundary_probe.py`
 retornou `BLOCKED_DIRECT_PATH`, com uma rede compartilhada. O comando não
 emite `PASS`, mesmo que as redes venham a ser separadas; a fronteira requer
