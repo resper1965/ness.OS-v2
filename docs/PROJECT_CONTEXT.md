@@ -51,8 +51,15 @@ Após o repositório tornar-se público, os cinco jobs do PR #64 iniciaram.
 No commit `433c710`, Secret scan, Frontend CI, SBOM e Lint/Type passaram.
 Backend CI alcançou o fluxo integrado descartável e revelou que seu mock não
 respondia ao novo `getActiveEntities`; o mock foi atualizado, sem relaxar a
-verificação de entidade. Black, Ruff e 428 testes backend passaram localmente;
-o fluxo PostgreSQL/Redis ainda requer novo run remoto. G0 permanece pendente.
+verificação de entidade. No commit `609e296`, o fluxo PostgreSQL/Redis passou
+no Actions, assim como os outros quatro jobs; o Backend CI parou depois num
+fixture de preflight sem `NINF_API_IMAGE` e `NINF_FRONTEND_IMAGE`. O fixture foi
+completado com referências fictícias e seu teste local passou. Novo run remoto
+é necessário; G0 permanece pendente.
+
+Para GLPI, a [ADR 0020](adr/0020-glpi-maintenance-entity-boundary.md) registra
+uma direção de protótipo para isolar a conta técnica 106, que continua inativa.
+O desenho não é aprovação nem substitui testes negativos diretos da API.
 
 Diagnóstico somente leitura encontrou 159 incidentes sem ticket: 115 antigos
 sem falha registrada, 29 recentes com `ticket_failed` não classificado e 15
