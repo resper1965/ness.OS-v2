@@ -12,8 +12,18 @@ registros (`fields`, `credit`, `escalade`, `formcreator`, `gantt`, `nessai`,
 registros com o aviso visual histórico de sete atualizações disponíveis;
 um não mede o outro. Não houve instalação, limpeza, ativação ou upgrade.
 
-Próximo: identificar a proveniência e compatibilidade de cada pacote com
-GLPI 11, em especial `nessai`, `customlogin` e `singlesignon`, antes de
+O código-fonte de `nessai` **existe no repositório**, em `plugins/nessai`,
+versão 1.0.0 com requisito declarado GLPI ≥11.0; ele não está nos diretórios
+do contêiner produtivo. A leitura do endpoint revelou ausência de verificação
+de `Ticket::canViewItem()` antes de obter conteúdo/acompanhamentos e chamar
+o provedor de IA. Um teste isolado RED demonstrou leitura indevida iniciada;
+a correção local agora responde 403 antes de acessar banco/IA quando o ticket
+não é visível. O teste GREEN e lint PHP passaram; nenhuma instalação/deploy
+do plugin ocorreu. Isso não prova compatibilidade integral nem sanitização
+adequada para envio ao provedor externo.
+
+Próximo: identificar a proveniência e compatibilidade dos demais pacotes com
+GLPI 11, em especial `customlogin` e `singlesignon`, antes de
 reintroduzir código ou limpar registro. O SSO via proxy/Authentik e o core
 GLPI devem ser testados separadamente; estado de plugin não prova sua falha.
 Não executar os sete upgrades em bloco nem reconstruir o contêiner enquanto

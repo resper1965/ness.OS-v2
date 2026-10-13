@@ -57,6 +57,14 @@ try {
     if (!$ticket->getFromDB($ticketId)) {
         throw new \RuntimeException("Ticket #{$ticketId} não encontrado.");
     }
+    if (!$ticket->canViewItem()) {
+        http_response_code(403);
+        echo json_encode([
+            'success' => false,
+            'error'   => 'Acesso negado ao ticket.',
+        ], JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+        return;
+    }
 
     // ---- Build ticket context ----
     global $DB;
