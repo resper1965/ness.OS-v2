@@ -11,6 +11,14 @@ deploy ou reativação da conta técnica 106. Ver ledger do plano master em
 operacional GLPI. A antiga restrição “somente planejamento” foi substituída
 pela autorização explícita de execução; gates e janela continuam vigentes.
 
+T03 GLPI, 13/10 06:40 UTC: ensaios isolados confirmaram que `forward_auth`
+bem-sucedido deixa a API pública alcançar o upstream e que uma rede privada
+pode ser anexada a um contêiner em execução sem recriá-lo. Os ensaios não
+alteraram produção; detalhes e limites na [ADR 0020](adr/0020-glpi-maintenance-entity-boundary.md).
+A conta técnica 106 permanece inativa, sem ativos novos. A fronteira direta,
+SSO/rota real e configuração durável ainda não foram aprovadas; a issue #76
+continua pré-requisito para qualquer recriação do contêiner GLPI.
+
 ## Ponto único de retomada — plano master
 
 Destino atualizado por instrução humana: **produção completa**, cobrindo todas
