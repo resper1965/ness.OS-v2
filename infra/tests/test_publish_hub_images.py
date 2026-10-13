@@ -40,6 +40,7 @@ def fixture(tmp_path):
         "if args[:2] == ['buildx', 'build']:\n"
         "    digest = 'bad' if os.getenv('BAD_DIGEST') else 'sha256:' + ('a' if 'ninf-api:' in ' '.join(args) else 'b') * 64\n"
         "    pathlib.Path(args[args.index('--metadata-file') + 1]).write_text(json.dumps({'containerimage.digest': digest}))\n"
+        "if args[:1] == ['pull'] and os.getenv('PULL_FAIL'): sys.exit(1)\n"
     )
     docker.chmod(0o755)
     env = {
@@ -64,8 +65,21 @@ def test_clean_commit_runs_checks_and_records_two_immutable_images(tmp_path):
         "frontend": "registry.example/ness/ninf-frontend@sha256:" + "b" * 64,
     }
     calls = Path(env["DOCKER_CALLS"]).read_text().splitlines()
-    assert len(calls) == 2
-    assert all("--push" in call and "--metadata-file" in call for call in calls)
+    assert len(calls) == 4
+    assert all("--push" in call and "--metadata-file" in call for call in calls[:2])
+    assert calls[2:] == [
+        "pull registry.example/ness/ninf-api@sha256:" + "a" * 64,
+        "pull registry.example/ness/ninf-frontend@sha256:" + "b" * 64,
+    ]
+
+
+def test_pull_failure_never_creates_release_reference(tmp_path):
+    root, env, output, command, _ = fixture(tmp_path)
+    result = subprocess.run(
+        command, cwd=root, env={**env, "PULL_FAIL": "1"}, capture_output=True, text=True
+    )
+    assert result.returncode != 0
+    assert not output.exists()
 
 
 def test_dirty_tree_stops_before_checks_or_push(tmp_path):

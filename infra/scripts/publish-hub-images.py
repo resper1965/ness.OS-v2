@@ -65,6 +65,9 @@ def main() -> None:
                 raise RuntimeError(f"{name} build did not return a valid image digest")
             images[name] = f"{image}@{digest}"
 
+    for image in images.values():
+        subprocess.run(["docker", "pull", image], cwd=ROOT, check=True)
+
     result = {"commit": args.commit, **images}
     with args.output.open("x", encoding="utf-8") as release_file:
         release_file.write(json.dumps(result, indent=2) + "\n")

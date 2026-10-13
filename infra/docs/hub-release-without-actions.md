@@ -3,12 +3,16 @@
 O publicador local é `infra/scripts/publish-hub-images.py`. Ele exige um checkout
 limpo no commit revisado, executa os checks locais, constrói API e frontend com
 Docker Buildx, publica no registro privado escolhido e grava as duas referências
-imutáveis por digest. Não implanta nem altera produção.
+imutáveis por digest somente após puxar ambas do registro. Não implanta nem
+altera produção.
 
 Executar somente numa máquina de build isolada, sem volumes/segredos produtivos,
 com Docker/Buildx, Python 3.12, Node 20, Gitleaks 8 e dependências de teste
 instalados. Autenticar no registro antes por mecanismo de credenciais do Docker;
 não colocar senha ou token em argumento, arquivo do repositório ou log.
+Este script ainda executa os checks no host do builder: não o rode diretamente
+de um PR não revisado nem num host que guarde a chave da App ou tenha segredos
+produtivos. O runner isolado e o emissor externo continuam pendentes.
 
 ```bash
 python3 infra/scripts/publish-hub-images.py \
@@ -17,8 +21,9 @@ python3 infra/scripts/publish-hub-images.py \
   --output /caminho-privado/release-images.json
 ```
 
-O arquivo resultante contém somente commit e referências `@sha256`. Confirme
-que os dois digests são puxáveis pela produção, gere o manifesto de release
+O arquivo resultante contém somente commit e referências `@sha256`. O pull local
+é obrigatório antes de gravá-lo; confirme também a leitura pela produção e gere
+o manifesto de release
 existente com esses valores, valide gates, snapshot e rollback e só então
 implante. Um push parcial ou check reprovado não produz manifesto nem autoriza
 deploy. Não execute o build no host produtivo.
