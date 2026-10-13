@@ -43,7 +43,9 @@ sem falha registrada, 29 recentes com `ticket_failed` não classificado e 15
 sem ID de evento de origem. Os 29 surgiram na hora 02:00 UTC e o worker
 registrou 116 erros `ConnectError`, compatíveis com quatro tentativas por
 incidente; não está provada a causa raiz da interrupção. Sonda de leitura
-GLPI voltou a `ready`, mas não comprova escrita. Não houve replay em massa.
+GLPI voltou a `ready`, mas não comprova escrita. O classificador paginado
+somente leitura confirmou as 159 entradas em 13/10 02:20 UTC; cursor final
+76656 e sem página adicional. Não houve replay em massa.
 O usuário técnico GLPI 106 segue inativo pelo teste negativo de isolamento;
 G2 e a promoção de release continuam abertos. Próximo: reconciliador de
 backlog em dry-run, isolamento nativo estrito e só então ensaio controlado

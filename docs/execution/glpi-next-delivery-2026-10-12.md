@@ -348,6 +348,9 @@ ticket, divididos em 115 antigos sem falha registrada, 29 recentes com
 falha de entrega não classificada e 15 sem ID de evento. Os 29 recentes
 surgiram em 13/10 02:00 UTC; logs sanitizados mostraram 116 `ConnectError`
 do GLPI. O probe `glpi_readiness` voltou a ready/dry-run, sem testar escrita.
-Não houve replay, alteração de ticket ou deploy. A próxima unidade é um
-relatório de elegibilidade dry-run, seguido de ensaio idempotente restrito;
+O classificador paginado somente leitura retornou os mesmos 159 no Hub em
+13/10 02:20 UTC, cursor 76656 e sem página adicional. Sua saída agrega as
+classes sem IDs nem payloads; status da fila Celery não é inferido pelo banco.
+Testes de classificação: 3 PASS. Não houve replay, alteração de ticket ou
+deploy. A próxima unidade é um ensaio idempotente restrito;
 não inferir que os 115 antigos são seguros para replay automático.
