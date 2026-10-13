@@ -18,6 +18,10 @@ retornou `ness-light` com rótulo `ness.`. Nenhum tema foi selecionado.
 Não houve renderização autenticada ou seleção piloto, portanto T10 continua
 **não aceito**. O arquivo temporário de transferência foi removido após o
 readback; o arquivo versionado é a fonte de retorno.
+O aceite nominal está registrado na
+[issue #78](https://github.com/resper1965/n-infraops/issues/78), com instruções
+enviadas a Ismael e Ricardo; nenhuma preferência deve ser promovida antes do
+retorno dessa validação.
 
 ## Promoção controlada
 
