@@ -253,3 +253,25 @@ sem diagnóstico específico de sua falha parcial.
 ContaHub94/perfil12 preservados; não houve SQL de configuração ou callAsSystem.
 Próximo passo: credencial separada do usuário106 por API normal e testes de
 entidade permitida/negada, depois lote3. Nenhum ativo ainda criado.
+
+### Credencial técnica e falha real de isolamento
+
+Token106 gerado via PUT normal User/106/_regenerate_api_token; sessão admin
+fechada. Campo nativo é cifrado em repouso: tentativa inicial de leitura
+esperando40 caracteres falhou; não regenerado. GLPIKey nativo decifrou somente
+para arquivo root0600 /etc/ness-os/glpi-alupar-maintenance.token, sem saída de
+valor, argumento ou alteração de cifragem no banco. Login técnico106/perfil13/
+computer13 PASS; sessões encerradas.
+
+Teste negativo não passou. ChangeActiveEntities para0 retorna200 mas continua1;
+para5(subentidadeAluparPE) retorna200 e muda efetivamente para5; para8 mantém5.
+Computer de entidade5: GET antes da troca403, após troca200/entities_id5.
+Assim, não alegar isolamento não-recursivo pelo binding125/is_recursive0.
+Nenhum ativo criado, alterado ou copiado nos testes; saída somente status/IDs.
+
+Contenção por API normal: desativação exclusivamente userid106, readback
+is_active0 PASS. ContaHub94/perfil12 e usuário administrativo58 intactos.
+Não reativar manutenção até diagnóstico de seleção de entidades nativa e
+teste negativo passar. Tokens permanecem protegidos; nenhum segredo no Git.
+Próximo passo: localizar causa na seleção de entidades/API e corrigir com
+regressão/rollback, sem declarar G2 ou lote3 aprovado. Criação continua pendente.
