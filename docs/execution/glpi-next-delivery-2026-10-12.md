@@ -354,3 +354,8 @@ classes sem IDs nem payloads; status da fila Celery não é inferido pelo banco.
 Testes de classificação: 3 PASS. Não houve replay, alteração de ticket ou
 deploy. A próxima unidade é um ensaio idempotente restrito;
 não inferir que os 115 antigos são seguros para replay automático.
+
+Ensaio unitário adicional de timeout após POST: a resposta é perdida, mas o
+ticket fica pesquisável; o replay o reutiliza sem novo POST. Suíte backend:
+424 PASS, 1 SKIP. Isto não prova corrida entre workers ou consistência
+imediata da busca GLPI; ainda falta teste concorrente e canário real.

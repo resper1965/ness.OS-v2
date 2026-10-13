@@ -112,6 +112,27 @@ async def test_retry_after_comment_failure_reuses_created_ticket():
 
 
 @pytest.mark.asyncio
+async def test_timeout_after_post_recovers_existing_ticket_before_reposting():
+    glpi = AsyncMock()
+    glpi.find_ticket_by_name_marker.side_effect = [None, 456]
+    glpi.create_ticket.side_effect = GLPITransientError("response lost after create")
+    kwargs = dict(
+        fingerprint="d" * 64,
+        entity_id=8,
+        category_id=1,
+        title="Synthetic",
+        content="Synthetic",
+    )
+
+    with pytest.raises(GLPITransientError):
+        await ensure_glpi_ticket(glpi, **kwargs)
+
+    assert await ensure_glpi_ticket(glpi, **kwargs) == (456, False)
+    glpi.create_ticket.assert_awaited_once()
+    glpi.add_comment.assert_not_awaited()
+
+
+@pytest.mark.asyncio
 async def test_failed_ticket_lookup_never_creates_a_ticket():
     glpi = AsyncMock()
     glpi.find_ticket_by_name_marker.side_effect = RuntimeError("lookup unavailable")
