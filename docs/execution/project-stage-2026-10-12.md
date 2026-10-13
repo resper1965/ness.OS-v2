@@ -627,3 +627,26 @@ Provider GLPI12proxy efetivo,8OIDC nãoefetivo;legados e callbacks documentados.
 G2,SSO nominal/MFA,admin UX,logo/fonte vetorial e tradução integral pendentes.
 GLPI issue74 de identidade mínima permanece; nenhum ativo criado.
 Zabbix origem única coletora/destino mascarado continuam preservados.
+
+### Checkpoint GLPI — 13/10/2026, 11:10 BRT
+
+- O volume `/var/glpi` foi fixado em `app_glpi-state`, com original preservado;
+  o smoke nominal e anexos da issue #76 ainda precisam de aceite.
+- A borda pública da API GLPI nega variantes normais/codificadas; Hub e GLPI
+  ainda compartilham rede. A conta técnica 106 continua desativada, T03/G2
+  bloqueados e nenhum dos ativos 10983/10984/10987 foi criado.
+- Uma duplicidade inativa foi reconciliada por API normal; restam 33 pares
+  ativo/ativo com grants divergentes. A decisão nominal está na issue #77;
+  instruções foram enviadas a Ismael/Ricardo, Gmail SENT
+  `1a1358e9cee46cc8`. Não houve dedupe em massa.
+- A paleta nativa `ness.` foi instalada no volume persistente, reconhecida pelo
+  GLPI, mas não selecionada. Aceite visual em 390/1440/200% e jornadas na
+  issue #78, e-mail SENT `1a1358d9c349355a`. T10 não aprovado.
+- O sincronizador CMDB ganhou guard fail-closed para não reatribuir um ativo
+  existente a outro cliente/entidade/ID GLPI. Testes 474 PASS/1 SKIP,
+  sem deploy nem escrita de ativos. Os cinco jobs do commit `9e49063`
+  (backend, frontend, lint/tipos, secret scan, SBOM) passaram; G0 global
+  permanece pendente de release/rollback/aprovação.
+- Zabbix não sofreu mutação nesta etapa: origem segue coletora única e destino
+  mascarado. A janela anterior termina às 11:47:35 BRT; não usar autorização
+  ou token expirado para mudar essa frente depois do prazo.
