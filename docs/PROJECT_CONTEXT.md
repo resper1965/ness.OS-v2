@@ -60,6 +60,10 @@ O teste separado de preflight também assumia sete variáveis obrigatórias,
 quando o Compose exige nove; seus fixtures foram atualizados e ambos os
 testes de readiness/preflight passaram localmente. A suíte de histórico,
 relatório de integração e payload n8n também passou; ainda falta CI remoto.
+No commit `dbf4596`, os cinco jobs remotos passaram: Secret scan, Lint/Type,
+SBOM, Backend CI e Frontend CI. O Backend CI incluiu o fluxo PostgreSQL/Redis,
+preflight, Compose e payload n8n. PR #64 segue draft, `REVIEW_REQUIRED` e
+`BLOCKED`; CI verde não aprova G0 ou promoção produtiva.
 
 Para GLPI, a [ADR 0020](adr/0020-glpi-maintenance-entity-boundary.md) registra
 uma direção de protótipo para isolar a conta técnica 106, que continua inativa.
