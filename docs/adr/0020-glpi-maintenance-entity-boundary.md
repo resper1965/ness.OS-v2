@@ -33,8 +33,18 @@ contrato. Nenhum endpoint passa URL, método ou itemtype ao GLPI sem allowlist.
 
 ## Condições antes de implantar
 
-1. Confirmar no runtime a topologia de redes, portas e rotas; o Compose de
-   raiz não é prova da topologia atual do GLPI. Sem bloqueio direto de rede,
+Leitura do runtime em 13/10/2026: `ninf-api` e `ninf-glpi` usam ambos
+`app_ninf-net`; de `ninf-api`, `ninf-glpi` resolve por DNS interno. GLPI não
+publica porta Docker diretamente. Há, portanto, caminho direto entre Hub e
+API GLPI; apenas adicionar um adaptador nessa rede **não** isola o token.
+Uma requisição pública não autenticada a `n-ticket.ness.com.br/apirest.php`
+foi encaminhada ao fluxo Authentik. Isso não prova bloqueio para usuário
+autenticado ou portador de token; a rota pública exige teste negativo próprio.
+
+1. Projetar e ensaiar separação de rede/rota mantendo UI/SSO legítimos.
+   Confirmar também se a rota pública expõe `apirest.php`; bloquear o token
+   técnico fora do adaptador sem interromper usuários e outras integrações.
+   O Compose de raiz não é prova da topologia atual. Sem bloqueio direto,
    o adaptador não é fronteira de segurança.
 2. Criar fixtures sintéticas de entidade 1 e descendente 5 fora da produção;
    exportar estado e ensaiar rollback sem alterar dados reais.
