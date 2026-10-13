@@ -85,6 +85,10 @@ Quedas de transporte durante `get_item` e `list_items` no cliente compartilhado
 agora são classificadas como transitórias; testes RED reproduziram os
 `ConnectError` crus e a suíte backend passou depois em 458 testes, 1 pulado.
 Ainda sem deploy.
+Na listagem de subitens, o cliente agora segue o total informado pelo GLPI
+mesmo quando o servidor limita a página a 50 registros e recusa página vazia
+antes do total. Os dois testes RED→GREEN e a suíte backend passaram em 460
+testes, 1 pulado. Ainda não houve canário real nem promoção.
 Sonda sem credenciais no runtime confirmou uma rede compartilhada entre
 `ninf-api` e `ninf-glpi` (`BLOCKED_DIRECT_PATH`); a issue #74 foi corrigida
 com esse bloqueio e a instrução de manter 106 inativa.

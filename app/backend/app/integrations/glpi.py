@@ -253,7 +253,8 @@ class GLPIClient:
         items = []
         try:
             async with httpx.AsyncClient(timeout=15, follow_redirects=False) as client:
-                for start in range(0, 100000, 100):
+                start = 0
+                for _ in range(1000):
                     response = await client.get(
                         f"{self.base_url}/{path}",
                         headers=self.headers,
@@ -268,9 +269,12 @@ class GLPIClient:
                         raise ValueError("GLPI returned an invalid collection")
                     items.extend(page)
                     total = response.headers.get("Content-Range", "").rsplit("/", 1)[-1]
-                    if (total.isdigit() and len(items) >= int(total)) or len(
-                        page
-                    ) < 100:
+                    start += len(page)
+                    if not page and total.isdigit() and start < int(total):
+                        raise RuntimeError("GLPI returned incomplete collection")
+                    if (total.isdigit() and len(items) >= int(total)) or (
+                        not total.isdigit() and len(page) < 100
+                    ):
                         return items
         except httpx.HTTPStatusError as exc:
             raise _glpi_failure("lista de itens", exc) from exc

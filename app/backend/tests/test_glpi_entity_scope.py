@@ -170,6 +170,68 @@ async def test_glpi_list_items_connection_failure_is_transient(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_glpi_list_items_reads_all_pages_when_server_caps_page_size(monkeypatch):
+    requested = []
+
+    def handler(request):
+        start = int(request.url.params["range"].split("-")[0])
+        requested.append(start)
+        stop = min(start + 50, 120)
+        return httpx.Response(
+            206,
+            json=[{"id": item_id} for item_id in range(start, stop)],
+            headers={"Content-Range": f"{start}-{stop - 1}/120"},
+        )
+
+    original = httpx.AsyncClient
+    monkeypatch.setattr(
+        httpx,
+        "AsyncClient",
+        lambda **kwargs: original(transport=httpx.MockTransport(handler), **kwargs),
+    )
+    client = GLPIClient(
+        base_url="http://glpi/apirest.php", app_token="app", user_token="user"
+    )
+    client.session_token = "session"
+
+    items = await client.list_items("Ticket/41/ITILSolution")
+
+    assert [item["id"] for item in items] == list(range(120))
+    assert requested == [0, 50, 100]
+
+
+@pytest.mark.asyncio
+async def test_glpi_list_items_rejects_empty_page_before_reported_total(monkeypatch):
+    requested = []
+
+    def handler(request):
+        start = int(request.url.params["range"].split("-")[0])
+        requested.append(start)
+        page = [{"id": item_id} for item_id in range(50)] if start == 0 else []
+        return httpx.Response(
+            206,
+            json=page,
+            headers={"Content-Range": "0-49/120"},
+        )
+
+    original = httpx.AsyncClient
+    monkeypatch.setattr(
+        httpx,
+        "AsyncClient",
+        lambda **kwargs: original(transport=httpx.MockTransport(handler), **kwargs),
+    )
+    client = GLPIClient(
+        base_url="http://glpi/apirest.php", app_token="app", user_token="user"
+    )
+    client.session_token = "session"
+
+    with pytest.raises(RuntimeError, match="incomplete"):
+        await client.list_items("Ticket/41/ITILSolution")
+
+    assert requested == [0, 50]
+
+
+@pytest.mark.asyncio
 async def test_entity_selection_connection_failure_is_transient_and_closes_session(
     monkeypatch,
 ):
