@@ -173,6 +173,17 @@ infraestrutura passaram. A comparação só é evidência de cópia consistente 
 GLPI parado e escrita bloqueada; ela não substitui o plano de tráfego,
 snapshot, rollback do Compose e validação de banco/SSO. Não foi executada
 cópia ou troca de volume em produção.
+Ensaio descartável em 13/10 no host com dois volumes nomeados exclusivos e
+imagem GLPI já presente: o primeiro comando falhou ao escrever no volume
+porque a imagem executa com usuário sem privilégio; o trap removeu ambos os
+volumes, confirmado por listagem. Repetido com `--user 0:0` apenas no
+contêiner de teste, `cp -a` e o comparador retornaram PASS (1 arquivo,
+15 bytes sintéticos), e o volume original foi reanexado em um segundo
+contêiner somente leitura para simular retorno. Os dois contêineres, os
+volumes exclusivos e o verificador temporário foram removidos, com ausência
+confirmada. Isso valida somente mecânica de cópia/reattach, não captura
+consistente com GLPI real ativo, rota pública, banco, SSO ou rollback de
+escritas posteriores; ainda não há autorização para recriar `ninf-glpi`.
 Uma requisição pública não autenticada a `n-ticket.ness.com.br/apirest.php`
 foi encaminhada ao fluxo Authentik. Isso não prova bloqueio para usuário
 autenticado ou portador de token; a rota pública exige teste negativo próprio.
