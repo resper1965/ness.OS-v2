@@ -38,14 +38,13 @@ e a imagem local foi recompilada. A integração Docker da distro Ubuntu/WSL
 foi comprovada em 13/10/2026: `docker version` retornou cliente e servidor
 29.8.0, e Buildx 0.37 está disponível. Estes builds manuais ainda não
 executaram o publicador completo.
-Antes da primeira publicação, resolver o scan de segredos, executar o fluxo
-completo num commit revisado, comprovar escrita/leitura do registro privado e
-um status externo confiável. Verificar que PRs sem esse status continuam
-bloqueadas antes de alterar a proteção.
+No commit `92eced4`, os checks locais e o fluxo completo passaram. API e
+frontend foram publicados nos pacotes GHCR privados e puxados por digest;
+ver `docs/execution/hub-local-publish-2026-10-13.md` na branch de execução.
+Ainda falta um status externo confiável. Verificar que PRs sem ele continuam
+bloqueadas antes de alterar a origem dos quatro checks requeridos.
 
-O scan local de segredos está em fail-closed. Em 13/10/2026 encontrou três
-ocorrências no checkout `main`, incluindo dois valores no inventário Ansible
-com aparência de credenciais. Não registrar os valores; confirmar uso, conter
-exposição e rotacionar antes da primeira publicação. Histórico público não é
-apagado por tornar o repositório privado. A contenção e rotação estão
-registradas na issue #82.
+O scan local de segredos permanece fail-closed. As credenciais afetadas foram
+rotacionadas ou invalidadas e heads/tags foram sanitizados; refs internos de
+PR/cache exigem GitHub Support (issue #82). Não registrar valores nem usar
+clones antigos, que podem reintroduzir o histórico.
