@@ -735,3 +735,14 @@ Zabbix origem única coletora/destino mascarado continuam preservados.
   `infra/scripts/glpi_pagination_probe.py`, dois testes RED→GREEN e
   compile/Black/Ruff PASS. Esse
   resultado valida o contrato consultado, não o isolamento da rota direta.
+
+### GLPI T12 — scheduler observado, 13/10/2026, 12:31 BRT
+
+- `cron-worker.sh` e `scheduler.sh --interval 60` ativos; leitura nativa:
+  50 ações, 19 desabilitadas, 31 agendadas. Das 11 CLI agendadas, 10
+  executaram em 24 h; entre 20 internas agendadas, 18 não executam há mais
+  de sete dias. `creditexpired` CLI está antigo e pertence a plugin ausente.
+- Modo interno depende de navegação; não foi convertido nem forçado, pois
+  algumas ações enviam notificações, recebem e-mails, calculam SLA ou fecham
+  tickets. Classificação e sequência em `glpi-next-delivery-2026-10-12.md`.
+  Sem mudança produtiva, envio, replay ou limpeza de fila. T03 segue bloqueado.

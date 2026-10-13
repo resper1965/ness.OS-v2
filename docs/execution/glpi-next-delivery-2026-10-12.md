@@ -657,3 +657,25 @@ Teste RED→GREEN: 13 testes de escopo, backend+escopo 474 PASS/1 SKIP, Ruff e
 legítima, mas impede mover um vínculo entre entidades sem evidência. Código
 versionado, **não implantado**; nenhum ativo ou incidente foi alterado. A conta
 106 segue inativa e o lote 10983/10984/10987 não foi aplicado antes de T03.
+
+### T12 — ações automáticas, 13/10 12:31 BRT
+
+Leitura nativa agregada, sem executar tarefa: `cron-worker.sh` e
+`scheduler.sh --interval 60` estavam ativos no contêiner. Das 50 ações,
+19 estavam desabilitadas e 31 agendadas. Entre as agendadas, 11 eram CLI:
+10 executaram nas últimas 24 horas e `creditexpired` não executava havia
+~54 dias; esta última pertence ao plugin Credit, cujo código não está no
+contêiner. As outras 20 eram de modo interno: duas executaram nas últimas
+24 horas e 18 não executavam havia mais de sete dias, incluindo
+`queuednotification`, `mailgate`, `slaticket` e `closeticket`.
+
+A [documentação oficial de ações automáticas](https://help.glpi-project.org/documentation/modules/configuration/crontasks)
+confirma que o scheduler externo executa as ações em modo CLI; o modo GLPI
+depende de navegação autenticada. Portanto, processo ativo não significa
+fila de atendimento saudável. Não converter ou forçar as 20 em bloco:
+algumas enviam mensagens, importam e-mails, alteram prazo ou encerram
+chamados. Próxima mudança controlada: classificar cada ação por efeito e
+dependência, verificar notificações/coletores/SLA aprovados, migrar só uma
+ação segura por vez para CLI com estado anterior, readback e rollback; medir
+execução antes de ampliar. Não houve mudança de modo, envio, limpeza de fila
+ou execução forçada nesta leitura.

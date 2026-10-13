@@ -55,6 +55,14 @@ versionado em `infra/scripts/glpi_pagination_probe.py` imprime só PASS/FAIL,
 sem conteúdo de ativo. Isso reduz o risco de incompatibilidade do guard,
 mas não prova a rota isolada nem autoriza reativar a conta 106.
 
+GLPI T12, 13/10 ~12:31 BRT: scheduler do contêiner ativo a cada 60 s,
+mas o modo CLI cobre só 11 ações agendadas (10 executaram em 24 h).
+Vinte ações agendadas estão em modo interno; 18 sem execução há mais de sete
+dias. Não mudar em bloco: há notificações, coleta de e-mail, SLA e fechamento
+de ticket. Diagnóstico e ordem controlada em
+`docs/execution/glpi-next-delivery-2026-10-12.md`; nenhuma ação forçada ou
+configuração alterada. T03/conta 106 continuam bloqueados.
+
 GLPI T05, 13/10 ~11:10 BRT: sincronização agora falha antes de atualizar
 Asset existente se cliente ou referência GLPI conhecida mudar; código não
 implantado. A paleta `ness.` permanece opt-in e sem aceite visual na issue
