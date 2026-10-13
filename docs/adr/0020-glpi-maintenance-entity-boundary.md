@@ -194,6 +194,12 @@ sem reload produtivo. O runbook
 `docs/operations/glpi-state-volume-cutover-2026-10-13.md` explicita ordem,
 aborto e limite do rollback após reabrir escrita. Isso prepara a janela,
 mas não comprova rota pública/SSO real nem autoriza T03/G2.
+Um ensaio Compose descartável com serviço sem rede confirmou por `docker
+inspect` a sequência de mount `/var/glpi`: volume original → candidato →
+original mediante override explícito e `--force-recreate`. Os dois volumes
+de teste, o contêiner e arquivos temporários foram removidos com ausência
+verificada. Não envolveu GLPI real, banco, estado produtivo ou escrita após
+reabertura; permanece uma prova da mecânica de handoff, não do corte.
 Uma requisição pública não autenticada a `n-ticket.ness.com.br/apirest.php`
 foi encaminhada ao fluxo Authentik. Isso não prova bloqueio para usuário
 autenticado ou portador de token; a rota pública exige teste negativo próprio.

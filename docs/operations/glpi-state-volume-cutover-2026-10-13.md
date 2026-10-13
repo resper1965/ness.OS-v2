@@ -57,5 +57,10 @@ atual monta outro volume em `/var/www/html/glpi`.
 
 O laboratório descartável passou para 503 GET/POST exclusivo do GLPI,
 Hub/SSO sintéticos 200, cópia `cp -a`, comparação e reanexação do volume
-original. Isso não equivale a corte produtivo, SSO autenticado ou prova de
-rollback com escritas. Nenhum volume produtivo foi copiado ou recriado.
+original. Um segundo ensaio Compose, também sintético, iniciou um serviço
+com o volume `original` em `/var/glpi`, recriou-o com override para
+`candidate` e então com override de rollback para `original`. `docker
+inspect` confirmou o nome do volume em cada etapa. Os dois volumes de teste,
+o serviço e os arquivos temporários foram removidos com ausência verificada.
+Isso não equivale a corte produtivo, SSO autenticado ou prova de rollback
+com escritas. Nenhum volume produtivo foi copiado ou recriado.
