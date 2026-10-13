@@ -373,6 +373,24 @@ objeto/entidade 1 permitida vs. 5 negada no gateway. O override deixa a rota
 nativa da identidade Hub 94 intacta; não confundir isso com isolamento geral
 da API. O contrato candidato é só leitura e não cria os três ativos.
 
+Preflight somente leitura em 13/10 ~11:20 BRT: as quatro redes bridge atuais
+do host usam `172.17.0.0/16` a `172.20.0.0/16`; o candidato
+`172.30.250.0/28` não colidiu com nenhuma rota IPv4 não-default observada
+nem com essas redes. Isto é uma fotografia, não reserva do bloco: revalidar
+imediatamente antes de criar rede, inclusive conflitos com VPN/rotas novas.
+Nenhuma rede foi criada no preflight.
+
+Publicação de imagem, 13/10 ~11:25 BRT: o workflow versionado
+`.github/workflows/publish-hub-images.yml` é `workflow_dispatch`, mas a
+tentativa de dispará-lo na branch de entrega retornou HTTP 404. A listagem de
+workflows do repositório não o inclui, pois ele ainda não está registrado na
+branch padrão `main`. Os cinco checks da branch passaram; isso **não** produz
+uma imagem nova por digest. Sem publicação e verificação da imagem contendo o
+entrypoint, não implantar o gateway por tag antiga, não alterar a topologia
+produtiva e não reativar 106. A revisão/integração da branch já é acompanhada
+na issue #67; após disponibilizar o workflow, publicar a imagem, conferir o
+digest e repetir apenas o preflight afetado antes do canário.
+
 1. Projetar e ensaiar filtro nativo por cliente/IP ou separação de rede/rota
    mantendo UI/SSO legítimos.
    Confirmar também se a rota pública expõe `apirest.php`; bloquear o token

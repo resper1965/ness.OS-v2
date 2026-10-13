@@ -12,6 +12,11 @@ o volume `/var/glpi`, acrescentando rede interna sem porta pública no
 gateway. Backend+escopo 486 PASS/1 SKIP, lint/formatação PASS. Ainda faltam
 subnet/secret/image de release, matriz negativa real e contrato de escrita.
 Conta 106 inativa; três ativos não criados. Issue #74 e ADR 0020.
+Preflight read-only da subnet candidata não encontrou colisão nas bridges e
+rotas IPv4 vistas; deve ser refeito imediatamente antes de criar a rede.
+Publicação da imagem nova segue bloqueada: `workflow_dispatch` da branch
+retornou 404 porque o workflow de publish ainda não está na branch padrão;
+cinco checks verdes não equivalem a imagem por digest. Issue #67. Sem deploy.
 
 GLPI T05, 13/10 ~11:10 BRT: sincronização agora falha antes de atualizar
 Asset existente se cliente ou referência GLPI conhecida mudar; código não
