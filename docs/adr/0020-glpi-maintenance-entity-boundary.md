@@ -371,6 +371,16 @@ hostname privado é recusado antes de ler secrets. Teste RED→GREEN; backend
 488 PASS/1 SKIP, sem deploy. Isto reduz desvio acidental de configuração,
 mas não prova destino DNS, exclusividade da rede ou bloqueio da API direta.
 
+Smoke local de 13/10 ~16:05 BRT: imagem API da branch `7211943` iniciada como
+`nessops`, somente leitura, sem rede, capacidades ou porta publicada, com
+três arquivos **sintéticos** montados individualmente. Uvicorn iniciou,
+`/live` respondeu 200 e GET de Computer sem bearer retornou 401; o contêiner
+descartável foi removido. A primeira tentativa montou o diretório de fixture
+`0700` e falhou por permissão; não representava o Compose, que monta arquivos
+individuais. A imagem API base sonda `/ready` e recebeu 404 no sidecar; o
+override opt-in deve manter seu healthcheck próprio em `/live`. Não houve
+contato com GLPI, sessão, leitura autorizada, deploy ou prova de isolamento.
+
 Antes de aplicar o override: comprovar subnet sem colisão, imagem da release
 contendo o entrypoint, secret files/permissions, IP estável após recriação,
 filtro de cliente GLPI limitado a esse IP, rota pública autenticada negada,

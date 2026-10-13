@@ -1,6 +1,6 @@
 # ness.OS — indicador de entrega
 
-Última verificação: **13/10/2026, 15:55 BRT**. Fonte: plano master,
+Última verificação: **13/10/2026, 16:05 BRT**. Fonte: plano master,
 `PROJECT_CONTEXT.md`, estágio operacional, ledger e GitHub. Este quadro é um
 checkpoint, não telemetria em tempo real. Atualizar quando uma entrega, gate,
 bloqueio ou prazo mudar; preservar a data da última verificação.
@@ -31,6 +31,8 @@ Importação isolada também evita inicialização incidental de VAPID; teste
 RED→GREEN, backend 487 PASS/1 SKIP e smoke da imagem local sem rede PASS.
 O runtime passou a exigir o alias privado exato do Compose antes de ler
 secrets; teste RED→GREEN e backend 488 PASS/1 SKIP.
+Smoke local do processo Uvicorn sem rede e com tokens sintéticos: `/live` 200,
+leitura sem bearer 401; contêiner descartável removido.
 Ainda sem deploy, isolamento direto real ou reativação da conta 106.
 
 **Foco agora:** GLPI T03 e substituição segura do pipeline. PR 65 foi integrado;
