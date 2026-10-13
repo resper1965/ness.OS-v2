@@ -35,3 +35,7 @@ jobs:
       
     - name: Build for production
       run: npm run build
+
+    - name: Build release image
+      working-directory: .
+      run: docker build --file app/frontend/Dockerfile app/frontend
