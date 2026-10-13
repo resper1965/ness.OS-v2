@@ -18,6 +18,11 @@ redirect 302 e Hub 200. Caddy foi recriado sozinho para alinhar o bind mount;
 hash/inode coincidem e os testes foram repetidos. API interna continua 200.
 Isto não isola a rota direta na rede Docker nem aprova a conta 106.
 
+Backup GLPI, 13/10 ~08:45 BRT: o script noturno produtivo foi corrigido para
+exigir `volumes/app_glpi-state.tar.gz` antes de marcar `COMPLETED`; TDD
+RED→GREEN e suíte infra 22 PASS. Hash local/runtime igual, timer ativo.
+Não foi executado backup extra; verificar o primeiro ciclo agendado pós-corte.
+
 Retomada pelo modelo executor em 13/10 UTC: início da proteção de entidade
 efetiva no cliente GLPI do Hub. Código e testes locais verificados; ainda sem
 deploy ou reativação da conta técnica 106. Ver ledger do plano master em

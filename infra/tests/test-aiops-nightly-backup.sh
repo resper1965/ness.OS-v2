@@ -119,6 +119,7 @@ case "${1-}" in
       printf 'app_ninf-net\n'
     elif [[ "${arguments}" == *'.Mounts'* ]]; then
       printf 'app_n8n-data\n'
+      [[ "${AIOPS_TEST_OMIT_GLPI_STATE:-0}" == 1 ]] || printf 'app_glpi-state\n'
     fi
     ;;
   network)
@@ -182,7 +183,8 @@ backup_dir="${test_backup}/fixture-success"
 [[ -f "${backup_dir}/COMPLETED" ]]
 for artifact in postgres/globals.sql.gz postgres/nessops.dump glpi-all-databases.sql.gz \
   app-config.tar.gz deployment-app.tar.gz deployment-runtime.tar.gz deployment-images.json \
-  deployment-local-images.tar.gz deployment-hub-database.tar.gz backup-set-manifest.json SHA256SUMS; do
+  deployment-local-images.tar.gz deployment-hub-database.tar.gz backup-set-manifest.json \
+  volumes/app_glpi-state.tar.gz SHA256SUMS; do
   [[ -s "${backup_dir}/${artifact}" ]] || {
     echo "successful backup omitted or emptied ${artifact}" >&2
     exit 1
@@ -209,5 +211,6 @@ expect_incomplete_backup() {
 expect_incomplete_backup empty-dump AIOPS_TEST_EMPTY_DUMP=1
 expect_incomplete_backup missing-manifest AIOPS_TEST_OMIT_ARTIFACT=deployment-images.json
 expect_incomplete_backup empty-checksums AIOPS_TEST_EMPTY_CHECKSUMS=1
+expect_incomplete_backup missing-glpi-state AIOPS_TEST_OMIT_GLPI_STATE=1
 
 echo 'AIOps nightly backup checks: PASS'

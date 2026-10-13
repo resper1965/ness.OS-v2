@@ -14,6 +14,19 @@ ticket e anexos ainda pendem; conta 106 continua desativada e T03/G2 não são
 aprovados. Procedimento e incidente de bind mount em
 `docs/operations/glpi-state-volume-cutover-2026-10-13.md`.
 
+## T01 — backup do novo volume, 13/10 ~08:45 BRT
+
+Após a migração, o backup noturno enumeraria `app_glpi-state`, porém poderia
+marcar `COMPLETED` sem esse arquivo se a enumeração falhasse. Teste RED
+reproduziu esse falso sucesso; a correção exige
+`volumes/app_glpi-state.tar.gz` no conjunto de artefatos, com tamanho não
+zero e entrada no `SHA256SUMS`. Teste shell GREEN e suíte infra 22 PASS com
+`PYTHONPATH=app/backend`. Script produtivo anterior preservado root-only e
+novo hash idêntico ao versionado; `bash -n` PASS, timer habilitado/ativo,
+GLPI montado no volume esperado. **Nenhum backup novo foi executado agora**:
+o primeiro conjunto agendado após a mudança ainda deve comprovar
+`COMPLETED`/checksum/arquivo, sem repetir restores históricos.
+
 ## T03 — guarda da API pública, 13/10 08:36 BRT
 
 O Caddyfile versionado com `route`/matcher para `apirest.php` foi validado e
@@ -25,6 +38,21 @@ no host e contêiner, zero reinícios; os mesmos sete testes HTTP passaram após
 recriação. O rollback é o Caddyfile anterior preservado root-only. A rede
 interna compartilhada Hub/worker↔GLPI permanece, portanto a conta 106 segue
 inativa; filtro público não fecha T03/G2.
+
+## T10 — limite de branding suportado, 13/10
+
+GLPI 11.0.8 instalado tem diretório persistente `_themes` vazio. A
+[documentação oficial de paletas](https://glpi-user-documentation.readthedocs.io/fr/latest/advanced/custom_palettes.html)
+permite SCSS por tema sem editar core; a
+[FAQ oficial](https://help.glpi-project.org/faq/glpi/general_setup)
+também documenta CSS por entidade. Já a substituição suportada de logos,
+favicon e imagem de login requer o
+[plugin Branding](https://help.glpi-project.org/faq/plugins/branding),
+disponível em Cloud/assinatura Basic; não há prova de licença, instalação nem
+ativo de logo aprovado neste runtime. Não instalar plugin, trocar arquivos
+core, inventar logo ou aplicar paleta global sem ensaio visual/contraste e
+rollback. Preparar primeiro paleta ness. por entidade e inspecionar render
+desktop/móvel quando houver sessão nominal.
 
 ## T04 — backlog sem ticket, 13/10 07:55 UTC
 

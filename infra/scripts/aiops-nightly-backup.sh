@@ -115,6 +115,7 @@ required_artifacts=(
   postgres/globals.sql.gz
   postgres/nessops.dump
   glpi-all-databases.sql.gz
+  volumes/app_glpi-state.tar.gz
   app-config.tar.gz
   deployment-app.tar.gz
   deployment-runtime.tar.gz
