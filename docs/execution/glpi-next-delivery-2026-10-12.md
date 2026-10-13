@@ -153,6 +153,37 @@ Não executar os sete upgrades em bloco nem reconstruir o contêiner enquanto
 o volume anônimo `/var/glpi` e o rollback da issue #76 não estiverem
 resolvidos.
 
+### Revisão de plugins e duplicidade, 13/10 ~10:00 BRT
+
+Auditoria nativa somente de leitura, reproduzível com
+`infra/scripts/glpi_plugin_data_audit.php` e
+`infra/scripts/glpi_duplicate_user_audit.php` dentro do contêiner GLPI.
+Há 10 registros de plugin, mas nenhum diretório de código nos locais de
+plugins/marketplace já verificados; o CLI os apresenta como indisponíveis.
+Restam 24 tabelas de extensão: `escalade` contém 1 configuração e 24
+vínculos de usuário; `nessai` contém 1 configuração; as demais tabelas
+listadas têm zero linhas. Nenhum plugin foi desinstalado. Decisão: preservar
+os registros e dados, porque o comando nativo `plugin:uninstall` depende do
+script de desinstalação ausente; limpeza direta do banco não é um rollback
+seguro e não melhora a execução (o código já não está carregado). Antes de
+qualquer retirada futura, obter código/versão compatível, export específico
+dos dados, dependências de SSO/formulários e ensaio de rollback. Em especial,
+não limpar `customlogin`/`singlesignon` por inferência de que o proxy SSO os
+substituiu.
+
+Usuários não excluídos: 78, dos quais 75 ativos. Permanecem 34 grupos com
+nome de login duplicado, 33 com ambas as contas ativas. Cada grupo tem
+exatamente dois IDs e tipos de autenticação distintos: 17 pares `0+3` e 17
+pares `1+3`; não há e-mail compartilhado por IDs diferentes. Dos 68
+cadastros nesses grupos, só um registra login anterior e ele já está
+inativo; todos têm ao menos um vínculo de perfil, nenhum vínculo em
+`glpi_tickets_users` ou `glpi_itilfollowups`, e apenas um vínculo de grupo.
+Essas leituras reduzem o risco de histórico de tickets, mas **não provam**
+qual identidade deve permanecer nem que outras referências estejam vazias.
+Não houve desativação/renomeação adicional. A issue #77 continua como trilha
+de reconciliação por grupos, com conta canônica comprovada, export,
+rollback e login nominal após cada onda de até cinco.
+
 ## T07 — preflight de inventário, 13/10 06:18 UTC
 
 Relatórios existentes executados via `ssh ... bash -s`, sem instalar script nem
