@@ -261,6 +261,24 @@ autenticada/Caddy real, IP estável após recriação, os demais clientes API,
 operações de objeto/entidade, credencial 106 nem aplicação no Compose atual.
 Logo T03/G2 continuam bloqueados e 106 permanece desativada.
 
+Ensaio adicional de anexação **em tempo de execução**, 13/10 06:40 UTC:
+contêiner sintético sem mounts, duas redes Docker internas exclusivas do
+laboratório e imagem API já presente no host. `docker network connect`
+adicionou a rede privada mantendo o mesmo ID de contêiner, estado `running`
+e mounts vazios; `docker network disconnect` voltou à rede frontal, também
+sem recriação. Contêiner e redes foram removidos com ausência verificada.
+[A documentação Docker](https://docs.docker.com/engine/network/drivers/bridge/)
+descreve a anexação de contêiner em execução; a configuração durável ainda
+precisa ser representada no Compose.
+Isso permite estudar um canário privado sem necessariamente recriar o GLPI
+e, portanto, sem acionar imediatamente o risco do volume anônimo. **Não**
+prova que anexar a rede ao GLPI real é seguro: faltam teste de tráfego/SSO,
+IP privado estável, filtro App-Token, rollback e registro da topologia no
+Compose. Uma conexão manual fora do Compose pode desaparecer numa futura
+recriação; o preflight do volume e a issue #76 continuam obrigatórios antes
+de qualquer recriação ou promoção durável. Nenhuma rede/container produtivo
+foi alterado neste ensaio.
+
 1. Projetar e ensaiar filtro nativo por cliente/IP ou separação de rede/rota
    mantendo UI/SSO legítimos.
    Confirmar também se a rota pública expõe `apirest.php`; bloquear o token
