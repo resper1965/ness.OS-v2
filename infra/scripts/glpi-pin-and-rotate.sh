@@ -32,6 +32,12 @@ running_glpi_image="$(docker inspect --format '{{.Image}}' ninf-glpi)"
   exit 5
 }
 
+# Both the candidate and rollback Compose must retain the exact running state
+# volume. A credential rotation cannot safely repair an anonymous-volume drift.
+preflight="$(dirname "${BASH_SOURCE[0]}")/glpi_state_volume_preflight.py"
+python3 "${preflight}" --compose "${app_dir}/docker-compose.yml" --compose "${staged_compose}"
+python3 "${preflight}" --compose "${app_dir}/docker-compose.yml" --compose "${live_compose}"
+
 old_root="$(docker exec ninf-glpi-db sh -lc 'printf %s "$MYSQL_ROOT_PASSWORD"')"
 old_db="$(docker exec ninf-glpi sh -lc 'printf %s "$DB_PASSWORD"')"
 [[ -n "${old_root}" && -n "${old_db}" ]]

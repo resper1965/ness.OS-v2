@@ -158,6 +158,14 @@ ao volume original. Não trocar só a linha do Compose nem executar `up
 observação pós-mudança. Esta é uma dependência nova de T03, não prova de que
 alguma recriação anterior perdeu dados. A correção está rastreada na
 [issue #76](https://github.com/resper1965/n-infraops/issues/76).
+O preflight versionado `infra/scripts/glpi_state_volume_preflight.py` agora
+compara o volume efetivo de `/var/glpi` com o Compose resolvido antes de
+recriar GLPI; a rotina `glpi-pin-and-rotate.sh` exige o teste tanto para o
+Compose candidato quanto para o de rollback, antes de girar credenciais.
+Cinco testes de unidade passaram. A execução somente leitura no host
+produtivo retornou `BLOCKED` para o Compose atual, como esperado. O guard
+não migra dados nem autoriza uma recriação: a migração reversível da issue
+#76 continua necessária.
 Uma requisição pública não autenticada a `n-ticket.ness.com.br/apirest.php`
 foi encaminhada ao fluxo Authentik. Isso não prova bloqueio para usuário
 autenticado ou portador de token; a rota pública exige teste negativo próprio.

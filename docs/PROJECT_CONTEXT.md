@@ -100,6 +100,10 @@ para T03: a imagem GLPI usa `/var/glpi` num volume anônimo com configuração e
 arquivos, enquanto o Compose versionado monta `app_glpi-data` em
 `/var/www/html/glpi`. Não recriar o container com esse Compose antes de
 migrar/preservar o estado de `/var/glpi` e testar retorno; ADR 0020 detalha.
+Um guard de pré-deploy versionado bloqueia a recriação quando o volume
+de `/var/glpi` no Compose não é o mesmo em execução; passou nos testes e
+bloqueou o Compose produtivo atual em leitura, sem alterar dados. Issue #76
+continua aberta para migração reversível.
 No fluxo de incidentes para tickets, um teste RED mostrou que o log INFO
 continha toda a análise de IA. A mensagem passou a registrar apenas a conclusão,
 sem conteúdo da análise; 95 testes focados e 456 testes backend passaram.
