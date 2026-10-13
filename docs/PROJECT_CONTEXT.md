@@ -72,6 +72,9 @@ GLPI T07, 13/10 ~12:47 BRT: leitura filtrada dos sete agentes mostrou
 autenticação responderam 403; isso não prova entrega autenticada. Nenhuma
 instalação ou regra alterada. Piloto de cinco requer identidade de inventário
 e negativa de associação entre entidades.
+Dependência humana na issue #79; e-mail de correção com instruções completas
+confirmado em Enviados. Não instalar agentes com a configuração ainda não
+comprovada.
 
 GLPI T05, 13/10 ~11:10 BRT: sincronização agora falha antes de atualizar
 Asset existente se cliente ou referência GLPI conhecida mudar; código não
