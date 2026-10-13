@@ -34,8 +34,10 @@ workflows antigos para contornar esse bloqueio.
 Docker Desktop/Buildx no Windows construiu localmente API e frontend, sem push.
 O frontend teve três alertas altos de dependências transitivas; o lockfile foi
 atualizado, `npm ci`, lint, build e auditoria passaram com zero vulnerabilidades,
-e a imagem local foi recompilada. A integração Docker da distro WSL ainda não
-foi comprovada; estes builds manuais não executaram o publicador completo.
+e a imagem local foi recompilada. A integração Docker da distro Ubuntu/WSL
+foi comprovada em 13/10/2026: `docker version` retornou cliente e servidor
+29.8.0, e Buildx 0.37 está disponível. Estes builds manuais ainda não
+executaram o publicador completo.
 Antes da primeira publicação, resolver o scan de segredos, executar o fluxo
 completo num commit revisado, comprovar escrita/leitura do registro privado e
 um status externo confiável. Verificar que PRs sem esse status continuam
