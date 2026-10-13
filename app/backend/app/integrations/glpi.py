@@ -274,6 +274,8 @@ class GLPIClient:
                         return items
         except httpx.HTTPStatusError as exc:
             raise _glpi_failure("lista de itens", exc) from exc
+        except httpx.TransportError as exc:
+            raise _glpi_failure("lista de itens", exc) from exc
         raise RuntimeError("GLPI pagination limit exceeded")
 
     async def ticket_resolution(

@@ -150,6 +150,26 @@ async def test_glpi_get_item_connection_failure_is_transient(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_glpi_list_items_connection_failure_is_transient(monkeypatch):
+    def handler(request):
+        raise httpx.ConnectError("unavailable", request=request)
+
+    original = httpx.AsyncClient
+    monkeypatch.setattr(
+        httpx,
+        "AsyncClient",
+        lambda **kwargs: original(transport=httpx.MockTransport(handler), **kwargs),
+    )
+    client = GLPIClient(
+        base_url="http://glpi/apirest.php", app_token="app", user_token="user"
+    )
+    client.session_token = "session"
+
+    with pytest.raises(GLPITransientError):
+        await client.list_items("Ticket/41/ITILSolution")
+
+
+@pytest.mark.asyncio
 async def test_entity_selection_connection_failure_is_transient_and_closes_session(
     monkeypatch,
 ):
