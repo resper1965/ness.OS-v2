@@ -19,8 +19,13 @@ de `Ticket::canViewItem()` antes de obter conteúdo/acompanhamentos e chamar
 o provedor de IA. Um teste isolado RED demonstrou leitura indevida iniciada;
 a correção local agora responde 403 antes de acessar banco/IA quando o ticket
 não é visível. O teste GREEN e lint PHP passaram; nenhuma instalação/deploy
-do plugin ocorreu. Isso não prova compatibilidade integral nem sanitização
-adequada para envio ao provedor externo.
+do plugin ocorreu. O listener CSRF da versão GLPI instalada exige o cabeçalho
+`X-Glpi-Csrf-Token` em AJAX; o JavaScript enviava token somente no corpo.
+Teste RED→GREEN com a requisição real construída pelo código acrescentou o
+cabeçalho, preservando o corpo por compatibilidade. Typecheck/lint do frontend
+passaram (um aviso existente). Isso não prova o POST HTTP end-to-end,
+compatibilidade integral nem sanitização adequada para envio ao provedor
+externo.
 
 Próximo: identificar a proveniência e compatibilidade dos demais pacotes com
 GLPI 11, em especial `customlogin` e `singlesignon`, antes de

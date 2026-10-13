@@ -85,6 +85,7 @@ $(document).ready(function () {
          url:      rootDoc + '/plugins/nessai/front/ajax.php',
          type:     'POST',
          dataType: 'json',
+         headers:  { 'X-Glpi-Csrf-Token': csrfToken },
          data: {
             ticket_id:          ticketId,
             action:             action,
