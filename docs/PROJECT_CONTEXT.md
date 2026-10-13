@@ -89,6 +89,10 @@ dual-homed, Hub na rede frontal e adaptador na privada: ambos mantiveram
 seus caminhos próprios, com IPs de origem distintos; os recursos de teste
 foram removidos. Não testou token, API GLPI nem rota pública autenticada e
 não alterou a topologia produtiva. A ADR 0020 contém a matriz e o limite.
+No fluxo de incidentes para tickets, um teste RED mostrou que o log INFO
+continha toda a análise de IA. A mensagem passou a registrar apenas a conclusão,
+sem conteúdo da análise; 95 testes focados e 456 testes backend passaram.
+Ainda é alteração de código não promovida ao runtime produtivo.
 
 Diagnóstico somente leitura encontrou 159 incidentes sem ticket: 115 antigos
 sem falha registrada, 29 recentes com `ticket_failed` não classificado e 15

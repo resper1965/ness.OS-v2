@@ -331,7 +331,7 @@ async def _async_process_alert_v1(
         incident_data=alert_data,
         customer_metadata={"customer_name": customer_name, "entity_id": entity_id},
     )
-    logger.info("Análise IA gerada: %s", analysis.model_dump_json())
+    logger.info("Análise IA concluída")
 
     # 3. Abrir chamado no GLPI
     glpi = GLPIClient()

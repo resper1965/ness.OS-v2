@@ -1,5 +1,5 @@
-import json
 import asyncio
+import json
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock
@@ -568,12 +568,14 @@ async def test_zabbix_recovery_rejects_different_problem_event(monkeypatch):
 @pytest.mark.parametrize("delivery_failure", [None, "commit", "redis"])
 async def test_pipeline_persists_incident_and_retries_glpi_failure(
     monkeypatch,
+    caplog,
     glpi_fails,
     notifications_enabled,
     existing_state,
     ticket_exists,
     delivery_failure,
 ):
+    caplog.set_level("INFO", logger=alerts.__name__)
     existing = existing_state != "new"
     linked_before = existing_state == "linked"
     glpi = AsyncMock()
@@ -586,7 +588,7 @@ async def test_pipeline_persists_incident_and_retries_glpi_failure(
         technical_action_plan="Synthetic",
         urgency="HIGH",
         isolation_required=False,
-        probable_cause="Synthetic",
+        probable_cause="sensitive-rca-must-not-reach-logs",
         recommended_playbook="Synthetic",
     )
     session = MagicMock()
@@ -668,6 +670,7 @@ async def test_pipeline_persists_incident_and_retries_glpi_failure(
             await alerts._async_process_alert_v1(alert_data, "a" * 64)
         redis.publish.assert_not_called()
         assert not committed
+        assert "sensitive-rca-must-not-reach-logs" not in caplog.text
         return
     elif glpi_fails:
         with pytest.raises(RuntimeError, match="GLPI unavailable"):
@@ -678,6 +681,7 @@ async def test_pipeline_persists_incident_and_retries_glpi_failure(
         assert result["whatsapp_sent"] is notifications_enabled
 
     assert committed == [True]
+    assert "sensitive-rca-must-not-reach-logs" not in caplog.text
     redis.publish.assert_called_once()
     redis.close.assert_called_once()
     commit_at_publish, channel, event = published[0]
