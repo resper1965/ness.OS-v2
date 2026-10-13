@@ -119,6 +119,17 @@ retornou `BLOCKED_DIRECT_PATH`, com uma rede compartilhada. O comando não
 emite `PASS`, mesmo que as redes venham a ser separadas; a fronteira requer
 prova de rotas, identidade e objetos. Três testes locais passaram.
 
+Ensaio reversível da **topologia candidata** em 13/10: duas redes Docker
+descartáveis, quatro containers sintéticos da imagem API já presente no host,
+sem mounts, credenciais ou portas publicadas. Hub somente na rede frontal;
+GLPI somente na privada; adaptador e proxy nas duas. A matriz HTTP observada:
+Hub → GLPI negado; Hub → adaptador permitido; adaptador → GLPI permitido;
+proxy → GLPI permitido. Inspeção confirmou os vínculos de rede e zero mounts;
+os quatro containers e as duas redes exclusivos do laboratório foram removidos
+com ausência posterior verificada. Isso prova apenas viabilidade de roteamento
+Docker, **não** bloqueio da rota pública autenticada, isolamento do token no
+adaptador, operações permitidas, nem compatibilidade do Compose produtivo.
+
 1. Projetar e ensaiar filtro nativo por cliente/IP ou separação de rede/rota
    mantendo UI/SSO legítimos.
    Confirmar também se a rota pública expõe `apirest.php`; bloquear o token
