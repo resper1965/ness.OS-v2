@@ -11,6 +11,7 @@ O n8n é o "edge orchestrator" — o backend Python NÃO chama
 DeskManager ou Evolution diretamente. Isso isola a lógica de
 integração no n8n (visual, editável, sem deploy).
 """
+
 from __future__ import annotations
 
 import logging

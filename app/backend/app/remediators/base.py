@@ -9,6 +9,7 @@ O motor de execução de playbooks usa o Factory Pattern:
   2. RMMFactory instancia o driver correto.
   3. O driver executa o playbook via API do RMM ou SSH.
 """
+
 from __future__ import annotations
 
 import logging

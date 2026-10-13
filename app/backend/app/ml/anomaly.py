@@ -15,6 +15,7 @@ O fator 1.4826 é a constante de consistência que torna o MAD
 um estimador não-enviesado do desvio padrão para distribuições
 normais (1 / Φ⁻¹(3/4) ≈ 1.4826).
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass

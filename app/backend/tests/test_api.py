@@ -55,7 +55,7 @@ def test_webhook_zabbix_primary(mock_process_alert, mock_try_acquire, client):
         "severity": 4,
         "status": "PROBLEM",
         "timestamp": "2026-06-30T13:00:00Z",
-        "tags": {"env": "prod"}
+        "tags": {"env": "prod"},
     }
 
     response = client.post("/webhook/zabbix", json=payload)
@@ -86,7 +86,7 @@ def test_webhook_zabbix_deferred(mock_process_deferred, mock_try_acquire, client
         "severity": 4,
         "status": "PROBLEM",
         "timestamp": "2026-06-30T13:00:00Z",
-        "tags": {"env": "prod"}
+        "tags": {"env": "prod"},
     }
 
     response = client.post("/webhook/zabbix", json=payload)

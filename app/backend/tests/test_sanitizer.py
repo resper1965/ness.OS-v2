@@ -51,12 +51,15 @@ def test_sanitize_dict():
         "description": "Server log message: connection failed on postgres://db",
         "nested": {
             "password": "my_password",
-            "values": ["192.168.0.1", 123, "safe string"]
-        }
+            "values": ["192.168.0.1", 123, "safe string"],
+        },
     }
     sanitized_data = sanitize_dict(raw_data)
     assert sanitized_data["ip"] == "[IP_REDACTED]"
-    assert sanitized_data["description"] == "Server log message: connection failed on [CONN_STRING_REDACTED]"
+    assert (
+        sanitized_data["description"]
+        == "Server log message: connection failed on [CONN_STRING_REDACTED]"
+    )
     assert sanitized_data["nested"]["password"] == "[REDACTED]"
     assert sanitized_data["nested"]["values"][0] == "[IP_REDACTED]"
     assert sanitized_data["nested"]["values"][1] == 123

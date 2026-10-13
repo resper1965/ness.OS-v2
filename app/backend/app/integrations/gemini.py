@@ -8,6 +8,7 @@ logs, métricas e contexto do incidente.
 
 Os dados passam pelo sanitizer ANTES de chegar aqui.
 """
+
 from __future__ import annotations
 
 import json
@@ -102,9 +103,7 @@ def generate_postmortem(
 
     Usa a API REST do Google AI Studio (generateContent).
     """
-    prompt = build_postmortem_prompt(
-        incident, metrics, related_logs, similar_incidents
-    )
+    prompt = build_postmortem_prompt(incident, metrics, related_logs, similar_incidents)
 
     api_url = (
         f"https://generativelanguage.googleapis.com/v1beta/models/"

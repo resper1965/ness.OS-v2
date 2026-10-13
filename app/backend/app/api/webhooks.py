@@ -11,6 +11,7 @@ Fluxo de concorrência:
   4. Lock falha → envia para fila "alerts.deferred" com delay.
   5. Retorna 202 Accepted imediatamente (fire-and-forget).
 """
+
 from __future__ import annotations
 
 import logging

@@ -14,6 +14,7 @@ Fluxo:
 Multi-tenant: credenciais de API são resolvidas por customer_id,
 permitindo que cada cliente tenha suas próprias chaves de RMM.
 """
+
 from __future__ import annotations
 
 import logging
@@ -57,7 +58,9 @@ class RMMFactory:
         """
         key = f"{customer_id}:{provider}"
         cls._credential_store[key] = credentials
-        logger.info("Credenciais registradas | customer=%s provider=%s", customer_id, provider)
+        logger.info(
+            "Credenciais registradas | customer=%s provider=%s", customer_id, provider
+        )
 
     @classmethod
     def create_driver(cls, asset: dict[str, Any]) -> BaseRMMDriver:
@@ -98,9 +101,7 @@ class RMMFactory:
             )
 
     @classmethod
-    def _create_datto(
-        cls, asset: dict[str, Any], customer_id: str
-    ) -> DattoRMMDriver:
+    def _create_datto(cls, asset: dict[str, Any], customer_id: str) -> DattoRMMDriver:
         """Cria driver Datto com credenciais do customer."""
         creds = cls._get_credentials(customer_id, "datto")
         return DattoRMMDriver(
@@ -110,9 +111,7 @@ class RMMFactory:
         )
 
     @classmethod
-    def _create_atera(
-        cls, asset: dict[str, Any], customer_id: str
-    ) -> AteraRMMDriver:
+    def _create_atera(cls, asset: dict[str, Any], customer_id: str) -> AteraRMMDriver:
         """Cria driver Atera com credenciais do customer."""
         creds = cls._get_credentials(customer_id, "atera")
         return AteraRMMDriver(
@@ -181,9 +180,7 @@ class RMMFactory:
         return {}
 
     @classmethod
-    def _get_credentials(
-        cls, customer_id: str, provider: str
-    ) -> dict[str, str]:
+    def _get_credentials(cls, customer_id: str, provider: str) -> dict[str, str]:
         """Busca credenciais do registry ou banco. Fallback para 'default'."""
         import asyncio
 
@@ -197,7 +194,7 @@ class RMMFactory:
         # Fallback para o registry em memória (útil para testes/mocks)
         if not creds:
             key = f"{customer_id}:{provider}"
-            creds = cls._credential_store.get(key)
+            creds = cls._credential_store.get(key) or {}
 
         if not creds:
             # Fallback para credenciais globais em memória
@@ -211,7 +208,6 @@ class RMMFactory:
             )
 
         return creds
-
 
 
 def _resolve_netmiko_type(os_family: str) -> str:

@@ -8,6 +8,7 @@ simultaneamente em cenários de falha massiva.
 Usa SET NX EX (atomic) para garantir que apenas 1 worker
 processa a criação inicial do incidente para cada fingerprint.
 """
+
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
