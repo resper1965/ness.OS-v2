@@ -4,6 +4,15 @@ Atualizado em: 2026-10-12 (BRT)
 Estado: execução retomada; G0 tem promoção real do Hub/AIOps comprovada, mas
 permanece **PARCIAL** até CI limpo e integração protegida do workflow.
 
+## Ponto único de retomada — plano master
+
+[Plano master ness.OS](superpowers/plans/2026-10-12-ness-os-plano-master.md)
+consolida sequência, decisões e aceites; planos de produto detalham tarefas e
+registros de execução mantêm evidências. Planejamento concluído, sem execução
+por seu modelo autor, conforme instrução humana. Automação permanece pausada.
+As prioridades e números abaixo são históricos onde divergem dos registros
+de 12/10; retomar pelo master e pelo último resultado da ferramenta foco.
+
 ## Propósito
 
 O ness.OS é a camada operacional que reúne monitoramento, ITSM, automação e
@@ -19,9 +28,10 @@ esse fluxo, não como pré-requisito para o MVP.
 
 ## Fontes canônicas
 
-Prioridade de execução: `docs/execution/dynamic-delivery-track-2026-10-12.md`.
-Cartão ativo: Z1, pacote de qualidade para cinco ativos. Retomar nesse cartão;
-backup em trilha auxiliar, sem repetir verificações sem mudança relevante.
+Prioridade e sequência: `docs/superpowers/plans/2026-10-12-ness-os-plano-master.md`.
+Trilha dinâmica e cartão Z1 preservam histórico; não relançar esse cartão se
+o ledger comprovar conclusão. Backup segue em trilha auxiliar, sem repetir
+verificações sem mudança relevante.
 
 | Tema | Documento de referência |
 | --- | --- |

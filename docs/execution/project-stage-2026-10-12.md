@@ -1,5 +1,12 @@
 # Zabbix — estágio de 12/10/2026
 
+## Plano master — entrada única do programa
+
+[ness.OS — plano master](../superpowers/plans/2026-10-12-ness-os-plano-master.md)
+reúne todas as frentes em nove fases, com sequência, dependências, aceites e
+referências detalhadas. Compilação documental apenas; implementação pelo modelo
+autor não autorizada e automação segue pausada. Retomar por esse documento.
+
 ## Planos atuais persistidos — execução por outro modelo
 
 - [Authentik: identidade e experiência ness.](../superpowers/plans/2026-10-12-authentik-fluid-delivery.md).

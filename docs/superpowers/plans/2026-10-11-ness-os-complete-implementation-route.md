@@ -1,5 +1,9 @@
 # ness.OS Complete Implementation Route
 
+> **Sequência consolidada no [plano master](2026-10-12-ness-os-plano-master.md).**
+> Este roteiro conserva detalhe por domínio. Decisões, prioridade e restrição
+> de execução do master prevalecem sobre instruções históricas divergentes.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:executing-plans` to execute this route one checkbox at a time. No production change advances a gate merely because a service is online.
 
 **Goal:** concluir o ness.OS como uma operação segura e verificável: monitoramento confiável, ITSM, Hub de incidentes, identidade, cofre, AIOps assistido, SecOps e visões por tenant.
