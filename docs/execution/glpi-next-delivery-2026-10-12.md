@@ -18,6 +18,13 @@ dos três casos; suíte backend 416 PASS, 1 SKIP. Ainda falta provar concorrênc
 timeout após POST e reconciliação do backlog; nenhuma migração, ticket ou
 deploy produtivo foi executado por essa alteração.
 
+Incremento T04: 401/403 no cliente GLPI são classificados como recusa
+permanente; o worker registra estado `blocked` após a trilha de persistência
+do incidente e não consome novas tentativas automáticas. Falhas transitórias
+continuam com retry. Testes RED/green para consulta, seleção, recurso/lista e
+worker; suíte backend 420 PASS, 1 SKIP. Falta testar a jornada real/concorrência
+e implantar após fechar gates aplicáveis.
+
 ## Plano canônico de continuidade
 
 Consultar [GLPI no ness.OS — implementação completa](../superpowers/plans/2026-10-12-glpi-ness-os-complete-delivery.md)

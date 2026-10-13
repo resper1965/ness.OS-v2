@@ -86,3 +86,21 @@ async def test_ticket_lookup_rejects_malformed_pagination_before_creating_duplic
 
     with pytest.raises(RuntimeError, match="pagina"):
         await client.find_ticket_by_name_marker("[n.infraops:abc]", 1)
+
+
+@pytest.mark.asyncio
+async def test_ticket_lookup_classifies_forbidden_response_as_permanent(monkeypatch):
+    def handler(request):
+        return httpx.Response(403, request=request)
+
+    original = httpx.AsyncClient
+    monkeypatch.setattr(
+        httpx,
+        "AsyncClient",
+        lambda **kwargs: original(transport=httpx.MockTransport(handler), **kwargs),
+    )
+    client = GLPIClient(base_url="http://glpi/apirest.php", app_token="app", user_token="user")
+    client.session_token = "session"
+
+    with pytest.raises(PermissionError, match="GLPI"):
+        await client.find_ticket_by_name_marker("[n.infraops:abc]", 1)

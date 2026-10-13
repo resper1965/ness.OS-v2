@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from celery.exceptions import Retry
 
+from app.integrations.glpi import GLPIPermanentError
 from app.ml.analyzer import AIAnalysisResult
 from app.models import Incident, IncidentAction
 from app.workers import alerts
@@ -219,6 +220,22 @@ def test_processing_failure_releases_only_owned_inhibition_and_retries(monkeypat
     redis.delete.assert_not_called()
     assert redis.eval.call_args.args[1:] == (1, "ninf:inhibit:fingerprint", token)
     retry.assert_called_once_with(exc=failure)
+
+
+def test_glpi_permission_failure_does_not_consume_automatic_retries(monkeypatch):
+    redis = MagicMock()
+    redis.set.return_value = True
+    process = AsyncMock(side_effect=GLPIPermanentError("GLPI denied"))
+    retry = MagicMock(side_effect=AssertionError("permission failure must not retry"))
+    monkeypatch.setattr(alerts, "_get_sync_redis", lambda: redis)
+    monkeypatch.setattr(alerts, "_async_process_alert_v1", process)
+    monkeypatch.setattr(alerts.process_alert_v1, "retry", retry)
+
+    result = alerts.process_alert_v1.run({}, "fingerprint")
+
+    assert result == {"status": "blocked", "fingerprint": "fingerprint", "reason": "glpi_permission"}
+    retry.assert_not_called()
+    redis.eval.assert_called_once()
 
 
 def test_recovery_uses_separate_inhibition_key(monkeypatch):

@@ -13,7 +13,7 @@ from sqlalchemy import select
 
 from app.config import get_settings
 from app.database import SessionLocal
-from app.integrations.glpi import GLPIClient
+from app.integrations.glpi import GLPIClient, GLPIPermanentError
 from app.integrations.loki import LokiClient
 from app.integrations.whatsapp import WhatsAppClient
 from app.integrations.zabbix import ZabbixClient
@@ -754,5 +754,12 @@ def process_alert_v1(
                     redis_err.close()
         except Exception:
             pass
+        if isinstance(exc, GLPIPermanentError):
+            logger.error("GLPI permission denied; incident retained for manual repair")
+            return {
+                "status": "blocked",
+                "fingerprint": fingerprint,
+                "reason": "glpi_permission",
+            }
         logger.exception("Falha ao processar alerta v1 AIOps: %s", exc)
         raise self.retry(exc=exc)

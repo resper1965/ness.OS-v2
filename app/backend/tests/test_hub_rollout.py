@@ -3,7 +3,7 @@ from datetime import UTC
 import httpx
 import pytest
 
-from app.integrations.glpi import GLPIClient
+from app.integrations.glpi import GLPIClient, GLPIPermanentError
 from app.workers.alerts import customer_from_hostgroups, resolve_glpi_entity_id
 
 
@@ -92,7 +92,7 @@ async def test_entity_selection_does_not_enable_recursive_access(monkeypatch):
         base_url="http://glpi/apirest.php", app_token="a", user_token="u"
     )
     client.session_token = "session"
-    with pytest.raises(httpx.HTTPStatusError):
+    with pytest.raises(GLPIPermanentError):
         await client.change_active_entity(8)
 
 

@@ -1,7 +1,7 @@
 import httpx
 import pytest
 
-from app.integrations.glpi import GLPIClient
+from app.integrations.glpi import GLPIClient, GLPIPermanentError
 
 
 @pytest.mark.asyncio
@@ -75,3 +75,25 @@ async def test_entity_selection_accepts_one_nonrecursive_entity_with_metadata(mo
 
     await client.change_active_entity(1)
     assert client.session_token == "session"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("operation", ["get_item", "list_items"])
+async def test_glpi_resource_permission_denial_is_permanent(monkeypatch, operation):
+    def handler(request):
+        return httpx.Response(403, request=request)
+
+    original = httpx.AsyncClient
+    monkeypatch.setattr(
+        httpx,
+        "AsyncClient",
+        lambda **kwargs: original(transport=httpx.MockTransport(handler), **kwargs),
+    )
+    client = GLPIClient(base_url="http://glpi/apirest.php", app_token="app", user_token="user")
+    client.session_token = "session"
+
+    with pytest.raises(GLPIPermanentError):
+        if operation == "get_item":
+            await client.get_item("Ticket", 10)
+        else:
+            await client.list_items("Ticket")

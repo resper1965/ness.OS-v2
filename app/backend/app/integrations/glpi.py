@@ -11,8 +11,14 @@ from app.config import get_settings
 logger = logging.getLogger(__name__)
 
 
-def _glpi_failure(operation: str, exc: Exception) -> RuntimeError:
+class GLPIPermanentError(PermissionError):
+    """GLPI denied the configured identity; retries cannot repair its grants."""
+
+
+def _glpi_failure(operation: str, exc: Exception) -> Exception:
     logger.error("GLPI %s failed: %s", operation, type(exc).__name__)
+    if isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code in (401, 403):
+        return GLPIPermanentError(f"GLPI {operation} sem autorização")
     return RuntimeError(f"GLPI {operation} indisponível")
 
 
@@ -100,7 +106,7 @@ class GLPIClient:
                 )
                 response.raise_for_status()
                 if response.json() is not True:
-                    raise PermissionError("GLPI refused the requested entity")
+                    raise GLPIPermanentError("GLPI refused the requested entity")
                 current = await client.get(
                     f"{self.base_url}/getActiveEntities", headers=self.headers
                 )
@@ -119,7 +125,10 @@ class GLPIClient:
                     or type(selected[0].get("id")) is not int
                     or selected[0]["id"] != entity_id
                 ):
-                    raise PermissionError("GLPI effective entity differs from requested entity")
+                    raise GLPIPermanentError("GLPI effective entity differs from requested entity")
+        except httpx.HTTPStatusError as exc:
+            await self.kill_session()
+            raise _glpi_failure("seleção de entidade", exc) from exc
         except BaseException:
             await self.kill_session()
             raise
@@ -205,33 +214,39 @@ class GLPIClient:
     async def get_item(self, itemtype: str, item_id: int) -> dict:
         if not self.session_token:
             await self.init_session()
-        async with httpx.AsyncClient(timeout=10, follow_redirects=False) as client:
-            response = await client.get(
-                f"{self.base_url}/{itemtype}/{int(item_id)}", headers=self.headers
-            )
-            response.raise_for_status()
-            return response.json()
+        try:
+            async with httpx.AsyncClient(timeout=10, follow_redirects=False) as client:
+                response = await client.get(
+                    f"{self.base_url}/{itemtype}/{int(item_id)}", headers=self.headers
+                )
+                response.raise_for_status()
+                return response.json()
+        except httpx.HTTPStatusError as exc:
+            raise _glpi_failure("leitura de item", exc) from exc
 
     async def list_items(self, path: str) -> list[dict]:
         """Read every page; callers supply a fixed item type or sub-item path."""
         if not self.session_token:
             await self.init_session()
         items = []
-        async with httpx.AsyncClient(timeout=15, follow_redirects=False) as client:
-            for start in range(0, 100000, 100):
-                response = await client.get(
-                    f"{self.base_url}/{path}",
-                    headers=self.headers,
-                    params={"range": f"{start}-{start + 99}", "get_hateoas": "false"},
-                )
-                response.raise_for_status()
-                page = response.json()
-                if not isinstance(page, list):
-                    raise ValueError("GLPI returned an invalid collection")
-                items.extend(page)
-                total = response.headers.get("Content-Range", "").rsplit("/", 1)[-1]
-                if (total.isdigit() and len(items) >= int(total)) or len(page) < 100:
-                    return items
+        try:
+            async with httpx.AsyncClient(timeout=15, follow_redirects=False) as client:
+                for start in range(0, 100000, 100):
+                    response = await client.get(
+                        f"{self.base_url}/{path}",
+                        headers=self.headers,
+                        params={"range": f"{start}-{start + 99}", "get_hateoas": "false"},
+                    )
+                    response.raise_for_status()
+                    page = response.json()
+                    if not isinstance(page, list):
+                        raise ValueError("GLPI returned an invalid collection")
+                    items.extend(page)
+                    total = response.headers.get("Content-Range", "").rsplit("/", 1)[-1]
+                    if (total.isdigit() and len(items) >= int(total)) or len(page) < 100:
+                        return items
+        except httpx.HTTPStatusError as exc:
+            raise _glpi_failure("lista de itens", exc) from exc
         raise RuntimeError("GLPI pagination limit exceeded")
 
     async def ticket_resolution(
