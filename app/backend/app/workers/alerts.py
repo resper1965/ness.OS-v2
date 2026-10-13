@@ -193,6 +193,7 @@ async def ensure_glpi_ticket(
     category_id: int,
     title: str,
     content: str,
+    allow_create: bool,
     linked_item: dict | None = None,
 ) -> tuple[int, bool]:
     """Return the single GLPI ticket for a fingerprint, creating it if absent."""
@@ -201,6 +202,8 @@ async def ensure_glpi_ticket(
     existing_id = await glpi.find_ticket_by_name_marker(marker, entity_id)
     if existing_id is not None:
         return existing_id, False
+    if not allow_create:
+        raise GLPITransientError("GLPI ticket delivery awaits reconciliation")
 
     response = await glpi.create_ticket(
         title=f"{marker} {title}",
@@ -236,7 +239,7 @@ async def ensure_glpi_ticket_serialized(
     content: str,
     linked_item: dict | None = None,
 ) -> tuple[int, bool]:
-    """Serialize lookup and create across workers for the same tenant/event."""
+    """Reserve one POST durably before contacting GLPI for this tenant/event."""
     identity = f"glpi-ticket:{entity_id}:{fingerprint}".encode("utf-8")
     lock_key = int.from_bytes(
         blake2b(identity, digest_size=8).digest(), "big", signed=True
@@ -253,15 +256,25 @@ async def ensure_glpi_ticket_serialized(
                 raise GLPITransientError(
                     "GLPI ticket lock temporarily unavailable"
                 ) from exc
-            return await ensure_glpi_ticket(
-                glpi,
-                fingerprint=fingerprint,
-                entity_id=entity_id,
-                category_id=category_id,
-                title=title,
-                content=content,
-                linked_item=linked_item,
+            claim = await session.execute(
+                text(
+                    "INSERT INTO n_infraops_glpi_ticket_post_reservations "
+                    "(entity_id, fingerprint) VALUES (:entity_id, :fingerprint) "
+                    "ON CONFLICT DO NOTHING RETURNING 1"
+                ),
+                {"entity_id": entity_id, "fingerprint": fingerprint},
             )
+            allow_create = claim.scalar_one_or_none() == 1
+    return await ensure_glpi_ticket(
+        glpi,
+        fingerprint=fingerprint,
+        entity_id=entity_id,
+        category_id=category_id,
+        title=title,
+        content=content,
+        linked_item=linked_item,
+        allow_create=allow_create,
+    )
 
 
 async def lookup_glpi_asset(host_id: str, customer: str) -> dict | None:

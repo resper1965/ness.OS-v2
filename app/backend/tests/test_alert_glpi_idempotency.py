@@ -55,6 +55,7 @@ async def test_existing_marker_reuses_ticket_without_external_writes():
         category_id=1,
         title="[AIOps] Teste sintético",
         content="conteúdo",
+        allow_create=False,
     )
 
     assert (ticket_id, created) == (123, False)
@@ -75,6 +76,7 @@ async def test_absent_marker_creates_one_ticket_with_deterministic_key():
         category_id=1,
         title="[AIOps] Teste sintético",
         content="conteúdo",
+        allow_create=True,
     )
 
     assert (ticket_id, created) == (456, True)
@@ -103,6 +105,7 @@ async def test_retry_after_comment_failure_reuses_created_ticket():
         category_id=1,
         title="Synthetic",
         content="Synthetic",
+        allow_create=True,
     )
 
     with pytest.raises(RuntimeError, match="followup unavailable"):
@@ -124,6 +127,7 @@ async def test_timeout_after_post_recovers_existing_ticket_before_reposting():
         category_id=1,
         title="Synthetic",
         content="Synthetic",
+        allow_create=True,
     )
 
     with pytest.raises(GLPITransientError):
@@ -135,9 +139,12 @@ async def test_timeout_after_post_recovers_existing_ticket_before_reposting():
 
 
 @pytest.mark.asyncio
-async def test_concurrent_workers_serialize_lookup_and_ticket_creation(monkeypatch):
+async def test_unconfirmed_post_is_not_repeated_while_remote_search_is_empty(
+    monkeypatch,
+):
     lock = asyncio.Lock()
-    stored = {"ticket_id": None, "posts": 0}
+    reservations = set()
+    posts = 0
 
     @asynccontextmanager
     async def session_factory():
@@ -151,9 +158,74 @@ async def test_concurrent_workers_serialize_lookup_and_ticket_creation(monkeypat
                 if lock.locked():
                     lock.release()
 
-        async def execute(statement, _params=None):
-            if "pg_advisory_xact_lock" in str(statement):
+        async def execute(statement, params=None):
+            sql = str(statement)
+            if "pg_advisory_xact_lock" in sql:
                 await lock.acquire()
+            if "n_infraops_glpi_ticket_post_reservations" in sql:
+                key = (params["entity_id"], params["fingerprint"])
+                claimed = key not in reservations
+                reservations.add(key)
+                return MagicMock(scalar_one_or_none=lambda: 1 if claimed else None)
+            return MagicMock()
+
+        session.begin.side_effect = transaction
+        session.execute = execute
+        yield session
+
+    glpi = AsyncMock()
+    glpi.find_ticket_by_name_marker.return_value = None
+
+    async def create_ticket(**_kwargs):
+        nonlocal posts
+        posts += 1
+        raise GLPITransientError("response lost after POST")
+
+    glpi.create_ticket.side_effect = create_ticket
+    monkeypatch.setattr(alerts, "SessionLocal", session_factory)
+    kwargs = dict(
+        fingerprint="f" * 64,
+        entity_id=8,
+        category_id=1,
+        title="Synthetic",
+        content="Synthetic",
+    )
+
+    for _ in range(2):
+        with pytest.raises(GLPITransientError):
+            await ensure_glpi_ticket_serialized(glpi, **kwargs)
+
+    assert posts == 1
+
+
+@pytest.mark.asyncio
+async def test_concurrent_workers_serialize_lookup_and_ticket_creation(monkeypatch):
+    lock = asyncio.Lock()
+    stored = {"ticket_id": None, "posts": 0}
+    reservations = set()
+
+    @asynccontextmanager
+    async def session_factory():
+        session = MagicMock()
+
+        @asynccontextmanager
+        async def transaction():
+            try:
+                yield
+            finally:
+                if lock.locked():
+                    lock.release()
+
+        async def execute(statement, params=None):
+            sql = str(statement)
+            if "pg_advisory_xact_lock" in sql:
+                await lock.acquire()
+            if "n_infraops_glpi_ticket_post_reservations" in sql:
+                key = (params["entity_id"], params["fingerprint"])
+                claimed = key not in reservations
+                reservations.add(key)
+                return MagicMock(scalar_one_or_none=lambda: 1 if claimed else None)
+            return MagicMock()
 
         session.begin.side_effect = transaction
         session.execute = execute
@@ -181,13 +253,23 @@ async def test_concurrent_workers_serialize_lookup_and_ticket_creation(monkeypat
         content="Synthetic",
     )
 
-    results = await asyncio.gather(
+    attempts = await asyncio.gather(
         ensure_glpi_ticket_serialized(glpi, **kwargs),
         ensure_glpi_ticket_serialized(glpi, **kwargs),
+        return_exceptions=True,
     )
+    assert stored["posts"] == 1
+    assert all(isinstance(result, tuple | GLPITransientError) for result in attempts)
+    results = [
+        (
+            result
+            if isinstance(result, tuple)
+            else await ensure_glpi_ticket_serialized(glpi, **kwargs)
+        )
+        for result in attempts
+    ]
 
     assert sorted(results) == [(456, False), (456, True)]
-    assert stored["posts"] == 1
 
 
 @pytest.mark.asyncio
@@ -236,6 +318,7 @@ async def test_failed_ticket_lookup_never_creates_a_ticket():
             category_id=1,
             title="Synthetic",
             content="Synthetic",
+            allow_create=True,
         )
 
     glpi.create_ticket.assert_not_awaited()
@@ -626,7 +709,9 @@ async def test_pipeline_persists_incident_and_retries_glpi_failure(
         committed.append(True)
 
     lock_session = MagicMock()
-    lock_session.execute = AsyncMock()
+    lock_session.execute = AsyncMock(
+        return_value=MagicMock(scalar_one_or_none=lambda: 1)
+    )
 
     @asynccontextmanager
     async def lock_transaction():

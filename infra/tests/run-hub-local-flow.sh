@@ -27,7 +27,7 @@ done
 [[ "$ready" == 1 ]] || { echo 'Local Hub dependencies did not become ready' >&2; exit 1; }
 
 docker cp "$repo_root/app/backend/sql/." "$pg_name:/tmp/sql"
-for script in 000_init.sql 001_schema.sql 002_push_subscriptions.sql; do
+for script in 000_init.sql 001_schema.sql 002_push_subscriptions.sql 003_glpi_ticket_post_reservations.sql; do
   docker exec "$pg_name" psql -v ON_ERROR_STOP=1 -U nessops -d nessops \
     -f "/tmp/sql/$script" >/dev/null
 done

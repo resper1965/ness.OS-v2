@@ -70,6 +70,14 @@ Os cinco workflows do commit `63ab9b3` passaram no SHA exato, incluindo
 backend, frontend, lint/tipos, secret scan e SBOM. Isso valida a branch,
 mas não publica imagem por digest nem promove a nova alteração em produção.
 
+GLPI T04, 13/10 ~16:43 BRT: uma busca remota vazia após timeout do POST
+permitia nova criação. Teste RED reproduziu dois POSTs. A branch candidata
+reserva `(entidade, fingerprint)` no PostgreSQL antes do envio; repetição só
+consulta até reconciliar. 525 testes backend+infra PASS/1 SKIP; tabela aditiva
+ensaiada apenas em banco descartável; ensaio da função real confirmou um POST
+apesar de duas buscas vazias e reconciliação posterior. Sem migração produtiva, replay ou deploy;
+rollback da versão antiga exige parar novos envios e preservar reservas.
+
 GLPI T05, 13/10 ~12:15 BRT: `list_items` agora exige `Content-Range`
 consistente em toda página de inventário; testes RED comprovaram página
 curta sem total e range de outra página. Correção `09d03b9` teve 26 testes

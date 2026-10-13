@@ -1,6 +1,6 @@
 # ness.OS — indicador de entrega
 
-Última verificação: **13/10/2026, 16:37 BRT**. Fonte: plano master,
+Última verificação: **13/10/2026, 16:46 BRT**. Fonte: plano master,
 `PROJECT_CONTEXT.md`, estágio operacional, ledger e GitHub. Este quadro é um
 checkpoint, não telemetria em tempo real. Atualizar quando uma entrega, gate,
 bloqueio ou prazo mudar; preservar a data da última verificação.
@@ -39,10 +39,14 @@ privilégios antes de servir. Preflight exige root/dono correto; ensaio local
 com UID/GID 999, capacidades efetivas zero e healthcheck saudável; backend+infra
 524 PASS/1 SKIP. Sem imagem publicada, deploy ou credencial real.
 Ainda sem deploy, isolamento direto real ou reativação da conta 106.
-T04: a revisão do caminho de timeout após POST confirmou que o lock transacional
-termina antes do registro do incidente, e uma busca negativa imediata não
-comprova ausência remota. Replay continua bloqueado; o runbook exige quarentena
-até barreira durável anterior ao POST e reconciliação do resultado ambíguo.
+T04: a revisão do timeout após POST confirmou que busca negativa imediata não
+comprova ausência remota. A branch candidata passou a reservar uma única
+tentativa por entidade/fingerprint no banco **antes** do POST; teste RED→GREEN,
+525 testes backend+infra PASS/1 SKIP e esquema ensaiado em PostgreSQL descartável
+(primeiro claim 1, repetido 0, outra entidade 1). Sem migração/deploy produtivo;
+ensaio da função real com PostgreSQL descartável confirmou um único POST após
+duas buscas vazias e reconciliação posterior. Replay continua bloqueado até
+release, migração produtiva e reconciliação.
 
 **Foco agora:** GLPI T03 e substituição segura do pipeline. PR 65 foi integrado;
 próxima liberação depende da revisão técnica do PR 64, publicação segura de

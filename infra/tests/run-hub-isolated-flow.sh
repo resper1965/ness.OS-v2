@@ -29,7 +29,7 @@ for ((attempt=0; attempt<60; attempt++)); do
 done
 [[ ${ready} == 1 ]] || { echo 'isolated dependencies not ready' >&2; exit 1; }
 docker cp "${repo_root}/app/backend/sql/." "${pg}:/tmp/sql"
-for script in 000_init.sql 001_schema.sql 002_push_subscriptions.sql; do
+for script in 000_init.sql 001_schema.sql 002_push_subscriptions.sql 003_glpi_ticket_post_reservations.sql; do
   docker exec "${pg}" psql -v ON_ERROR_STOP=1 -U nessops -d nessops \
     -f "/tmp/sql/${script}" >/dev/null
 done

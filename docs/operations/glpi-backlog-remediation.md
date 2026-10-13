@@ -52,9 +52,18 @@ apagado automaticamente. Preservar histórico e abrir correção individual.
 Se o POST puder ter sido aceito mas a resposta se perder, colocar o incidente
 em quarentena: não repetir POST por busca negativa imediata nem por expiração
 do lock. Reconciliar remotamente e registrar o desfecho antes de nova tentativa.
-O fluxo automático atual ainda não persiste esse estado **antes** do POST;
-T04/replay produtivo permanecem bloqueados até implementação e teste da
-barreira durável.
+A branch candidata grava uma reserva única `(entidade, fingerprint)` **antes**
+do POST; se a busca ainda vier vazia, tentativas posteriores só consultam e
+não reenviam. O esquema `003_glpi_ticket_post_reservations.sql` foi ensaiado
+em PostgreSQL descartável; não foi aplicado ao banco produtivo. Antes de
+promover, aplicar o esquema aditivo, verificar a tabela/PK e só então iniciar
+o worker novo. Se houver retorno à versão antiga, parar primeiro os envios de
+ticket: o worker antigo não consulta reservas. Não apagar reservas no rollback;
+liberá-las individualmente exige prova de que nenhum POST foi aceito.
+Ensaio da função real com PostgreSQL descartável confirmou um único POST
+apesar de duas buscas vazias e reaparecimento posterior do ticket; não houve
+contato com GLPI real. T04/replay produtivo permanecem bloqueados até release,
+migração e reconciliação real.
 
 Nenhuma contagem baixa por exclusão/encerramento em massa. A operação aprova
 separadamente a política de transições de tickets históricos.
