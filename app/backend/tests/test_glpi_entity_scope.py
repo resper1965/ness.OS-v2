@@ -5,7 +5,9 @@ from app.integrations.glpi import GLPIClient, GLPIPermanentError, GLPITransientE
 
 
 @pytest.mark.asyncio
-async def test_entity_selection_rejects_success_response_with_wrong_effective_entity(monkeypatch):
+async def test_entity_selection_rejects_success_response_with_wrong_effective_entity(
+    monkeypatch,
+):
     requests = []
 
     def handler(request):
@@ -33,7 +35,9 @@ async def test_entity_selection_rejects_success_response_with_wrong_effective_en
         "AsyncClient",
         lambda **kwargs: original(transport=httpx.MockTransport(handler), **kwargs),
     )
-    client = GLPIClient(base_url="http://glpi/apirest.php", app_token="app", user_token="user")
+    client = GLPIClient(
+        base_url="http://glpi/apirest.php", app_token="app", user_token="user"
+    )
     client.session_token = "session"
 
     with pytest.raises(PermissionError, match="entity"):
@@ -47,7 +51,9 @@ async def test_entity_selection_rejects_success_response_with_wrong_effective_en
 
 
 @pytest.mark.asyncio
-async def test_entity_selection_accepts_one_nonrecursive_entity_with_metadata(monkeypatch):
+async def test_entity_selection_accepts_one_nonrecursive_entity_with_metadata(
+    monkeypatch,
+):
     def handler(request):
         if request.url.path.endswith("/changeActiveEntities"):
             return httpx.Response(200, json=True)
@@ -70,7 +76,9 @@ async def test_entity_selection_accepts_one_nonrecursive_entity_with_metadata(mo
         "AsyncClient",
         lambda **kwargs: original(transport=httpx.MockTransport(handler), **kwargs),
     )
-    client = GLPIClient(base_url="http://glpi/apirest.php", app_token="app", user_token="user")
+    client = GLPIClient(
+        base_url="http://glpi/apirest.php", app_token="app", user_token="user"
+    )
     client.session_token = "session"
 
     await client.change_active_entity(1)
@@ -89,7 +97,9 @@ async def test_glpi_resource_permission_denial_is_permanent(monkeypatch, operati
         "AsyncClient",
         lambda **kwargs: original(transport=httpx.MockTransport(handler), **kwargs),
     )
-    client = GLPIClient(base_url="http://glpi/apirest.php", app_token="app", user_token="user")
+    client = GLPIClient(
+        base_url="http://glpi/apirest.php", app_token="app", user_token="user"
+    )
     client.session_token = "session"
 
     with pytest.raises(GLPIPermanentError):
@@ -110,7 +120,9 @@ async def test_glpi_connection_failure_is_transient(monkeypatch):
         "AsyncClient",
         lambda **kwargs: original(transport=httpx.MockTransport(handler), **kwargs),
     )
-    client = GLPIClient(base_url="http://glpi/apirest.php", app_token="app", user_token="user")
+    client = GLPIClient(
+        base_url="http://glpi/apirest.php", app_token="app", user_token="user"
+    )
 
     with pytest.raises(RuntimeError) as error:
         await client.init_session()
@@ -118,7 +130,9 @@ async def test_glpi_connection_failure_is_transient(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_entity_selection_connection_failure_is_transient_and_closes_session(monkeypatch):
+async def test_entity_selection_connection_failure_is_transient_and_closes_session(
+    monkeypatch,
+):
     def handler(request):
         if request.url.path.endswith("/killSession"):
             return httpx.Response(200, json=True)
@@ -130,7 +144,9 @@ async def test_entity_selection_connection_failure_is_transient_and_closes_sessi
         "AsyncClient",
         lambda **kwargs: original(transport=httpx.MockTransport(handler), **kwargs),
     )
-    client = GLPIClient(base_url="http://glpi/apirest.php", app_token="app", user_token="user")
+    client = GLPIClient(
+        base_url="http://glpi/apirest.php", app_token="app", user_token="user"
+    )
     client.session_token = "session"
 
     with pytest.raises(GLPITransientError):

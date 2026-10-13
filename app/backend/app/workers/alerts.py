@@ -1,9 +1,9 @@
 import asyncio
-from hashlib import blake2b
 import json
 import logging
 import re
 from datetime import datetime, timezone
+from hashlib import blake2b
 from html import escape
 from typing import Any, Dict
 from uuid import uuid4
@@ -227,12 +227,20 @@ async def ensure_glpi_ticket(
 
 
 async def ensure_glpi_ticket_serialized(
-    glpi: GLPIClient, *, fingerprint: str, entity_id: int,
-    category_id: int, title: str, content: str, linked_item: dict | None = None,
+    glpi: GLPIClient,
+    *,
+    fingerprint: str,
+    entity_id: int,
+    category_id: int,
+    title: str,
+    content: str,
+    linked_item: dict | None = None,
 ) -> tuple[int, bool]:
     """Serialize lookup and create across workers for the same tenant/event."""
     identity = f"glpi-ticket:{entity_id}:{fingerprint}".encode("utf-8")
-    lock_key = int.from_bytes(blake2b(identity, digest_size=8).digest(), "big", signed=True)
+    lock_key = int.from_bytes(
+        blake2b(identity, digest_size=8).digest(), "big", signed=True
+    )
     async with SessionLocal() as session:
         async with session.begin():
             try:
@@ -242,10 +250,16 @@ async def ensure_glpi_ticket_serialized(
                     {"lock_key": lock_key},
                 )
             except OperationalError as exc:
-                raise GLPITransientError("GLPI ticket lock temporarily unavailable") from exc
+                raise GLPITransientError(
+                    "GLPI ticket lock temporarily unavailable"
+                ) from exc
             return await ensure_glpi_ticket(
-                glpi, fingerprint=fingerprint, entity_id=entity_id,
-                category_id=category_id, title=title, content=content,
+                glpi,
+                fingerprint=fingerprint,
+                entity_id=entity_id,
+                category_id=category_id,
+                title=title,
+                content=content,
                 linked_item=linked_item,
             )
 

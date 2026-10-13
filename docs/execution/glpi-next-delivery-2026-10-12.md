@@ -372,3 +372,10 @@ estará pesquisável imediatamente no GLPI; canário real e gate de produção
 seguem pendentes. GH Actions não iniciou os cinco jobs do commit 80ee26c
 por faturamento/limite da conta (annotation do job 115098127227); issue 67
 já contém ação humana. Não foi feito deploy nem replay.
+
+Estado posterior: usuário tornou o repositório público e os cinco jobs do
+PR #64 passaram a iniciar. No commit `5a68c63`, secret scan, frontend e SBOM
+passaram; backend parou em seis arquivos sem Black e lint no import de
+`blake2b`. Formatação, import e anotação MyPy corrigidos; Black `--check .`,
+flake8 estrito, Ruff lint/format, MyPy e 428 testes passaram localmente.
+Checks remotos da nova revisão ainda devem ser confirmados antes de G0.

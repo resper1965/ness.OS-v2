@@ -173,8 +173,13 @@ async def test_concurrent_workers_serialize_lookup_and_ticket_creation(monkeypat
     glpi.find_ticket_by_name_marker.side_effect = find_ticket
     glpi.create_ticket.side_effect = create_ticket
     monkeypatch.setattr(alerts, "SessionLocal", session_factory)
-    kwargs = dict(fingerprint="e" * 64, entity_id=8, category_id=1,
-                  title="Synthetic", content="Synthetic")
+    kwargs = dict(
+        fingerprint="e" * 64,
+        entity_id=8,
+        category_id=1,
+        title="Synthetic",
+        content="Synthetic",
+    )
 
     results = await asyncio.gather(
         ensure_glpi_ticket_serialized(glpi, **kwargs),
@@ -188,7 +193,9 @@ async def test_concurrent_workers_serialize_lookup_and_ticket_creation(monkeypat
 @pytest.mark.asyncio
 async def test_ticket_lock_timeout_retries_without_creating_ticket(monkeypatch):
     session = MagicMock()
-    session.execute = AsyncMock(side_effect=OperationalError("lock", {}, Exception("timeout")))
+    session.execute = AsyncMock(
+        side_effect=OperationalError("lock", {}, Exception("timeout"))
+    )
 
     @asynccontextmanager
     async def transaction():
@@ -204,8 +211,12 @@ async def test_ticket_lock_timeout_retries_without_creating_ticket(monkeypatch):
 
     with pytest.raises(GLPITransientError):
         await ensure_glpi_ticket_serialized(
-            glpi, fingerprint="e" * 64, entity_id=8, category_id=1,
-            title="Synthetic", content="Synthetic",
+            glpi,
+            fingerprint="e" * 64,
+            entity_id=8,
+            category_id=1,
+            title="Synthetic",
+            content="Synthetic",
         )
 
     glpi.find_ticket_by_name_marker.assert_not_awaited()
@@ -334,7 +345,11 @@ def test_glpi_permission_failure_does_not_consume_automatic_retries(monkeypatch)
 
     result = alerts.process_alert_v1.run({}, "fingerprint")
 
-    assert result == {"status": "blocked", "fingerprint": "fingerprint", "reason": "glpi_permission"}
+    assert result == {
+        "status": "blocked",
+        "fingerprint": "fingerprint",
+        "reason": "glpi_permission",
+    }
     retry.assert_not_called()
     redis.eval.assert_called_once()
 
@@ -363,8 +378,12 @@ def test_glpi_retry_exhaustion_is_audited_and_stays_failed(monkeypatch):
     record = AsyncMock()
     retry = MagicMock(side_effect=AssertionError("exhausted retry must not reschedule"))
     monkeypatch.setattr(alerts, "_get_sync_redis", lambda: redis)
-    monkeypatch.setattr(alerts, "_async_process_alert_v1", AsyncMock(side_effect=failure))
-    monkeypatch.setattr(alerts, "_record_glpi_delivery_exhausted", record, raising=False)
+    monkeypatch.setattr(
+        alerts, "_async_process_alert_v1", AsyncMock(side_effect=failure)
+    )
+    monkeypatch.setattr(
+        alerts, "_record_glpi_delivery_exhausted", record, raising=False
+    )
     monkeypatch.setattr(alerts.process_alert_v1.request, "retries", 12)
     monkeypatch.setattr(alerts.process_alert_v1, "retry", retry)
 
@@ -377,11 +396,11 @@ def test_glpi_retry_exhaustion_is_audited_and_stays_failed(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_retry_exhaustion_audit_uses_existing_incident_without_payload(monkeypatch):
+async def test_retry_exhaustion_audit_uses_existing_incident_without_payload(
+    monkeypatch,
+):
     session = MagicMock()
-    session.execute = AsyncMock(
-        return_value=MagicMock(scalar_one_or_none=lambda: 77)
-    )
+    session.execute = AsyncMock(return_value=MagicMock(scalar_one_or_none=lambda: 77))
 
     @asynccontextmanager
     async def transaction():

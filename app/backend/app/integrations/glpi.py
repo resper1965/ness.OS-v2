@@ -107,7 +107,9 @@ class GLPIClient:
         if not self.session_token:
             await self.init_session()
         try:
-            async with httpx.AsyncClient(timeout=10.0, follow_redirects=False) as client:
+            async with httpx.AsyncClient(
+                timeout=10.0, follow_redirects=False
+            ) as client:
                 response = await client.post(
                     f"{self.base_url}/changeActiveEntities",
                     headers=self.headers,
@@ -121,8 +123,12 @@ class GLPIClient:
                 )
                 current.raise_for_status()
                 payload = current.json()
-                active = payload.get("active_entity") if isinstance(payload, dict) else None
-                selected = active.get("active_entities") if isinstance(active, dict) else None
+                active = (
+                    payload.get("active_entity") if isinstance(payload, dict) else None
+                )
+                selected = (
+                    active.get("active_entities") if isinstance(active, dict) else None
+                )
                 if (
                     not isinstance(active, dict)
                     or type(active.get("id")) is not int
@@ -134,7 +140,9 @@ class GLPIClient:
                     or type(selected[0].get("id")) is not int
                     or selected[0]["id"] != entity_id
                 ):
-                    raise GLPIPermanentError("GLPI effective entity differs from requested entity")
+                    raise GLPIPermanentError(
+                        "GLPI effective entity differs from requested entity"
+                    )
         except httpx.HTTPStatusError as exc:
             await self.kill_session()
             raise _glpi_failure("seleção de entidade", exc) from exc
@@ -247,7 +255,10 @@ class GLPIClient:
                     response = await client.get(
                         f"{self.base_url}/{path}",
                         headers=self.headers,
-                        params={"range": f"{start}-{start + 99}", "get_hateoas": "false"},
+                        params={
+                            "range": f"{start}-{start + 99}",
+                            "get_hateoas": "false",
+                        },
                     )
                     response.raise_for_status()
                     page = response.json()
@@ -255,7 +266,9 @@ class GLPIClient:
                         raise ValueError("GLPI returned an invalid collection")
                     items.extend(page)
                     total = response.headers.get("Content-Range", "").rsplit("/", 1)[-1]
-                    if (total.isdigit() and len(items) >= int(total)) or len(page) < 100:
+                    if (total.isdigit() and len(items) >= int(total)) or len(
+                        page
+                    ) < 100:
                         return items
         except httpx.HTTPStatusError as exc:
             raise _glpi_failure("lista de itens", exc) from exc
@@ -358,7 +371,7 @@ class GLPIClient:
             raise ValueError("Marcador de idempotência GLPI inválido")
 
         url = f"{self.base_url}/Ticket/"
-        matches = []
+        matches: list[dict[str, Any]] = []
         start = 0
         try:
             async with httpx.AsyncClient(
@@ -378,24 +391,33 @@ class GLPIClient:
                     res.raise_for_status()
                     page = res.json()
                     if not isinstance(page, list):
-                        raise RuntimeError("GLPI retornou busca de tickets em formato inválido")
+                        raise RuntimeError(
+                            "GLPI retornou busca de tickets em formato inválido"
+                        )
                     matches.extend(
-                        item for item in page
+                        item
+                        for item in page
                         if isinstance(item, dict)
                         and marker in str(item.get("name", ""))
                         and int(item.get("entities_id", -1)) == entity_id
                         and isinstance(item.get("id"), int)
                     )
                     if len(matches) > 1:
-                        raise RuntimeError("GLPI retornou tickets idempotentes duplicados")
+                        raise RuntimeError(
+                            "GLPI retornou tickets idempotentes duplicados"
+                        )
                     content_range = res.headers.get("Content-Range", "")
                     total = content_range.rsplit("/", 1)[-1]
                     if content_range and not total.isdigit():
                         raise RuntimeError("GLPI retornou paginação inválida")
                     if not page and total.isdigit() and start < int(total):
-                        raise RuntimeError("GLPI retornou página vazia antes do fim da busca")
+                        raise RuntimeError(
+                            "GLPI retornou página vazia antes do fim da busca"
+                        )
                     start += len(page)
-                    if (total.isdigit() and start >= int(total)) or (not total.isdigit() and len(page) < 100):
+                    if (total.isdigit() and start >= int(total)) or (
+                        not total.isdigit() and len(page) < 100
+                    ):
                         return matches[0]["id"] if matches else None
         except RuntimeError:
             raise

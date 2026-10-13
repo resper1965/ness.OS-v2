@@ -16,7 +16,10 @@ async def test_ticket_lookup_reads_later_pages_before_declaring_absent(monkeypat
             return httpx.Response(
                 206,
                 headers={"Content-Range": "0-99/101"},
-                json=[{"id": index, "entities_id": 5, "name": marker} for index in range(1, 101)],
+                json=[
+                    {"id": index, "entities_id": 5, "name": marker}
+                    for index in range(1, 101)
+                ],
             )
         return httpx.Response(
             200,
@@ -30,7 +33,9 @@ async def test_ticket_lookup_reads_later_pages_before_declaring_absent(monkeypat
         "AsyncClient",
         lambda **kwargs: original(transport=httpx.MockTransport(handler), **kwargs),
     )
-    client = GLPIClient(base_url="http://glpi/apirest.php", app_token="app", user_token="user")
+    client = GLPIClient(
+        base_url="http://glpi/apirest.php", app_token="app", user_token="user"
+    )
     client.session_token = "session"
 
     assert await client.find_ticket_by_name_marker(marker, 1) == 501
@@ -49,7 +54,10 @@ async def test_ticket_lookup_follows_server_capped_page_size(monkeypatch):
             return httpx.Response(
                 206,
                 headers={"Content-Range": f"{start}-{start + 49}/101"},
-                json=[{"id": index, "entities_id": 5, "name": marker} for index in range(start, start + 50)],
+                json=[
+                    {"id": index, "entities_id": 5, "name": marker}
+                    for index in range(start, start + 50)
+                ],
             )
         return httpx.Response(
             200,
@@ -63,7 +71,9 @@ async def test_ticket_lookup_follows_server_capped_page_size(monkeypatch):
         "AsyncClient",
         lambda **kwargs: original(transport=httpx.MockTransport(handler), **kwargs),
     )
-    client = GLPIClient(base_url="http://glpi/apirest.php", app_token="app", user_token="user")
+    client = GLPIClient(
+        base_url="http://glpi/apirest.php", app_token="app", user_token="user"
+    )
     client.session_token = "session"
 
     assert await client.find_ticket_by_name_marker(marker, 1) == 501
@@ -71,7 +81,9 @@ async def test_ticket_lookup_follows_server_capped_page_size(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_ticket_lookup_rejects_malformed_pagination_before_creating_duplicate(monkeypatch):
+async def test_ticket_lookup_rejects_malformed_pagination_before_creating_duplicate(
+    monkeypatch,
+):
     def handler(_request):
         return httpx.Response(206, headers={"Content-Range": "invalid"}, json=[])
 
@@ -81,7 +93,9 @@ async def test_ticket_lookup_rejects_malformed_pagination_before_creating_duplic
         "AsyncClient",
         lambda **kwargs: original(transport=httpx.MockTransport(handler), **kwargs),
     )
-    client = GLPIClient(base_url="http://glpi/apirest.php", app_token="app", user_token="user")
+    client = GLPIClient(
+        base_url="http://glpi/apirest.php", app_token="app", user_token="user"
+    )
     client.session_token = "session"
 
     with pytest.raises(RuntimeError, match="pagina"):
@@ -99,7 +113,9 @@ async def test_ticket_lookup_classifies_forbidden_response_as_permanent(monkeypa
         "AsyncClient",
         lambda **kwargs: original(transport=httpx.MockTransport(handler), **kwargs),
     )
-    client = GLPIClient(base_url="http://glpi/apirest.php", app_token="app", user_token="user")
+    client = GLPIClient(
+        base_url="http://glpi/apirest.php", app_token="app", user_token="user"
+    )
     client.session_token = "session"
 
     with pytest.raises(PermissionError, match="GLPI"):

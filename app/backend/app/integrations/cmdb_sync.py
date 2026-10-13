@@ -32,7 +32,10 @@ def scoped_hosts(hostids):
         return None
     if not 1 <= len(hostids) <= 5 or len(set(hostids)) != len(hostids):
         raise ValueError("Scope requires one to five unique host IDs")
-    if any(not isinstance(h, str) or not h.isascii() or not h.isdecimal() or int(h) <= 0 for h in hostids):
+    if any(
+        not isinstance(h, str) or not h.isascii() or not h.isdecimal() or int(h) <= 0
+        for h in hostids
+    ):
         raise ValueError("Scope requires positive numeric host IDs")
     return hostids
 
@@ -225,4 +228,6 @@ if __name__ == "__main__":
     parser.add_argument("--apply", action="store_true")
     parser.add_argument("--hostids", nargs="+")
     args = parser.parse_args()
-    print(json.dumps(asyncio.run(reconcile(args.apply, args.hostids)), ensure_ascii=False))
+    print(
+        json.dumps(asyncio.run(reconcile(args.apply, args.hostids)), ensure_ascii=False)
+    )

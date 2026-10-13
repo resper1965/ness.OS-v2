@@ -47,6 +47,13 @@ bloqueio no PostgreSQL real, sem escrita, passaram. Suíte backend: 428 PASS,
 1 SKIP. A busca GLPI após POST ainda exige canário real antes de aprovar
 idempotência de ponta a ponta.
 
+Após o repositório tornar-se público, os cinco jobs do PR #64 iniciaram.
+No commit `5a68c63`, Secret scan, Frontend CI e SBOM passaram; Backend CI
+falhou somente no Black e Lint/Type somente na ordenação de import. Ambos
+foram corrigidos no checkout e as verificações locais Black, flake8 estrito,
+Ruff lint/format, MyPy e 428 testes backend passaram. Aguardar novo run
+remoto após push; G0 não é considerado aprovado por checks locais.
+
 Diagnóstico somente leitura encontrou 159 incidentes sem ticket: 115 antigos
 sem falha registrada, 29 recentes com `ticket_failed` não classificado e 15
 sem ID de evento de origem. Os 29 surgiram na hora 02:00 UTC e o worker
