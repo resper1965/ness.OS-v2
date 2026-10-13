@@ -696,4 +696,18 @@ Zabbix origem única coletora/destino mascarado continuam preservados.
 - O Backend CI de `da7e865` falhou no fixture do fluxo integrado: a resposta
   simulada de Ticket não trazia `Content-Range`, agora obrigatório. Fixture
   corrigida com total real; backend local 476 PASS/1 SKIP, Ruff/Black PASS.
-  Aguardar novo CI; nenhum runtime produtivo foi alterado.
+  Os cinco workflows de `fa56a9f` terminaram PASS no SHA exato: Backend CI,
+  Frontend CI, Lint & Type Check, Secret scan e Build image SBOMs. Isso valida
+  a branch, não publica imagem por digest nem promove o runtime produtivo.
+  Nenhum runtime produtivo foi alterado.
+
+### GLPI T04 — consistência da paginação, 13/10/2026
+
+- Teste RED mostrou que `Content-Range: 0-0/0` junto de uma página não vazia
+  era aceito como fim da busca; a ausência do marcador poderia ser declarada
+  sem prova. A busca agora confere início, fim, tamanho da página e total
+  informado, falhando fechado quando divergirem. Sete testes focados PASS;
+  Black/Ruff PASS. A suíte local teve 406 PASS, 1 SKIP e 72 falhas por
+  `pywebpush` ausente neste Python; a dependência consta em `requirements.txt`.
+  Aguardar CI completo no commit desta alteração. Sem replay/deploy ou escrita
+  no GLPI; a conta técnica 106 continua desativada.

@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import re
 from ipaddress import ip_address
 from typing import Any, Dict, Optional
 from urllib.parse import urlparse
@@ -422,15 +423,26 @@ class GLPIClient:
                     content_range = res.headers.get("Content-Range", "")
                     if not content_range:
                         raise RuntimeError("GLPI omitiu Content-Range da busca")
-                    total = content_range.rsplit("/", 1)[-1]
-                    if not total.isdigit():
+                    parsed_range = re.fullmatch(
+                        r"(?:(\d+)-(\d+)|\*)/(\d+)", content_range
+                    )
+                    if parsed_range is None:
                         raise RuntimeError("GLPI retornou paginação inválida")
-                    if not page and total.isdigit() and start < int(total):
+                    first, last, total_text = parsed_range.groups()
+                    total = int(total_text)
+                    if page and (
+                        first is None
+                        or int(first) != start
+                        or int(last) != start + len(page) - 1
+                        or total < start + len(page)
+                    ):
+                        raise RuntimeError("GLPI retornou paginação inconsistente")
+                    if not page and start < total:
                         raise RuntimeError(
                             "GLPI retornou página vazia antes do fim da busca"
                         )
                     start += len(page)
-                    if start >= int(total):
+                    if start >= total:
                         return matches[0]["id"] if matches else None
         except RuntimeError:
             raise

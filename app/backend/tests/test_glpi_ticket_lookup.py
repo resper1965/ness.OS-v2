@@ -128,6 +128,54 @@ async def test_ticket_lookup_does_not_assume_short_page_is_complete_without_rang
 
 
 @pytest.mark.asyncio
+async def test_ticket_lookup_rejects_range_inconsistent_with_nonempty_page(monkeypatch):
+    def handler(_request):
+        return httpx.Response(
+            200,
+            headers={"Content-Range": "0-0/0"},
+            json=[{"id": 1, "entities_id": 5, "name": "unrelated"}],
+        )
+
+    original = httpx.AsyncClient
+    monkeypatch.setattr(
+        httpx,
+        "AsyncClient",
+        lambda **kwargs: original(transport=httpx.MockTransport(handler), **kwargs),
+    )
+    client = GLPIClient(
+        base_url="http://glpi/apirest.php", app_token="app", user_token="user"
+    )
+    client.session_token = "session"
+
+    with pytest.raises(RuntimeError, match="pagina"):
+        await client.find_ticket_by_name_marker("[n.infraops:abc]", 1)
+
+
+@pytest.mark.asyncio
+async def test_ticket_lookup_rejects_range_for_a_different_page(monkeypatch):
+    def handler(_request):
+        return httpx.Response(
+            200,
+            headers={"Content-Range": "10-10/11"},
+            json=[{"id": 1, "entities_id": 5, "name": "unrelated"}],
+        )
+
+    original = httpx.AsyncClient
+    monkeypatch.setattr(
+        httpx,
+        "AsyncClient",
+        lambda **kwargs: original(transport=httpx.MockTransport(handler), **kwargs),
+    )
+    client = GLPIClient(
+        base_url="http://glpi/apirest.php", app_token="app", user_token="user"
+    )
+    client.session_token = "session"
+
+    with pytest.raises(RuntimeError, match="pagina"):
+        await client.find_ticket_by_name_marker("[n.infraops:abc]", 1)
+
+
+@pytest.mark.asyncio
 async def test_ticket_lookup_classifies_forbidden_response_as_permanent(monkeypatch):
     def handler(request):
         return httpx.Response(403, request=request)
