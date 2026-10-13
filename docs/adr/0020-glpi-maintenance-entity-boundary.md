@@ -201,6 +201,12 @@ O diagnóstico sem credenciais `infra/scripts/glpi_network_boundary_probe.py`
 retornou `BLOCKED_DIRECT_PATH`, com uma rede compartilhada. O comando não
 emite `PASS`, mesmo que as redes venham a ser separadas; a fronteira requer
 prova de rotas, identidade e objetos. Três testes locais passaram.
+O diagnóstico foi ampliado para incluir `ninf-worker-alerts`, que também
+recebe a configuração GLPI. Readback em 13/10 retornou
+`BLOCKED_DIRECT_PATH` para API **e** worker, com uma rede compartilhada;
+cinco testes da sonda passaram. Isolar apenas `ninf-api` deixaria o caminho
+direto do worker aberto. A sonda permanece somente leitura e nunca aprova
+T03 por topologia isolada.
 
 Ensaio reversível da **topologia candidata** em 13/10: duas redes Docker
 descartáveis, quatro containers sintéticos da imagem API já presente no host,

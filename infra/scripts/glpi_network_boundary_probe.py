@@ -15,6 +15,18 @@ def assess_networks(api: set[str], glpi: set[str]) -> dict[str, object]:
     return {"status": status, "shared_networks": len(api & glpi)}
 
 
+def assess_consumers(consumers: dict[str, set[str]], glpi: set[str]) -> dict[str, object]:
+    direct = sorted(name for name, networks in consumers.items() if networks & glpi)
+    shared = set().union(*(networks & glpi for networks in consumers.values()))
+    if direct:
+        status = "BLOCKED_DIRECT_PATH"
+    elif not glpi or not consumers or any(not networks for networks in consumers.values()):
+        status = "UNKNOWN_NETWORK_TOPOLOGY"
+    else:
+        status = "NETWORK_SEPARATED_UNVERIFIED"
+    return {"status": status, "shared_networks": len(shared), "direct_consumers": direct}
+
+
 def main() -> int:
     # The format excludes container environment, mounts and other secret-bearing
     # inspect fields. Never print the raw response or Docker's error output.
@@ -26,6 +38,7 @@ def main() -> int:
                 "--format",
                 "{{json .NetworkSettings.Networks}}",
                 "ninf-api",
+                "ninf-worker-alerts",
                 "ninf-glpi",
             ],
             capture_output=True,
@@ -34,14 +47,17 @@ def main() -> int:
             timeout=10,
         )
         lines = result.stdout.splitlines()
-        if len(lines) != 2:
+        if len(lines) != 3:
             raise ValueError("unexpected container count")
         networks = [json.loads(line) for line in lines]
         if any(not isinstance(item, dict) for item in networks):
             raise ValueError("invalid network topology")
-        report = assess_networks(set(networks[0]), set(networks[1]))
+        report = assess_consumers(
+            {"api": set(networks[0]), "worker_alerts": set(networks[1])},
+            set(networks[2]),
+        )
     except (OSError, ValueError, subprocess.SubprocessError):
-        report = assess_networks(set(), set())
+        report = assess_consumers({"api": set(), "worker_alerts": set()}, set())
 
     print(json.dumps(report, sort_keys=True))
     # Even separate Docker networks do not prove that Caddy/public routes,
