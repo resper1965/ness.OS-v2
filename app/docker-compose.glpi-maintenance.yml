@@ -10,18 +10,18 @@ services:
   glpi-maintenance-gateway:
     image: ${NINF_API_IMAGE:?NINF_API_IMAGE is required}
     container_name: ninf-glpi-maintenance-gateway
+    user: "0:0"
     command:
-      - uvicorn
-      - app.integrations.glpi_maintenance_runtime:build_app
-      - --factory
-      - --host
-      - 0.0.0.0
-      - --port
-      - "8000"
+      - python
+      - -m
+      - app.integrations.glpi_maintenance_entrypoint
     restart: unless-stopped
     read_only: true
     cap_drop:
       - ALL
+    cap_add:
+      - SETUID
+      - SETGID
     security_opt:
       - no-new-privileges:true
     environment:

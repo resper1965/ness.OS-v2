@@ -1,5 +1,6 @@
 import importlib.util
 from pathlib import Path
+from types import SimpleNamespace
 
 SCRIPT = Path(__file__).resolve().parents[1] / "scripts/glpi_maintenance_preflight.py"
 spec = importlib.util.spec_from_file_location("glpi_maintenance_preflight", SCRIPT)
@@ -54,3 +55,23 @@ def test_secret_files_must_exist_be_nonempty_and_owner_only(tmp_path):
     config["secret_paths"][2].unlink()
     findings = preflight.validate(**config)
     assert findings.count("SECRET_UNSAFE") == 3
+
+
+def test_secret_owned_by_another_uid_is_rejected(tmp_path):
+    config = _config(tmp_path)
+    path = config["secret_paths"][0]
+    config["secret_paths"][0] = SimpleNamespace(
+        lstat=lambda: SimpleNamespace(
+            st_mode=path.lstat().st_mode, st_uid=path.lstat().st_uid + 1
+        ),
+        stat=lambda: SimpleNamespace(st_size=path.stat().st_size),
+    )
+
+    assert "SECRET_UNSAFE" in preflight.validate(**config)
+
+
+def test_preflight_requires_root_on_deployment_host(monkeypatch, capsys):
+    monkeypatch.setattr(preflight.os, "geteuid", lambda: 1000)
+
+    assert preflight.main() == 1
+    assert capsys.readouterr().out.strip() == "BLOCKED_ROOT_REQUIRED"

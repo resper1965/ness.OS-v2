@@ -1,6 +1,6 @@
 # ness.OS — indicador de entrega
 
-Última verificação: **13/10/2026, 16:05 BRT**. Fonte: plano master,
+Última verificação: **13/10/2026, 16:24 BRT**. Fonte: plano master,
 `PROJECT_CONTEXT.md`, estágio operacional, ledger e GitHub. Este quadro é um
 checkpoint, não telemetria em tempo real. Atualizar quando uma entrega, gate,
 bloqueio ou prazo mudar; preservar a data da última verificação.
@@ -33,6 +33,11 @@ O runtime passou a exigir o alias privado exato do Compose antes de ler
 secrets; teste RED→GREEN e backend 488 PASS/1 SKIP.
 Smoke local do processo Uvicorn sem rede e com tokens sintéticos: `/live` 200,
 leitura sem bearer 401; contêiner descartável removido.
+Ensaio Compose detectou falha de leitura de secrets root:root 0600 pelo UID
+`nessops`; entrada opt-in corrigida para carregá-los como root e descartar
+privilégios antes de servir. Preflight exige root/dono correto; ensaio local
+com UID/GID 999, capacidades efetivas zero e healthcheck saudável; backend+infra
+524 PASS/1 SKIP. Sem imagem publicada, deploy ou credencial real.
 Ainda sem deploy, isolamento direto real ou reativação da conta 106.
 
 **Foco agora:** GLPI T03 e substituição segura do pipeline. PR 65 foi integrado;

@@ -38,8 +38,14 @@ def validate(*, image: str, subnet: str, gateway_ip: str, secret_paths) -> list[
         findings.append("SECRET_COUNT_INVALID")
     for path in secret_paths:
         try:
-            mode = path.lstat().st_mode
-            if not stat.S_ISREG(mode) or mode & 0o077 or path.stat().st_size == 0:
+            metadata = path.lstat()
+            mode = metadata.st_mode
+            if (
+                not stat.S_ISREG(mode)
+                or mode & 0o077
+                or metadata.st_uid != os.geteuid()
+                or path.stat().st_size == 0
+            ):
                 findings.append("SECRET_UNSAFE")
         except OSError:
             findings.append("SECRET_UNSAFE")
@@ -47,6 +53,9 @@ def validate(*, image: str, subnet: str, gateway_ip: str, secret_paths) -> list[
 
 
 def main() -> int:
+    if os.geteuid() != 0:
+        print("BLOCKED_ROOT_REQUIRED")
+        return 1
     config = {
         "image": os.getenv("NINF_API_IMAGE", ""),
         "subnet": os.getenv("NESS_GLPI_MAINTENANCE_SUBNET", ""),

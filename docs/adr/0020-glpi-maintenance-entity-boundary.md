@@ -381,6 +381,20 @@ individuais. A imagem API base sonda `/ready` e recebeu 404 no sidecar; o
 override opt-in deve manter seu healthcheck próprio em `/live`. Não houve
 contato com GLPI, sessão, leitura autorizada, deploy ou prova de isolamento.
 
+Correção local de 13/10 ~16:24 BRT: um ensaio Compose com três arquivos
+**sintéticos** root:root 0600 mostrou que o processo `nessops` não conseguia
+ler os secrets; `uid/gid/mode` na referência Compose foi ignorado pela
+implementação local. O override opt-in agora inicia como root somente para
+carregar os arquivos, descarta grupos suplementares, muda UID/GID para
+`nessops` e então inicia Uvicorn. O preflight exige execução como root e
+propriedade dos três arquivos pelo UID executor. No ensaio descartável, o
+processo ficou UID/GID 999, sem capacidades efetivas, `/live` respondeu e o
+healthcheck ficou saudável; contêiner e fixtures removidos. Testes RED→GREEN,
+backend+infra 524 PASS/1 SKIP, Black/Ruff PASS. Isso resolve somente o boot
+local com arquivos root-only: não comprova isolamento de rede, imagem por
+digest, credencial real, acesso à entidade 1 ou negação da 5. Sem deploy;
+106 continua desativada e T03/G2 bloqueados.
+
 Antes de aplicar o override: comprovar subnet sem colisão, imagem da release
 contendo o entrypoint, secret files/permissions, IP estável após recriação,
 filtro de cliente GLPI limitado a esse IP, rota pública autenticada negada,
