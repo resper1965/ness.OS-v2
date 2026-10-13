@@ -349,7 +349,7 @@ class PluginNessaiAssistant
             try {
                 $apiKey = (new GLPIKey())->decrypt($encryptedKey);
             } catch (\Throwable $e) {
-                return $errorResult('Falha ao descriptografar a chave de API: ' . $e->getMessage());
+                return $errorResult('Falha ao descriptografar a chave de API.');
             }
         }
 

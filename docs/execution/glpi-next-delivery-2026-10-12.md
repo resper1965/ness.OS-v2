@@ -460,3 +460,7 @@ resposta autorizada, negação de ticket e lint PHP passaram em contêiner
 isolado. O plugin **não está implantado**; a resposta de erro produzida
 normalmente por `callLLM`, a pesquisa KB entre entidades e a política de
 dados enviados à IA ainda precisam de revisão antes de qualquer ativação.
+
+O assistente também deixou de concatenar a mensagem interna de uma falha ao
+descriptografar a chave na resposta. Teste sintético RED→GREEN e lint PHP
+passaram; erros HTTP do provedor ainda requerem sanitização independente.
