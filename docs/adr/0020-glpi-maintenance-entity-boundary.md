@@ -23,6 +23,27 @@ filtro vale para toda combinação de `user_token`, sessão e reverse proxy: o
 GLPI pode ver o IP do proxy, não o do chamador. Verificar no ambiente sintético
 os caminhos permitidos e negados antes de escolher essa alternativa.
 
+Leitura da versão **instalada** em 13/10/2026, sem mudar configuração:
+`/var/www/glpi/src/Glpi/Api/API.php` seleciona clientes ativos cujo intervalo
+IP contém `Toolbox::getRemoteIpAddress()` (linhas 202–249) e
+`checkAppToken()` exige correspondência exata com o App-Token de um desses
+clientes (linhas 2339–2363). `Toolbox.php:2812–2815` retorna
+`$_SERVER["REMOTE_ADDR"]`; não usa `X-Forwarded-For` nesse percurso.
+Isso confirma um controle nativo candidato, **não** a fronteira: se Hub,
+adaptador ou rota pública chegarem ao GLPI com o mesmo IP percebido, o filtro
+não os distingue. Também não restringe, por si só, a troca de entidade da
+sessão autenticada observada no teste negativo.
+
+Ensaio de decisão, antes de ativar 106: em ambiente isolado, manter o mesmo
+App-Token e testar `initSession`, `changeActiveEntities`, `getActiveEntities`
+e `GET Computer` para entidade 1 e descendente 5, por três caminhos: adaptador,
+Hub direto e rota pública autenticada. Registrar apenas status, entidade
+efetiva e IP percebido, nunca credenciais ou payload. O resultado exigido é
+permitir a operação contratada da entidade 1 **somente** pelo adaptador e
+negar a descendente 5 e ambos os percursos diretos. Se qualquer rota direta
+funcionar, descartar filtro IP isolado e implantar separação de rede/rota antes
+de continuar. A conta produtiva 106 fica desativada durante o ensaio.
+
 Se o filtro nativo não cobrir todos os caminhos, prototipar a fronteira
 privada abaixo. Nenhuma das duas alternativas está aprovada hoje.
 
