@@ -184,6 +184,16 @@ volumes exclusivos e o verificador temporário foram removidos, com ausência
 confirmada. Isso valida somente mecânica de cópia/reattach, não captura
 consistente com GLPI real ativo, rota pública, banco, SSO ou rollback de
 escritas posteriores; ainda não há autorização para recriar `ninf-glpi`.
+Ensaio seguinte de Caddy descartável: o host GLPI sintético respondeu 503
+para GET e POST, enquanto hosts Hub e SSO sintéticos seguiram 200. O
+contêiner e arquivo de teste foram removidos com ausência confirmada. O
+Caddyfile runtime e o versionado tinham hash idêntico; o gerador
+`glpi_caddy_maintenance.py` exige esse hash e troca somente o bloco GLPI.
+O candidato completo passou em `caddy validate` com a imagem já instalada,
+sem reload produtivo. O runbook
+`docs/operations/glpi-state-volume-cutover-2026-10-13.md` explicita ordem,
+aborto e limite do rollback após reabrir escrita. Isso prepara a janela,
+mas não comprova rota pública/SSO real nem autoriza T03/G2.
 Uma requisição pública não autenticada a `n-ticket.ness.com.br/apirest.php`
 foi encaminhada ao fluxo Authentik. Isso não prova bloqueio para usuário
 autenticado ou portador de token; a rota pública exige teste negativo próprio.

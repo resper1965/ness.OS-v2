@@ -111,6 +111,10 @@ Um laboratório descartável no mesmo host validou cópia `cp -a`, comparação
 do volume sintético e reanexação somente leitura do original; resíduos do
 teste foram removidos. A etapa produtiva exige janela e rota de manutenção
 que impeça escritas durante o corte, além de teste de retorno completo.
+Um candidato de Caddy para manutenção exclusiva do GLPI foi gerado com
+precondição de hash e validado sem deploy; laboratório descartável confirmou
+503 GET/POST no host GLPI e 200 nos hosts Hub/SSO sintéticos. Procedimento
+e limites estão em `docs/operations/glpi-state-volume-cutover-2026-10-13.md`.
 No fluxo de incidentes para tickets, um teste RED mostrou que o log INFO
 continha toda a análise de IA. A mensagem passou a registrar apenas a conclusão,
 sem conteúdo da análise; 95 testes focados e 456 testes backend passaram.
