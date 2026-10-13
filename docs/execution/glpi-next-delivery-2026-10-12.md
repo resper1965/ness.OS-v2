@@ -187,3 +187,23 @@ Enquanto isso, próximo trabalho independente: classificar os115 incidentes
 sem ticket por idade/estado/causa e o backlog por evento/trigger, ou concluir
 testes de escopo/rollback isolados. Não repetir contagem ampla já comprovada,
 não apagar/resolver chamados em massa nem alterar SLAs sem contrato aprovado.
+
+## Retomada humana e delegação de configuração
+
+Usuário solicitou assumir configuração e resolver gaps. Leitura corrente:
+perfil ness-maintenance-alupar13 existe, computer=1059, demais direitos não
+nulos ausentes na consulta. Dicionário nativo Computer::getRights confirma:
+1059=READ1+UPDATE2+READNOTE32+VIEWOWNED1024; não inclui CREATE4/DELETE8.
+Necessário restringir computer a13 (READ1+CREATE4+DELETE8) antes de uso.
+Não confundir ID13 do perfil com máscara13 de direitos.
+
+Usuário svc_ness_maintenance106 ativo existe, mas consulta de Profile_User
+não encontrou associação de perfil/entidade. Acesso técnico não resolvido.
+Não houve criação/alteração pelo agente, nem troca de senha ou elevaçãoHub94.
+
+Controle da sessão Windows não disponível (node_repl ausente), Browser Use
+sem conexão com sessão humana na última verificação. Screenshot não é sessão
+de API. Implementação administrativa depende de credencial administrativa
+normal e protegida, ou de concluir perfil/vínculo/token nominalmente no GLPI;
+autorização humana já foi dada, mas não fornece autenticação técnica.
+Não contornar restrição via SQL ou callAsSystem para escrever configuração.
