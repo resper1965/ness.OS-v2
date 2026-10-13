@@ -243,6 +243,8 @@ class GLPIClient:
                 return response.json()
         except httpx.HTTPStatusError as exc:
             raise _glpi_failure("leitura de item", exc) from exc
+        except httpx.TransportError as exc:
+            raise _glpi_failure("leitura de item", exc) from exc
 
     async def list_items(self, path: str) -> list[dict]:
         """Read every page; callers supply a fixed item type or sub-item path."""

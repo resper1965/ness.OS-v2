@@ -81,6 +81,9 @@ independente passou em 15 testes, inclusive falha upstream sanitizada, mas não
 está conectada ao runtime nem implantada. A suíte backend total passou em
 456 testes, 1 pulado. Isso não
 isola a API produtiva nem autoriza criar os três ativos pendentes.
+Uma queda de transporte durante `get_item` no cliente compartilhado agora é
+classificada como transitória; teste RED reproduziu o `ConnectError` cru e a
+suíte backend passou depois em 457 testes, 1 pulado. Ainda sem deploy.
 Sonda sem credenciais no runtime confirmou uma rede compartilhada entre
 `ninf-api` e `ninf-glpi` (`BLOCKED_DIRECT_PATH`); a issue #74 foi corrigida
 com esse bloqueio e a instrução de manter 106 inativa.
