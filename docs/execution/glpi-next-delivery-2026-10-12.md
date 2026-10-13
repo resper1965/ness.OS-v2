@@ -1,5 +1,32 @@
 # GLPI — retomada operacional de 12/10/2026
 
+## T04 — backlog sem ticket, 13/10 07:55 UTC
+
+Consulta agregada somente leitura no PostgreSQL do Hub, com transação
+`READ ONLY`, classificou 159 incidentes sem `deskmanager_ticket_id`:
+
+- 29 criados em 13/10: 28 com ativo e um sem ativo; todos têm identificador
+  de evento Zabbix e última ação GLPI `ticket_failed`.
+- 115 criados de 25/09 a 12/10: todos com ativo e identificador de evento,
+  mas sem qualquer ação registrada em `n_infraops_incident_actions`.
+  Cada um tem `alert_count=1` e duração observada de zero dias.
+- 15 criados em 10/07: sem identificador de evento e sem ação registrada;
+  11 têm ativo e quatro não.
+
+O fluxo atual `process_alert_v1` tenta o ticket antes de persistir o
+incidente e registra falha/sucesso como ação. Portanto, a ausência de ação
+nos 130 registros anteriores não prova que o GLPI nunca criou ticket:
+podem ser anteriores à auditoria atual, de fluxo/release diferente ou
+representar vínculo local perdido. Nenhum replay, ticket ou ativo foi criado.
+O monitor `incident_health` já acusa incidentes com evento sem ticket após
+cinco minutos; a classificação acrescenta causa/idade à contagem existente,
+não é evidência de saúde.
+
+Próximo passo seguro: relatório reproduzível por cursor e busca remota
+somente leitura pelo marcador idempotente, verificando entidade e vínculo
+antes de propor lote de correção. Manter a conta técnica 106 inativa e
+nenhuma escrita enquanto T03 não provar isolamento nativo da rota direta.
+
 ## T12 — estado dos plugins, 13/10 06:45 UTC
 
 `php /var/www/glpi/bin/console plugin:list --format=json --no-interaction`
