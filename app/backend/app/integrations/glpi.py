@@ -1,7 +1,7 @@
 import asyncio
 import logging
 import re
-from ipaddress import ip_address
+from ipaddress import ip_address, ip_network
 from typing import Any, Dict, Optional
 from urllib.parse import urlparse
 
@@ -50,7 +50,14 @@ def is_private_glpi_api_url(url: str) -> bool:
         address = ip_address(hostname)
     except ValueError:
         return hostname.endswith((".internal", ".local"))
-    return address.is_private or address.is_loopback or address.is_link_local
+    return address.is_loopback or any(
+        address in network
+        for network in (
+            ip_network("10.0.0.0/8"),
+            ip_network("172.16.0.0/12"),
+            ip_network("192.168.0.0/16"),
+        )
+    )
 
 
 class GLPIClient:

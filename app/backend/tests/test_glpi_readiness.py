@@ -40,6 +40,9 @@ def _client(monkeypatch, handler, *, base_url="http://ninf-glpi/apirest.php"):
     (
         "http://ninf-glpi/apirest.php",
         "http://127.0.0.1/apirest.php",
+        "http://10.1.2.3/apirest.php",
+        "http://172.30.250.2/apirest.php",
+        "http://192.168.1.2/apirest.php",
         "https://glpi.internal/apirest.php/",
     ),
 )
@@ -54,6 +57,9 @@ def test_private_glpi_api_urls_are_accepted(url):
         "http://user:secret@ninf-glpi/apirest.php",
         "http://ninf-glpi/",
         "file:///apirest.php",
+        "http://198.18.0.1/apirest.php",
+        "http://169.254.10.2/apirest.php",
+        "http://172.32.0.1/apirest.php",
     ),
 )
 def test_public_or_malformed_glpi_api_urls_are_rejected(url):
