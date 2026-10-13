@@ -232,3 +232,24 @@ estado antes de nova tentativa; não repetir PUT da correção já comprovada.
 Não gerar credencial do usuário106 até autorização de entidade válida.
 Token administrativo temporário continua protegido somente para esta mudança,
 com revogação ao término; ainda não revogado porque execução não concluída.
+
+### Associação corrigida — sessão e cache de entidades
+
+Admin58 tem perfil4 na raiz0 recursivo; User106 pertence à raiz0 mas não
+tinha autorização. Código nativo Profile_User::canCreateItem exige leitura
+do usuário e acesso à entidade. Sessão API com todas entidades selecionadas
+refletia apenas IDs0/1/2/3, embora hierarquia SQL somente leitura tenha12
+entidades válidas sob0/1. Esse cache impedia canViewAllEntities e GET User106.
+
+Comando oficial cache:clear --context=core --no-interaction executado;
+retornou exit1/Falha ao esvaziar o cache. Não marcar limpeza completa PASS.
+Na sessão API nova, seleção autorizada de todas entidades passou a refletir12,
+GET User106 passou e associação POST Profile_User retornou201:
+binding125,userid106,perfil13,entidade1,não-recursivo; GET normal confirmou
+todos os campos. Sessão finalmente encerrada. Isso prova reparo do percurso
+e associação, não sucesso integral do comando de cache. Não repetir limpeza
+sem diagnóstico específico de sua falha parcial.
+
+ContaHub94/perfil12 preservados; não houve SQL de configuração ou callAsSystem.
+Próximo passo: credencial separada do usuário106 por API normal e testes de
+entidade permitida/negada, depois lote3. Nenhum ativo ainda criado.
