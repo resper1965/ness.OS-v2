@@ -305,3 +305,19 @@ ou interromper logins existentes. Não afirmar ausência de MFA externo por
 ausência de etapa local. Aceite administrativo deve cobrir login local e Google,
 incluindo mesma conta nominal, fatores e recuperação, sem privilégios automáticos
 por sufixo do email. Nenhuma associação, policy ou fluxo foi alterado.
+
+## 11. Drift das restrições Google — 12/10 após21:47 BRT
+
+Fonte, fluxo de authentication, fluxo de enrollment e suas etapas têm zero
+bindings. As duas policies Google de internos/externos aprovados e cadastro
+somente ness.com.br existem; grupo SSO-External-Approved também existe.
+O documento aprovado de01/09 prevê essas restrições: a presença de policies
+sem vínculo nos caminhos efetivos não comprova enforcement. Drift estrutural
+confirmado, sem teste de acesso indevido, criação ou takeover de conta.
+
+Registrado na issue75, com ensaio de interno/externo aprovado/não aprovado,
+conta inexistente/desativada/email não verificado, export e rollback antes
+de reconciliar bindings. Não bloquear externos aprovados com filtro global
+de domínio nem associar grupo externo às aplicações. Instrução nova enviada
+a Ismael/Ricardo, SENT1a132bc9b3b1d765; não repetir cobrança. Nenhum provider,
+grupo, fluxo ou usuário alterado nesta rodada.
