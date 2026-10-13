@@ -23,18 +23,27 @@ existente com esses valores, valide gates, snapshot e rollback e só então
 implante. Um push parcial ou check reprovado não produz manifesto nem autoriza
 deploy. Não execute o build no host produtivo.
 
-## Corte do Actions
+## Estado da transição em 13/10/2026
 
-Ainda **não** desabilitar Actions nem remover os checks exigidos na branch:
-o publicador precisa de um builder real e um registro privado com escrita/leitura
-comprovadas. Antes do corte, rode o fluxo completo em commit revisado e publique
-um status externo confiável para substituir os checks obrigatórios; verifique
-que PRs sem esse status continuam bloqueadas. Só então desabilite Actions e
-retire os workflows antigos. Runner próprio registrado no Actions não elimina
-a dependência do Actions e não deve executar PRs de um repositório público.
+O usuário desativou GitHub Actions para interromper novas execuções faturáveis.
+O repositório agora é privado e se chama `resper1965/ness.OS-v2`. Os quatro
+checks exigidos pela proteção da `main` foram preservados: merges novos ficam
+bloqueados até existir substituição equivalente. Não remover os checks nem os
+workflows antigos para contornar esse bloqueio.
+
+Docker Desktop/Buildx no Windows construiu localmente API e frontend, sem push.
+O frontend teve três alertas altos de dependências transitivas; o lockfile foi
+atualizado, `npm ci`, lint, build e auditoria passaram com zero vulnerabilidades,
+e a imagem local foi recompilada. A integração Docker da distro WSL ainda não
+foi comprovada; estes builds manuais não executaram o publicador completo.
+Antes da primeira publicação, resolver o scan de segredos, executar o fluxo
+completo num commit revisado, comprovar escrita/leitura do registro privado e
+um status externo confiável. Verificar que PRs sem esse status continuam
+bloqueadas antes de alterar a proteção.
 
 O scan local de segredos está em fail-closed. Em 13/10/2026 encontrou três
 ocorrências no checkout `main`, incluindo dois valores no inventário Ansible
 com aparência de credenciais. Não registrar os valores; confirmar uso, conter
 exposição e rotacionar antes da primeira publicação. Histórico público não é
-apagado por tornar o repositório privado.
+apagado por tornar o repositório privado. A contenção e rotação estão
+registradas na issue #82.
