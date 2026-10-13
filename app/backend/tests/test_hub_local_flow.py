@@ -62,6 +62,17 @@ async def test_problem_partial_glpi_failure_replay_recovery_and_tenant_scope(
                 "is_recursive": False,
             }
             return httpx.Response(200, json=True)
+        if path == "/apirest.php/getActiveEntities":
+            return httpx.Response(
+                200,
+                json={
+                    "active_entity": {
+                        "id": 8,
+                        "active_entity_recursive": False,
+                        "active_entities": [{"id": 8}],
+                    }
+                },
+            )
         if path == "/apirest.php/Ticket/":
             marker = request.url.params["searchText[name]"]
             return httpx.Response(

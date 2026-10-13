@@ -48,11 +48,11 @@ bloqueio no PostgreSQL real, sem escrita, passaram. Suíte backend: 428 PASS,
 idempotência de ponta a ponta.
 
 Após o repositório tornar-se público, os cinco jobs do PR #64 iniciaram.
-No commit `5a68c63`, Secret scan, Frontend CI e SBOM passaram; Backend CI
-falhou somente no Black e Lint/Type somente na ordenação de import. Ambos
-foram corrigidos no checkout e as verificações locais Black, flake8 estrito,
-Ruff lint/format, MyPy e 428 testes backend passaram. Aguardar novo run
-remoto após push; G0 não é considerado aprovado por checks locais.
+No commit `433c710`, Secret scan, Frontend CI, SBOM e Lint/Type passaram.
+Backend CI alcançou o fluxo integrado descartável e revelou que seu mock não
+respondia ao novo `getActiveEntities`; o mock foi atualizado, sem relaxar a
+verificação de entidade. Black, Ruff e 428 testes backend passaram localmente;
+o fluxo PostgreSQL/Redis ainda requer novo run remoto. G0 permanece pendente.
 
 Diagnóstico somente leitura encontrou 159 incidentes sem ticket: 115 antigos
 sem falha registrada, 29 recentes com `ticket_failed` não classificado e 15
