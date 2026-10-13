@@ -8,6 +8,10 @@ import stat
 from pathlib import Path
 
 _DIGEST_IMAGE = re.compile(r"^[a-zA-Z0-9._/-]+@sha256:[a-fA-F0-9]{64}$")
+_RFC1918 = tuple(
+    ipaddress.ip_network(cidr)
+    for cidr in ("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16")
+)
 
 
 def validate(*, image: str, subnet: str, gateway_ip: str, secret_paths) -> list[str]:
@@ -21,7 +25,9 @@ def validate(*, image: str, subnet: str, gateway_ip: str, secret_paths) -> list[
     except ValueError:
         findings.append("INVALID_PRIVATE_NETWORK")
     else:
-        if not isinstance(network, ipaddress.IPv4Network) or not network.is_private:
+        if not isinstance(network, ipaddress.IPv4Network) or not any(
+            network.subnet_of(private) for private in _RFC1918
+        ):
             findings.append("INVALID_PRIVATE_NETWORK")
         elif address not in network:
             findings.append("IP_OUTSIDE_SUBNET")

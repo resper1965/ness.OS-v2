@@ -40,6 +40,13 @@ def test_gateway_ip_must_be_usable_inside_private_subnet(tmp_path):
     assert "IP_NOT_USABLE" in preflight.validate(**config)
 
 
+def test_subnet_must_be_rfc1918_not_merely_nonpublic(tmp_path):
+    config = _config(tmp_path)
+    config["subnet"] = "198.18.0.0/28"
+    config["gateway_ip"] = "198.18.0.3"
+    assert "INVALID_PRIVATE_NETWORK" in preflight.validate(**config)
+
+
 def test_secret_files_must_exist_be_nonempty_and_owner_only(tmp_path):
     config = _config(tmp_path)
     config["secret_paths"][0].chmod(0o644)

@@ -650,3 +650,20 @@ Zabbix origem única coletora/destino mascarado continuam preservados.
 - Zabbix não sofreu mutação nesta etapa: origem segue coletora única e destino
   mascarado. A janela anterior termina às 11:47:35 BRT; não usar autorização
   ou token expirado para mudar essa frente depois do prazo.
+
+### Checkpoint GLPI T03 — 13/10/2026, 11:30 BRT
+
+- Gateway privado candidato versionado, não implantado. Compose opt-in validado
+  na CLI produtiva com valores fictícios; nenhuma rede, contêiner, token ou
+  conta GLPI produtiva foi alterada. Conta 106 segue inativa e os três ativos
+  Alupar continuam não criados.
+- Preflight local exige imagem por digest, subnet RFC1918/IP utilizável e três
+  arquivos de segredo regulares, não vazios e sem permissão de grupo/outros;
+  32 testes de infraestrutura passaram. A subnet candidata não colidiu com
+  rotas/bridges vistas no preflight somente leitura, mas precisa de nova
+  checagem antes de criar rede.
+- `publish-hub-images.yml` da branch retornou HTTP 404 ao tentar dispatch:
+  não está registrado na branch padrão. Issue #67 atualizada. Os checks da
+  branch não equivalem a imagem publicada. Sem digest verificado e matriz
+  negativa Hub/rota pública/entidade descendente/rollback, T03 e G2 seguem
+  bloqueados. Ver ADR 0020 e ledger do master.
