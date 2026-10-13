@@ -40,6 +40,15 @@ sandbox, não um runner reproduzível nem a emissão segura dos quatro checks.
 Executar testes do PR no usuário do host, que acessa o Docker socket, não é
 substituto para o sandbox mesmo quando a chave está `root:root 0600`.
 
+O launcher candidato `infra/scripts/local-ci-backend-sandbox.py` exige SHA
+exato de checkout limpo e ID imutável da imagem local; roda os testes backend
+com rede desativada, fonte somente leitura, UID sem privilégio, sem chave e sem
+Docker socket. No commit `f9076cf`, 24 testes backend passaram nesse modo;
+dois testes do launcher comprovaram o contrato e a recusa de SHA divergente.
+Antes de aceitar PRs não confiáveis, instalar uma cópia revisada do launcher
+fora do checkout submetido e acrescentar os demais checks isolados. Esse
+ensaio não emitiu status externo nem mudou a proteção da `main`.
+
 Referências: [registro da App](https://docs.github.com/en/apps/creating-github-apps/registering-a-github-app/registering-a-github-app),
 [API de check runs](https://docs.github.com/en/rest/checks/runs),
 [origem exigida de status checks](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches).
