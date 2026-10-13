@@ -709,9 +709,23 @@ Zabbix origem única coletora/destino mascarado continuam preservados.
   informado, falhando fechado quando divergirem. Sete testes focados PASS;
   Black/Ruff PASS. A suíte local teve 406 PASS, 1 SKIP e 72 falhas por
   `pywebpush` ausente neste Python; a dependência consta em `requirements.txt`.
-  Aguardar CI completo no commit desta alteração. Sem replay/deploy ou escrita
-  no GLPI; a conta técnica 106 continua desativada.
+  O CI subsequente passou nos cinco workflows do SHA `63ab9b3`. Sem
+  replay/deploy ou escrita no GLPI; a conta técnica 106 continua desativada.
 - O runbook `docs/operations/glpi-backlog-remediation.md` consolida a
   classificação, a quarentena dos 15 casos sem evento, o gate de replay e o
   aborto por duplicata/403/paginação incerta. É procedimento preparado;
   nenhum ticket foi criado, reprocessado ou encerrado.
+
+### GLPI T05 — leitura completa do inventário, 13/10/2026, 12:15 BRT
+
+- `list_items` podia aceitar página curta sem `Content-Range` ou header de
+  outra página e declarar inventário completo. Testes RED reproduziram ambos;
+  a correção valida intervalo, tamanho, total e página vazia antes do fim.
+- Commit `09d03b9` pushed; 26 testes focados, Black e Ruff PASS. Os cinco
+  workflows do mesmo SHA terminaram `success` (backend, frontend, tipos/lint,
+  secret scan e SBOM). A suíte no Python local segue incompleta por
+  `pywebpush` ausente; o CI instalou as dependências declaradas e passou.
+- É endurecimento somente da branch, sem implantação ou mutação GLPI. Se a
+  API real omitir `Content-Range`, a sincronização para e requer diagnóstico
+  antes de qualquer relaxamento. Conta 106 inativa, três ativos não criados,
+  T03/G2 sem aprovação.

@@ -43,6 +43,13 @@ Os cinco workflows do commit `63ab9b3` passaram no SHA exato, incluindo
 backend, frontend, lint/tipos, secret scan e SBOM. Isso valida a branch,
 mas não publica imagem por digest nem promove a nova alteração em produção.
 
+GLPI T05, 13/10 ~12:15 BRT: `list_items` agora exige `Content-Range`
+consistente em toda página de inventário; testes RED comprovaram página
+curta sem total e range de outra página. Correção `09d03b9` teve 26 testes
+focados e cinco workflows GitHub PASS no SHA exato. Nenhum ativo foi criado
+ou sincronizado e não houve deploy; um servidor que omita o header fará a
+leitura falhar fechada até diagnóstico, sem inferir inventário completo.
+
 GLPI T05, 13/10 ~11:10 BRT: sincronização agora falha antes de atualizar
 Asset existente se cliente ou referência GLPI conhecida mudar; código não
 implantado. A paleta `ness.` permanece opt-in e sem aceite visual na issue
