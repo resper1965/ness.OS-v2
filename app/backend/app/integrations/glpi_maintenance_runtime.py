@@ -11,6 +11,8 @@ def build_app():
     url = os.getenv("NESS_GLPI_MAINTENANCE_URL", "")
     if not is_private_glpi_api_url(url):
         raise ValueError("A private GLPI API URL is required")
+    if url != "http://glpi-maintenance-private/apirest.php":
+        raise ValueError("The dedicated GLPI host is required")
 
     raw_ids = os.getenv("NESS_GLPI_MAINTENANCE_APPROVED_IDS", "")
     parts = raw_ids.split(",")

@@ -365,6 +365,12 @@ nenhum container/rede foi criado ou alterado. Testes focados 25 PASS;
 backend+escopo 486 PASS/1 SKIP, Ruff/Black PASS. MyPy do módulo passou com
 o `import-untyped` preexistente de pgvector isolado na execução local.
 
+Endurecimento local de 13/10 ~15:55 BRT: o entrypoint agora exige a URL exata
+`http://glpi-maintenance-private/apirest.php` usada pelo override; um segundo
+hostname privado é recusado antes de ler secrets. Teste RED→GREEN; backend
+488 PASS/1 SKIP, sem deploy. Isto reduz desvio acidental de configuração,
+mas não prova destino DNS, exclusividade da rede ou bloqueio da API direta.
+
 Antes de aplicar o override: comprovar subnet sem colisão, imagem da release
 contendo o entrypoint, secret files/permissions, IP estável após recriação,
 filtro de cliente GLPI limitado a esse IP, rota pública autenticada negada,

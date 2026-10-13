@@ -1,6 +1,6 @@
 # ness.OS — indicador de entrega
 
-Última verificação: **13/10/2026, 15:50 BRT**. Fonte: plano master,
+Última verificação: **13/10/2026, 15:55 BRT**. Fonte: plano master,
 `PROJECT_CONTEXT.md`, estágio operacional, ledger e GitHub. Este quadro é um
 checkpoint, não telemetria em tempo real. Atualizar quando uma entrega, gate,
 bloqueio ou prazo mudar; preservar a data da última verificação.
@@ -14,7 +14,7 @@ preparação UAT ou documentação isolada.
 | F0 — release/continuidade | 🟡 Parcial | PR 65 integrado na `main` em `8563f69`, por exceção pontual autorizada; proteção restaurada e conferida. PR 64 atualizado sobre a `main` em `3737172`, cinco checks PASS, ainda draft e amplo (722 arquivos). Publicação candidata no run `38433314272` falhou no push: GHCR `write_package` negado; nenhum digest novo nem deploy. Alternativa sem Actions no PR 81 draft (`ea7aa96`): Buildx Windows construiu API/frontend apenas localmente; lockfile corrigido, frontend `npm ci`/lint/build/auditoria 0 vulnerabilidades e 4 testes focados PASS. Ubuntu/WSL agora acessa Docker/Buildx, mas o publicador completo não executou: scan de segredos bloqueado (issue #82). Actions desativado, quatro checks da `main` preservados e merges bloqueados até substituição segura. Repositório PRIVATE `resper1965/ness.OS-v2`; privatização não desfaz possível exposição histórica. G0/G1 globais não declarados PASS. |
 | F1 — Authentik/tenant/Psono | 🟡 Parcial | Marca e login público Authentik verificados; MFA nominal, recuperação, jornadas autenticadas/tenant e Psono dedicado ainda sem aceite. G2 aberto. |
 | F2 — Zabbix definitivo | 🟡 UAT preparada | Destino restaurado e isolado; origem segue única coletora. Referência: 262 hosts reais + 63 protótipos; 2,086% unsupported na última amostra. SSO nominal, qualidade da frota, gates, freeze e GO faltam antes do corte. Janela até 15/10 11:47:35 BRT; token anterior expirado. |
-| F3 — GLPI | 🟡 Em execução | Volume persistente e borda pública corrigidos; busca idempotente, paginação, URL privada e importação isolada do gateway endurecidas na branch, sem deploy. API real confirmou o contrato de paginação; imagem local sem rede importou o gateway sem inicializar VAPID. Conta 106 desativada; gateway candidato, três ativos e replay aguardam T03. Ações automáticas: 18 internas atrasadas, sem conversão; `graph` elimina arquivos antigos e não serve como canário sem efeito. Os sete agentes têm último contato em julho; piloto autenticado/isolamento registrados na issue #79, não executados. Deduplicação restante e tema ness. aguardam decisão/teste nominal. |
+| F3 — GLPI | 🟡 Em execução | Volume persistente e borda pública corrigidos; busca idempotente, paginação, alias privado fixo e importação isolada do gateway endurecidos na branch, sem deploy. API real confirmou o contrato de paginação; imagem local sem rede importou o gateway sem inicializar VAPID. Conta 106 desativada; gateway candidato, três ativos e replay aguardam T03. Ações automáticas: 18 internas atrasadas, sem conversão; `graph` elimina arquivos antigos e não serve como canário sem efeito. Os sete agentes têm último contato em julho; piloto autenticado/isolamento registrados na issue #79, não executados. Deduplicação restante e tema ness. aguardam decisão/teste nominal. |
 | F4 — Hub/PWA | 🟡 Parcial | Runtime anterior promovido e rollback ensaiado; mudanças recentes estão só na branch. G3 e jornada produtiva por tenant/perfil não aceitos. |
 | F5 — operação integrada | 🔴 Pendente | Sem prova produtiva completa evento → incidente → ticket, replay/timeout, papéis e todas as entidades. G4 não aprovado. |
 | F6 — AIOps/automação | 🟡 Parcial | Componentes existentes, mas RCA/Node-RED e jornadas assistidas ampliadas sem aceite produtivo global. |
@@ -29,6 +29,8 @@ ainda bloqueia o publicador completo. Nenhum push de imagem ocorreu.
 quando recusa URL não privada; teste RED→GREEN e backend 486 PASS/1 SKIP.
 Importação isolada também evita inicialização incidental de VAPID; teste
 RED→GREEN, backend 487 PASS/1 SKIP e smoke da imagem local sem rede PASS.
+O runtime passou a exigir o alias privado exato do Compose antes de ler
+secrets; teste RED→GREEN e backend 488 PASS/1 SKIP.
 Ainda sem deploy, isolamento direto real ou reativação da conta 106.
 
 **Foco agora:** GLPI T03 e substituição segura do pipeline. PR 65 foi integrado;

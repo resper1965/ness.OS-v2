@@ -47,6 +47,18 @@ def test_runtime_rejects_public_glpi_url(monkeypatch, tmp_path):
         build_app()
 
 
+def test_runtime_rejects_other_private_glpi_host(monkeypatch, tmp_path):
+    monkeypatch.setenv("NESS_GLPI_MAINTENANCE_URL", "http://other-internal/apirest.php")
+    monkeypatch.setenv("NESS_GLPI_MAINTENANCE_SECRET_DIR", str(tmp_path))
+    monkeypatch.setenv("NESS_GLPI_MAINTENANCE_APPROVED_IDS", "41")
+    (tmp_path / "glpi_app_token").write_text("synthetic-app")
+    (tmp_path / "glpi_user_token").write_text("synthetic-user")
+    (tmp_path / "gateway_bearer_token").write_text("synthetic-bearer")
+
+    with pytest.raises(ValueError, match="dedicated GLPI host"):
+        build_app()
+
+
 def test_runtime_requires_all_secret_files(monkeypatch, tmp_path):
     monkeypatch.setenv(
         "NESS_GLPI_MAINTENANCE_URL", "http://glpi-maintenance-private/apirest.php"
