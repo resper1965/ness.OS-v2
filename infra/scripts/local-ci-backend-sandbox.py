@@ -32,12 +32,16 @@ def main() -> None:
     parser.add_argument("--commit", required=True)
     parser.add_argument("--image", required=True, help="Immutable local image ID")
     parser.add_argument("--frontend-image", help="Immutable local frontend image ID")
+    parser.add_argument(
+        "--lint-image", help="Immutable local Python quality-tools image ID"
+    )
     args = parser.parse_args()
     repo = args.repo.resolve(strict=True)
     if (
         not SHA.fullmatch(args.commit)
         or not IMAGE.fullmatch(args.image)
         or (args.frontend_image and not IMAGE.fullmatch(args.frontend_image))
+        or (args.lint_image and not IMAGE.fullmatch(args.lint_image))
     ):
         parser.error("commit or image ID is not immutable")
     if git(repo, "rev-parse", "HEAD") != args.commit or git(
@@ -87,6 +91,49 @@ def main() -> None:
         check=True,
     )
     print("backend_sandbox=PASS")
+
+    if args.lint_image:
+        subprocess.run(
+            [
+                "docker",
+                "run",
+                "--rm",
+                "--network",
+                "none",
+                "--read-only",
+                "--tmpfs",
+                "/tmp:rw,nosuid,nodev,size=256m",
+                "--cap-drop",
+                "ALL",
+                "--security-opt",
+                "no-new-privileges",
+                "--pids-limit",
+                "256",
+                "--memory",
+                "2g",
+                "--user",
+                "65534:65534",
+                "--env",
+                "PYTHONDONTWRITEBYTECODE=1",
+                "--env",
+                "MYPY_CACHE_DIR=/tmp/mypy",
+                "--mount",
+                f"type=bind,src={repo},dst=/src,readonly",
+                "--workdir",
+                "/src",
+                "--entrypoint",
+                "sh",
+                args.lint_image,
+                "-c",
+                "set -eu; black --check app/backend; "
+                "flake8 app/backend --count --select=E9,F63,F7,F82 --show-source --statistics; "
+                "ruff check app/backend/app; ruff format --check app/backend/app; "
+                "mypy app/backend/app --ignore-missing-imports",
+            ],
+            cwd=repo,
+            check=True,
+        )
+        print("python_quality_sandbox=PASS")
 
     if args.frontend_image:
         archive = subprocess.check_output(

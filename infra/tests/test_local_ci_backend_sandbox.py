@@ -144,3 +144,43 @@ def test_frontend_archive_runs_lint_and_build_without_host_mount(checkout):
     assert not any(
         "docker.sock" in value or "/etc/ness-os" in value for value in frontend
     )
+
+
+def test_python_quality_checks_run_in_separate_unprivileged_image(checkout):
+    repo, commit, env = checkout
+    lint_image = "sha256:" + "c" * 64
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            "--repo",
+            str(repo),
+            "--commit",
+            commit,
+            "--image",
+            IMAGE,
+            "--lint-image",
+            lint_image,
+        ],
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    calls = [
+        json.loads(line) for line in Path(env["DOCKER_CALLS"]).read_text().splitlines()
+    ]
+    assert len(calls) == 2
+    lint = calls[1]["args"]
+    assert lint[lint.index("--network") + 1] == "none"
+    assert "--read-only" in lint
+    assert lint[lint.index("--user") + 1] == "65534:65534"
+    assert lint[lint.index("--cap-drop") + 1] == "ALL"
+    assert f"type=bind,src={repo},dst=/src,readonly" in lint
+    assert lint_image in lint
+    assert "black --check app/backend" in lint[-1]
+    assert "flake8 app/backend" in lint[-1]
+    assert "ruff check app/backend/app" in lint[-1]
+    assert "ruff format --check app/backend/app" in lint[-1]
+    assert "mypy app/backend/app --ignore-missing-imports" in lint[-1]
+    assert not any("docker.sock" in value or "/etc/ness-os" in value for value in lint)
