@@ -1,6 +1,6 @@
 # ness.OS — indicador de entrega
 
-Última verificação: **13/10/2026, 20:56 BRT**. Fonte: plano master,
+Última verificação: **13/10/2026, 21:12 BRT**. Fonte: plano master,
 `PROJECT_CONTEXT.md`, estágio operacional, ledger e GitHub. Este quadro é um
 checkpoint, não telemetria em tempo real. Atualizar quando uma entrega, gate,
 bloqueio ou prazo mudar; preservar a data da última verificação.
@@ -134,6 +134,16 @@ Três testes do launcher e oito testes de infra PASS. Ainda faltam Black,
 Flake8, Ruff, Mypy e Gitleaks em execução isolada, cópia confiável do launcher
 fora do PR, emissor da App e falhas negativas ponta a ponta. Sem check externo,
 mudança de proteção, merge ou deploy.
+
+**Qualidade Python isolada (21:12 BRT):** PR #81 acrescentou imagem de
+ferramentas com base por digest e versões fixas. O primeiro ensaio real
+falhou porque Ruff tentou gravar cache no checkout somente leitura; o cache
+foi redirecionado para tmpfs após teste RED→GREEN. No commit `f07ca2d`,
+backend `24/24`, Black, Flake8, Ruff check/format e Mypy passaram no
+Docker sem rede, socket ou chave; quatro testes do launcher passaram.
+Gitleaks isolado, instalação de cópia confiável do launcher fora do PR,
+emissor externo e falhas negativas ponta a ponta ainda faltam. Sem check
+externo, alteração da proteção, merge, deploy ou ativação GLPI 106.
 
 **Foco agora:** GLPI T03 e substituição segura do pipeline. PR 65 foi integrado;
 próxima liberação depende da revisão técnica do PR 64, publicação segura de
