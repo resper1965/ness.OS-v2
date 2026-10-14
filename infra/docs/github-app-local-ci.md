@@ -48,8 +48,11 @@ dois testes do launcher comprovaram o contrato e a recusa de SHA divergente.
 Com `--frontend-image` (ID imutável), o mesmo launcher envia somente o arquivo
 Git do frontend por stdin a outro contêiner sem rede/mount do host e executa
 lint e build. No commit `1b1abde`, backend 24/24, frontend lint (zero avisos)
-e build passaram juntos; três testes do launcher e oito testes de infra
-passaram. Esta opção não executa ainda Black/Flake8/Ruff/Mypy nem Gitleaks.
+e build passaram juntos. Com `--lint-image`, ID imutável da imagem construída
+de `infra/local-ci/python-quality.Dockerfile`, Black, Flake8, Ruff e Mypy
+também rodam sem rede/socket/chave, checkout somente leitura e caches em tmpfs.
+No commit `f07ca2d`, backend 24/24 e esses quatro checks passaram; quatro
+testes do launcher passaram. Ainda falta Gitleaks isolado.
 Antes de aceitar PRs não confiáveis, instalar uma cópia revisada do launcher
 fora do checkout submetido e acrescentar os demais checks isolados. Esse
 ensaio não emitiu status externo nem mudou a proteção da `main`.
