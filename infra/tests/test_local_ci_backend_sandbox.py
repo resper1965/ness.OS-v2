@@ -109,6 +109,38 @@ def test_wrong_commit_stops_before_docker(checkout):
     assert not Path(env["DOCKER_CALLS"]).exists()
 
 
+def test_symlinked_source_directory_stops_before_docker(checkout):
+    repo, _, env = checkout
+    outside = repo.parent / "outside"
+    outside.mkdir()
+    (outside / "private.txt").write_text("private fixture\n")
+    (repo / "cli").symlink_to(outside, target_is_directory=True)
+    subprocess.run(["git", "-C", str(repo), "add", "cli"], check=True)
+    subprocess.run(
+        ["git", "-C", str(repo), "commit", "-qm", "symlink fixture"], check=True
+    )
+    commit = subprocess.check_output(
+        ["git", "-C", str(repo), "rev-parse", "HEAD"], text=True
+    ).strip()
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            "--repo",
+            str(repo),
+            "--commit",
+            commit,
+            "--image",
+            IMAGE,
+        ],
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode != 0
+    assert not Path(env["DOCKER_CALLS"]).exists()
+
+
 def test_frontend_archive_runs_lint_and_build_without_host_mount(checkout):
     repo, commit, env = checkout
     result = subprocess.run(

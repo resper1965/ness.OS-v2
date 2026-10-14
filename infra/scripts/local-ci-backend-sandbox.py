@@ -53,6 +53,9 @@ def main() -> None:
         repo, "status", "--porcelain", "--untracked-files=all"
     ):
         parser.error("checkout is not clean at the requested commit")
+    for source in (repo / "app/backend", repo / "cli"):
+        if source.resolve() != source:
+            parser.error("source mount must not traverse a symlink")
     if args.scan_image and not args.scan_ignore:
         parser.error("secret scan requires an external reviewed ignore file")
     if args.scan_ignore and not args.scan_image:
