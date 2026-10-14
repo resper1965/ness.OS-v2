@@ -45,6 +45,10 @@ exato de checkout limpo e ID imutável da imagem local; roda os testes backend
 com rede desativada, fonte somente leitura, UID sem privilégio, sem chave e sem
 Docker socket. No commit `f9076cf`, 24 testes backend passaram nesse modo;
 dois testes do launcher comprovaram o contrato e a recusa de SHA divergente.
+No commit `f43e227`, backend e qualidade Python passaram a montar só
+`app/backend` e `cli`, nunca `.git`; backend `24/24` e Black/Flake8/Ruff/Mypy
+passaram no Docker real. Apenas o binário Gitleaks recebe o Git histórico,
+somente leitura e sem chave/socket.
 Com `--frontend-image` (ID imutável), o mesmo launcher envia somente o arquivo
 Git do frontend por stdin a outro contêiner sem rede/mount do host e executa
 lint e build. No commit `1b1abde`, backend 24/24, frontend lint (zero avisos)
