@@ -38,6 +38,7 @@ def checkout(tmp_path):
         "import json, os, pathlib, sys\n"
         "entry = {'args': sys.argv[1:], 'stdin_bytes': len(sys.stdin.buffer.read()) if '-i' in sys.argv else 0}\n"
         "with open(os.environ['DOCKER_CALLS'], 'a') as out: out.write(json.dumps(entry) + '\\n')\n"
+        "if os.environ.get('FAKE_DOCKER_SCAN_ERROR') and ('sha256:' + 'd' * 64) in sys.argv: sys.stderr.write('scan failed\\n')\n"
     )
     docker.chmod(0o755)
     env = {
@@ -185,3 +186,67 @@ def test_python_quality_checks_run_in_separate_unprivileged_image(checkout):
     assert "ruff format --check app/backend/app" in lint[-1]
     assert "mypy app/backend/app --ignore-missing-imports" in lint[-1]
     assert not any("docker.sock" in value or "/etc/ness-os" in value for value in lint)
+
+
+def test_secret_scan_rejects_scanner_error_even_when_exit_code_is_zero(checkout):
+    repo, commit, env = checkout
+    env["FAKE_DOCKER_SCAN_ERROR"] = "1"
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            "--repo",
+            str(repo),
+            "--commit",
+            commit,
+            "--image",
+            IMAGE,
+            "--scan-image",
+            "sha256:" + "d" * 64,
+        ],
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode != 0
+    assert "scan failed" not in result.stdout
+    calls = [
+        json.loads(line) for line in Path(env["DOCKER_CALLS"]).read_text().splitlines()
+    ]
+    assert len(calls) == 2
+
+
+def test_secret_scan_is_read_only_and_fixes_git_safe_directory(checkout):
+    repo, commit, env = checkout
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            "--repo",
+            str(repo),
+            "--commit",
+            commit,
+            "--image",
+            IMAGE,
+            "--scan-image",
+            "sha256:" + "d" * 64,
+        ],
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    assert "secret_scan_sandbox=PASS" in result.stdout
+    calls = [
+        json.loads(line) for line in Path(env["DOCKER_CALLS"]).read_text().splitlines()
+    ]
+    assert len(calls) == 2
+    scan = calls[1]["args"]
+    assert scan[scan.index("--network") + 1] == "none"
+    assert "--read-only" in scan
+    assert scan[scan.index("--user") + 1] == "65534:65534"
+    assert "GIT_CONFIG_KEY_0=safe.directory" in scan
+    assert "GIT_CONFIG_VALUE_0=/src" in scan
+    assert f"type=bind,src={repo},dst=/src,readonly" in scan
+    assert scan[-6:] == ["git", "--redact", "--no-banner", "--log-level", "error", "."]
+    assert not any("docker.sock" in value or "/etc/ness-os" in value for value in scan)

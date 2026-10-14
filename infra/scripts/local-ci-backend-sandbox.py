@@ -35,6 +35,7 @@ def main() -> None:
     parser.add_argument(
         "--lint-image", help="Immutable local Python quality-tools image ID"
     )
+    parser.add_argument("--scan-image", help="Immutable local Gitleaks image ID")
     args = parser.parse_args()
     repo = args.repo.resolve(strict=True)
     if (
@@ -42,6 +43,7 @@ def main() -> None:
         or not IMAGE.fullmatch(args.image)
         or (args.frontend_image and not IMAGE.fullmatch(args.frontend_image))
         or (args.lint_image and not IMAGE.fullmatch(args.lint_image))
+        or (args.scan_image and not IMAGE.fullmatch(args.scan_image))
     ):
         parser.error("commit or image ID is not immutable")
     if git(repo, "rev-parse", "HEAD") != args.commit or git(
@@ -136,6 +138,53 @@ def main() -> None:
             check=True,
         )
         print("python_quality_sandbox=PASS")
+
+    if args.scan_image:
+        scan = subprocess.run(
+            [
+                "docker",
+                "run",
+                "--rm",
+                "--network",
+                "none",
+                "--read-only",
+                "--tmpfs",
+                "/tmp:rw,nosuid,nodev,size=128m",
+                "--cap-drop",
+                "ALL",
+                "--security-opt",
+                "no-new-privileges",
+                "--pids-limit",
+                "128",
+                "--memory",
+                "1g",
+                "--user",
+                "65534:65534",
+                "--env",
+                "GIT_CONFIG_COUNT=1",
+                "--env",
+                "GIT_CONFIG_KEY_0=safe.directory",
+                "--env",
+                "GIT_CONFIG_VALUE_0=/src",
+                "--mount",
+                f"type=bind,src={repo},dst=/src,readonly",
+                "--workdir",
+                "/src",
+                args.scan_image,
+                "git",
+                "--redact",
+                "--no-banner",
+                "--log-level",
+                "error",
+                ".",
+            ],
+            cwd=repo,
+            capture_output=True,
+            text=True,
+        )
+        if scan.returncode != 0 or scan.stderr.strip():
+            raise RuntimeError("secret scan failed or reported an error")
+        print("secret_scan_sandbox=PASS")
 
     if args.frontend_image:
         archive = subprocess.check_output(
