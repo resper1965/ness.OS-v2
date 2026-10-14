@@ -1,6 +1,6 @@
 # ness.OS — indicador de entrega
 
-Última verificação: **13/10/2026, 21:31 BRT**. Fonte: plano master,
+Última verificação: **13/10/2026, 21:41 BRT**. Fonte: plano master,
 `PROJECT_CONTEXT.md`, estágio operacional, ledger e GitHub. Este quadro é um
 checkpoint, não telemetria em tempo real. Atualizar quando uma entrega, gate,
 bloqueio ou prazo mudar; preservar a data da última verificação.
@@ -187,6 +187,15 @@ limpo e levá-lo ao Docker. O launcher agora recusa resolução simbólica de
 Black passaram. É endurecimento da candidata, não gate operacional: código e
 política ainda não estão instalados em local confiável, emissor não foi
 testado e nenhum check, merge, deploy ou ativação da conta 106 ocorreu.
+
+**Cópia confiável candidata (21:41 BRT):** launcher e política de scan
+instalados fora do PR em `/opt/ness-ci`, root-owned, somente leitura para o
+executor, com comparação byte a byte ao checkout limpo `49c802f`. Rodando
+essa cópia no SHA exato e imagens locais por ID, passaram backend `24/24`,
+Black/Flake8/Ruff/Mypy, Gitleaks e frontend lint/build. Os contêineres não
+receberam rede, socket ou chave da App. Emissor externo e falhas negativas
+ainda não estão integrados; nenhum check foi publicado, nem alterada a
+proteção da `main`, feito merge/deploy ou ativada a conta GLPI 106.
 
 **Foco agora:** GLPI T03 e substituição segura do pipeline. PR 65 foi integrado;
 próxima liberação depende da revisão técnica do PR 64, publicação segura de
