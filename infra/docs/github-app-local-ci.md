@@ -56,9 +56,15 @@ testes do launcher passaram. A opção `--scan-image` também executa Gitleaks
 sem rede/socket/chave, com Git safe.directory limitado à montagem `/src`.
 O scanner pode registrar erro e sair com código zero; por isso qualquer stderr
 falha fechado, sem imprimir possível segredo. No commit `e1501ae`, backend
-24/24, Gitleaks e seis testes do launcher passaram. A lista de exceções
-`.gitleaksignore` ainda vem do PR: fixá-la fora do checkout antes de emitir
-um check confiável.
+24/24, Gitleaks e seis testes do launcher passaram. A execução mais restrita
+usa `--scan-ignore` para montar uma lista revisada **fora do checkout** e
+`--ignore-gitleaks-allow` para que comentários do PR não suprimam achados.
+Dois fingerprints históricos em `PricingModule.tsx:91` foram classificados
+como a constante pública `STORAGE_KEY` do navegador e incluídos pontualmente
+na lista candidata, sem registrar o valor. O ensaio com cópia externa
+temporária passou; não usar essa cópia gravável pelo executor como gate.
+Instalar a política e o launcher revisados em área controlada pelo runner,
+sem permissão de escrita para PRs, antes de emitir check confiável.
 Antes de aceitar PRs não confiáveis, instalar uma cópia revisada do launcher
 fora do checkout submetido e acrescentar os demais checks isolados. Esse
 ensaio não emitiu status externo nem mudou a proteção da `main`.
