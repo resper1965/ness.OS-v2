@@ -1,6 +1,6 @@
 # ness.OS — indicador de entrega
 
-Última verificação: **13/10/2026, 22:26 BRT**. Fonte: plano master,
+Última verificação: **13/10/2026, 22:40 BRT**. Fonte: plano master,
 `PROJECT_CONTEXT.md`, estágio operacional, ledger e GitHub. Este quadro é um
 checkpoint, não telemetria em tempo real. Atualizar quando uma entrega, gate,
 bloqueio ou prazo mudar; preservar a data da última verificação.
@@ -116,6 +116,15 @@ Docker socket e sem chave; hashes do lock/requirements coincidiram com as
 imagens de dependências. Frontend recebeu arquivo Git do SHA; backend recebeu
 montagem somente leitura. É prova de viabilidade, não runner integrado nem
 check emitido. PR #81 continua draft e a proteção da `main` inalterada.
+
+**Fronteira do emissor (22:40 BRT):** leitura local mostrou que `resper`
+pertence ao grupo `docker` e o socket é `root:docker 0660`; a documentação
+oficial do Docker atribui privilégio elevado ao grupo. A chave App em arquivo
+`root:root 0600` não é, isoladamente, prova de separação do builder. O emissor
+permanece bloqueado até signer fora do domínio de acesso ao socket (ou
+isolamento equivalente comprovado), negativa de leitura a partir do builder,
+permissão mínima de PR com readback e validação de evidência/SHA. Não houve
+tentativa de acessar a chave por Docker, check publicado ou mudança na `main`.
 
 **Publicador local (20:36 BRT):** PR #81 commit `071eb97` agora exige pull
 das duas imagens por digest antes de gravar o manifesto de release. Teste de
