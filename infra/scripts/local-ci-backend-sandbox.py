@@ -36,6 +36,9 @@ def main() -> None:
         "--lint-image", help="Immutable local Python quality-tools image ID"
     )
     parser.add_argument("--scan-image", help="Immutable local Gitleaks image ID")
+    parser.add_argument(
+        "--scan-ignore", type=Path, help="Reviewed ignore file outside checkout"
+    )
     args = parser.parse_args()
     repo = args.repo.resolve(strict=True)
     if (
@@ -50,6 +53,14 @@ def main() -> None:
         repo, "status", "--porcelain", "--untracked-files=all"
     ):
         parser.error("checkout is not clean at the requested commit")
+    if args.scan_image and not args.scan_ignore:
+        parser.error("secret scan requires an external reviewed ignore file")
+    if args.scan_ignore and not args.scan_image:
+        parser.error("ignore file requires a secret scan image")
+    if args.scan_ignore:
+        ignore = args.scan_ignore.resolve(strict=True)
+        if not ignore.is_file() or ignore.is_relative_to(repo):
+            parser.error("ignore file must be a regular file outside checkout")
 
     subprocess.run(
         [
@@ -168,6 +179,8 @@ def main() -> None:
                 "GIT_CONFIG_VALUE_0=/src",
                 "--mount",
                 f"type=bind,src={repo},dst=/src,readonly",
+                "--mount",
+                f"type=bind,src={ignore},dst=/trusted-ignore,readonly",
                 "--workdir",
                 "/src",
                 args.scan_image,
@@ -176,6 +189,9 @@ def main() -> None:
                 "--no-banner",
                 "--log-level",
                 "error",
+                "--ignore-gitleaks-allow",
+                "--gitleaks-ignore-path",
+                "/trusted-ignore",
                 ".",
             ],
             cwd=repo,

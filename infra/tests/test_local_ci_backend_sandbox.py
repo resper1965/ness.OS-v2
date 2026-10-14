@@ -191,6 +191,8 @@ def test_python_quality_checks_run_in_separate_unprivileged_image(checkout):
 def test_secret_scan_rejects_scanner_error_even_when_exit_code_is_zero(checkout):
     repo, commit, env = checkout
     env["FAKE_DOCKER_SCAN_ERROR"] = "1"
+    approved_ignore = repo.parent / "approved-ignore"
+    approved_ignore.write_text("")
     result = subprocess.run(
         [
             sys.executable,
@@ -203,6 +205,8 @@ def test_secret_scan_rejects_scanner_error_even_when_exit_code_is_zero(checkout)
             IMAGE,
             "--scan-image",
             "sha256:" + "d" * 64,
+            "--scan-ignore",
+            str(approved_ignore),
         ],
         env=env,
         capture_output=True,
@@ -218,6 +222,8 @@ def test_secret_scan_rejects_scanner_error_even_when_exit_code_is_zero(checkout)
 
 def test_secret_scan_is_read_only_and_fixes_git_safe_directory(checkout):
     repo, commit, env = checkout
+    approved_ignore = repo.parent / "approved-ignore"
+    approved_ignore.write_text("")
     result = subprocess.run(
         [
             sys.executable,
@@ -230,6 +236,8 @@ def test_secret_scan_is_read_only_and_fixes_git_safe_directory(checkout):
             IMAGE,
             "--scan-image",
             "sha256:" + "d" * 64,
+            "--scan-ignore",
+            str(approved_ignore),
         ],
         env=env,
         capture_output=True,
@@ -248,5 +256,9 @@ def test_secret_scan_is_read_only_and_fixes_git_safe_directory(checkout):
     assert "GIT_CONFIG_KEY_0=safe.directory" in scan
     assert "GIT_CONFIG_VALUE_0=/src" in scan
     assert f"type=bind,src={repo},dst=/src,readonly" in scan
-    assert scan[-6:] == ["git", "--redact", "--no-banner", "--log-level", "error", "."]
+    assert f"type=bind,src={approved_ignore},dst=/trusted-ignore,readonly" in scan
+    assert "--gitleaks-ignore-path" in scan
+    assert scan[scan.index("--gitleaks-ignore-path") + 1] == "/trusted-ignore"
+    assert "--ignore-gitleaks-allow" in scan
+    assert scan[-1] == "."
     assert not any("docker.sock" in value or "/etc/ness-os" in value for value in scan)
