@@ -1,6 +1,6 @@
 # ness.OS — indicador de entrega
 
-Última verificação: **13/10/2026, 21:14 BRT**. Fonte: plano master,
+Última verificação: **13/10/2026, 21:22 BRT**. Fonte: plano master,
 `PROJECT_CONTEXT.md`, estágio operacional, ledger e GitHub. Este quadro é um
 checkpoint, não telemetria em tempo real. Atualizar quando uma entrega, gate,
 bloqueio ou prazo mudar; preservar a data da última verificação.
@@ -153,6 +153,17 @@ o checkout montado e falha fechado em stderr ou código não zero. No commit
 Ainda falta retirar a lista de exceções do controle do PR, instalar runner
 revisado fora do checkout e integrar emissor/negações. Nenhum check externo,
 proteção alterada, merge ou deploy.
+
+**Política externa de scan (21:22 BRT):** launcher do PR #81 exige
+`--scan-ignore` fora do checkout e ignora comentários `gitleaks:allow` do
+PR. Isso revelou dois fingerprints históricos de uma constante pública
+`STORAGE_KEY` em `PricingModule.tsx:91`; foram classificados e adicionados
+pontualmente à lista candidata, sem expor o valor. Com cópia externa
+temporária, no SHA `4fe116e` passaram backend `24/24`, Black/Flake8/Ruff/Mypy,
+Gitleaks e frontend lint/build; suíte local `35/35` PASS. A cópia temporária
+é gravável pelo executor e **não** é política de gate: instalar launcher e
+lista revisados fora do PR, testar emissor/negações e só então trocar a
+origem dos quatro checks. Nenhum check externo, merge, deploy ou GLPI 106.
 
 **Foco agora:** GLPI T03 e substituição segura do pipeline. PR 65 foi integrado;
 próxima liberação depende da revisão técnica do PR 64, publicação segura de
