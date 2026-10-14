@@ -22,6 +22,11 @@ sucesso.
    limpo igual ao head remoto do PR, validar a evidência dos quatro checks e
    só então publicar os quatro *check runs* no SHA exato. O código do PR não
    deve poder ler a chave ou executar no processo privilegiado do emissor.
+   A App atual não tem `Pull requests: Read-only`. Essa permissão mínima e o
+   aceite da atualização da instalação são pré-requisitos para ler o
+   `head.sha` de `GET /pulls/{number}`. A API de Git refs documenta
+   `heads/*` e `tags/*`, não `pull/*`; nome de branch isolado não é prova do
+   head do PR. Até o readback dessa permissão, não emitir checks.
 4. Ensaiar sucesso nos quatro checks e falha fechada com um check ausente,
    SHA divergente e PR sem execução. Só então trocar o `app_id` dos quatro
    checks requeridos de `15368` para o ID da App nova, mantendo nomes,
