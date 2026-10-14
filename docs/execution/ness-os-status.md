@@ -1,6 +1,6 @@
 # ness.OS — indicador de entrega
 
-Última verificação: **13/10/2026, 21:52 BRT**. Fonte: plano master,
+Última verificação: **13/10/2026, 22:02 BRT**. Fonte: plano master,
 `PROJECT_CONTEXT.md`, estágio operacional, ledger e GitHub. Este quadro é um
 checkpoint, não telemetria em tempo real. Atualizar quando uma entrega, gate,
 bloqueio ou prazo mudar; preservar a data da última verificação.
@@ -201,6 +201,14 @@ proteção da `main`, feito merge/deploy ou ativada a conta GLPI 106.
 `Pull requests: Read-only`; essa leitura mínima foi solicitada para verificar
 o `head.sha` remoto do PR. Git refs de branch/tag não substitui essa prova.
 Até a atualização da instalação e readback, nenhum check será emitido.
+
+**Validação offline do PR (22:02 BRT):** PR #81 commit `11a18cd` contém
+validador candidato que só aceita PR aberto do próprio repositório, base
+`main` e `head.sha` exatamente igual ao commit testado. Testes negativos de
+SHA, estado, fork, base, número e resposta incompleta passaram; suíte Python
+43 PASS, com dois avisos de depreciação preexistentes. Ainda não lê a API nem
+emite checks. Falta `Pull requests: Read-only`, readback, integração isolada
+do emissor e revogação da primeira chave antes de alterar a proteção da main.
 
 **Foco agora:** GLPI T03 e substituição segura do pipeline. PR 65 foi integrado;
 próxima liberação depende da revisão técnica do PR 64, publicação segura de
