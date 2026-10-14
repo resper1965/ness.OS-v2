@@ -1,6 +1,6 @@
 # ness.OS — indicador de entrega
 
-Última verificação: **13/10/2026, 22:02 BRT**. Fonte: plano master,
+Última verificação: **13/10/2026, 22:26 BRT**. Fonte: plano master,
 `PROJECT_CONTEXT.md`, estágio operacional, ledger e GitHub. Este quadro é um
 checkpoint, não telemetria em tempo real. Atualizar quando uma entrega, gate,
 bloqueio ou prazo mudar; preservar a data da última verificação.
@@ -79,7 +79,13 @@ ensaio da função real com PostgreSQL descartável confirmou um único POST ap�
 duas buscas vazias e reconciliação posterior. Replay continua bloqueado até
 release, migração produtiva e reconciliação. Upgrade idempotente do esquema
 foi adicionado ao caminho `app.migrate` (teste RED→GREEN), ainda sem execução
-no banco produtivo.
+no banco produtivo. Na branch candidata, o claim agora ocorre após uma
+primeira busca GLPI bem-sucedida sem ticket. Teste RED→GREEN provou que
+falha nessa busca não consome a reserva nem impede POST no retry; backend
+493 PASS/1 SKIP, infra 34 PASS e verificações de estilo passaram em sandbox.
+Falha posterior ao claim ainda exige reconciliação, sem novo POST automático.
+Nenhuma migração, deploy, replay ou reativação da conta 106 ocorreu por esta
+mudança.
 
 **Checks locais após a reescrita:** PR 81 foi rebaseado na `main` limpa. A
 fixture sintética de token e o baseline de formatação/lint/tipagem foram

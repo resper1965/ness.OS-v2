@@ -199,6 +199,55 @@ async def test_unconfirmed_post_is_not_repeated_while_remote_search_is_empty(
 
 
 @pytest.mark.asyncio
+async def test_failed_initial_lookup_does_not_consume_post_reservation(monkeypatch):
+    reservations = set()
+
+    @asynccontextmanager
+    async def session_factory():
+        session = MagicMock()
+
+        @asynccontextmanager
+        async def transaction():
+            yield
+
+        async def execute(statement, params=None):
+            if "n_infraops_glpi_ticket_post_reservations" in str(statement):
+                key = (params["entity_id"], params["fingerprint"])
+                claimed = key not in reservations
+                reservations.add(key)
+                return MagicMock(scalar_one_or_none=lambda: 1 if claimed else None)
+            return MagicMock()
+
+        session.begin.side_effect = transaction
+        session.execute = execute
+        yield session
+
+    glpi = AsyncMock()
+    glpi.find_ticket_by_name_marker.side_effect = [
+        GLPITransientError("lookup unavailable"),
+        None,
+    ]
+    glpi.create_ticket.return_value = {"id": 456}
+    monkeypatch.setattr(alerts, "SessionLocal", session_factory)
+    kwargs = dict(
+        fingerprint="f" * 64,
+        entity_id=8,
+        category_id=1,
+        title="Synthetic",
+        content="Synthetic",
+    )
+
+    with pytest.raises(GLPITransientError, match="lookup unavailable"):
+        await ensure_glpi_ticket_serialized(glpi, **kwargs)
+    assert reservations == set()
+
+    assert await ensure_glpi_ticket_serialized(glpi, **kwargs) == (456, True)
+    assert reservations == {(8, "f" * 64)}
+    assert glpi.find_ticket_by_name_marker.await_count == 2
+    glpi.create_ticket.assert_awaited_once()
+
+
+@pytest.mark.asyncio
 async def test_concurrent_workers_serialize_lookup_and_ticket_creation(monkeypatch):
     lock = asyncio.Lock()
     stored = {"ticket_id": None, "posts": 0}
@@ -290,6 +339,7 @@ async def test_ticket_lock_timeout_retries_without_creating_ticket(monkeypatch):
     session.begin.side_effect = transaction
     monkeypatch.setattr(alerts, "SessionLocal", session_factory)
     glpi = AsyncMock()
+    glpi.find_ticket_by_name_marker.return_value = None
 
     with pytest.raises(GLPITransientError):
         await ensure_glpi_ticket_serialized(
@@ -301,7 +351,7 @@ async def test_ticket_lock_timeout_retries_without_creating_ticket(monkeypatch):
             content="Synthetic",
         )
 
-    glpi.find_ticket_by_name_marker.assert_not_awaited()
+    glpi.find_ticket_by_name_marker.assert_awaited_once()
     glpi.create_ticket.assert_not_awaited()
 
 
@@ -718,7 +768,9 @@ async def test_pipeline_persists_incident_and_retries_glpi_failure(
         yield
 
     lock_session.begin.side_effect = lock_transaction
-    sessions = iter((lock_session, session))
+    sessions = iter(
+        (session,) if glpi_fails or ticket_exists else (lock_session, session)
+    )
 
     @asynccontextmanager
     async def session_factory():

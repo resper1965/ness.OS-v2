@@ -582,6 +582,17 @@ ensaio e rollback; não editar core ou mover entidades/tickets em massa.
 
 ### Execução independente — confiabilidade da entrega de tickets
 
+Atualização de 13/10 22:26 BRT, somente na branch candidata: o claim
+persistente antes do POST permanece, mas agora só é adquirido depois de uma
+busca inicial bem-sucedida sem ticket. Antes, falha de transporte nessa busca
+consumia o claim sem qualquer POST e o retry não podia mais criar o ticket.
+Teste RED→GREEN reproduziu falha na primeira busca, retry com busca vazia e
+um único POST. Backend 493 PASS/1 SKIP e infraestrutura 34 PASS em sandbox;
+Black, Ruff e diff-check passaram. Se a falha ocorrer após o claim, o retry
+continua sem novo POST até reconciliação: segurança contra duplicata tem
+prioridade sobre criação automática ambígua. Sem migração produtiva, deploy,
+replay ou alteração da conta 106.
+
 O cliente do Hub agora verifica a entidade efetiva, percorre páginas da
 busca do marcador e trata 401/403 como recusa permanente. Uma mudança ainda
 não promovida distingue transporte/429/5xx e agenda retry exponencial

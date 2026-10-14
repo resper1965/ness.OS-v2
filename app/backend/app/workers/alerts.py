@@ -205,6 +205,27 @@ async def ensure_glpi_ticket(
     if not allow_create:
         raise GLPITransientError("GLPI ticket delivery awaits reconciliation")
 
+    return await _create_glpi_ticket(
+        glpi,
+        marker=marker,
+        entity_id=entity_id,
+        category_id=category_id,
+        title=title,
+        content=content,
+        linked_item=linked_item,
+    )
+
+
+async def _create_glpi_ticket(
+    glpi: GLPIClient,
+    *,
+    marker: str,
+    entity_id: int,
+    category_id: int,
+    title: str,
+    content: str,
+    linked_item: dict | None,
+) -> tuple[int, bool]:
     response = await glpi.create_ticket(
         title=f"{marker} {title}",
         content=content,
@@ -239,7 +260,13 @@ async def ensure_glpi_ticket_serialized(
     content: str,
     linked_item: dict | None = None,
 ) -> tuple[int, bool]:
-    """Reserve one POST durably before contacting GLPI for this tenant/event."""
+    """Reserve one POST durably after lookup, before GLPI creation."""
+    await glpi.change_active_entity(entity_id)
+    marker = f"[n.infraops:{fingerprint}]"
+    existing_id = await glpi.find_ticket_by_name_marker(marker, entity_id)
+    if existing_id is not None:
+        return existing_id, False
+
     identity = f"glpi-ticket:{entity_id}:{fingerprint}".encode("utf-8")
     lock_key = int.from_bytes(
         blake2b(identity, digest_size=8).digest(), "big", signed=True
@@ -265,6 +292,16 @@ async def ensure_glpi_ticket_serialized(
                 {"entity_id": entity_id, "fingerprint": fingerprint},
             )
             allow_create = claim.scalar_one_or_none() == 1
+    if allow_create:
+        return await _create_glpi_ticket(
+            glpi,
+            marker=marker,
+            entity_id=entity_id,
+            category_id=category_id,
+            title=title,
+            content=content,
+            linked_item=linked_item,
+        )
     return await ensure_glpi_ticket(
         glpi,
         fingerprint=fingerprint,
@@ -273,7 +310,7 @@ async def ensure_glpi_ticket_serialized(
         title=title,
         content=content,
         linked_item=linked_item,
-        allow_create=allow_create,
+        allow_create=False,
     )
 
 
