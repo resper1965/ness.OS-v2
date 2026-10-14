@@ -177,6 +177,8 @@ def main() -> None:
                 "GIT_CONFIG_KEY_0=safe.directory",
                 "--env",
                 "GIT_CONFIG_VALUE_0=/src",
+                "--env",
+                "GITLEAKS_CONFIG_TOML=[extend]\nuseDefault=true\n",
                 "--mount",
                 f"type=bind,src={repo},dst=/src,readonly",
                 "--mount",

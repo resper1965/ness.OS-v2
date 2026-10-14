@@ -256,6 +256,7 @@ def test_secret_scan_is_read_only_and_fixes_git_safe_directory(checkout):
     assert scan[scan.index("--user") + 1] == "65534:65534"
     assert "GIT_CONFIG_KEY_0=safe.directory" in scan
     assert "GIT_CONFIG_VALUE_0=/src" in scan
+    assert "GITLEAKS_CONFIG_TOML=[extend]\nuseDefault=true\n" in scan
     assert f"type=bind,src={repo},dst=/src,readonly" in scan
     assert f"type=bind,src={approved_ignore},dst=/trusted-ignore,readonly" in scan
     assert "--gitleaks-ignore-path" in scan
