@@ -1,6 +1,6 @@
 # ness.OS — indicador de entrega
 
-Última verificação: **13/10/2026, 21:12 BRT**. Fonte: plano master,
+Última verificação: **13/10/2026, 21:14 BRT**. Fonte: plano master,
 `PROJECT_CONTEXT.md`, estágio operacional, ledger e GitHub. Este quadro é um
 checkpoint, não telemetria em tempo real. Atualizar quando uma entrega, gate,
 bloqueio ou prazo mudar; preservar a data da última verificação.
@@ -144,6 +144,15 @@ Docker sem rede, socket ou chave; quatro testes do launcher passaram.
 Gitleaks isolado, instalação de cópia confiável do launcher fora do PR,
 emissor externo e falhas negativas ponta a ponta ainda faltam. Sem check
 externo, alteração da proteção, merge, deploy ou ativação GLPI 106.
+
+**Scan isolado (21:14 BRT):** ensaio do Gitleaks em contêiner sem rede,
+socket ou chave revelou que um erro Git de ownership podia ir para stderr
+com exit code zero. O launcher agora configura `safe.directory` apenas para
+o checkout montado e falha fechado em stderr ou código não zero. No commit
+`e1501ae`, scan real e backend `24/24` PASS; seis testes do launcher PASS.
+Ainda falta retirar a lista de exceções do controle do PR, instalar runner
+revisado fora do checkout e integrar emissor/negações. Nenhum check externo,
+proteção alterada, merge ou deploy.
 
 **Foco agora:** GLPI T03 e substituição segura do pipeline. PR 65 foi integrado;
 próxima liberação depende da revisão técnica do PR 64, publicação segura de
