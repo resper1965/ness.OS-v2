@@ -90,6 +90,16 @@ sem emissor isolado, teste negativo de SHA/check ausente, revogação da primeir
 chave e troca controlada da origem requerida dos checks, não há gate de merge.
 Esse ensaio não emitiu status externo nem mudou a proteção da `main`.
 
+Em 13/10 ~22:02 BRT, `local_ci_check_gate.py` ganhou uma validação **offline**
+do payload de `GET /pulls/{number}`: somente PR aberto, do mesmo repositório,
+com base `main`, número e `head.sha` exatamente iguais ao commit testado é
+aceito. Casos de SHA divergente, PR fechado, fork, base errada, número errado e
+head ausente falham fechados; 19 testes de infraestrutura e 43 testes Python
+do checkout passaram (dois avisos de depreciação preexistentes). O módulo
+ainda não lê a API, não autentica a App e não publica checks. Falta conceder
+`Pull requests: Read-only`, confirmar o readback e integrar o runner/emissor
+sob identidade privilegiada separada antes de qualquer status externo.
+
 Referências: [registro da App](https://docs.github.com/en/apps/creating-github-apps/registering-a-github-app/registering-a-github-app),
 [API de check runs](https://docs.github.com/en/rest/checks/runs),
 [origem exigida de status checks](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches).
