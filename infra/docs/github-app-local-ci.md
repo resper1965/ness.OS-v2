@@ -62,7 +62,9 @@ usa `--scan-ignore` para montar uma lista revisada **fora do checkout** e
 Dois fingerprints históricos em `PricingModule.tsx:91` foram classificados
 como a constante pública `STORAGE_KEY` do navegador e incluídos pontualmente
 na lista candidata, sem registrar o valor. O ensaio com cópia externa
-temporária passou; não usar essa cópia gravável pelo executor como gate.
+temporária passou; no SHA `4fe116e`, backend `24/24`, Black, Flake8, Ruff,
+Mypy, Gitleaks, frontend lint/build e suíte local `35/35` passaram. Não usar
+essa cópia gravável pelo executor como gate.
 Instalar a política e o launcher revisados em área controlada pelo runner,
 sem permissão de escrita para PRs, antes de emitir check confiável.
 Antes de aceitar PRs não confiáveis, instalar uma cópia revisada do launcher
