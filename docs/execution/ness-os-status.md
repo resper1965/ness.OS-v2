@@ -1,6 +1,6 @@
 # ness.OS — indicador de entrega
 
-Última verificação: **13/10/2026, 21:41 BRT**. Fonte: plano master,
+Última verificação: **13/10/2026, 21:52 BRT**. Fonte: plano master,
 `PROJECT_CONTEXT.md`, estágio operacional, ledger e GitHub. Este quadro é um
 checkpoint, não telemetria em tempo real. Atualizar quando uma entrega, gate,
 bloqueio ou prazo mudar; preservar a data da última verificação.
@@ -196,6 +196,11 @@ Black/Flake8/Ruff/Mypy, Gitleaks e frontend lint/build. Os contêineres não
 receberam rede, socket ou chave da App. Emissor externo e falhas negativas
 ainda não estão integrados; nenhum check foi publicado, nem alterada a
 proteção da `main`, feito merge/deploy ou ativada a conta GLPI 106.
+
+**Permissão para o emissor (21:52 BRT):** App `ness-os-local-ci` ainda não tem
+`Pull requests: Read-only`; essa leitura mínima foi solicitada para verificar
+o `head.sha` remoto do PR. Git refs de branch/tag não substitui essa prova.
+Até a atualização da instalação e readback, nenhum check será emitido.
 
 **Foco agora:** GLPI T03 e substituição segura do pipeline. PR 65 foi integrado;
 próxima liberação depende da revisão técnica do PR 64, publicação segura de
