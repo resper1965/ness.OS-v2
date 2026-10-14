@@ -1,6 +1,6 @@
 # ness.OS — indicador de entrega
 
-Última verificação: **13/10/2026, 21:22 BRT**. Fonte: plano master,
+Última verificação: **13/10/2026, 21:25 BRT**. Fonte: plano master,
 `PROJECT_CONTEXT.md`, estágio operacional, ledger e GitHub. Este quadro é um
 checkpoint, não telemetria em tempo real. Atualizar quando uma entrega, gate,
 bloqueio ou prazo mudar; preservar a data da última verificação.
@@ -164,6 +164,13 @@ Gitleaks e frontend lint/build; suíte local `35/35` PASS. A cópia temporária
 é gravável pelo executor e **não** é política de gate: instalar launcher e
 lista revisados fora do PR, testar emissor/negações e só então trocar a
 origem dos quatro checks. Nenhum check externo, merge, deploy ou GLPI 106.
+
+**Regras fixas do scanner (21:25 BRT):** launcher passou a fornecer
+`GITLEAKS_CONFIG_TOML` com as regras padrão embutidas, acima de um
+`.gitleaks.toml` que o PR possa adicionar. Teste RED→GREEN, suíte local
+`35/35` e scan real no SHA `18382e4` PASS com política externa temporária.
+Ainda não é gate de merge sem instalação confiável fora do PR e teste do
+emissor; proteção da `main` e conta GLPI 106 permanecem intactas.
 
 **Foco agora:** GLPI T03 e substituição segura do pipeline. PR 65 foi integrado;
 próxima liberação depende da revisão técnica do PR 64, publicação segura de
