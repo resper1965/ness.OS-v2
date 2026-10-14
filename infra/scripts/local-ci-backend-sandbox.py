@@ -199,7 +199,10 @@ def main() -> None:
             text=True,
         )
         if scan.returncode != 0 or scan.stderr.strip():
-            raise RuntimeError("secret scan failed or reported an error")
+            raise RuntimeError(
+                f"secret scan failed or reported an error "
+                f"(exit={scan.returncode}, stderr_bytes={len(scan.stderr)})"
+            )
         print("secret_scan_sandbox=PASS")
 
     if args.frontend_image:

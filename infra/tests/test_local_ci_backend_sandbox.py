@@ -214,6 +214,7 @@ def test_secret_scan_rejects_scanner_error_even_when_exit_code_is_zero(checkout)
     )
     assert result.returncode != 0
     assert "scan failed" not in result.stdout
+    assert "exit=0" in result.stderr
     calls = [
         json.loads(line) for line in Path(env["DOCKER_CALLS"]).read_text().splitlines()
     ]
