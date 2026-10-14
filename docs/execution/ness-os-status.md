@@ -1,6 +1,6 @@
 # ness.OS — indicador de entrega
 
-Última verificação: **13/10/2026, 21:25 BRT**. Fonte: plano master,
+Última verificação: **13/10/2026, 21:28 BRT**. Fonte: plano master,
 `PROJECT_CONTEXT.md`, estágio operacional, ledger e GitHub. Este quadro é um
 checkpoint, não telemetria em tempo real. Atualizar quando uma entrega, gate,
 bloqueio ou prazo mudar; preservar a data da última verificação.
@@ -171,6 +171,14 @@ origem dos quatro checks. Nenhum check externo, merge, deploy ou GLPI 106.
 `35/35` e scan real no SHA `18382e4` PASS com política externa temporária.
 Ainda não é gate de merge sem instalação confiável fora do PR e teste do
 emissor; proteção da `main` e conta GLPI 106 permanecem intactas.
+
+**Histórico fora dos testes de PR (21:28 BRT):** backend e qualidade Python
+montavam o checkout inteiro, inclusive `.git`. Montagem reduzida a
+`app/backend` e `cli`, somente leitura; o teste `test_api.py` comprovou que
+ambos são necessários. No SHA `f43e227`, backend `24/24` e Black/Flake8/Ruff/
+Mypy PASS no Docker real; suíte local `35/35` PASS. Apenas o scanner confiável
+Gitleaks recebe o histórico, sem rede/chave/socket. Runner externo, política
+instalada e emissor continuam pendentes; nenhum check, merge ou deploy.
 
 **Foco agora:** GLPI T03 e substituição segura do pipeline. PR 65 foi integrado;
 próxima liberação depende da revisão técnica do PR 64, publicação segura de
