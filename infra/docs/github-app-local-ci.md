@@ -74,9 +74,16 @@ Mypy, Gitleaks, frontend lint/build e suíte local `35/35` passaram. Não usar
 essa cópia gravável pelo executor como gate.
 Instalar a política e o launcher revisados em área controlada pelo runner,
 sem permissão de escrita para PRs, antes de emitir check confiável.
-Antes de aceitar PRs não confiáveis, instalar uma cópia revisada do launcher
-fora do checkout submetido e acrescentar os demais checks isolados. Esse
-ensaio não emitiu status externo nem mudou a proteção da `main`.
+Em 13/10 ~21:41 BRT, uma cópia de `49c802f` foi instalada em `/opt/ness-ci`:
+diretório `root:root 0755`, launcher `root:root 0555` e lista Gitleaks
+`root:root 0644`, com comparação byte a byte contra o checkout limpo. A cópia
+externa rodou no SHA exato com IDs locais imutáveis: backend `24/24`, Black,
+Flake8, Ruff, Mypy, Gitleaks e frontend lint/build PASS, sem rede/socket/chave
+nos contêineres. O launcher também recusa diretórios de fonte com links
+simbólicos que escapariam da montagem prevista. Esta instalação é **candidata**:
+sem emissor isolado, teste negativo de SHA/check ausente, revogação da primeira
+chave e troca controlada da origem requerida dos checks, não há gate de merge.
+Esse ensaio não emitiu status externo nem mudou a proteção da `main`.
 
 Referências: [registro da App](https://docs.github.com/en/apps/creating-github-apps/registering-a-github-app/registering-a-github-app),
 [API de check runs](https://docs.github.com/en/rest/checks/runs),
