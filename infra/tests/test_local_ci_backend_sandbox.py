@@ -74,7 +74,9 @@ def test_backend_tests_run_without_network_socket_or_secret_mount(checkout):
     assert args[args.index("--cap-drop") + 1] == "ALL"
     assert args[args.index("--security-opt") + 1] == "no-new-privileges"
     assert args[args.index("--user") + 1] == "65534:65534"
-    assert f"type=bind,src={repo},dst=/src,readonly" in args
+    assert f"type=bind,src={repo / 'app/backend'},dst=/src/app/backend,readonly" in args
+    assert f"type=bind,src={repo / 'cli'},dst=/src/cli,readonly" in args
+    assert f"type=bind,src={repo},dst=/src,readonly" not in args
     assert not any("docker.sock" in value or "/etc/ness-os" in value for value in args)
     assert args[-6:] == [
         "-m",
@@ -178,7 +180,9 @@ def test_python_quality_checks_run_in_separate_unprivileged_image(checkout):
     assert lint[lint.index("--user") + 1] == "65534:65534"
     assert lint[lint.index("--cap-drop") + 1] == "ALL"
     assert "RUFF_CACHE_DIR=/tmp/ruff" in lint
-    assert f"type=bind,src={repo},dst=/src,readonly" in lint
+    assert f"type=bind,src={repo / 'app/backend'},dst=/src/app/backend,readonly" in lint
+    assert f"type=bind,src={repo / 'cli'},dst=/src/cli,readonly" in lint
+    assert f"type=bind,src={repo},dst=/src,readonly" not in lint
     assert lint_image in lint
     assert "black --check app/backend" in lint[-1]
     assert "flake8 app/backend" in lint[-1]
