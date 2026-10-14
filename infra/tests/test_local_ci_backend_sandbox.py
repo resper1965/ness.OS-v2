@@ -176,6 +176,7 @@ def test_python_quality_checks_run_in_separate_unprivileged_image(checkout):
     assert "--read-only" in lint
     assert lint[lint.index("--user") + 1] == "65534:65534"
     assert lint[lint.index("--cap-drop") + 1] == "ALL"
+    assert "RUFF_CACHE_DIR=/tmp/ruff" in lint
     assert f"type=bind,src={repo},dst=/src,readonly" in lint
     assert lint_image in lint
     assert "black --check app/backend" in lint[-1]

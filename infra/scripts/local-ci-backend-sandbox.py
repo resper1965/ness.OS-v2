@@ -117,6 +117,8 @@ def main() -> None:
                 "PYTHONDONTWRITEBYTECODE=1",
                 "--env",
                 "MYPY_CACHE_DIR=/tmp/mypy",
+                "--env",
+                "RUFF_CACHE_DIR=/tmp/ruff",
                 "--mount",
                 f"type=bind,src={repo},dst=/src,readonly",
                 "--workdir",
