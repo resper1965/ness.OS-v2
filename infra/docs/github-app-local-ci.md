@@ -27,6 +27,16 @@ sucesso.
    `head.sha` de `GET /pulls/{number}`. A API de Git refs documenta
    `heads/*` e `tags/*`, não `pull/*`; nome de branch isolado não é prova do
    head do PR. Até o readback dessa permissão, não emitir checks.
+   **Fronteira adicional (13/10 22:40 BRT):** o usuário do runner `resper`
+   pertence ao grupo `docker`, e o socket observado é `root:docker 0660`.
+   A documentação do Docker classifica o grupo como privilégio equivalente a
+   root no daemon. Portanto `root:root 0600` na chave, por si só, não prova
+   separação do emissor no mesmo domínio de acesso ao Docker. Não conectar
+   `/etc/ness-os/github-app-ness-os-local-ci.pem` ao processo ou máquina do
+   builder até separar o signer do socket/usuário Docker (por host ou
+   isolamento equivalente demonstrado), ensaiar negativa de leitura a partir
+   do builder e provar que o signer verifica o SHA do PR e a evidência
+   confiável antes do POST. Não testar a falha tentando montar ou ler a chave.
 4. Ensaiar sucesso nos quatro checks e falha fechada com um check ausente,
    SHA divergente e PR sem execução. Só então trocar o `app_id` dos quatro
    checks requeridos de `15368` para o ID da App nova, mantendo nomes,
@@ -102,4 +112,5 @@ sob identidade privilegiada separada antes de qualquer status externo.
 
 Referências: [registro da App](https://docs.github.com/en/apps/creating-github-apps/registering-a-github-app/registering-a-github-app),
 [API de check runs](https://docs.github.com/en/rest/checks/runs),
-[origem exigida de status checks](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches).
+[origem exigida de status checks](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches),
+[privilégio do grupo Docker](https://docs.docker.com/engine/install/linux-postinstall/#manage-docker-as-a-non-root-user).
