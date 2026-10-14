@@ -59,6 +59,9 @@ falha fechado, sem imprimir possível segredo. No commit `e1501ae`, backend
 24/24, Gitleaks e seis testes do launcher passaram. A execução mais restrita
 usa `--scan-ignore` para montar uma lista revisada **fora do checkout** e
 `--ignore-gitleaks-allow` para que comentários do PR não suprimam achados.
+`GITLEAKS_CONFIG_TOML` fixa as regras padrão embutidas no binário; um
+`.gitleaks.toml` acrescentado pelo PR não muda a política. O commit
+`18382e4` passou no scan real com essa configuração; suíte local `35/35`.
 Dois fingerprints históricos em `PricingModule.tsx:91` foram classificados
 como a constante pública `STORAGE_KEY` do navegador e incluídos pontualmente
 na lista candidata, sem registrar o valor. O ensaio com cópia externa
