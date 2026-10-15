@@ -1,7 +1,8 @@
 # ness.OS — indicador de entrega
 
 Última atualização factual: **15/10/2026, 12:42 BRT** (prazo Zabbix encerrado).
-Demais estados têm última verificação em **13/10/2026, 22:40 BRT**. Fonte: plano master,
+A verificação geral anterior foi registrada em **13/10/2026, 22:40 BRT**;
+as atualizações posteriores são pontuais. Fonte: plano master,
 `PROJECT_CONTEXT.md`, estágio operacional, ledger e GitHub. Este quadro é um
 checkpoint, não telemetria em tempo real. Atualizar quando uma entrega, gate,
 bloqueio ou prazo mudar; preservar a data da última verificação.
