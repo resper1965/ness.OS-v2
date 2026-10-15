@@ -92,8 +92,9 @@ indicador registra os detalhes por fase sem porcentagens inventadas.
 Origem permanece **única coletora**; destino restaurado, isolado e mascarado.
 Referência de escopo: 262 hosts reais + 63 protótipos (protótipos não são
 ativos). Última amostra citada: 2,086% unsupported. O token de manutenção
-anterior expirou. Janela de mutações até **15/10/2026 11:47:35 BRT**; a
-extensão não renova credencial nem aprova corte. Não alterar DNS, fazer dupla
+anterior expirou. A janela de mutações encerrou em **15/10/2026 11:47:35 BRT**
+(prazo constatado em 15/10, 12:42 BRT); a extensão não renova credencial nem
+aprova corte. Não alterar DNS, fazer dupla
 coleta ou desmascarar destino antes de gates G0/G1/G2 aplicáveis, qualidade,
 freeze, snapshot final, GO formal e rollback. Após o prazo, nenhuma mutação
 Zabbix sem nova autorização. Não refazer restore/importação/probes já aprovados

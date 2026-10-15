@@ -1,6 +1,7 @@
 # ness.OS — indicador de entrega
 
-Última verificação: **13/10/2026, 22:40 BRT**. Fonte: plano master,
+Última atualização factual: **15/10/2026, 12:42 BRT** (prazo Zabbix encerrado).
+Demais estados têm última verificação em **13/10/2026, 22:40 BRT**. Fonte: plano master,
 `PROJECT_CONTEXT.md`, estágio operacional, ledger e GitHub. Este quadro é um
 checkpoint, não telemetria em tempo real. Atualizar quando uma entrega, gate,
 bloqueio ou prazo mudar; preservar a data da última verificação.
@@ -13,7 +14,7 @@ preparação UAT ou documentação isolada.
 |---|---|---|
 | F0 — release/continuidade | 🟡 Parcial | PR 65 integrado antes da reescrita; SHA antigo substituído. PRs 64/81 seguem draft; SHAs, diffs e checks anteriores requerem nova validação. O publicador local no commit `92eced4` passou nos checks completos, publicou API/frontend no GHCR privado e ambos foram puxados por digest; nenhum deploy. O run Actions antigo `38433314272` falhara com `write_package`, agora sem relevância para o builder local. Histórico de heads/tags sanitizado e escaneado; refs de PR/caches ainda dependem do GitHub Support (issue #82). Actions desativado; App privada `ness-os-local-ci` criada/instalada somente em `ness.OS-v2`, chave nova local `root:root 0600` e token temporário usado apenas para leitura no ensaio. Quatro checks da `main` continuam vinculados ao app Actions (`app_id=15368`): merges bloqueados até emissor externo confiável e troca controlada da origem. Repositório PRIVATE `resper1965/ness.OS-v2`. G0/G1 globais não declarados PASS. |
 | F1 — Authentik/tenant/Psono | 🟡 Parcial | Marca e login público Authentik verificados; MFA nominal, recuperação, jornadas autenticadas/tenant e Psono dedicado ainda sem aceite. G2 aberto. |
-| F2 — Zabbix definitivo | 🟡 UAT preparada | Destino restaurado e isolado; origem segue única coletora. Referência: 262 hosts reais + 63 protótipos; 2,086% unsupported na última amostra. SSO nominal, qualidade da frota, gates, freeze e GO faltam antes do corte. Janela até 15/10 11:47:35 BRT; token anterior expirado. |
+| F2 — Zabbix definitivo | 🟡 UAT preparada; janela encerrada | Último estado registrado: destino restaurado e isolado; origem única coletora. Referência: 262 hosts reais + 63 protótipos; 2,086% unsupported na última amostra. SSO nominal, qualidade da frota, gates, freeze e GO faltam antes do corte. Janela encerrada em 15/10 11:47:35 BRT; token anterior expirado. Sem mutações Zabbix sem nova autorização. |
 | F3 — GLPI | 🟡 Em execução | Volume persistente e borda pública corrigidos; busca idempotente, paginação, alias privado fixo e importação isolada do gateway endurecidos na branch, sem deploy. API real confirmou o contrato de paginação; imagem local sem rede importou o gateway sem inicializar VAPID. Conta 106 desativada; gateway candidato, três ativos e replay aguardam T03. Ações automáticas: 18 internas atrasadas, sem conversão; `graph` elimina arquivos antigos e não serve como canário sem efeito. Os sete agentes têm último contato em julho; piloto autenticado/isolamento registrados na issue #79, não executados. Deduplicação restante e tema ness. aguardam decisão/teste nominal. |
 | F4 — Hub/PWA | 🟡 Parcial | Runtime anterior promovido e rollback ensaiado; mudanças recentes estão só na branch. G3 e jornada produtiva por tenant/perfil não aceitos. |
 | F5 — operação integrada | 🔴 Pendente | Sem prova produtiva completa evento → incidente → ticket, replay/timeout, papéis e todas as entidades. G4 não aprovado. |
