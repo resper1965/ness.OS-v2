@@ -1,6 +1,6 @@
 # ness.OS — indicador de entrega
 
-Última atualização factual: **22/10/2026, 10:08 BRT** (bloqueio CI local).
+Última atualização factual: **22/10/2026, 10:15 BRT** (workflow do PR #81).
 A atualização anterior, em **15/10/2026, 12:42 BRT**, registrou o prazo
 Zabbix encerrado.
 A verificação geral anterior foi registrada em **13/10/2026, 22:40 BRT**;
@@ -140,6 +140,19 @@ commit `24a226c`; permanece draft, sem emissor, checks externos ou alteração
 da proteção. Próximo requisito é domínio de assinatura fora desse percurso,
 além de permissão de leitura de PR, revogação da primeira chave e negativas
 de SHA/evidência.
+
+**Workflow requerido no PR #81 (22/10, 10:15 BRT):** o check obrigatório
+`gitleaks` estava ausente da branch do PR, embora presente na branch de
+execução. O workflow existente foi copiado sem alteração, validado por
+comparação byte a byte, parse YAML, sintaxe Bash, scan sanitizado do próprio
+workflow e `git diff --check`, e publicado no commit `62e5c1c`. O PR segue
+draft; o repositório continua privado e Actions continua desativado, portanto
+nenhum check remoto foi produzido. Não tornar o repositório público antes de
+concluir a limpeza dos refs de PR/caches com o GitHub Support (issue #82),
+além de nova revisão de exposição. Mesmo após isso, a mudança de visibilidade
+sozinha não reativa Actions. O arquivo local ignorado de chaves VAPID não foi
+incluído no commit. Proteção da `main`, emissor App, merge, deploy e conta
+GLPI 106 permanecem inalterados.
 
 **Publicador local (20:36 BRT):** PR #81 commit `071eb97` agora exige pull
 das duas imagens por digest antes de gravar o manifesto de release. Teste de
