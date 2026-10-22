@@ -1,6 +1,8 @@
 # ness.OS — indicador de entrega
 
-Última atualização factual: **15/10/2026, 12:42 BRT** (prazo Zabbix encerrado).
+Última atualização factual: **22/10/2026, 10:08 BRT** (bloqueio CI local).
+A atualização anterior, em **15/10/2026, 12:42 BRT**, registrou o prazo
+Zabbix encerrado.
 A verificação geral anterior foi registrada em **13/10/2026, 22:40 BRT**;
 as atualizações posteriores são pontuais. Fonte: plano master,
 `PROJECT_CONTEXT.md`, estágio operacional, ledger e GitHub. Este quadro é um
@@ -127,6 +129,17 @@ permanece bloqueado até signer fora do domínio de acesso ao socket (ou
 isolamento equivalente comprovado), negativa de leitura a partir do builder,
 permissão mínima de PR com readback e validação de evidência/SHA. Não houve
 tentativa de acessar a chave por Docker, check publicado ou mudança na `main`.
+
+**Rootless no mesmo WSL (22/10, 10:08 BRT):** preflight sem instalação mostrou
+Docker Desktop indisponível nesta sessão e um teste negativo mais decisivo:
+processo `nobody` invocou `wsl.exe -d Ubuntu -u root -- id -u` e obteve UID 0,
+exit 0, sem ler segredo. Assim, usuários Linux separados ou Docker rootless
+nesta configuração não isolam a chave root-only; o caminho co-localizado foi
+descartado até barreira equivalente comprovada. PR #81 recebeu a evidência no
+commit `24a226c`; permanece draft, sem emissor, checks externos ou alteração
+da proteção. Próximo requisito é domínio de assinatura fora desse percurso,
+além de permissão de leitura de PR, revogação da primeira chave e negativas
+de SHA/evidência.
 
 **Publicador local (20:36 BRT):** PR #81 commit `071eb97` agora exige pull
 das duas imagens por digest antes de gravar o manifesto de release. Teste de
