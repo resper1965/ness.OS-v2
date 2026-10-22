@@ -1,6 +1,6 @@
 # ness.OS — indicador de entrega
 
-Última atualização factual: **22/10/2026, 10:15 BRT** (workflow do PR #81).
+Última atualização factual: **22/10/2026, 10:25 BRT** (checks do PR #81).
 A atualização anterior, em **15/10/2026, 12:42 BRT**, registrou o prazo
 Zabbix encerrado.
 A verificação geral anterior foi registrada em **13/10/2026, 22:40 BRT**;
@@ -15,7 +15,7 @@ preparação UAT ou documentação isolada.
 
 | Frente do master | Estado | Evidência e próximo marco |
 |---|---|---|
-| F0 — release/continuidade | 🟡 Parcial | PR 65 integrado antes da reescrita; SHA antigo substituído. PRs 64/81 seguem draft; SHAs, diffs e checks anteriores requerem nova validação. O publicador local no commit `92eced4` passou nos checks completos, publicou API/frontend no GHCR privado e ambos foram puxados por digest; nenhum deploy. O run Actions antigo `38433314272` falhara com `write_package`, agora sem relevância para o builder local. Histórico de heads/tags sanitizado e escaneado; refs de PR/caches ainda dependem do GitHub Support (issue #82). Actions desativado; App privada `ness-os-local-ci` criada/instalada somente em `ness.OS-v2`, chave nova local `root:root 0600` e token temporário usado apenas para leitura no ensaio. Quatro checks da `main` continuam vinculados ao app Actions (`app_id=15368`): merges bloqueados até emissor externo confiável e troca controlada da origem. Repositório PRIVATE `resper1965/ness.OS-v2`. G0/G1 globais não declarados PASS. |
+| F0 — release/continuidade | 🟡 Parcial | PR 65 integrado antes da reescrita; SHA antigo substituído. PRs 64/81 seguem draft. O publicador local no commit `92eced4` passou nos checks completos, publicou API/frontend no GHCR privado e ambos foram puxados por digest; nenhum deploy. Histórico de heads/tags sanitizado e escaneado; refs de PR/caches ainda dependem do GitHub Support (issue #82). Os quatro checks Actions do PR81 passaram no SHA `5051d4c` durante janela pública temporária; repositório voltou a PRIVATE e Actions foi desativado. A `main` permanece com os quatro checks vinculados ao app Actions (`app_id=15368`); a execução futura ainda depende de alternativa segura ou nova ativação. App privada `ness-os-local-ci` criada/instalada somente em `ness.OS-v2`, chave nova local `root:root 0600`; emissor externo não validado. Nenhum merge/deploy; G0/G1 globais não declarados PASS. |
 | F1 — Authentik/tenant/Psono | 🟡 Parcial | Marca e login público Authentik verificados; MFA nominal, recuperação, jornadas autenticadas/tenant e Psono dedicado ainda sem aceite. G2 aberto. |
 | F2 — Zabbix definitivo | 🟡 UAT preparada; janela encerrada | Último estado registrado: destino restaurado e isolado; origem única coletora. Referência: 262 hosts reais + 63 protótipos; 2,086% unsupported na última amostra. SSO nominal, qualidade da frota, gates, freeze e GO faltam antes do corte. Janela encerrada em 15/10 11:47:35 BRT; token anterior expirado. Sem mutações Zabbix sem nova autorização. |
 | F3 — GLPI | 🟡 Em execução | Volume persistente e borda pública corrigidos; busca idempotente, paginação, alias privado fixo e importação isolada do gateway endurecidos na branch, sem deploy. API real confirmou o contrato de paginação; imagem local sem rede importou o gateway sem inicializar VAPID. Conta 106 desativada; gateway candidato, três ativos e replay aguardam T03. Ações automáticas: 18 internas atrasadas, sem conversão; `graph` elimina arquivos antigos e não serve como canário sem efeito. Os sete agentes têm último contato em julho; piloto autenticado/isolamento registrados na issue #79, não executados. Deduplicação restante e tema ness. aguardam decisão/teste nominal. |
@@ -57,7 +57,8 @@ histórico antigo; solicitar limpeza ao GitHub Support. A restauração externa
 completa pós-rotação terminou com código 0 e PASS isolado/externo para o
 conjunto `20261012T220019-0300`.
 Nenhum valor secreto foi incluído neste indicador. PRs 64/81 seguem draft,
-sem checks externos, revisão ou deploy; as imagens candidatas do PR81 foram
+sem revisão ou deploy; os quatro checks Actions do PR81 passaram em 22/10 no
+SHA `5051d4c`, durante janela pública temporária. As imagens candidatas foram
 publicadas e lidas por digest, mas não promovidas.
 
 **Atualização F3:** gateway GLPI candidato agora encerra o cliente mesmo
@@ -153,6 +154,19 @@ além de nova revisão de exposição. Mesmo após isso, a mudança de visibilid
 sozinha não reativa Actions. O arquivo local ignorado de chaves VAPID não foi
 incluído no commit. Proteção da `main`, emissor App, merge, deploy e conta
 GLPI 106 permanecem inalterados.
+
+**Janela Actions temporária (22/10, 10:25 BRT):** por autorização explícita
+do usuário, o repositório foi tornado público e Actions ativado para executar
+os checks do PR #81. No SHA `355d666`, três checks passaram e `lint` falhou:
+o workflow instalava Ruff sem versão fixa, enquanto a validação local usava
+`0.15.7`. O commit `5051d4c` fixou Ruff `0.15.7` e Mypy `1.18.2`, as versões
+já usadas no CI local. No mesmo SHA, `build-and-test`, `test-and-lint`, `lint`
+e `gitleaks` passaram no GitHub. Após readback, Actions foi desativado e o
+repositório voltou a PRIVATE. O PR segue draft, sem merge ou deploy; checks
+verdes de um SHA não fornecem CI para commits futuros. A exposição pública
+temporária não desfaz cópias/forks ou histórico visto por terceiros; refs de
+PR/caches continuam pendentes na issue #82. Nenhuma mudança na proteção da
+`main`, no emissor App ou na conta GLPI 106.
 
 **Publicador local (20:36 BRT):** PR #81 commit `071eb97` agora exige pull
 das duas imagens por digest antes de gravar o manifesto de release. Teste de
