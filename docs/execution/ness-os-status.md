@@ -1,6 +1,6 @@
 # ness.OS — indicador de entrega
 
-Última atualização factual: **22/10/2026, 10:25 BRT** (checks do PR #81).
+Última atualização factual: **22/10/2026, 10:28 BRT** (revisão da `main`).
 A atualização anterior, em **15/10/2026, 12:42 BRT**, registrou o prazo
 Zabbix encerrado.
 A verificação geral anterior foi registrada em **13/10/2026, 22:40 BRT**;
@@ -167,6 +167,13 @@ verdes de um SHA não fornecem CI para commits futuros. A exposição pública
 temporária não desfaz cópias/forks ou histórico visto por terceiros; refs de
 PR/caches continuam pendentes na issue #82. Nenhuma mudança na proteção da
 `main`, no emissor App ou na conta GLPI 106.
+
+**Revisão da `main` (22/10, 10:28 BRT):** por decisão explícita do único
+desenvolvedor, o número de aprovações obrigatórias foi reduzido de 1 para 0.
+O PR continua obrigatório; os quatro checks estritos permanecem vinculados
+ao app Actions, a proteção vale para administradores, e force-push e exclusão
+continuam vedados. O repositório segue privado, Actions desativado e PR #81
+draft; nenhuma integração ou deploy foi feita por essa alteração.
 
 **Publicador local (20:36 BRT):** PR #81 commit `071eb97` agora exige pull
 das duas imagens por digest antes de gravar o manifesto de release. Teste de
