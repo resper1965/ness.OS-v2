@@ -110,6 +110,24 @@ ainda não lê a API, não autentica a App e não publica checks. Falta conceder
 `Pull requests: Read-only`, confirmar o readback e integrar o runner/emissor
 sob identidade privilegiada separada antes de qualquer status externo.
 
+## Tentativa de isolamento no mesmo WSL — 22/10/2026
+
+O caminho Docker rootless no mesmo Ubuntu/WSL foi considerado, sem instalar
+pacotes ou alterar o daemon. O preflight atual encontrou a CLI do Docker
+Desktop como link para uma montagem indisponível; `docker` e o socket não
+estavam acessíveis nesse momento. Mais importante, um processo Linux executado
+como `nobody` invocou `wsl.exe -d Ubuntu -u root -- id -u` e obteve `0`
+(exit 0). O teste não leu chave nem segredo. Nesta
+configuração, separar usuários Linux ou instalar um daemon rootless **não**
+isola a chave root-only da execução não confiável; não usar esta distro como
+builder e signer co-localizados.
+
+Próximo desenho precisa manter o emissor/chave fora desse domínio de escalada
+(ou comprovar uma barreira equivalente por teste negativo), além de obter
+`Pull requests: Read-only`, revogar a primeira chave, vincular os resultados
+ao SHA remoto do PR e ensaiar check ausente/SHA divergente. Sem isso, não
+publicar check runs nem alterar a proteção da `main`.
+
 Referências: [registro da App](https://docs.github.com/en/apps/creating-github-apps/registering-a-github-app/registering-a-github-app),
 [API de check runs](https://docs.github.com/en/rest/checks/runs),
 [origem exigida de status checks](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches),
