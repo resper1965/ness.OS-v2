@@ -1,6 +1,7 @@
 # Contexto canônico — ness.OS
 
 Indicador resumido e datado: [estado global](execution/ness-os-status.md).
+Visão consolidada de andamento e planejamento: [resumo de 22/10/2026](execution/ness-os-project-overview-2026-10-22.md).
 
 F0, 13/10 15:00 BRT: por solicitação do usuário, substituir GitHub Actions
 sem perder as garantias de release. PR #81 draft (`ea7aa96`) contém publicador
