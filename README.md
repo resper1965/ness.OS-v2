@@ -9,6 +9,8 @@ não significa que a capacidade esteja liberada em produção.
 O estado factual e datado está em [docs/execution/ness-os-status.md](docs/execution/ness-os-status.md).
 O escopo, a sequência e os critérios de aceite estão no
 [plano master](docs/superpowers/plans/2026-10-12-ness-os-plano-master.md).
+Para assumir o desenvolvimento, comece pelo
+[handoff de 22/10/2026](docs/execution/developer-handoff-2026-10-22.md).
 
 ## Organização
 

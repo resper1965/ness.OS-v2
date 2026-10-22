@@ -2,6 +2,16 @@
 
 **Fotografia documental:** 22/10/2026, 09:00 BRT. **Estado global: produção completa não liberada.** Este relatório consolida o [plano master](../superpowers/plans/2026-10-12-ness-os-plano-master.md), o [indicador datado](ness-os-status.md), o [contexto canônico](../PROJECT_CONTEXT.md), o ledger operacional local e os PRs/issues do repositório privado `resper1965/ness.OS-v2`. Não é uma nova auditoria de produção. A última atualização factual do indicador é de 15/10/2026, 12:42 BRT; a consulta GitHub desta compilação confirmou PRs #64/#81 ainda abertos em *draft* e issues de bloqueio ainda abertas. O indicador datado prevalece se houver alteração posterior.
 
+**Correção posterior da fotografia:** o indicador foi atualizado em 22/10,
+10:28 BRT; os quatro checks Actions do PR #81 passaram no SHA `5051d4c`
+durante janela pública temporária e o repo voltou a privado/Actions off.
+A exigência de aprovação de segundo revisor na `main` foi removida por decisão
+do único desenvolvedor, mantendo quatro checks strict e admin enforcement.
+PR #42 e issues #67/#68/#80 foram encerrados como substituídos/organizados;
+nenhum merge/deploy decorreu. O caminho de retomada vigente é o
+[handoff de desenvolvimento](developer-handoff-2026-10-22.md); o restante
+deste resumo preserva a fotografia original para comparação.
+
 ## Resumo executivo
 
 O ness.OS deve operar para **todas as entidades e ativos existentes elegíveis**, não apenas para um MVP demonstrativo. A jornada central é `evento Zabbix → incidente no Hub → ticket GLPI → acompanhamento e solução`, com identidade Authentik, segredos no Psono, automação assistida em Node-RED, segurança Wazuh/Google Workspace, isolamento por tenant e experiência ness. O canário de 5–10 ativos internos inicia a expansão; não encerra o programa.
@@ -108,6 +118,8 @@ As fases abaixo são dependências e critérios, não datas prometidas. Cada alt
 - [Plano master](../superpowers/plans/2026-10-12-ness-os-plano-master.md) — objetivo, F0–F8, P1–P4 e critérios de saída.
 - [Planos GLPI](../superpowers/plans/2026-10-12-glpi-ness-os-complete-delivery.md), [Zabbix](../superpowers/plans/2026-10-12-zabbix-fluid-delivery.md), [Authentik](../superpowers/plans/2026-10-12-authentik-fluid-delivery.md) e [marca](../superpowers/plans/2026-10-12-ness-branding-cross-product-plan.md) — tarefas completas de domínio.
 - [Contexto canônico](../PROJECT_CONTEXT.md), [handoff](ness-os-handoff-2026-10-14.md), [ADR GLPI](../adr/0020-glpi-maintenance-entity-boundary.md) e ledger operacional local `.superpowers/sdd/2026-10-12-ness-os-plano-master/progress.md`. O ledger local não é evidência publicada por este relatório; dados produtivos exigem os registros específicos.
-- O `docs/execution/gates/ness-os-gate-register.md` citado pelo master **não foi encontrado neste checkout** em 22/10. Criá-lo/reconciliá-lo numa entrega própria, sem preencher PASS por inferência.
+- O registro de gates ausente na fotografia das 09:00 foi criado depois como
+  [índice de retomada](gates/ness-os-gate-register.md), sem novo PASS por
+  inferência. O indicador continua a fonte do estado factual.
 
 Este documento é uma fotografia de planejamento e andamento. Não contém credenciais, tokens, dumps ou dados pessoais operacionais; não modifica ambiente, regras da `main`, PRs de implementação nem gates.

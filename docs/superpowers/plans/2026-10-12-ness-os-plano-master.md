@@ -2,6 +2,12 @@
 
 > **Estado: execução autorizada e em andamento na branch de entrega.** Usar `ponytail:ponytail` full e `superpowers:executing-plans`; conferir o ledger e o último estágio antes de agir. A continuação do plano master está ativa, mas não renova janelas nem aprova gates.
 
+**Retomada por qualquer desenvolvedor:** começar pelo
+[handoff de 22/10/2026](../../execution/developer-handoff-2026-10-22.md) e pelo
+[indicador datado](../../execution/ness-os-status.md). O handoff corrige
+referências de repositório/checkouts e aponta a próxima tarefa sem reexecutar
+provas históricas. O indicador prevalece sobre checkpoints anteriores.
+
 **Objetivo:** entregar o ness.OS em produção, atendendo os clientes e ativos existentes com identidade, cofre, monitoração, inventário, atendimento, Hub, AIOps assistido e SecOps, experiência ness., evidência e retorno. O projeto não encerra na demonstração de um MVP.
 
 **Arquitetura:** Authentik autentica; Psono guarda segredos; Zabbix monitora; GLPI é o cadastro mestre e ITSM; o Hub integra e apresenta; Node-RED orquestra jornadas autorizadas; Wazuh/Workspace compõem a entrega de segurança em produção. O backend impõe tenant e papel. Cada ferramenta mantém sua responsabilidade e fornece dados com origem, horário e qualidade.
@@ -241,7 +247,9 @@ Registrar apenas dependência nova ou modificada; issues 51, 59, 66, 73, 74 e 75
 
 ## 6. Livro de entregas e gates
 
-Reusar `docs/execution/gates/ness-os-gate-register.md` e registros de execução. Se faltar arquivo, criar na execução; nenhum gerenciador novo é necessário.
+Reusar [registro de gates](../../execution/gates/ness-os-gate-register.md)
+e registros de execução; esse índice não substitui evidência nem decisão de
+aceite. Nenhum gerenciador novo é necessário.
 
 Cada linha registra: fase/tarefa, ambiente, owner, estado, commit/release, evidência/data, próxima ação, bloqueio e retorno. Registrar G0/G1/G2, Z-M1–Z-M5, G3/G4/G5 e observações por promoção. Subrequisito PASS não transforma gate inteiro em PASS.
 
@@ -256,6 +264,7 @@ Uma entrega termina com: alteração pequena revisável, teste/readback pertinen
 | GLPI | [Plano completo T01–T14](2026-10-12-glpi-ness-os-complete-delivery.md) |
 | Marca de todos os produtos | [Matriz transversal](2026-10-12-ness-branding-cross-product-plan.md) |
 | Release/DR | [Fase 0](2026-09-18-phase-0-recovery-release-baseline.md), [release Hub](2026-10-12-hub-immutable-release-contract.md), [recuperação Hub](2026-10-12-g1-hub-recovery-evidence.md) |
+| CI sem Actions | [Fronteira do runner e signer](2026-10-22-local-ci-trust-boundary.md), executada na branch do PR #81 após pré-requisitos |
 | Backend tenant/sessão | [Fase 1](2026-09-18-phase-1-identity-tenant-controls.md) |
 | Hub/runtime | [Fase 3](2026-09-18-phase-3-hub-runtime-reliability.md) |
 | Hub/PWA/dados | [Fase 4](2026-09-18-phase-4-dashboard-operational-truth.md) |
@@ -273,8 +282,18 @@ O programa só termina com núcleo produtivo cobrindo todas as entidades/ativos 
 
 1. Ler este master, o topo do estágio e o final do registro da ferramenta foco.
 2. Confirmar modelo executor, ordem humana de execução, janela e credenciais vigentes.
-3. Fazer F0 somente para pendências; preparar F1 necessário ao acesso e retomar F2 pelo último delta. Concluir a ferramenta foco antes de abrir outra frente ampla.
+3. Fazer F0 somente para o pré-requisito de release/CI ainda aberto. A frente
+   principal deste checkpoint é GLPI T03; preparar F1 quando necessário ao
+   acesso. F2/Zabbix fica sem mutações até nova janela/gates, embora o plano
+   e o último delta possam ser estudados. Concluir a ferramenta foco antes de
+   abrir outra frente ampla.
 4. Se houver bloqueio indispensável, registrá-lo e escolher a próxima entrega independente da mesma fase/produto; passar a outro produto apenas com resultado explícito e motivo.
 5. Atualizar estimativa após cada bloco pela fila real de pendências. Não prometer implantação total em quatro horas. Liberação do núcleo e expansão são entregas distintas; observação de sete dias usa calendário real.
 
-O plano master, os planos detalhados e as evidências estão no repositório `/home/resper/ness.OS`, remoto `resper1965/n-infraops`. Esta compilação não executou deploy, configuração, compra, envio de email ou nova auditoria de produção.
+O remoto vigente é `resper1965/ness.OS-v2`; o checkout de entrega deste
+handoff é `/home/resper/ness.OS-clean` e o ledger histórico fica em
+`/home/resper/ness.OS/.superpowers/sdd/2026-10-12-ness-os-plano-master/progress.md`
+quando disponível. Conferir branch, SHA e `git status` antes de agir. A
+compilação original deste master não executou deploy, configuração, compra,
+envio de email ou nova auditoria de produção; entregas posteriores têm seus
+próprios registros datados.

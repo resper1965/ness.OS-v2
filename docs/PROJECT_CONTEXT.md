@@ -2,6 +2,17 @@
 
 Indicador resumido e datado: [estado global](execution/ness-os-status.md).
 Visão consolidada de andamento e planejamento: [resumo de 22/10/2026](execution/ness-os-project-overview-2026-10-22.md).
+Entrada para outro desenvolvedor: [handoff de 22/10/2026](execution/developer-handoff-2026-10-22.md).
+O indicador datado prevalece sobre os checkpoints históricos abaixo. Em
+22/10, o remoto vigente é `resper1965/ness.OS-v2`: PRs #64/#81 seguem draft;
+os quatro checks de #81 passaram no SHA `5051d4c` durante janela pública
+temporária, mas o repo voltou a privado e Actions está desativado. Os checks
+obrigatórios da `main` ainda pertencem ao app Actions; o signer local não foi
+aceito. GLPI 106 continua desativada e Zabbix está fora da janela. Issues
+#67/#68/#80 e PR #42 foram encerrados na higienização; não reutilizar seus
+pedidos antigos. Nenhum merge ou deploy decorreu dessas atualizações.
+
+## Histórico de execução (datas próprias, não estado atual)
 
 F0, 13/10 15:00 BRT: por solicitação do usuário, substituir GitHub Actions
 sem perder as garantias de release. PR #81 draft (`ea7aa96`) contém publicador
@@ -23,9 +34,10 @@ Estado: execução retomada; G0 tem promoção real do Hub/AIOps e CI da branch
 comprovados, mas permanece **PARCIAL**. O workflow de publicação entrou na
 `main` pelo PR #65 (`8563f69`), com exceção de revisão autorizada e proteção
 restaurada. A publicação candidata do PR #64 (`3737172`) falhou no push GHCR
-por `write_package` negado nos dois pacotes privados existentes; issue #80
-instrui o grant específico. Não há novo digest nem correspondência da release
-atual da branch em produção. PR #64 segue draft, cinco checks PASS, sem deploy.
+por `write_package` negado nos dois pacotes privados existentes; a issue #80
+registrou o grant então proposto e foi encerrada depois. Não havia novo
+digest nem correspondência da release atual da branch em produção. PR #64
+seguia draft, cinco checks PASS, sem deploy.
 
 Janela Zabbix: usuário ampliou por 48 horas a partir do limite anterior;
 novo término adotado **15/10/2026 11:47:35 BRT**. O token de manutenção
@@ -51,7 +63,8 @@ rota direta real; T03 e a conta 106 continuam bloqueados.
 Preflight read-only da subnet candidata não encontrou colisão nas bridges e
 rotas IPv4 vistas; deve ser refeito imediatamente antes de criar a rede.
 Histórico: `workflow_dispatch` da branch retornou 404 antes do PR #65. Esse
-bloqueio foi superado; o bloqueio atual é a permissão GHCR da issue #80.
+bloqueio foi superado; naquele checkpoint, o bloqueio era a permissão GHCR
+da issue #80, posteriormente substituída pelo publicador local.
 Cinco checks verdes não equivalem a imagem por digest. Sem deploy.
 Guard local da candidata valida digest, subnet/IP e permissões dos três
 arquivos de segredo sem expor valores; não substitui imagem publicada nem

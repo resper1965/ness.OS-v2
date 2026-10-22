@@ -1,5 +1,9 @@
 # ness.OS — indicador de entrega
 
+Para retomar em outro checkout ou por outro desenvolvedor, ler o
+[handoff de 22/10/2026](developer-handoff-2026-10-22.md) após este indicador.
+Este link de navegação não altera a data factual abaixo nem aprova gate.
+
 Última atualização factual: **22/10/2026, 10:28 BRT** (revisão da `main`).
 A atualização anterior, em **15/10/2026, 12:42 BRT**, registrou o prazo
 Zabbix encerrado.

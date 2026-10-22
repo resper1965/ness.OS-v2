@@ -119,13 +119,27 @@ Os caminhos marcados “criar” abaixo são propostos; não existem por este pl
 
 ## T03 — resolver o requisito de isolamento da manutenção
 
-**Criar:** `docs/adr/0020-glpi-maintenance-entity-boundary.md` (se número já existir, usar próximo livre), `infra/tests/test-glpi-maintenance-boundary.py`; atualizar política de acesso e issue 74.
+**Checkpoint de retomada (22/10/2026):** a falha nativa da entidade
+descendente foi reproduzida em laboratório válido; a guarda pública Caddy
+e o volume `/var/glpi` foram aplicados, mas a rota direta Hub/worker→GLPI
+continua e o gateway privado é candidato **sem deploy**. A conta 106 segue
+desativada; nenhum dos três ativos foi criado. Começar pelo
+[handoff atual](../../execution/developer-handoff-2026-10-22.md),
+[ADR 0020](../../adr/0020-glpi-maintenance-entity-boundary.md) e
+[execução GLPI](../../execution/glpi-next-delivery-2026-10-12.md), sem
+repetir os laboratórios e a migração já comprovados. O indicador datado
+prevalece se o estado mudar.
+
+**Reusar/modificar:** `docs/adr/0020-glpi-maintenance-entity-boundary.md`,
+`app/backend/tests/test_glpi_maintenance_boundary.py` e os testes de
+gateway/runtime existentes; atualizar a política e a issue #74 somente com
+evidência nova. Não criar outro ADR ou teste duplicado.
 
 **Entrada:** reprodução documentada conta 106/entidades 1 e 5; não repetir em produção. **Saída:** decisão suportada e fronteira de acesso comprovada, ou bloqueio explícito que impede reativação.
 
-- [ ] Reproduzir em ambiente isolado com entidades e ativos sintéticos; documentar se “não recursivo” é restrição de seleção ou apenas visualização no contrato nativo. Conferir documentação/fonte da versão candidata.
-- [ ] Avaliar primeiro mecanismo suportado de restrição no servidor que cubra leitura, busca, exportação, subitens e escrita. Hooks de criação sozinhos não satisfazem esse requisito.
-- [ ] Se não houver mecanismo completo, preparar decisão concreta entre gateway privado restrito e identidade de operação com escopo descendente explicitamente aprovado. Recomendação deste plano: gateway restrito para automação; não expandir silenciosamente o escopo aprovado.
+- [x] Reproduzir em ambiente isolado com entidades e ativos sintéticos; o ensaio válido reproduziu seleção/leitura da descendente. Fonte e limite estão no ADR 0020.
+- [x] Avaliar mecanismo nativo: filtro IP/App-Token separa origem, mas não impede troca de entidade na sessão permitida; hooks só de escrita não bastam. Resultado no ADR 0020.
+- [x] Selecionar gateway privado restrito como candidato de protótipo, sem ampliar escopo da identidade 106 nem aprovar T03. Contrato no ADR 0020.
 - [ ] Para gateway, exigir: token upstream só no serviço, cliente não recebe token/sessão upstream, rota nativa bloqueada para essa identidade/rede, allowlist de endpoints, entidade determinada no servidor, validação de todo objeto aninhado, negação de URLs/IDs arbitrários, bulk e métodos não permitidos. Reusar infraestrutura existente; não criar serviço genérico de proxy.
 - [ ] Prototipar e testar o caminho escolhido isoladamente. Casos: troca para descendente, seleção all, IDOR de Computer/Ticket/anexo, busca, exportação, batch, path encoding, sessão reaproveitada e tentativa direta de API upstream. Todos devem negar dados não autorizados.
 - [ ] Registrar escolha, arquivos exatos e contrato da solução no ADR antes de implementação produtiva. Mudança de escopo de acesso ou topologia de entidades requer decisão humana; manter tarefa BLOCKED se essa for a única alternativa.
@@ -316,9 +330,9 @@ Atualizar usuário em até 60 segundos durante trabalho ativo com tarefa, result
 
 ## 10. Handoff ao próximo modelo
 
-1. Ler este plano e o fim de `docs/execution/glpi-next-delivery-2026-10-12.md` antes de qualquer acesso remoto.
-2. Confirmar que o usuário trocou o modelo e pediu execução; este plano não é uma instrução para autoexecutar no modelo autor.
+1. Ler o handoff de 22/10, o indicador, este plano e o fim de `docs/execution/glpi-next-delivery-2026-10-12.md` antes de qualquer acesso remoto.
+2. Confirmar o checkout/PR atual e o estado da autorização; modelos anteriores não definem a permissão vigente.
 3. Conferir janela/credenciais atuais. Não reativar 106 por instrução antiga de heartbeat.
-4. Iniciar T01/T02. Usar T03 como gate real para criação do lote; continuar tarefas locais independentes enquanto a fronteira for resolvida.
+4. Retomar T03 pelo delta documentado. T01 migração do volume e guarda pública já ocorreram; T02 e T04 têm código candidato, não aceite produtivo. Usar T03 como gate real para criação do lote e continuar tarefas GLPI independentes enquanto a fronteira estiver bloqueada.
 5. Implementar uma tarefa, verificar proporcionalmente, atualizar ledger e seguir. Não repetir importação Zabbix, branding Authentik ou restore já comprovado.
-6. Este documento não alterou produção, permissões, tokens, ativos, tickets ou agendamentos. Todas as caixas permanecem por executar.
+6. A elaboração original deste plano não alterou produção; registros de execução posteriores prevalecem. Caixas antigas desmarcadas não autorizam repetir entregas comprovadas.
