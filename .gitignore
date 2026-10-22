@@ -10,6 +10,10 @@ __pycache__/
 dist/
 build/
 *.egg
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
 .venv/
 venv/
 env/
