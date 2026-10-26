@@ -20,9 +20,14 @@ target_dir="/opt/n-infraops/releases/${commit}/app"
 [[ ! -e "${target_dir}" ]]
 services=(api worker-alerts worker-ml)
 
-# 1. Fresh backup inside the RPO, verified by its COMPLETED marker.
-systemctl start ness-aiops-backup.service
-backup_set="$(find /opt/n-infraops/backups/nightly -mindepth 1 -maxdepth 1 -type d -printf "%T@ %f\n" | sort -rn | head -1 | cut -d" " -f2)"
+# 1. Backup under 30 min old, verified by its COMPLETED marker. Reuse the
+# nightly when fresh: the backup stops GLPI and n8n for several minutes.
+latest_backup() { find /opt/n-infraops/backups/nightly -mindepth 1 -maxdepth 1 -type d -printf "%T@ %f\n" | sort -rn | head -1 | cut -d" " -f2; }
+backup_set="$(latest_backup)"
+if ! find "/opt/n-infraops/backups/nightly/${backup_set}" -maxdepth 0 -mmin -30 | grep -q .; then
+  systemctl start ness-aiops-backup.service
+  backup_set="$(latest_backup)"
+fi
 [[ -f "/opt/n-infraops/backups/nightly/${backup_set}/COMPLETED" ]]
 find "/opt/n-infraops/backups/nightly/${backup_set}" -maxdepth 0 -mmin -30 | grep -q .
 
