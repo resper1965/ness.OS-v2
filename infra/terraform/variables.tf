@@ -39,88 +39,16 @@ variable "contabo_oauth2_pass" {
 }
 
 # ---------------------------------------------------------------------------
-# Configurações da Instância VPS (Cloud VPS)
+# VPS (Cloud VPS / Storage VPS) - uma entrada por instância, chave estável
 # ---------------------------------------------------------------------------
-# NOTA: O Contabo Storage VPS NÃO é suportado pela API/Terraform.
-# Utilizamos Cloud VPS que é compatível com a API.
-# Referência de product_id: consulte https://api.contabo.com/#tag/Products
-# ---------------------------------------------------------------------------
-
-variable "vps_display_name" {
-  description = "Nome de exibição da instância VPS no painel Contabo"
-  type        = string
-  default     = "zabbix-ness-server"
-}
-
-variable "vps_product_id" {
-  description = <<-EOT
-    ID do produto VPS na Contabo. Exemplos:
-    - "V1"  = Cloud VPS 1 (4 vCPU, 8 GB RAM, 200 GB SSD)
-    - "V2"  = Cloud VPS 2 (6 vCPU, 16 GB RAM, 400 GB SSD)
-    - "V3"  = Cloud VPS 3 (8 vCPU, 30 GB RAM, 800 GB SSD)
-    - "V4"  = Cloud VPS 4 (12 vCPU, 60 GB RAM, 1.6 TB SSD)
-    
-    NOTA: Storage VPS não é suportado via API. Use Cloud VPS equivalente.
-    Verifique IDs atualizados em: https://api.contabo.com/#tag/Products
-  EOT
-  type        = string
-  default     = "V3"
-}
-
-variable "hub_display_name" {
-  description = "Nome de exibição da instância AIOps Hub no painel Contabo"
-  type        = string
-  default     = "aiops-hub-server"
-}
-
-variable "hub_product_id" {
-  description = <<-EOT
-    ID do produto VPS na Contabo para o Hub AIOps.
-    Recomendado: "V3" = Cloud VPS 3 (8 vCPU, 30 GB RAM, 800 GB SSD)
-  EOT
-  type        = string
-  default     = "V3"
-}
-variable "vps_image_id" {
-  description = <<-EOT
-    ID da imagem do sistema operacional para instalação na VPS.
-    Use o data source 'contabo_image' ou a API para listar IDs disponíveis.
-    
-    Exemplos comuns:
-    - "debian-12"     = Debian 12 (Bookworm)
-    - "ubuntu-22.04"  = Ubuntu 22.04 LTS
-    - "ubuntu-24.04"  = Ubuntu 24.04 LTS
-    
-    Verifique IDs atualizados em: https://api.contabo.com/#tag/Images
-  EOT
-  type        = string
-  default     = "debian-12"
-}
-
-variable "vps_region" {
-  description = <<-EOT
-    Região para provisionamento da VPS.
-    Regiões disponíveis: EU, US-central, US-east, US-west, SIN
-  EOT
-  type        = string
-  default     = "EU"
-}
-
-variable "vps_default_user" {
-  description = "Usuário padrão criado na instância VPS para acesso SSH"
-  type        = string
-  default     = "ness_admin"
-}
-
-variable "vps_period" {
-  description = "Período de contratação em meses (1, 3, 6, 12)"
-  type        = number
-  default     = 1
-
-  validation {
-    condition     = contains([1, 3, 6, 12], var.vps_period)
-    error_message = "O período deve ser 1, 3, 6 ou 12 meses."
-  }
+variable "instances" {
+  description = "VPS por chave estável (zabbix_prod, aiops, zabbix_uat, ...). Valores devem espelhar a API Contabo."
+  type = map(object({
+    display_name = string
+    product_id   = string
+    image_id     = string
+    region       = string
+  }))
 }
 
 # ---------------------------------------------------------------------------
@@ -162,27 +90,6 @@ variable "object_storage_auto_scaling_limit_tb" {
 }
 
 # ---------------------------------------------------------------------------
-# Chave SSH para Acesso Remoto
-# ---------------------------------------------------------------------------
-
-variable "ssh_key_name" {
-  description = "Nome descritivo da chave SSH no painel Contabo"
-  type        = string
-  default     = "ness-admin-ssh-key"
-}
-
-variable "ssh_public_key" {
-  description = <<-EOT
-    Chave pública SSH (conteúdo completo, formato OpenSSH).
-    Exemplo: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQ... ness_admin@zabbix-ness"
-    
-    Gere uma nova chave com: ssh-keygen -t ed25519 -C "ness_admin@zabbix-ness"
-  EOT
-  type        = string
-  sensitive   = true
-}
-
-# ---------------------------------------------------------------------------
 # Tags e Metadados
 # ---------------------------------------------------------------------------
 
@@ -202,32 +109,3 @@ variable "environment" {
     error_message = "O ambiente deve ser: prod, staging ou dev."
   }
 }
-
-# ---------------------------------------------------------------------------
-# Configurações do Wazuh Hub (SOC) e Wazuh Spoke (Clientes)
-# ---------------------------------------------------------------------------
-
-variable "wazuh_hub_display_name" {
-  description = "Nome de exibição da instância Wazuh Hub SOC no painel Contabo"
-  type        = string
-  default     = "wazuh-hub-soc-prod"
-}
-
-variable "wazuh_hub_product_id" {
-  description = "ID do produto VPS na Contabo para o Wazuh Hub. Recomendado: V3 (8 vCPU, 30 GB RAM)"
-  type        = string
-  default     = "V3"
-}
-
-variable "wazuh_spoke_display_name" {
-  description = "Nome de exibição da instância Wazuh Spoke no painel Contabo"
-  type        = string
-  default     = "wazuh-spoke-piloto-prod"
-}
-
-variable "wazuh_spoke_product_id" {
-  description = "ID do produto VPS na Contabo para o Wazuh Spoke. Recomendado: V2 (6 vCPU, 16 GB RAM)"
-  type        = string
-  default     = "V2"
-}
-

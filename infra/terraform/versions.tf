@@ -8,7 +8,7 @@
 
 terraform {
   # Versão mínima do Terraform exigida
-  required_version = ">= 1.5.0"
+  required_version = ">= 1.7.0"
 
   required_providers {
     # Provider oficial da Contabo para gerenciamento de infraestrutura
@@ -22,6 +22,7 @@ terraform {
   # =========================================================================
   # Backend de Estado (State)
   # =========================================================================
+  # PENDENTE (Task 1.1): backend S3 depende das chaves do Object Storage; estado local até lá.
   # RECOMENDAÇÃO: Em produção, utilize um backend remoto para armazenar
   # o estado do Terraform de forma segura e compartilhada.
   #

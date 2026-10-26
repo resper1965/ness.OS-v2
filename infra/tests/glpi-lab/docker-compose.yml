@@ -1,0 +1,50 @@
+# Synthetic GLPI lab for the T03 negative matrix. Never point at production.
+# Always start through lab.sh: it merges app/docker-compose.glpi-maintenance.yml (the gateway under test).
+name: glpi-lab
+services:
+  glpi-db:
+    image: mariadb:10.11
+    environment:
+      MARIADB_ROOT_PASSWORD: lab-root-only
+      MARIADB_DATABASE: glpi
+      MARIADB_USER: glpi
+      MARIADB_PASSWORD: lab-only
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      retries: 30
+    networks:
+      db: {}
+
+  glpi:
+    image: elestio/glpi:11.0.11
+    container_name: ness-glpi-lab-glpi
+    depends_on:
+      glpi-db: {condition: service_healthy}
+    environment:
+      GLPI_DB_HOST: glpi-db
+      GLPI_DB_PORT: "3306"
+      GLPI_DB_NAME: glpi
+      GLPI_DB_USER: glpi
+      GLPI_DB_PASSWORD: lab-only
+    ports: ["127.0.0.1:18080:80"]
+    networks:
+      db: {}
+
+  # Gateway under test: image, secrets, IP and private network come from app/docker-compose.glpi-maintenance.yml.
+  glpi-maintenance-gateway:
+    ports: ["127.0.0.1:18000:8000"]
+
+  # Stands in for the Hub/worker: same network as GLPI's front side, no access to the private one.
+  hub:
+    image: ${NINF_API_IMAGE:?NINF_API_IMAGE is required}
+    container_name: ness-glpi-lab-hub
+    user: "0:0"
+    command: ["sleep", "infinity"]
+    healthcheck: {disable: true}
+    networks:
+      ninf-net: {}
+
+networks:
+  ninf-net: {}
+  db: {internal: true}

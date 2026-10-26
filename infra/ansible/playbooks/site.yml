@@ -20,7 +20,7 @@
 # Pré-requisitos:
 #   - Variáveis vault configuradas em group_vars/all.yml
 #   - Chave SSH do usuário ness_admin configurada no servidor
-#   - Conectividade SSH na porta 2222
+#   - Conectividade SSH na porta do host (ssh_port)
 # =============================================================================
 
 # Etapa 1: Preparação base do sistema operacional

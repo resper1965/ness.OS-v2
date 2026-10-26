@@ -8,7 +8,6 @@
 # Diretórios e cache do Terraform
 # ---------------------------------------------------------------------------
 .terraform/
-.terraform.lock.hcl
 
 # ---------------------------------------------------------------------------
 # Arquivos de estado (contêm dados sensíveis em texto plano!)
@@ -65,3 +64,5 @@ override.tf.json
 *~
 .vscode/
 .idea/
+p.json
+*.tfplan.json

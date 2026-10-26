@@ -293,15 +293,29 @@ async def ensure_glpi_ticket_serialized(
             )
             allow_create = claim.scalar_one_or_none() == 1
     if allow_create:
-        return await _create_glpi_ticket(
-            glpi,
-            marker=marker,
-            entity_id=entity_id,
-            category_id=category_id,
-            title=title,
-            content=content,
-            linked_item=linked_item,
-        )
+        try:
+            return await _create_glpi_ticket(
+                glpi,
+                marker=marker,
+                entity_id=entity_id,
+                category_id=category_id,
+                title=title,
+                content=content,
+                linked_item=linked_item,
+            )
+        except GLPIPermanentError:
+            # Refused (401/403): release the claim so a replay after the permission
+            # fix can create it; the marker lookup above still prevents duplicates.
+            async with SessionLocal() as session:
+                async with session.begin():
+                    await session.execute(
+                        text(
+                            "DELETE FROM n_infraops_glpi_ticket_post_reservations "
+                            "WHERE entity_id = :entity_id AND fingerprint = :fingerprint"
+                        ),
+                        {"entity_id": entity_id, "fingerprint": fingerprint},
+                    )
+            raise
     return await ensure_glpi_ticket(
         glpi,
         fingerprint=fingerprint,

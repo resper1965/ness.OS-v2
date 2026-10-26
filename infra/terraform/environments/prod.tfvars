@@ -1,69 +1,15 @@
-# =============================================================================
-# Valores de Produção - zabbix.ness
-# =============================================================================
-# ATENÇÃO: Este arquivo contém placeholders para credenciais sensíveis.
-#          NÃO commite este arquivo com valores reais no Git!
-#
-# Alternativas seguras para fornecer credenciais:
-#   1. Variáveis de ambiente:
-#      export TF_VAR_contabo_oauth2_client_id="seu-client-id"
-#      export TF_VAR_contabo_oauth2_client_secret="seu-client-secret"
-#      export TF_VAR_contabo_oauth2_user="seu-email@exemplo.com"
-#      export TF_VAR_contabo_oauth2_pass="sua-senha"
-#      export TF_VAR_ssh_public_key="ssh-ed25519 AAAA... ness_admin@zabbix-ness"
-#
-#   2. Arquivo separado (não versionado):
-#      Crie um arquivo secrets.auto.tfvars com as credenciais
-#
-#   3. HashiCorp Vault ou AWS Secrets Manager
-# =============================================================================
+# Non-secret values only. Credentials come from TF_VAR_contabo_oauth2_* (see infra/docs/iac.md).
+# Mirrors the Contabo API (read 26/10/2026). Keys match infra/ansible inventory groups.
+instances = {
+  zabbix_prod = { display_name = "ninfraops-zabbix", product_id = "V102", image_id = "4efbc0ba-2313-4fe1-842a-516f8652e729", region = "EU" } # vmi3409070, 144.91.72.202
+  aiops       = { display_name = "aiops", product_id = "V98", image_id = "4efbc0ba-2313-4fe1-842a-516f8652e729", region = "EU" }              # vmi3409271, 144.91.115.242
+  zabbix_uat  = { display_name = "ness-os-zabbix-prd-01", product_id = "V156", image_id = "d64d5c6c-9dda-4e38-8174-0ee282474d8a", region = "EU" } # vmi3532557, 169.58.234.9
+}
 
-# ---------------------------------------------------------------------------
-# Credenciais OAuth2 da API Contabo
-# Obtenha em: https://my.contabo.com/api/details
-# ---------------------------------------------------------------------------
+object_storage_region                = "European Union" # API spelling; "EU" would show a diff
+object_storage_total_tb              = 0.25
+object_storage_auto_scaling_enabled  = false
+object_storage_auto_scaling_limit_tb = 0
 
-# ---------------------------------------------------------------------------
-# Configurações da VPS - Cloud VPS V3
-# 8 vCPU | 30 GB RAM | 800 GB SSD | ~€9.99/mês
-# ---------------------------------------------------------------------------
-# NOTA: Storage VPS (1.2 TB, €20/mês) não é suportado via API.
-#       O Cloud VPS V3 é o equivalente mais próximo gerenciável via Terraform.
-# ---------------------------------------------------------------------------
-vps_display_name = "zabbix-ness-prod"
-vps_product_id   = "V3"
-vps_image_id     = "debian-12"
-vps_region       = "EU"
-vps_default_user = "ness_admin"
-vps_period       = 1
-
-# ---------------------------------------------------------------------------
-# Configurações do Object Storage - 250 GB (€2.49/mês)
-# ---------------------------------------------------------------------------
-object_storage_region              = "EU"
-object_storage_total_tb            = 0.25
-object_storage_auto_scaling_enabled = false
-object_storage_auto_scaling_limit_tb = 1
-
-# ---------------------------------------------------------------------------
-# Chave SSH
-# ---------------------------------------------------------------------------
-# Gere uma chave Ed25519 com:
-#   ssh-keygen -t ed25519 -C "ness_admin@zabbix-ness" -f ~/.ssh/ness_admin
-#
-# Cole abaixo o conteúdo de ~/.ssh/ness_admin.pub
-# ---------------------------------------------------------------------------
-ssh_key_name   = "ness-admin-prod-key"
-ssh_public_key = "SUBSTITUIR_PELA_CHAVE_PUBLICA_SSH"
-
-# ---------------------------------------------------------------------------
-# Metadados do Projeto
-# ---------------------------------------------------------------------------
 project_name = "zabbix-ness"
 environment  = "prod"
-
-# ---------------------------------------------------------------------------
-# Configurações do Hub AIOps / Wazuh Hub (SOC)
-# ---------------------------------------------------------------------------
-hub_display_name = "aiops-soc-hub-prod"
-hub_product_id   = "V3"
