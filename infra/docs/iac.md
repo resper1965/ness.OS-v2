@@ -14,12 +14,12 @@ The wrapper forwards every `TF_VAR_*`, `CONTABO_*` and `AWS_*` variable set in t
 ## Order: plan → guard → apply
 
 1. `infra/bin/tf plan -var-file=environments/prod.tfvars -out=prod.tfplan` (contains secrets: never commit or share)
-2. Run the plan guard (Task 1.1, `infra/scripts/tf-plan-guard.sh`): abort on any `destroy`/`replace` in production.
-3. `infra/bin/tf apply prod.tfplan` only after the plan was reviewed. `prevent_destroy` is still `false` in `main.tf` until Task 1.1 imports the real VPS; until then the guard is the only protection.
+2. Export it (`infra/bin/tf show -json prod.tfplan > p.json`) and run `infra/scripts/tf-plan-guard.sh p.json`: exit 1 on any `delete`/replace.
+3. `infra/bin/tf apply prod.tfplan` only after the plan was reviewed. Every VPS has `prevent_destroy = true`; `image_id`, `ssh_keys`, `default_user` and `region` are in `ignore_changes` (the provider does not read them back on import and changing them would force a replace).
 
 ## Import
 
-Existing resources enter state via `import` blocks (`imports.tf`) or `infra/bin/tf import <addr> <id>`; run `plan` afterwards and expect no diff.
+Existing resources enter state via `import` blocks (`imports.tf`) or `infra/bin/tf import <addr> <id>`; run `plan` afterwards and expect no diff. Currently imported: `contabo_instance.vps[zabbix_prod|aiops|zabbix_uat]` and `contabo_object_storage.data_storage`. Keep `-var-file=environments/prod.tfvars` in every command.
 
 ## Safe destruction
 

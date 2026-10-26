@@ -22,6 +22,7 @@ terraform {
   # =========================================================================
   # Backend de Estado (State)
   # =========================================================================
+  # PENDENTE (Task 1.1): backend S3 depende das chaves do Object Storage; estado local até lá.
   # RECOMENDAÇÃO: Em produção, utilize um backend remoto para armazenar
   # o estado do Terraform de forma segura e compartilhada.
   #
