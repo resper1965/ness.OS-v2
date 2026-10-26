@@ -15,7 +15,7 @@ def test_generate_fingerprint_deterministic():
         trigger_id="20002",
         trigger_name="CPU usage is high",
         severity=ZabbixSeverity.HIGH,
-        timestamp=datetime.utcnow()
+        timestamp=datetime.utcnow(),
     )
 
     # Outro payload com timestamp e event_id diferentes, mas mesmo host_id e trigger_id
@@ -27,7 +27,7 @@ def test_generate_fingerprint_deterministic():
         trigger_id="20002",
         trigger_name="CPU usage is high",
         severity=ZabbixSeverity.HIGH,
-        timestamp=datetime.utcnow()
+        timestamp=datetime.utcnow(),
     )
 
     fp1 = generate_fingerprint(payload1)

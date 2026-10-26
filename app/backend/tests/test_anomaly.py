@@ -48,7 +48,7 @@ def test_detect_anomalies():
 
 def test_detect_single():
     historical = np.array([10.0, 10.2, 9.8, 10.1, 9.9], dtype=np.float64)
-    
+
     # Caso 1: Novo valor dentro da normalidade (10.0)
     is_anomaly, z_score, _ = detect_single(10.0, historical, threshold=3.0)
     assert not is_anomaly

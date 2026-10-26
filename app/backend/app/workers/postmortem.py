@@ -14,6 +14,7 @@ Pipeline completo:
   6. Persistir relatório em `incident_reports`.
   7. Enviar ao n8n → DeskManager (Interação Interna).
 """
+
 import asyncio
 import logging
 from typing import Any
@@ -67,10 +68,12 @@ def generate_postmortem_report(
         incident_data["deskmanager_ticket_id"] = deskmanager_ticket_id
 
         # --- 1. Buscar métricas do TimescaleDB ---
-        metrics = asyncio.run(_async_fetch_host_metrics(
-            host_id=incident_data.get("host_id", ""),
-            hours=24,
-        ))
+        metrics = asyncio.run(
+            _async_fetch_host_metrics(
+                host_id=incident_data.get("host_id", ""),
+                hours=24,
+            )
+        )
 
         # --- 2. Buscar logs relacionados (já sanitizados) ---
         logs = _fetch_related_logs(
@@ -151,7 +154,9 @@ async def _async_fetch_host_metrics(
                 for row in result
             ]
         except Exception as exc:
-            logger.warning("Falha ao consultar TimescaleDB metrics, usando lista vazia: %s", exc)
+            logger.warning(
+                "Falha ao consultar TimescaleDB metrics, usando lista vazia: %s", exc
+            )
             return []
 
 
@@ -160,9 +165,7 @@ def _fetch_related_logs(
     trigger_id: str,
 ) -> list[str]:
     """Busca logs sanitizados relacionados ao trigger."""
-    logger.debug(
-        "Buscando logs | host_id=%s trigger_id=%s", host_id, trigger_id
-    )
+    logger.debug("Buscando logs | host_id=%s trigger_id=%s", host_id, trigger_id)
     raw_logs = [
         f"[{host_id}] Trigger {trigger_id} fired: threshold exceeded",
         f"[{host_id}] Service check failed: connection refused",
@@ -199,14 +202,20 @@ async def _async_fetch_similar_incidents(
             """)
             similar_result = await session.execute(
                 similar_query,
-                {"embedding": row.embedding, "fingerprint": fingerprint, "limit": limit}
+                {
+                    "embedding": row.embedding,
+                    "fingerprint": fingerprint,
+                    "limit": limit,
+                },
             )
             return [
                 {
                     "fingerprint": r.incident_fingerprint,
                     "summary": r.summary,
                     "root_cause": r.root_cause,
-                    "similarity": float(r.similarity) if r.similarity is not None else 0.0,
+                    "similarity": (
+                        float(r.similarity) if r.similarity is not None else 0.0
+                    ),
                 }
                 for r in similar_result
             ]

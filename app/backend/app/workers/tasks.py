@@ -9,6 +9,7 @@ Fluxo:
   2. Lock OK → process_alert (fila primary)
   3. Lock falha → process_deferred_alert (fila deferred, com delay)
 """
+
 from __future__ import annotations
 
 import logging
@@ -220,7 +221,9 @@ async def _async_upsert_incident(
             now = datetime.now(timezone.utc)
 
             # Try to resolve Asset based on host_id
-            asset_stmt = select(Asset).where(Asset.zabbix_host_id == alert_data.get("host_id"))
+            asset_stmt = select(Asset).where(
+                Asset.zabbix_host_id == alert_data.get("host_id")
+            )
             asset_result = await session.execute(asset_stmt)
             db_asset = asset_result.scalar_one_or_none()
             asset_id = db_asset.id if db_asset else None
@@ -268,8 +271,16 @@ async def _async_upsert_incident(
                 "trigger_id": db_incident.trigger_id,
                 "asset_id": db_incident.asset_id,
                 "alert_count": db_incident.alert_count,
-                "first_seen": db_incident.first_seen.isoformat() if db_incident.first_seen else now.isoformat(),
-                "last_seen": db_incident.last_seen.isoformat() if db_incident.last_seen else now.isoformat(),
+                "first_seen": (
+                    db_incident.first_seen.isoformat()
+                    if db_incident.first_seen
+                    else now.isoformat()
+                ),
+                "last_seen": (
+                    db_incident.last_seen.isoformat()
+                    if db_incident.last_seen
+                    else now.isoformat()
+                ),
                 "sanitized_description": db_incident.sanitized_description or "",
                 "tags": db_incident.tags or {},
                 "action": action,
@@ -297,7 +308,9 @@ async def _async_increment_incident(
 
                 # If asset_id is not set, try to resolve it
                 if not db_incident.asset_id:
-                    asset_stmt = select(Asset).where(Asset.zabbix_host_id == alert_data.get("host_id"))
+                    asset_stmt = select(Asset).where(
+                        Asset.zabbix_host_id == alert_data.get("host_id")
+                    )
                     asset_result = await session.execute(asset_stmt)
                     db_asset = asset_result.scalar_one_or_none()
                     if db_asset:
@@ -306,7 +319,9 @@ async def _async_increment_incident(
                 action = "incremented"
             else:
                 # Fallback to creation if not found
-                asset_stmt = select(Asset).where(Asset.zabbix_host_id == alert_data.get("host_id"))
+                asset_stmt = select(Asset).where(
+                    Asset.zabbix_host_id == alert_data.get("host_id")
+                )
                 asset_result = await session.execute(asset_stmt)
                 db_asset = asset_result.scalar_one_or_none()
                 asset_id = db_asset.id if db_asset else None
@@ -342,8 +357,16 @@ async def _async_increment_incident(
                 "trigger_id": db_incident.trigger_id,
                 "asset_id": db_incident.asset_id,
                 "alert_count": db_incident.alert_count,
-                "first_seen": db_incident.first_seen.isoformat() if db_incident.first_seen else now.isoformat(),
-                "last_seen": db_incident.last_seen.isoformat() if db_incident.last_seen else now.isoformat(),
+                "first_seen": (
+                    db_incident.first_seen.isoformat()
+                    if db_incident.first_seen
+                    else now.isoformat()
+                ),
+                "last_seen": (
+                    db_incident.last_seen.isoformat()
+                    if db_incident.last_seen
+                    else now.isoformat()
+                ),
                 "sanitized_description": db_incident.sanitized_description or "",
                 "tags": db_incident.tags or {},
                 "action": action,

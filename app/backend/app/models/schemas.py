@@ -180,4 +180,3 @@ class WhatsAppAlertMessage(BaseModel):
 
     group_id: str = Field(description="ID do grupo WhatsApp do NOC")
     message: str = Field(description="Mensagem formatada pronta para envio")
-

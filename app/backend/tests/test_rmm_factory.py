@@ -97,7 +97,7 @@ def test_get_credentials_fallback_to_memory_registry():
 def test_get_credentials_db_success():
     """Valida que _get_credentials retorna diretamente a credencial obtida do banco."""
     db_creds = {"api_key": "db_key", "api_secret": "db_secret", "api_url": "db_url"}
-    
+
     with patch.object(RMMFactory, "_async_get_db_credentials", return_value=db_creds):
         creds = RMMFactory._get_credentials("any_cust", "datto")
         assert creds["api_key"] == "db_key"

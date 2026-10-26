@@ -39,7 +39,9 @@ def test_sanitize_aws_keys():
 
 
 def test_sanitize_hex_tokens():
-    text = "Token hexadecimal longo: 4a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b"
+    # Monte o token fictício em execução para não parecer um segredo no checkout.
+    token = "a" * 40
+    text = f"Token hexadecimal longo: {token}"
     assert sanitize(text) == "Token hexadecimal longo: [HEX_TOKEN_REDACTED]"
 
 
@@ -49,12 +51,15 @@ def test_sanitize_dict():
         "description": "Server log message: connection failed on postgres://db",
         "nested": {
             "password": "my_password",
-            "values": ["192.168.0.1", 123, "safe string"]
-        }
+            "values": ["192.168.0.1", 123, "safe string"],
+        },
     }
     sanitized_data = sanitize_dict(raw_data)
     assert sanitized_data["ip"] == "[IP_REDACTED]"
-    assert sanitized_data["description"] == "Server log message: connection failed on [CONN_STRING_REDACTED]"
+    assert (
+        sanitized_data["description"]
+        == "Server log message: connection failed on [CONN_STRING_REDACTED]"
+    )
     assert sanitized_data["nested"]["password"] == "[REDACTED]"
     assert sanitized_data["nested"]["values"][0] == "[IP_REDACTED]"
     assert sanitized_data["nested"]["values"][1] == 123

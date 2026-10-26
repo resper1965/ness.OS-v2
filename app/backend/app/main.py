@@ -10,13 +10,14 @@ from fastapi.middleware.cors import CORSMiddleware
 
 import sys
 from pathlib import Path
+
 project_root = Path(__file__).resolve().parent.parent.parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
-from app.api.webhooks import router as webhooks_router
-from app.api.routers.contabo import router as contabo_router
-from app.config import get_settings
+from app.api.webhooks import router as webhooks_router  # noqa: E402
+from app.api.routers.contabo import router as contabo_router  # noqa: E402
+from app.config import get_settings  # noqa: E402
 
 settings = get_settings()
 
