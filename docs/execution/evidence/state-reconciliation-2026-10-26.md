@@ -33,11 +33,11 @@ PR #84 relata no `main`: passam `flake8`, `pytest` (24 testes), frontend
 - Links `github.com/resper1965/n-infraops` → `ness.OS-v2` em 9 arquivos.
 - PR #65 registrado como integrado em `gates/phase-0-recovery-release.md` e `gate-0-status.md`.
 
-## Correções que dependem do Ricardo
+## Correções confirmadas e pendentes
 
-- `148.230.77.242`: o registro de 02/09 diz que a KVM8 foi devolvida e proíbe
-  contato; hoje é o IP da `stack` (`srv1013444.hstgr.cloud`), onde os agentes
-  rodam. Confirmar titularidade para corrigir o registro.
+- `148.230.77.242`: confirmado pelo Ricardo em 26/10 — é a `stack`, máquina pessoal
+  de desenvolvimento dele, **fora do projeto**. Não é a KVM8 devolvida nem
+  infraestrutura do ness.OS; não entra em IaC, inventário ou capacidade.
 - Caminhos `/home/resper/ness.OS*` e o ledger são de outra máquina; não estão nesta.
 
 ## Consequência para D1

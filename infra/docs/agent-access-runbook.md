@@ -11,7 +11,7 @@ gate.
 | Chave pública | `ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIN3Yr5hM6WjgNx3qIQ8DDAT+xts1WfsPp2MDxDnFvtxn agente@stack-nessos-2026-10` |
 | Fingerprint | `SHA256:qEBGMTX8+zIBl1FDbmmfHXKzOc+06iuszAjzB9ds0p0` |
 | Tipo | ed25519, sem passphrase (necessário para operação não interativa) |
-| Origem permitida | **sem restrição `from=`** — ver *Limites* |
+| Origem permitida | `stack` (máquina pessoal, fora do projeto); restrição `from=` recomendada — ver *Limites* |
 | Cópia privada | somente no host de origem; nunca em repositório, cofre de texto ou mensagem |
 
 A chave privada **não é** backup de nada: se for perdida, o acesso se recupera
@@ -99,10 +99,9 @@ Nunca manter duas chaves ativas sem motivo.
   read-only salvo autorização explícita registrada.
 - Deploy, corte, restauração e escrita em produção exigem janela, GO e rollback,
   independente do acesso existir.
-- O host de origem é a KVM8 da Hostinger (`148.230.77.242`), classificada no
-  registro de 02/09 como KVM8 devolvida, mas é hoje a `stack` (titularidade a confirmar, ver reconciliação de 26/10). Ao descomissioná-la, este runbook
-  precisa ser reexecutado a partir do novo host permanente.
-- Não há restrição `from=` nas entradas instaladas. Fixar a origem no IP atual
-  não compensa: a KVM8 será descomissionada, e a saída IPv6 da `stack`
-  (`2a02:4780:14:e47d::1`) não é coberta por uma regra IPv4. Aplicar a restrição
-  junto com a rotação para o host permanente.
+- O host de origem é a `stack` (`148.230.77.242`, Hostinger), máquina pessoal
+  de desenvolvimento do Ricardo, **fora do projeto** (confirmado em 26/10). A
+  chave dá a uma máquina externa acesso `sudo` às VPS do ness.OS: revogar
+  quando o agente deixar de operar a partir dela.
+- Recomendado: restringir as entradas com
+  `from="148.230.77.242,2a02:4780:14:e47d::1"` (a `stack` sai por IPv4 e IPv6).
