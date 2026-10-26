@@ -2,7 +2,7 @@
 
 from hmac import compare_digest
 
-from fastapi import FastAPI, Header, HTTPException
+from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import JSONResponse
 
 from app.integrations.glpi import (
@@ -69,9 +69,13 @@ def create_app(
         return {"status": "alive"}
 
     @app.get("/v1/computers/{computer_id}")
-    async def read_computer(computer_id: int, authorization: str | None = Header(None)):
+    async def read_computer(
+        computer_id: int, request: Request, authorization: str | None = Header(None)
+    ):
         if not compare_digest(authorization or "", f"Bearer {bearer_token}"):
             raise HTTPException(status_code=401)
+        if request.query_params:
+            raise HTTPException(status_code=404)
         try:
             item = await boundary.read_computer(computer_id)
         except GLPIPermanentError:
