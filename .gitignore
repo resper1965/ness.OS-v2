@@ -28,7 +28,6 @@ infra/terraform/.terraform/
 infra/terraform/*.tfstate
 infra/terraform/*.tfstate.backup
 infra/terraform/*.tfplan
-infra/terraform/.terraform.lock.hcl
 
 # --- Ansible ---
 infra/ansible/*.retry
