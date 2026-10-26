@@ -146,18 +146,17 @@
     - pacotes
 
 # --------------------------------------------------------------------------
-# 8. Configurar SSH com template hardened
+# 8. Baseline SSH em drop-in próprio (nunca toca sshd_config nem outros drop-ins)
 # --------------------------------------------------------------------------
-- name: Copiar configuração hardened do SSH
+- name: Instalar drop-in SSH do baseline ness
   ansible.builtin.template:
-    src: sshd_config.j2
-    dest: /etc/ssh/sshd_config
+    src: sshd-ness.conf.j2
+    dest: /etc/ssh/sshd_config.d/50-ness-baseline.conf
     owner: root
     group: root
-    mode: "0600"
+    mode: "0644"
     validate: "sshd -t -f %s"
-    backup: true
-  notify: Reiniciar SSH
+  notify: Recarregar SSH
   tags:
     - ssh
     - seguranca
@@ -191,7 +190,7 @@
     - firewall
     - seguranca
 
-- name: "Permitir porta SSH ({{ ssh_port }}/tcp)"
+- name: "Permitir porta SSH tcp {{ ssh_port }}"
   community.general.ufw:
     rule: allow
     port: "{{ ssh_port }}"

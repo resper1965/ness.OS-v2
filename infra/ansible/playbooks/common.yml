@@ -17,7 +17,7 @@
 # =============================================================================
 
 - name: "Preparação base do sistema operacional"
-  hosts: zabbix_servers
+  hosts: zabbix_prod:zabbix_uat:aiops
   become: true
   gather_facts: true
 

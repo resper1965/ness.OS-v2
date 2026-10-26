@@ -18,8 +18,8 @@
 # Fuso horário do servidor (São Paulo/Brasília)
 system_timezone: "America/Sao_Paulo"
 
-# Porta SSH customizada para segurança
-ssh_port: 2222
+# Porta SSH padrão; hosts com porta própria sobrescrevem no inventário
+ssh_port: 22
 
 # Usuário administrador do sistema
 admin_user: "ness_admin"
