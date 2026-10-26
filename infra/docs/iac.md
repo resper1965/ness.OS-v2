@@ -15,7 +15,7 @@ The wrapper forwards every `TF_VAR_*`, `CONTABO_*` and `AWS_*` variable set in t
 
 1. `infra/bin/tf plan -var-file=environments/prod.tfvars -out=prod.tfplan` (contains secrets: never commit or share)
 2. Run the plan guard (Task 1.1, `infra/scripts/tf-plan-guard.sh`): abort on any `destroy`/`replace` in production.
-3. `infra/bin/tf apply tfplan` only after the plan was reviewed. Existing instances have `prevent_destroy = true`.
+3. `infra/bin/tf apply prod.tfplan` only after the plan was reviewed. `prevent_destroy` is still `false` in `main.tf` until Task 1.1 imports the real VPS; until then the guard is the only protection.
 
 ## Import
 
