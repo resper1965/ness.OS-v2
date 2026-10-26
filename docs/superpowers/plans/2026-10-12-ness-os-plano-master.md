@@ -259,6 +259,7 @@ Uma entrega termina com: alteração pequena revisável, teste/readback pertinen
 
 | Tema | Fonte detalhada |
 |---|---|
+| Execução, recursos, IaC | [Plano de execução 26/10](2026-10-26-ness-os-execution-plan.md) — ordem, rótulos agente/humano/compra e VPS a contratar |
 | Authentik | [Plano enxuto](2026-10-12-authentik-fluid-delivery.md) e guia operacional existente |
 | Zabbix | [Plano enxuto](2026-10-12-zabbix-fluid-delivery.md); plano completo anterior e ledger para evidências |
 | GLPI | [Plano completo T01–T14](2026-10-12-glpi-ness-os-complete-delivery.md) |
