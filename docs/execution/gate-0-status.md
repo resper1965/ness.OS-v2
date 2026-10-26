@@ -5,7 +5,7 @@
 > rollback/re-promoção ensaiados. A prova detalhada está em
 > [`evidence/hub-immutable-release-2026-10-12.md`](evidence/hub-immutable-release-2026-10-12.md).
 > O gate global não está aprovado: falta CI integral em runner limpo e a
-> integração protegida do workflow no PR #65. A recuperação externa atual do
+> execução protegida dos checks (o PR #65 já está na `main` como `5f8da9c`, conferido em 26/10). A recuperação externa atual do
 > conjunto AIOps de 12/10/2026 é tratada no G1, sem alterar Zabbix.
 
 > **Estado corrente da Fase 0 (26/09/2026): FAIL.** Para decisão de release,

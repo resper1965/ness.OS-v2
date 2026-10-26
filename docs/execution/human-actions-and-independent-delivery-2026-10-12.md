@@ -25,7 +25,7 @@ ou e-mails de cobrança quando não houver mudança acionável.
 | Índice e política de execução | #68 | plataforma |
 | Troca segura do volume `/var/glpi` antes de recriar GLPI | #76 | Ricardo (GO), Ismael (execução) |
 
-URLs: `https://github.com/resper1965/n-infraops/issues/<número>`.
+URLs: `https://github.com/resper1965/ness.OS-v2/issues/<número>`.
 E-mails consolidados enviados em 12/10 pela conta conectada resper@bekaa.eu:
 Ricardo (resper@ness.com.br), Ismael (iaraujo@ness.com.br) e Rogerio
 (rsalerno@ness.com.br). Contêm links das issues e passo a passo; nenhum segredo.

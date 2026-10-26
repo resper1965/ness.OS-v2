@@ -4,7 +4,11 @@ Para retomar em outro checkout ou por outro desenvolvedor, ler o
 [handoff de 22/10/2026](developer-handoff-2026-10-22.md) após este indicador.
 Este link de navegação não altera a data factual abaixo nem aprova gate.
 
-Última atualização factual: **22/10/2026, 10:28 BRT** (revisão da `main`).
+Última atualização factual: **26/10/2026** — heads dos PRs, Actions
+desativado, PR #84 (CI local) e runtime AIOps na release `144317f` de 12/10
+conferidos; ver [reconciliação](evidence/state-reconciliation-2026-10-26.md).
+Execução segue o [plano de 26/10](../superpowers/plans/2026-10-26-ness-os-execution-plan.md).
+Antes: **22/10/2026, 10:28 BRT** (revisão da `main`).
 A atualização anterior, em **15/10/2026, 12:42 BRT**, registrou o prazo
 Zabbix encerrado.
 A verificação geral anterior foi registrada em **13/10/2026, 22:40 BRT**;

@@ -202,7 +202,7 @@ ao volume original. Não trocar só a linha do Compose nem executar `up
 --force-recreate` com o estado ainda anônimo; manter o volume antigo até a
 observação pós-mudança. Esta é uma dependência nova de T03, não prova de que
 alguma recriação anterior perdeu dados. A correção está rastreada na
-[issue #76](https://github.com/resper1965/n-infraops/issues/76).
+[issue #76](https://github.com/resper1965/ness.OS-v2/issues/76).
 O preflight versionado `infra/scripts/glpi_state_volume_preflight.py` agora
 compara o volume efetivo de `/var/glpi` com o Compose resolvido antes de
 recriar GLPI; a rotina `glpi-pin-and-rotate.sh` exige o teste tanto para o
