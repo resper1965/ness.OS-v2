@@ -8,7 +8,7 @@
 
 terraform {
   # Versão mínima do Terraform exigida
-  required_version = ">= 1.5.0"
+  required_version = ">= 1.7.0"
 
   required_providers {
     # Provider oficial da Contabo para gerenciamento de infraestrutura
