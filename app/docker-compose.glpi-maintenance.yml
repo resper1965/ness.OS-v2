@@ -1,0 +1,66 @@
+# Candidate only. Do not include this override until the T03 route matrix passes.
+services:
+  glpi:
+    networks:
+      ninf-net: {}
+      glpi-maintenance-private:
+        aliases:
+          - glpi-maintenance-private
+
+  glpi-maintenance-gateway:
+    image: ${NINF_API_IMAGE:?NINF_API_IMAGE is required}
+    container_name: ninf-glpi-maintenance-gateway
+    user: "0:0"
+    command:
+      - python
+      - -m
+      - app.integrations.glpi_maintenance_entrypoint
+    restart: unless-stopped
+    read_only: true
+    cap_drop:
+      - ALL
+    cap_add:
+      - SETUID
+      - SETGID
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      NESS_GLPI_MAINTENANCE_URL: http://glpi-maintenance-private/apirest.php
+      NESS_GLPI_MAINTENANCE_APPROVED_IDS: ${NESS_GLPI_MAINTENANCE_APPROVED_IDS:?One to five approved Computer IDs are required}
+      HTTP_PROXY: ""
+      HTTPS_PROXY: ""
+      ALL_PROXY: ""
+      NO_PROXY: glpi-maintenance-private
+      http_proxy: ""
+      https_proxy: ""
+      all_proxy: ""
+      no_proxy: glpi-maintenance-private
+    secrets:
+      - glpi_app_token
+      - glpi_user_token
+      - gateway_bearer_token
+    networks:
+      ninf-net: {}
+      glpi-maintenance-private:
+        ipv4_address: ${NESS_GLPI_MAINTENANCE_GATEWAY_IP:?A private static IP is required}
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/live"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+secrets:
+  glpi_app_token:
+    file: ${NESS_GLPI_MAINTENANCE_APP_TOKEN_FILE:?App-Token file is required}
+  glpi_user_token:
+    file: ${NESS_GLPI_MAINTENANCE_USER_TOKEN_FILE:?User token file is required}
+  gateway_bearer_token:
+    file: ${NESS_GLPI_MAINTENANCE_BEARER_FILE:?Gateway bearer file is required}
+
+networks:
+  glpi-maintenance-private:
+    internal: true
+    ipam:
+      config:
+        - subnet: ${NESS_GLPI_MAINTENANCE_SUBNET:?A collision-free private subnet is required}

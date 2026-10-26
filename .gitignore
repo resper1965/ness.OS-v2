@@ -10,6 +10,10 @@ __pycache__/
 dist/
 build/
 *.egg
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
 .venv/
 venv/
 env/
@@ -37,6 +41,11 @@ infra/ansible/*.retry
 *.key
 *.ppk
 **/secrets/
+**/vapid_keys.json
+
+# Versioned secret-management tooling (never runtime secret values).
+!infra/secrets/
+!infra/secrets/**
 
 # --- IDE ---
 .vscode/
@@ -48,10 +57,17 @@ infra/ansible/*.retry
 .DS_Store
 Thumbs.db
 desktop.ini
+*:Zone.Identifier
 
 # --- Logs ---
 *.log
 /var/log/
+
+# --- Generated reports and previews ---
+/outputs/
+app/deploy*.tar.gz
+app/scratch_*.py
+.codex-tmp-*
 
 # --- Docker ---
 docker-compose.override.yml
@@ -62,3 +78,5 @@ docker-compose.override.yml
 
 # --- Agent Customizations ---
 .agents/
+.claude/
+.worktrees/

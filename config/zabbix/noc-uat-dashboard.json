@@ -1,0 +1,17 @@
+{
+  "dashboardid": "1",
+  "name": "NOC — Visão Operacional (UAT sem coleta)",
+  "private": 1,
+  "pages": [
+    {
+      "name": "Operação",
+      "widgets": [
+        {"type": "systeminfo", "name": "Saúde da plataforma", "x": 0, "y": 0, "width": 24, "height": 4, "fields": []},
+        {"type": "hostavail", "name": "Disponibilidade dos hosts", "x": 24, "y": 0, "width": 24, "height": 4, "fields": []},
+        {"type": "problemsbysv", "name": "Problemas por severidade", "x": 48, "y": 0, "width": 24, "height": 4, "fields": []},
+        {"type": "problems", "name": "Incidentes — dados do restore", "x": 0, "y": 4, "width": 48, "height": 8, "fields": []},
+        {"type": "problemhosts", "name": "Hosts com problemas", "x": 48, "y": 4, "width": 24, "height": 8, "fields": []}
+      ]
+    }
+  ]
+}

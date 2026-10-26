@@ -1,0 +1,138 @@
+schema_version: 1
+status: approved
+governance_status: approved
+approved_by: Ricardo Esper
+approved_on: 2026-08-24
+canonical_system: GLPI Community 11.0.8
+tenant_rule: never_publish_customer_content_in_root_entity
+
+service_catalog:
+  - code: NESS-MON-001
+    name: Monitoramento de infraestrutura
+    category: TI > Infraestrutura e Redes
+    owner_role: NOC
+    request_types: [incidente, requisicao, mudanca]
+  - code: NESS-ITSM-001
+    name: Central de serviços de TI
+    category: TI
+    owner_role: Governanca
+    request_types: [incidente, requisicao, problema, mudanca]
+  - code: NESS-IAM-001
+    name: Identidades e acessos
+    category: TI > Acessos e Identidades
+    owner_role: Governanca
+    request_types: [requisicao, incidente, mudanca]
+  - code: NESS-BKP-001
+    name: Backup e restauração
+    category: TI > Infraestrutura e Redes > Backups e Restauração
+    owner_role: Infraestrutura
+    request_types: [incidente, requisicao, mudanca]
+  - code: NESS-SOC-001
+    name: Monitoramento e resposta de segurança
+    category: TI > Segurança da Informação > Incidentes de Segurança / SOC
+    owner_role: SOC
+    request_types: [incidente, problema, mudanca]
+  - code: NESS-END-001
+    name: Gestão e inventário de endpoints
+    category: TI > Infraestrutura e Redes > Computadores e Hardware
+    owner_role: Sustentacao
+    request_types: [incidente, requisicao, mudanca]
+  - code: NESS-PRJ-001
+    name: Governança de projetos de TI
+    category: TI > Sistemas e Aplicações > Evolução (Melhorias e Projetos)
+    owner_role: Governanca
+    request_types: [requisicao, mudanca]
+
+project_pilots:
+  - code: PRJ-NESSOS-001
+    name: Conclusão e estabilização do ness.OS
+    class: interno
+    manager_role: Governanca
+  - code: PRJ-ZBX-001
+    name: Reconstrução limpa e migração do Zabbix
+    class: infraestrutura
+    manager_role: Infraestrutura
+  - code: PRJ-GLPI-001
+    name: Catálogo de serviços e governança GLPI
+    class: sustentacao
+    manager_role: Governanca
+  - code: PRJ-WAZUH-001
+    name: Implantação Wazuh hub-spoke
+    class: seguranca
+    manager_role: SOC
+  - code: PRJ-VAULT-001
+    name: Cofre Community e gestão de segredos
+    class: seguranca
+    manager_role: Seguranca
+
+work_packages:
+  - code: WP00
+    parent_project: PRJ-NESSOS-001
+    name: Gate 0, incidente, segredos e recuperação
+  - code: WP01
+    parent_project: PRJ-NESSOS-001
+    name: Governança do projeto no GLPI
+  - code: WP02
+    parent_project: PRJ-VAULT-001
+    name: Psono, SOPS age e Object Storage
+  - code: WP03
+    parent_project: PRJ-ZBX-001
+    name: Reconstrução e polimento do Zabbix
+  - code: WP04
+    parent_project: PRJ-NESSOS-001
+    name: Authentik, RBAC e tenants
+  - code: WP05
+    parent_project: PRJ-WAZUH-001
+    name: Fundação Contabo e infraestrutura como código
+  - code: WP06
+    parent_project: PRJ-GLPI-001
+    name: CMDB, catálogo, projetos e runbooks
+  - code: WP07
+    parent_project: PRJ-NESSOS-001
+    name: Backend AIOps e integrações
+  - code: WP08
+    parent_project: PRJ-NESSOS-001
+    name: Portal PWA e indicadores executivos
+  - code: WP09
+    parent_project: PRJ-NESSOS-001
+    name: API Contabo e reconciliação do plano de controle
+  - code: WP10
+    parent_project: PRJ-WAZUH-001
+    name: Wazuh Onda 1 e migração dos endpoints
+  - code: WP11
+    parent_project: PRJ-NESSOS-001
+    name: Observabilidade, SLO, DR e hardening
+  - code: WP12
+    parent_project: PRJ-NESSOS-001
+    name: UAT, treinamento e transição operacional
+
+runbook_categories:
+  - Operação interna ness.
+  - Operação padrão MSP
+  - Operação específica do cliente
+  - Backup e continuidade
+  - Identidade e acesso
+  - Monitoramento e observabilidade
+  - Segurança e resposta a incidentes
+  - Mudança, deploy e rollback
+
+runbook_pilots:
+  - RB-NESS-001: Indisponibilidade do Zabbix
+  - RB-NESS-002: Indisponibilidade do AIOps ou GLPI
+  - RB-NESS-003: Falha de backup e restauração isolada
+  - RB-NESS-004: Acesso privilegiado e break-glass
+  - RB-NESS-005: Onboarding e offboarding
+  - RB-NESS-006: Incidente crítico de infraestrutura
+  - RB-NESS-007: Incidente crítico de segurança
+  - RB-NESS-008: Mudança e rollback
+  - RB-NESS-009: Agente sem comunicação ou inventário
+  - RB-NESS-010: Comunicação e escalonamento ao cliente
+
+import_guardrails:
+  - require_supported_glpi_api
+  - require_service_account_with_minimum_privilege
+  - require_idempotency_by_code
+  - require_root_entity_only_for_ness_internal_content
+  - require_negative_tenant_tests_before_customer_publication
+  - prohibit_direct_database_writes
+  - prohibit_secrets_in_articles_or_attachments

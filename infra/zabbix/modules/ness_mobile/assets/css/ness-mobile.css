@@ -1,0 +1,51 @@
+/* Keep native saved grid coordinates; reflow only read-only narrow viewports. */
+@media (max-width: 600px) {
+  main:has(> .dashboard:not(.dashboard-is-edit-mode)) {
+    min-width: 0 !important;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .dashboard:not(.dashboard-is-edit-mode) .dashboard-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+  }
+
+  .dashboard:not(.dashboard-is-edit-mode) .dashboard-grid-widget {
+    position: relative !important;
+    inset: auto !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    flex-shrink: 0;
+  }
+
+  .dashboard:not(.dashboard-is-edit-mode) .dashboard-grid-widget-contents {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+
+  .dashboard:not(.dashboard-is-edit-mode) .dashboard-grid-widget:has(.item-value-content) {
+    height: 200px !important;
+  }
+
+  .dashboard:not(.dashboard-is-edit-mode) .item-time {
+    font-size: 14px !important;
+  }
+
+  .dashboard:not(.dashboard-is-edit-mode) .item-value-content .value {
+    font-size: 32px !important;
+  }
+
+  .dashboard:not(.dashboard-is-edit-mode) .item-value-content .decimals {
+    font-size: 24px !important;
+  }
+
+  .dashboard:not(.dashboard-is-edit-mode) .item-value .units {
+    font-size: 16px !important;
+  }
+}

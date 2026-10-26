@@ -1,0 +1,23 @@
+[Unit]
+Description=NESS Zabbix nightly logical backup
+Requires=mariadb.service zabbix-server.service
+After=mariadb.service zabbix-server.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/ness-zabbix-nightly-backup
+UMask=0077
+Nice=15
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+# The production database is approximately 50 GiB. Keep the dump I/O-throttled
+# but allow a full consistent backup to finish instead of killing it at 3 h.
+TimeoutStartSec=6h
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+ReadWritePaths=/var/backups/zabbix/nightly /run/lock

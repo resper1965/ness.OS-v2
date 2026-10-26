@@ -16,6 +16,7 @@ Pipeline completo:
 """
 
 import asyncio
+import json
 import logging
 from typing import Any
 
@@ -24,13 +25,78 @@ from sqlalchemy import text
 from app.config import get_settings
 from app.core.sanitizer import sanitize
 from app.database import SessionLocal
-from app.models import IncidentReport
-from app.integrations.gemini import generate_postmortem
+from app.integrations.gemini import generate_embedding, generate_postmortem
 from app.integrations.n8n import notify_postmortem_ready
+from app.models import IncidentReport
 from app.workers.celery_app import celery_app
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
+
+
+async def _async_generate_postmortem_report(
+    incident_data: dict[str, Any],
+    deskmanager_ticket_id: str | None = None,
+) -> dict[str, Any]:
+    from app.core.ai_context import trusted_postmortem_context
+
+    incident_data = await trusted_postmortem_context(
+        incident_data.get("fingerprint"), deskmanager_ticket_id
+    )
+    fingerprint = incident_data["fingerprint"]
+    deskmanager_ticket_id = incident_data["deskmanager_ticket_id"]
+
+    # --- 1. Buscar métricas do TimescaleDB ---
+    metrics = await _async_fetch_host_metrics(
+        host_id=incident_data.get("host_id", ""),
+        hours=24,
+    )
+
+    # --- 2. Buscar logs relacionados (já sanitizados) ---
+    logs = _fetch_related_logs(
+        host_id=incident_data.get("host_id", ""),
+        trigger_id=incident_data.get("trigger_id", ""),
+    )
+
+    # --- 3. Buscar incidentes similares via pgvector ---
+    similar = await _async_fetch_similar_incidents(
+        title=incident_data.get("title", ""),
+        description=incident_data.get("sanitized_description", "")
+        or incident_data.get("trigger_description", ""),
+        fingerprint=fingerprint,
+    )
+
+    # --- 4+5. Chamar Gemini ---
+    report = generate_postmortem(
+        incident=incident_data,
+        metrics=metrics,
+        related_logs=logs,
+        similar_incidents=similar,
+    )
+
+    # --- 6. Persistir no PostgreSQL ---
+    await _async_save_report(report.model_dump(mode="json"))
+
+    # --- 7. Enviar ao n8n → DeskManager ---
+    n8n_result = notify_postmortem_ready(report)
+
+    logger.info(
+        "Post-mortem concluído | fingerprint=%s tokens=%d+%d",
+        fingerprint,
+        report.prompt_tokens,
+        report.completion_tokens,
+    )
+
+    return {
+        "fingerprint": fingerprint,
+        "deskmanager_ticket_id": deskmanager_ticket_id,
+        "summary": report.summary,
+        "root_cause": report.root_cause,
+        "tokens_used": report.prompt_tokens + report.completion_tokens,
+        "n8n_status": n8n_result.get(
+            "status", "ok" if "error" not in n8n_result else "failed"
+        ),
+    }
 
 
 @celery_app.task(
@@ -64,55 +130,12 @@ def generate_postmortem_report(
             deskmanager_ticket_id,
         )
 
-        # Injetar ticket_id no contexto do incidente
-        incident_data["deskmanager_ticket_id"] = deskmanager_ticket_id
-
-        # --- 1. Buscar métricas do TimescaleDB ---
-        metrics = asyncio.run(
-            _async_fetch_host_metrics(
-                host_id=incident_data.get("host_id", ""),
-                hours=24,
+        return asyncio.run(
+            _async_generate_postmortem_report(
+                incident_data=incident_data,
+                deskmanager_ticket_id=deskmanager_ticket_id,
             )
         )
-
-        # --- 2. Buscar logs relacionados (já sanitizados) ---
-        logs = _fetch_related_logs(
-            host_id=incident_data.get("host_id", ""),
-            trigger_id=incident_data.get("trigger_id", ""),
-        )
-
-        # --- 3. Buscar incidentes similares via pgvector ---
-        similar = asyncio.run(_async_fetch_similar_incidents(fingerprint))
-
-        # --- 4+5. Chamar Gemini ---
-        report = generate_postmortem(
-            incident=incident_data,
-            metrics=metrics,
-            related_logs=logs,
-            similar_incidents=similar,
-        )
-
-        # --- 6. Persistir no PostgreSQL ---
-        asyncio.run(_async_save_report(report.model_dump(mode="json")))
-
-        # --- 7. Enviar ao n8n → DeskManager ---
-        n8n_result = notify_postmortem_ready(report)
-
-        logger.info(
-            "Post-mortem concluído | fingerprint=%s tokens=%d+%d",
-            fingerprint,
-            report.prompt_tokens,
-            report.completion_tokens,
-        )
-
-        return {
-            "fingerprint": fingerprint,
-            "deskmanager_ticket_id": deskmanager_ticket_id,
-            "summary": report.summary,
-            "root_cause": report.root_cause,
-            "tokens_used": report.prompt_tokens + report.completion_tokens,
-            "n8n_status": "ok" if "error" not in n8n_result else "failed",
-        }
 
     except Exception as exc:
         logger.exception(
@@ -134,7 +157,8 @@ async def _async_fetch_host_metrics(
     hours: int = 24,
 ) -> list[dict[str, Any]]:
     """Busca métricas agregadas do TimescaleDB para o host."""
-    async with SessionLocal() as session:
+    session = SessionLocal()
+    try:
         query = text("""
             SELECT time_bucket('5 minutes', ts) AS bucket, item_key, AVG(value) AS avg_value
             FROM n_infraops_metrics
@@ -142,22 +166,27 @@ async def _async_fetch_host_metrics(
             GROUP BY bucket, item_key
             ORDER BY bucket ASC
         """)
+        result = await session.execute(query, {"host_id": host_id, "hours": hours})
+        return [
+            {
+                "timestamp": row.bucket.isoformat() if row.bucket else "",
+                "item_key": row.item_key,
+                "value": float(row.avg_value) if row.avg_value is not None else 0.0,
+                "host_id": host_id,
+            }
+            for row in result
+        ]
+    except Exception as exc:
+        logger.warning(
+            "Falha ao consultar TimescaleDB metrics, usando lista vazia: %s", exc
+        )
+        return []
+    finally:
         try:
-            result = await session.execute(query, {"host_id": host_id, "hours": hours})
-            return [
-                {
-                    "timestamp": row.bucket.isoformat() if row.bucket else "",
-                    "item_key": row.item_key,
-                    "value": float(row.avg_value) if row.avg_value is not None else 0.0,
-                    "host_id": host_id,
-                }
-                for row in result
-            ]
-        except Exception as exc:
-            logger.warning(
-                "Falha ao consultar TimescaleDB metrics, usando lista vazia: %s", exc
-            )
-            return []
+            await session.rollback()
+        except Exception:
+            pass
+        await session.close()
 
 
 def _fetch_related_logs(
@@ -166,81 +195,97 @@ def _fetch_related_logs(
 ) -> list[str]:
     """Busca logs sanitizados relacionados ao trigger."""
     logger.debug("Buscando logs | host_id=%s trigger_id=%s", host_id, trigger_id)
-    raw_logs = [
-        f"[{host_id}] Trigger {trigger_id} fired: threshold exceeded",
-        f"[{host_id}] Service check failed: connection refused",
-    ]
-    return [sanitize(log) for log in raw_logs]
+    # No log source is connected here. Do not invent evidence for the report.
+    return []
 
 
 async def _async_fetch_similar_incidents(
+    title: str,
+    description: str,
     fingerprint: str,
     limit: int = 5,
 ) -> list[dict[str, Any]]:
-    """Busca incidentes similares via pgvector (cosine similarity)."""
-    async with SessionLocal() as session:
-        # Busca o embedding do relatório do incidente atual
-        emb_query = text("""
-            SELECT embedding FROM n_infraops_incident_reports
-            WHERE incident_fingerprint = :fingerprint AND embedding IS NOT NULL
-            LIMIT 1
-        """)
-        try:
-            emb_result = await session.execute(emb_query, {"fingerprint": fingerprint})
-            row = emb_result.first()
-            if not row or not row.embedding:
-                return []
+    """Busca incidentes similares via pgvector (cosine similarity) baseado no novo incidente."""
+    # Gera embedding do título e descrição do incidente atual
+    text_to_embed = sanitize(f"{title}\n{description}")
+    embedding = generate_embedding(text_to_embed)
+    if not embedding or all(v == 0.0 for v in embedding):
+        return []
 
-            # pgvector cosine distance operator é <=>
-            similar_query = text("""
-                SELECT incident_fingerprint, summary, root_cause,
-                       1 - (embedding <=> :embedding) AS similarity
-                FROM n_infraops_incident_reports
-                WHERE incident_fingerprint != :fingerprint AND embedding IS NOT NULL
-                ORDER BY embedding <=> :embedding
-                LIMIT :limit
-            """)
-            similar_result = await session.execute(
-                similar_query,
-                {
-                    "embedding": row.embedding,
-                    "fingerprint": fingerprint,
-                    "limit": limit,
-                },
-            )
-            return [
-                {
-                    "fingerprint": r.incident_fingerprint,
-                    "summary": r.summary,
-                    "root_cause": r.root_cause,
-                    "similarity": (
-                        float(r.similarity) if r.similarity is not None else 0.0
-                    ),
-                }
-                for r in similar_result
-            ]
-        except Exception as exc:
-            logger.warning("Falha ao buscar incidentes similares via pgvector: %s", exc)
-            return []
+    session = SessionLocal()
+    try:
+        # pgvector cosine distance operator é <=>
+        similar_query = text("""
+            SELECT r.incident_fingerprint, r.summary, r.root_cause,
+                   i.tags->>'ninf_customer_name' AS customer_name,
+                   1 - (r.embedding <=> CAST(:embedding AS vector)) AS similarity
+            FROM n_infraops_incident_reports r
+            JOIN n_infraops_incidents i ON i.fingerprint = r.incident_fingerprint
+            LEFT JOIN n_infraops_assets a ON a.id = i.asset_id
+            JOIN n_infraops_incidents current_incident ON current_incident.fingerprint = :fingerprint
+            WHERE r.incident_fingerprint != :fingerprint AND r.embedding IS NOT NULL
+              AND NULLIF(lower(i.tags->>'ninf_customer_name'), '') =
+                  NULLIF(lower(current_incident.tags->>'ninf_customer_name'), '')
+              AND (i.asset_id IS NULL OR lower(a.customer_name) = lower(i.tags->>'ninf_customer_name'))
+            ORDER BY r.embedding <=> CAST(:embedding AS vector)
+            LIMIT :limit
+        """)
+        similar_result = await session.execute(
+            similar_query,
+            {
+                "embedding": json.dumps(embedding),
+                "fingerprint": fingerprint,
+                "limit": limit,
+            },
+        )
+        return [
+            {
+                "fingerprint": r.incident_fingerprint,
+                "customer_name": r.customer_name,
+                "summary": r.summary,
+                "root_cause": r.root_cause,
+                "similarity": float(r.similarity) if r.similarity is not None else 0.0,
+            }
+            for r in similar_result
+        ]
+    except Exception as exc:
+        logger.warning("Falha ao buscar incidentes similares via pgvector: %s", exc)
+        return []
+    finally:
+        try:
+            await session.rollback()
+        except Exception:
+            pass
+        await session.close()
 
 
 async def _async_save_report(report_data: dict[str, Any]) -> None:
     """Persiste relatório na tabela `n_infraops_incident_reports` utilizando SQLAlchemy."""
-    async with SessionLocal() as session:
-        async with session.begin():
-            db_report = IncidentReport(
-                incident_fingerprint=report_data.get("incident_fingerprint"),
-                deskmanager_ticket_id=report_data.get("deskmanager_ticket_id"),
-                markdown_report=report_data.get("markdown_report", ""),
-                summary=report_data.get("summary", ""),
-                root_cause=report_data.get("root_cause", ""),
-                blast_radius=report_data.get("blast_radius", []),
-                corrective_actions=report_data.get("corrective_actions", []),
-                timeline=report_data.get("timeline", []),
-                embedding=report_data.get("embedding"),
-                gemini_model_used=report_data.get("gemini_model_used"),
-                prompt_tokens=report_data.get("prompt_tokens", 0),
-                completion_tokens=report_data.get("completion_tokens", 0),
-            )
-            session.add(db_report)
-            await session.commit()
+    session = SessionLocal()
+    try:
+        db_report = IncidentReport(
+            incident_fingerprint=report_data.get("incident_fingerprint"),
+            deskmanager_ticket_id=report_data.get("deskmanager_ticket_id"),
+            markdown_report=report_data.get("markdown_report", ""),
+            summary=report_data.get("summary", ""),
+            root_cause=report_data.get("root_cause", ""),
+            blast_radius=report_data.get("blast_radius", []),
+            corrective_actions=report_data.get("corrective_actions", []),
+            timeline=report_data.get("timeline", []),
+            embedding=report_data.get("embedding"),
+            gemini_model_used=report_data.get("gemini_model_used"),
+            prompt_tokens=report_data.get("prompt_tokens", 0),
+            completion_tokens=report_data.get("completion_tokens", 0),
+        )
+        session.add(db_report)
+        await session.commit()
+    except Exception as exc:
+        await session.rollback()
+        logger.error("Falha ao persistir relatório: %s", exc)
+        raise exc
+    finally:
+        try:
+            await session.rollback()
+        except Exception:
+            pass
+        await session.close()

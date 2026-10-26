@@ -1,0 +1,120 @@
+{
+  "name": "NOC - PostMortem e Fechamento WhatsApp/DeskManager",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "postmortem-ready",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "e963b652-32a2-4a0b-9dfd-b7eb5c8b7469",
+      "name": "Webhook-PostMortem",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [
+        250,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const request = $('Webhook-PostMortem').item.json;\nconst expectedKey = $env.NINF_N8N_WEBHOOK_API_KEY;\nconst receivedKey = request.headers?.['x-ness-webhook-key'];\nif (typeof expectedKey !== 'string' || expectedKey.length < 32 || receivedKey !== expectedKey) {\n  throw new Error('Unauthorized webhook request');\n}\nconst body = request.body;\nif (!body || typeof body !== 'object' || Array.isArray(body)) {\n  throw new Error('Invalid postmortem payload');\n}\nconst field = (value, fallback, maxLength = 2000) => {\n  if (typeof value !== 'string' && typeof value !== 'number') return fallback;\n  return String(value).replace(/[\\u0000-\\u001f\\u007f]/g, ' ').trim().slice(0, maxLength) || fallback;\n};\nconst escapeHtml = (value) => String(value).replace(/[&<>\\\"']/g, (char) => ({\n  '&': '&amp;', '<': '&lt;', '>': '&gt;', '\\\"': '&quot;', \"'\": '&#39;'\n}[char]));\nconst list = (value) => Array.isArray(value)\n  ? value.slice(0, 20).map((item) => field(item, '', 500)).filter(Boolean)\n  : [];\nconst customerName = field(body.customer_name, 'Ness', 160);\nconst hostName = field(body.host_name, 'N/A', 160);\nconst summary = field(body.summary, 'Sem resumo.');\nconst rootCause = field(body.root_cause, 'Sem causa raiz.');\nconst actions = list(body.corrective_actions).join('\\n- ') || 'Nenhuma ação informada.';\nconst blast = list(body.blast_radius).join(', ') || 'Não informado.';\nconst fingerprint = field(body.incident_fingerprint, 'N/A', 160);\nconst emailSubject = 'Re: [NOC-ALERT] ' + customerName + ' | Host: ' + hostName + ' | Fingerprint: ' + fingerprint;\nconst emailHtml = '<p><strong>📝 ANÁLISE DE CAUSA RAIZ (RCA) NOC 📝</strong></p>\\n' +\n  '<p><strong>Cliente:</strong> ' + escapeHtml(customerName) + '</p>\\n' +\n  '<p><strong>Equipamento:</strong> ' + escapeHtml(hostName) + '</p><hr/>\\n' +\n  '<p><strong>Resumo:</strong> ' + escapeHtml(summary) + '</p>\\n' +\n  '<p><strong>Causa Raiz:</strong> ' + escapeHtml(rootCause) + '</p>\\n' +\n  '<p><strong>Ações Corretivas:</strong><br/>- ' + escapeHtml(actions).replace(/\\n/g, '<br/>- ') + '</p>\\n' +\n  '<p><strong>Raio de Impacto:</strong> ' + escapeHtml(blast) + '</p><hr/>\\n' +\n  '<p><small>Fingerprint: ' + escapeHtml(fingerprint) + '</small></p>';\nconst whatsappText = '📝 *ANÁLISE DE CAUSA RAIZ (RCA) NOC* 📝\\n\\n' +\n  '*Cliente:* ' + customerName + '\\n*Equipamento:* ' + hostName + '\\n' +\n  '*Resumo:* ' + summary + '\\n*Causa Raiz:* ' + rootCause + '\\n\\n' +\n  '*Ações Corretivas*:\\n- ' + actions + '\\n\\n*Raio de Impacto:* ' + blast;\nreturn {\n  \"options\": { \"delay\": 1200, \"presence\": \"composing\" },\n  \"text\": whatsappText,\n  \"emailSubject\": emailSubject,\n  \"emailHtml\": emailHtml\n};"
+      },
+      "id": "e963b652-32a2-4a0b-9dfd-b7eb5c8b7471",
+      "name": "Prepare Body",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        470,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $env.NINF_SMTP_SENDER || 'noc-alerts@ness.com.br' }}",
+        "toEmail": "={{ $env.NINF_TICKET_EMAIL || 'suporte@ness.com.br' }}",
+        "subject": "={{ $json.emailSubject }}",
+        "html": "={{ $json.emailHtml }}",
+        "options": {}
+      },
+      "id": "e963b652-32a2-4a0b-9dfd-b7eb5c8b7473",
+      "name": "Send Email (Enviar PostMortem)",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [
+        690,
+        200
+      ],
+      "credentials": {
+        "smtp": {
+          "id": "2e241b4865e9a377",
+          "name": "ness.OS Resend SMTP"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.NINF_EVOLUTION_API_URL || 'http://evolution-api:8080' }}/message/sendText/{{ $env.NINF_EVOLUTION_INSTANCE || 'noc-alerts' }}",
+        "authentication": "none",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"number\": $env.NINF_WHATSAPP_NOC_GROUP_ID, \"options\": $json.options, \"text\": $json.text } }}",
+        "options": {},
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.NINF_EVOLUTION_API_KEY }}"
+            }
+          ]
+        }
+      },
+      "id": "31f41d9e-c852-475c-897b-4dcd48e718cc",
+      "name": "WhatsApp - PostMortem Grupo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        690,
+        400
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook-PostMortem": {
+      "main": [
+        [
+          {
+            "node": "Prepare Body",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Body": {
+      "main": [
+        [
+          {
+            "node": "Send Email (Enviar PostMortem)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "WhatsApp - PostMortem Grupo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "YziEFpxUu0QgZdUE",
+  "active": true
+}

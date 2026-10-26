@@ -1,0 +1,38 @@
+# Este arquivo é apenas um contrato de campos. O runtime real é criado por
+# scripts/render-config.sh a partir de /etc/ness-os/psono.env (root:root 0600).
+SECRET_KEY: 'RENDER_AT_RUNTIME'
+ACTIVATION_LINK_SECRET: 'RENDER_AT_RUNTIME'
+DB_SECRET: 'RENDER_AT_RUNTIME'
+EMAIL_SECRET_SALT: 'RENDER_AT_RUNTIME'
+PRIVATE_KEY: 'RENDER_AT_RUNTIME'
+PUBLIC_KEY: 'RENDER_AT_RUNTIME'
+
+WEB_CLIENT_URL: 'https://cofre.ness.com.br'
+HOST_URL: 'https://cofre.ness.com.br/server'
+NUM_PROXIES: 2
+DEBUG: false
+ALLOWED_HOSTS: ['cofre.ness.com.br']
+ALLOWED_DOMAINS: ['ness.com.br']
+ALLOW_REGISTRATION: true
+ALLOW_LOST_PASSWORD: true
+MANAGEMENT_ENABLED: true
+MULTIFACTOR_ENABLED: false
+ALLOWED_SECOND_FACTORS: ['google_authenticator', 'webauthn']
+
+DATABASES:
+  default:
+    ENGINE: 'django.db.backends.postgresql_psycopg2'
+    NAME: 'psono'
+    USER: 'psono'
+    PASSWORD: 'RENDER_AT_RUNTIME'
+    HOST: 'database'
+    PORT: '5432'
+
+EMAIL_FROM: 'ness. cofre <cofre@ness.com.br>'
+EMAIL_HOST: 'smtp.resend.com'
+EMAIL_HOST_USER: 'resend'
+EMAIL_HOST_PASSWORD: 'RENDER_AT_RUNTIME'
+EMAIL_PORT: 587
+EMAIL_USE_TLS: true
+EMAIL_USE_SSL: false
+EMAIL_TIMEOUT: 10

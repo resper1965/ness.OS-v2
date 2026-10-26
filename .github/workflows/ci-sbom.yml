@@ -1,0 +1,53 @@
+name: Build image SBOMs
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+    paths:
+      - 'app/**'
+      - 'infra/scripts/generate-image-sbom.sh'
+      - 'infra/tests/test-generate-image-sbom.sh'
+      - '.github/workflows/ci-sbom.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  image-inventory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Test SBOM generator
+        run: bash infra/tests/test-generate-image-sbom.sh
+      - name: Build application images
+        run: |
+          docker build --tag ness-backend:ci --file app/Dockerfile app
+          docker build --tag ness-frontend:ci app/frontend
+      - name: Install verified Syft binary
+        env:
+          SYFT_VERSION: '1.37.0'
+          SYFT_SHA256: b81a0dc81b92265f4597659bba5509e014c78228182804bb1bc97856af26e326
+        run: |
+          archive="$RUNNER_TEMP/syft.tar.gz"
+          curl --fail --location --silent --show-error \
+            "https://github.com/anchore/syft/releases/download/v${SYFT_VERSION}/syft_${SYFT_VERSION}_linux_amd64.tar.gz" \
+            --output "$archive"
+          echo "$SYFT_SHA256  $archive" | sha256sum --check
+          mkdir -p "$RUNNER_TEMP/syft-bin"
+          tar -xzf "$archive" -C "$RUNNER_TEMP/syft-bin" syft
+          echo "$RUNNER_TEMP/syft-bin" >> "$GITHUB_PATH"
+      - name: Generate CycloneDX inventories with image identities
+        run: bash infra/scripts/generate-image-sbom.sh sbom ness-backend:ci ness-frontend:ci
+      - name: Retain SBOMs and checksums
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: image-sbom-${{ github.sha }}
+          path: sbom/
+          if-no-files-found: error
+          retention-days: 30

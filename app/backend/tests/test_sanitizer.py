@@ -39,9 +39,7 @@ def test_sanitize_aws_keys():
 
 
 def test_sanitize_hex_tokens():
-    # Monte o token fictício em execução para não parecer um segredo no checkout.
-    token = "a" * 40
-    text = f"Token hexadecimal longo: {token}"
+    text = "Token hexadecimal longo: 4a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b"  # gitleaks:allow
     assert sanitize(text) == "Token hexadecimal longo: [HEX_TOKEN_REDACTED]"
 
 

@@ -1,0 +1,290 @@
+# ness.OS — indicador de entrega
+
+Para retomar em outro checkout ou por outro desenvolvedor, ler o
+[handoff de 22/10/2026](developer-handoff-2026-10-22.md) após este indicador.
+Este link de navegação não altera a data factual abaixo nem aprova gate.
+
+Última atualização factual: **22/10/2026, 10:28 BRT** (revisão da `main`).
+A atualização anterior, em **15/10/2026, 12:42 BRT**, registrou o prazo
+Zabbix encerrado.
+A verificação geral anterior foi registrada em **13/10/2026, 22:40 BRT**;
+as atualizações posteriores são pontuais. Fonte: plano master,
+`PROJECT_CONTEXT.md`, estágio operacional, ledger e GitHub. Este quadro é um
+checkpoint, não telemetria em tempo real. Atualizar quando uma entrega, gate,
+bloqueio ou prazo mudar; preservar a data da última verificação.
+
+**Estado global: 🔴 produção completa ainda não liberada.** Nenhuma fase
+inteira abaixo deve ser chamada de concluída por CI verde, serviço `running`,
+preparação UAT ou documentação isolada.
+
+| Frente do master | Estado | Evidência e próximo marco |
+|---|---|---|
+| F0 — release/continuidade | 🟡 Parcial | PR 65 integrado antes da reescrita; SHA antigo substituído. PRs 64/81 seguem draft. O publicador local no commit `92eced4` passou nos checks completos, publicou API/frontend no GHCR privado e ambos foram puxados por digest; nenhum deploy. Histórico de heads/tags sanitizado e escaneado; refs de PR/caches ainda dependem do GitHub Support (issue #82). Os quatro checks Actions do PR81 passaram no SHA `5051d4c` durante janela pública temporária; repositório voltou a PRIVATE e Actions foi desativado. A `main` permanece com os quatro checks vinculados ao app Actions (`app_id=15368`); a execução futura ainda depende de alternativa segura ou nova ativação. App privada `ness-os-local-ci` criada/instalada somente em `ness.OS-v2`, chave nova local `root:root 0600`; emissor externo não validado. Nenhum merge/deploy; G0/G1 globais não declarados PASS. |
+| F1 — Authentik/tenant/Psono | 🟡 Parcial | Marca e login público Authentik verificados; MFA nominal, recuperação, jornadas autenticadas/tenant e Psono dedicado ainda sem aceite. G2 aberto. |
+| F2 — Zabbix definitivo | 🟡 UAT preparada; janela encerrada | Último estado registrado: destino restaurado e isolado; origem única coletora. Referência: 262 hosts reais + 63 protótipos; 2,086% unsupported na última amostra. SSO nominal, qualidade da frota, gates, freeze e GO faltam antes do corte. Janela encerrada em 15/10 11:47:35 BRT; token anterior expirado. Sem mutações Zabbix sem nova autorização. |
+| F3 — GLPI | 🟡 Em execução | Volume persistente e borda pública corrigidos; busca idempotente, paginação, alias privado fixo e importação isolada do gateway endurecidos na branch, sem deploy. API real confirmou o contrato de paginação; imagem local sem rede importou o gateway sem inicializar VAPID. Conta 106 desativada; gateway candidato, três ativos e replay aguardam T03. Ações automáticas: 18 internas atrasadas, sem conversão; `graph` elimina arquivos antigos e não serve como canário sem efeito. Os sete agentes têm último contato em julho; piloto autenticado/isolamento registrados na issue #79, não executados. Deduplicação restante e tema ness. aguardam decisão/teste nominal. |
+| F4 — Hub/PWA | 🟡 Parcial | Runtime anterior promovido e rollback ensaiado; mudanças recentes estão só na branch. G3 e jornada produtiva por tenant/perfil não aceitos. |
+| F5 — operação integrada | 🔴 Pendente | Sem prova produtiva completa evento → incidente → ticket, replay/timeout, papéis e todas as entidades. G4 não aprovado. |
+| F6 — AIOps/automação | 🟡 Parcial | Componentes existentes, mas RCA/Node-RED e jornadas assistidas ampliadas sem aceite produtivo global. |
+| F7 — Wazuh/Workspace | ⚪ Sem aceite | Capacidade/custo, isolamento, ingestão e rollout por faixa ainda pendentes. G5 não aprovado. |
+| F8 — marca/sustentação | 🟡 Parcial | Camadas ness. aplicadas em algumas superfícies; render nominal GLPI, marca completa, runbooks testados e observação D+1/D+3/D+7 após cortes ainda pendentes. |
+
+**Atualização F0:** Ubuntu/WSL acessa Docker Desktop 29.8.0 e Buildx 0.37.
+O impedimento de integração foi removido; o scan das referências publicadas
+e o publicador completo passaram, mas ainda faltam refs de PR e status externo.
+Varredura local redigida na
+branch atual encontrou 11 achados históricos em sete caminhos; os três
+campos sensíveis do inventário já usam referência de ambiente no HEAD, mas
+o histórico continua exigindo classificação e remediação. A tentativa
+anterior de validar os candidatos antigos leu essas referências, não os
+valores históricos; seu resultado foi invalidado. Uma consulta de diagnóstico
+expôs a credencial S3 e a senha Restic ativas na saída da ferramenta.
+A nova chave S3 nominal foi testada com leitura do bucket e instalada no
+EnvironmentFile root-only; leitura do repositório Restic passou. O segredo S3
+histórico pertence ao mesmo Access ID regenerado. A senha MariaDB histórica
+ainda autenticava `root@localhost`; foi rotacionada pelo mecanismo nativo,
+com nova senha aceita, antiga recusada, leitura da conta `zabbix` e serviços
+ativos. A senha Restic foi rotacionada com o lock livre: a nova abriu os
+snapshots, a antiga foi recusada e o manifesto externo coincidiu byte a byte
+com o local. O primeiro restore completo terminou após perda da conexão que
+capturaria seu resultado. A nova prova externa isolada, com keepalive e exit
+code observável, terminou com código 0: `isolated_restore=PASS` e
+`external_restore=PASS` para o mesmo conjunto de backup. Isto comprova a
+recuperação desse conjunto, não a prontidão do release ou um gate global.
+Após a rotação, o histórico das 34 branches e uma tag foi reescrito e
+publicado no remoto privado com leases; a `main` exigiu exceção temporária de
+administrador e sua proteção foi restaurada (PR, quatro checks, admin, sem
+force-push). Um clone novo contendo apenas heads/tags reproduziu as 35
+referências e passou no scan histórico com exceções pontuais revisadas para
+falsos positivos. Os refs de PR e caches do GitHub ainda podem conter o
+histórico antigo; solicitar limpeza ao GitHub Support. A restauração externa
+completa pós-rotação terminou com código 0 e PASS isolado/externo para o
+conjunto `20261012T220019-0300`.
+Nenhum valor secreto foi incluído neste indicador. PRs 64/81 seguem draft,
+sem revisão ou deploy; os quatro checks Actions do PR81 passaram em 22/10 no
+SHA `5051d4c`, durante janela pública temporária. As imagens candidatas foram
+publicadas e lidas por digest, mas não promovidas.
+
+**Atualização F3:** gateway GLPI candidato agora encerra o cliente mesmo
+quando recusa URL não privada; teste RED→GREEN e backend 486 PASS/1 SKIP.
+Importação isolada também evita inicialização incidental de VAPID; teste
+RED→GREEN, backend 487 PASS/1 SKIP e smoke da imagem local sem rede PASS.
+O runtime passou a exigir o alias privado exato do Compose antes de ler
+secrets; teste RED→GREEN e backend 488 PASS/1 SKIP.
+Smoke local do processo Uvicorn sem rede e com tokens sintéticos: `/live` 200,
+leitura sem bearer 401; contêiner descartável removido.
+Ensaio Compose detectou falha de leitura de secrets root:root 0600 pelo UID
+`nessops`; entrada opt-in corrigida para carregá-los como root e descartar
+privilégios antes de servir. Preflight exige root/dono correto; ensaio local
+com UID/GID 999, capacidades efetivas zero e healthcheck saudável; backend+infra
+524 PASS/1 SKIP. Sem imagem publicada, deploy ou credencial real.
+Ainda sem deploy, isolamento direto real ou reativação da conta 106.
+T04: a revisão do timeout após POST confirmou que busca negativa imediata não
+comprova ausência remota. A branch candidata passou a reservar uma única
+tentativa por entidade/fingerprint no banco **antes** do POST; teste RED→GREEN,
+525 testes backend+infra PASS/1 SKIP e esquema ensaiado em PostgreSQL descartável
+(primeiro claim 1, repetido 0, outra entidade 1). Sem migração/deploy produtivo;
+ensaio da função real com PostgreSQL descartável confirmou um único POST após
+duas buscas vazias e reconciliação posterior. Replay continua bloqueado até
+release, migração produtiva e reconciliação. Upgrade idempotente do esquema
+foi adicionado ao caminho `app.migrate` (teste RED→GREEN), ainda sem execução
+no banco produtivo. Na branch candidata, o claim agora ocorre após uma
+primeira busca GLPI bem-sucedida sem ticket. Teste RED→GREEN provou que
+falha nessa busca não consome a reserva nem impede POST no retry; backend
+493 PASS/1 SKIP, infra 34 PASS e verificações de estilo passaram em sandbox.
+Falha posterior ao claim ainda exige reconciliação, sem novo POST automático.
+Nenhuma migração, deploy, replay ou reativação da conta 106 ocorreu por esta
+mudança.
+
+**Checks locais após a reescrita:** PR 81 foi rebaseado na `main` limpa. A
+fixture sintética de token e o baseline de formatação/lint/tipagem foram
+corrigidos em commits separados. No builder, o conjunto completo passou:
+Black, Flake8, Ruff, Mypy, 24 testes backend, `npm ci`, lint e build frontend;
+auditoria npm encontrou zero vulnerabilidades. Quatro testes do publicador e
+scans Git/checkout também passaram. O publicador integrou o fluxo e gerou
+digests de API/frontend; pull por digest passou e ambos os pacotes GHCR seguem
+privados. O PR permanece draft/bloqueado: falta status externo confiável,
+revisão e prova de pull com a identidade de produção antes de qualquer deploy.
+
+**App local de CI (19:59 BRT):** GitHub App privada `ness-os-local-ci`
+(`App ID 5307771`, instalação `171160625`) criada com webhook desligado,
+`Checks: write`, `Contents: read` e somente o repositório privado
+`resper1965/ness.OS-v2`. Chave nova fora do Git em arquivo local
+`root:root 0600` (cópia anterior legível pelo executor removida após
+comparação e validação); o usuário de testes não consegue lê-la;
+fingerprint e emissão de token de instalação de curta duração verificados,
+sem registrar o token. Nenhum check foi emitido e a proteção da `main` não
+mudou. A primeira chave, baixada na pasta OneDrive (informada pelo usuário
+como não sincronizada), teve sua cópia local removida; a UI do GitHub ainda
+mostra essa chave ativa e desabilita a exclusão mesmo com duas chaves. Tratá-la
+como pendência de revogação, sem usar a chave anterior.
+
+**Sandbox local (20:11 BRT):** checkout limpo da branch PR #81 teve
+backend `24/24` e frontend lint/build PASS em contêineres sem rede, sem
+Docker socket e sem chave; hashes do lock/requirements coincidiram com as
+imagens de dependências. Frontend recebeu arquivo Git do SHA; backend recebeu
+montagem somente leitura. É prova de viabilidade, não runner integrado nem
+check emitido. PR #81 continua draft e a proteção da `main` inalterada.
+
+**Fronteira do emissor (22:40 BRT):** leitura local mostrou que `resper`
+pertence ao grupo `docker` e o socket é `root:docker 0660`; a documentação
+oficial do Docker atribui privilégio elevado ao grupo. A chave App em arquivo
+`root:root 0600` não é, isoladamente, prova de separação do builder. O emissor
+permanece bloqueado até signer fora do domínio de acesso ao socket (ou
+isolamento equivalente comprovado), negativa de leitura a partir do builder,
+permissão mínima de PR com readback e validação de evidência/SHA. Não houve
+tentativa de acessar a chave por Docker, check publicado ou mudança na `main`.
+
+**Rootless no mesmo WSL (22/10, 10:08 BRT):** preflight sem instalação mostrou
+Docker Desktop indisponível nesta sessão e um teste negativo mais decisivo:
+processo `nobody` invocou `wsl.exe -d Ubuntu -u root -- id -u` e obteve UID 0,
+exit 0, sem ler segredo. Assim, usuários Linux separados ou Docker rootless
+nesta configuração não isolam a chave root-only; o caminho co-localizado foi
+descartado até barreira equivalente comprovada. PR #81 recebeu a evidência no
+commit `24a226c`; permanece draft, sem emissor, checks externos ou alteração
+da proteção. Próximo requisito é domínio de assinatura fora desse percurso,
+além de permissão de leitura de PR, revogação da primeira chave e negativas
+de SHA/evidência.
+
+**Workflow requerido no PR #81 (22/10, 10:15 BRT):** o check obrigatório
+`gitleaks` estava ausente da branch do PR, embora presente na branch de
+execução. O workflow existente foi copiado sem alteração, validado por
+comparação byte a byte, parse YAML, sintaxe Bash, scan sanitizado do próprio
+workflow e `git diff --check`, e publicado no commit `62e5c1c`. O PR segue
+draft; o repositório continua privado e Actions continua desativado, portanto
+nenhum check remoto foi produzido. Não tornar o repositório público antes de
+concluir a limpeza dos refs de PR/caches com o GitHub Support (issue #82),
+além de nova revisão de exposição. Mesmo após isso, a mudança de visibilidade
+sozinha não reativa Actions. O arquivo local ignorado de chaves VAPID não foi
+incluído no commit. Proteção da `main`, emissor App, merge, deploy e conta
+GLPI 106 permanecem inalterados.
+
+**Janela Actions temporária (22/10, 10:25 BRT):** por autorização explícita
+do usuário, o repositório foi tornado público e Actions ativado para executar
+os checks do PR #81. No SHA `355d666`, três checks passaram e `lint` falhou:
+o workflow instalava Ruff sem versão fixa, enquanto a validação local usava
+`0.15.7`. O commit `5051d4c` fixou Ruff `0.15.7` e Mypy `1.18.2`, as versões
+já usadas no CI local. No mesmo SHA, `build-and-test`, `test-and-lint`, `lint`
+e `gitleaks` passaram no GitHub. Após readback, Actions foi desativado e o
+repositório voltou a PRIVATE. O PR segue draft, sem merge ou deploy; checks
+verdes de um SHA não fornecem CI para commits futuros. A exposição pública
+temporária não desfaz cópias/forks ou histórico visto por terceiros; refs de
+PR/caches continuam pendentes na issue #82. Nenhuma mudança na proteção da
+`main`, no emissor App ou na conta GLPI 106.
+
+**Revisão da `main` (22/10, 10:28 BRT):** por decisão explícita do único
+desenvolvedor, o número de aprovações obrigatórias foi reduzido de 1 para 0.
+O PR continua obrigatório; os quatro checks estritos permanecem vinculados
+ao app Actions, a proteção vale para administradores, e force-push e exclusão
+continuam vedados. O repositório segue privado, Actions desativado e PR #81
+draft; nenhuma integração ou deploy foi feita por essa alteração.
+
+**Publicador local (20:36 BRT):** PR #81 commit `071eb97` agora exige pull
+das duas imagens por digest antes de gravar o manifesto de release. Teste de
+falha de pull RED→GREEN; cinco testes do publicador e Flake8 focado PASS.
+Nenhuma nova imagem foi construída/publicada nesse ajuste. O script ainda
+executa checks no host; não rodá-lo diretamente de PR não revisado nem junto
+da chave da App. Runner isolado e emissor de checks continuam pendentes.
+
+**Launcher backend (20:46 BRT):** PR #81 commit `a219bde` contém launcher
+candidato para checkout limpo/SHA exato e imagem local por ID imutável. Dois
+testes de contrato passaram; execução real no Docker sem rede/socket/chave,
+fonte somente leitura e UID sem privilégio concluiu `24/24` testes backend.
+Ainda é código na branch de PR, não instalado como runner confiável fora do
+checkout; frontend, lint/tipos, secret scan e emissor permanecem pendentes.
+Nenhum check externo, mudança de proteção ou deploy decorre desse ensaio.
+
+**Sandbox conjunto (20:56 BRT):** PR #81 commit `5a184a9` ampliou o launcher
+candidato com frontend opcional: arquivo Git do SHA alimenta contêiner sem
+rede/montagem do host; backend segue em montagem somente leitura. No commit
+limpo `1b1abde`, backend `24/24`, frontend lint zero avisos e build PASS.
+Três testes do launcher e oito testes de infra PASS. Ainda faltam Black,
+Flake8, Ruff, Mypy e Gitleaks em execução isolada, cópia confiável do launcher
+fora do PR, emissor da App e falhas negativas ponta a ponta. Sem check externo,
+mudança de proteção, merge ou deploy.
+
+**Qualidade Python isolada (21:12 BRT):** PR #81 acrescentou imagem de
+ferramentas com base por digest e versões fixas. O primeiro ensaio real
+falhou porque Ruff tentou gravar cache no checkout somente leitura; o cache
+foi redirecionado para tmpfs após teste RED→GREEN. No commit `f07ca2d`,
+backend `24/24`, Black, Flake8, Ruff check/format e Mypy passaram no
+Docker sem rede, socket ou chave; quatro testes do launcher passaram.
+Gitleaks isolado, instalação de cópia confiável do launcher fora do PR,
+emissor externo e falhas negativas ponta a ponta ainda faltam. Sem check
+externo, alteração da proteção, merge, deploy ou ativação GLPI 106.
+
+**Scan isolado (21:14 BRT):** ensaio do Gitleaks em contêiner sem rede,
+socket ou chave revelou que um erro Git de ownership podia ir para stderr
+com exit code zero. O launcher agora configura `safe.directory` apenas para
+o checkout montado e falha fechado em stderr ou código não zero. No commit
+`e1501ae`, scan real e backend `24/24` PASS; seis testes do launcher PASS.
+Ainda falta retirar a lista de exceções do controle do PR, instalar runner
+revisado fora do checkout e integrar emissor/negações. Nenhum check externo,
+proteção alterada, merge ou deploy.
+
+**Política externa de scan (21:22 BRT):** launcher do PR #81 exige
+`--scan-ignore` fora do checkout e ignora comentários `gitleaks:allow` do
+PR. Isso revelou dois fingerprints históricos de uma constante pública
+`STORAGE_KEY` em `PricingModule.tsx:91`; foram classificados e adicionados
+pontualmente à lista candidata, sem expor o valor. Com cópia externa
+temporária, no SHA `4fe116e` passaram backend `24/24`, Black/Flake8/Ruff/Mypy,
+Gitleaks e frontend lint/build; suíte local `35/35` PASS. A cópia temporária
+é gravável pelo executor e **não** é política de gate: instalar launcher e
+lista revisados fora do PR, testar emissor/negações e só então trocar a
+origem dos quatro checks. Nenhum check externo, merge, deploy ou GLPI 106.
+
+**Regras fixas do scanner (21:25 BRT):** launcher passou a fornecer
+`GITLEAKS_CONFIG_TOML` com as regras padrão embutidas, acima de um
+`.gitleaks.toml` que o PR possa adicionar. Teste RED→GREEN, suíte local
+`35/35` e scan real no SHA `18382e4` PASS com política externa temporária.
+Ainda não é gate de merge sem instalação confiável fora do PR e teste do
+emissor; proteção da `main` e conta GLPI 106 permanecem intactas.
+
+**Histórico fora dos testes de PR (21:28 BRT):** backend e qualidade Python
+montavam o checkout inteiro, inclusive `.git`. Montagem reduzida a
+`app/backend` e `cli`, somente leitura; o teste `test_api.py` comprovou que
+ambos são necessários. No SHA `f43e227`, backend `24/24` e Black/Flake8/Ruff/
+Mypy PASS no Docker real; suíte local `35/35` PASS. Apenas o scanner confiável
+Gitleaks recebe o histórico, sem rede/chave/socket. Runner externo, política
+instalada e emissor continuam pendentes; nenhum check, merge ou deploy.
+
+**Montagem externa recusada (21:31 BRT):** teste RED confirmou que um PR
+podia substituir `cli` por link simbólico para um diretório fora do checkout
+limpo e levá-lo ao Docker. O launcher agora recusa resolução simbólica de
+`app/backend` e `cli` antes de executar contêiner; sete testes do launcher e
+Black passaram. É endurecimento da candidata, não gate operacional: código e
+política ainda não estão instalados em local confiável, emissor não foi
+testado e nenhum check, merge, deploy ou ativação da conta 106 ocorreu.
+
+**Cópia confiável candidata (21:41 BRT):** launcher e política de scan
+instalados fora do PR em `/opt/ness-ci`, root-owned, somente leitura para o
+executor, com comparação byte a byte ao checkout limpo `49c802f`. Rodando
+essa cópia no SHA exato e imagens locais por ID, passaram backend `24/24`,
+Black/Flake8/Ruff/Mypy, Gitleaks e frontend lint/build. Os contêineres não
+receberam rede, socket ou chave da App. Emissor externo e falhas negativas
+ainda não estão integrados; nenhum check foi publicado, nem alterada a
+proteção da `main`, feito merge/deploy ou ativada a conta GLPI 106.
+
+**Permissão para o emissor (21:52 BRT):** App `ness-os-local-ci` ainda não tem
+`Pull requests: Read-only`; essa leitura mínima foi solicitada para verificar
+o `head.sha` remoto do PR. Git refs de branch/tag não substitui essa prova.
+Até a atualização da instalação e readback, nenhum check será emitido.
+
+**Validação offline do PR (22:02 BRT):** PR #81 commit `11a18cd` contém
+validador candidato que só aceita PR aberto do próprio repositório, base
+`main` e `head.sha` exatamente igual ao commit testado. Testes negativos de
+SHA, estado, fork, base, número e resposta incompleta passaram; suíte Python
+43 PASS, com dois avisos de depreciação preexistentes. Ainda não lê a API nem
+emite checks. Falta `Pull requests: Read-only`, readback, integração isolada
+do emissor e revogação da primeira chave antes de alterar a proteção da main.
+
+**Foco agora:** GLPI T03 e substituição segura do pipeline. PR 65 foi integrado;
+próxima liberação depende da revisão técnica do PR 64, publicação segura de
+imagem por digest e matriz negativa real da rota direta, rota
+pública autenticada e entidade descendente; só então considerar ativar a
+identidade mínima 106 e reconciliar ativos/tickets em ondas. Trabalho
+independente GLPI continua. Zabbix não corta por extensão da janela apenas.
+
+**Regra do indicador:** 🟢 = aceite comprovado; 🟡 = entrega parcial ou em
+execução; 🔴 = gate obrigatório não satisfeito; ⚪ = sem aceite produtivo.
+Nunca converter estados em porcentagem inventada.

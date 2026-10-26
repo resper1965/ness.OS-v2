@@ -1,0 +1,13 @@
+{
+  "schema": 1,
+  "state": "installed_opt_in_not_selected",
+  "glpi_major": 11,
+  "palette": {
+    "source": "config/glpi/ness-light.scss",
+    "theme_id": "ness-light",
+    "target": "/var/glpi/files/_themes/ness-light.scss",
+    "scope": "opt-in until visual acceptance"
+  },
+  "logo_favicon_login_image": "unchanged; supported Branding plugin/license and approved assets not confirmed",
+  "rollback": "remove the candidate palette from the GLPI themes directory and restore each pilot user's previous selection"
+}

@@ -1,0 +1,13 @@
+{
+  "name": "UAT — Cavan links (snapshot 11/10/2026; sem coleta)",
+  "userid": "37",
+  "private": 1,
+  "pages": [{"name": "Matriz — interfaces verificadas", "widgets": [
+    {"type":"item","name":"AmericaNET · wan · entrada","x":0,"y":0,"width":24,"height":5,"fields":[{"type":4,"name":"itemid.0","value":"97682"},{"type":0,"name":"show.0","value":2},{"type":0,"name":"show.1","value":3}]},
+    {"type":"item","name":"AmericaNET · wan · saída","x":24,"y":0,"width":24,"height":5,"fields":[{"type":4,"name":"itemid.0","value":"97742"},{"type":0,"name":"show.0","value":2},{"type":0,"name":"show.1","value":3}]},
+    {"type":"item","name":"AmericaNET · wan · estado","x":48,"y":0,"width":24,"height":5,"fields":[{"type":4,"name":"itemid.0","value":"97782"},{"type":0,"name":"show.0","value":2},{"type":0,"name":"show.1","value":3}]},
+    {"type":"item","name":"Vivo · lan3 · entrada","x":0,"y":5,"width":24,"height":5,"fields":[{"type":4,"name":"itemid.0","value":"98076"},{"type":0,"name":"show.0","value":2},{"type":0,"name":"show.1","value":3}]},
+    {"type":"item","name":"Vivo · lan3 · saída","x":24,"y":5,"width":24,"height":5,"fields":[{"type":4,"name":"itemid.0","value":"98136"},{"type":0,"name":"show.0","value":2},{"type":0,"name":"show.1","value":3}]},
+    {"type":"item","name":"Vivo · lan3 · estado","x":48,"y":5,"width":24,"height":5,"fields":[{"type":4,"name":"itemid.0","value":"98176"},{"type":0,"name":"show.0","value":2},{"type":0,"name":"show.1","value":3}]}
+  ]}]
+}

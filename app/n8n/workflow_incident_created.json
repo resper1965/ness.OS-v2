@@ -1,0 +1,157 @@
+{
+  "name": "NOC - Criar Ticket e Alerta WhatsApp",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "incident-created",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "e963b652-32a2-4a0b-9dfd-b7eb5c8b7468",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [
+        250,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const request = $('Webhook').item.json;\nconst expectedKey = $env.NINF_N8N_WEBHOOK_API_KEY;\nconst receivedKey = request.headers?.['x-ness-webhook-key'];\nif (typeof expectedKey !== 'string' || expectedKey.length < 32 || receivedKey !== expectedKey) {\n  throw new Error('Unauthorized webhook request');\n}\nconst body = request.body;\nif (!body || typeof body !== 'object' || Array.isArray(body)) {\n  throw new Error('Invalid incident payload');\n}\nconst field = (value, fallback, maxLength = 2000) => {\n  if (typeof value !== 'string' && typeof value !== 'number') return fallback;\n  return String(value).replace(/[\\u0000-\\u001f\\u007f]/g, ' ').trim().slice(0, maxLength) || fallback;\n};\nconst escapeHtml = (value) => String(value).replace(/[&<>\\\"']/g, (char) => ({\n  '&': '&amp;', '<': '&lt;', '>': '&gt;', '\\\"': '&quot;', \"'\": '&#39;'\n}[char]));\nconst eventName = field(body.event_name, 'Incidente sem título', 160);\nconst customerName = field(body.customer_name, 'Ness', 160);\nconst hostName = field(body.host_name, 'unknown', 160);\nconst severity = field(body.severity_label ?? body.severity, 'average', 80);\nconst desc = field(body.clean_payload?.description ?? body.clean_payload?.trigger?.description, 'Sem detalhes adicionais.');\nconst fingerprint = field(body.fingerprint, 'N/A', 160);\nconst emailSubject = '[NOC-ALERT] ' + customerName + ' | Host: ' + hostName + ' | Event: ' + eventName + ' | Fingerprint: ' + fingerprint;\nconst emailHtml = '<p><strong>Alerta NOC: Incidente Detectado</strong></p>\\n' +\n  '<p><strong>Cliente:</strong> ' + escapeHtml(customerName) + '</p>\\n' +\n  '<p><strong>Equipamento:</strong> ' + escapeHtml(hostName) + '</p>\\n' +\n  '<p><strong>Evento:</strong> ' + escapeHtml(eventName) + '</p>\\n' +\n  '<p><strong>Severidade:</strong> ' + escapeHtml(severity) + '</p><hr/>\\n' +\n  '<p><strong>Descrição do Ocorrido:</strong><br/>' + escapeHtml(desc) + '</p><hr/>\\n' +\n  '<p><small>Fingerprint: ' + escapeHtml(fingerprint) + '</small></p>';\nconst whatsappText = '*Alerta NOC: Incidente Detectado*\\n\\n' +\n  '*Cliente:* ' + customerName + '\\n*Equipamento:* ' + hostName + '\\n' +\n  '*Evento:* ' + eventName + '\\n*Severidade:* ' + severity + '\\n\\n' +\n  '*Descrição do Ocorrido*:\\n' + desc;\nreturn {\n  \"options\": { \"delay\": 1200, \"presence\": \"composing\" },\n  \"text\": whatsappText,\n  \"emailSubject\": emailSubject,\n  \"emailHtml\": emailHtml\n};"
+      },
+      "id": "e963b652-32a2-4a0b-9dfd-b7eb5c8b7470",
+      "name": "Prepare Body",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        470,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $env.NINF_SMTP_SENDER || 'noc-alerts@ness.com.br' }}",
+        "toEmail": "={{ $env.NINF_TICKET_EMAIL || 'suporte@ness.com.br' }}",
+        "subject": "={{ $json.emailSubject }}",
+        "html": "={{ $json.emailHtml }}",
+        "options": {}
+      },
+      "id": "e963b652-32a2-4a0b-9dfd-b7eb5c8b7472",
+      "name": "Send Email (Abrir Chamado)",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [
+        690,
+        200
+      ],
+      "credentials": {
+        "smtp": {
+          "id": "2e241b4865e9a377",
+          "name": "ness.OS Resend SMTP"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.NINF_EVOLUTION_API_URL || 'http://evolution-api:8080' }}/message/sendText/{{ $env.NINF_EVOLUTION_INSTANCE || 'noc-alerts' }}",
+        "authentication": "none",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"number\": $env.NINF_WHATSAPP_NOC_GROUP_ID, \"options\": $json.options, \"text\": $json.text } }}",
+        "options": {},
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.NINF_EVOLUTION_API_KEY }}"
+            }
+          ]
+        }
+      },
+      "id": "31f41d9e-c852-475c-897b-4dcd48e718cc",
+      "name": "WhatsApp - Notificar Grupo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        690,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"ticket_id\": \"email-ticket\"\n}",
+        "options": {}
+      },
+      "id": "fd9081e2-b8c7-43cf-bc82-5ce948a73ccc",
+      "name": "Responder Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        910,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Prepare Body",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Body": {
+      "main": [
+        [
+          {
+            "node": "Send Email (Abrir Chamado)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "WhatsApp - Notificar Grupo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email (Abrir Chamado)": {
+      "main": [
+        [
+          {
+            "node": "Responder Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WhatsApp - Notificar Grupo": {
+      "main": [
+        [
+          {
+            "node": "Responder Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "eNLsgPPhK4ReW36t",
+  "active": true
+}

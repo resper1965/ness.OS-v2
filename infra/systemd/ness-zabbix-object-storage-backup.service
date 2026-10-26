@@ -1,0 +1,29 @@
+[Unit]
+Description=NESS Zabbix encrypted copy to Contabo Object Storage
+Wants=network-online.target
+After=network-online.target ness-zabbix-backup.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/ness-os/backup-s3.env
+Environment=NESS_RESTIC_ENV_FILE=/etc/ness-os/backup-s3.env
+Environment=RESTIC_CACHE_DIR=/var/cache/ness-os-restic
+ExecStart=/usr/local/sbin/ness-object-storage-restic backup zabbix
+UMask=0077
+Nice=15
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+TimeoutStartSec=8h
+CacheDirectory=ness-os-restic
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+ReadOnlyPaths=/var/backups/zabbix/nightly
+ReadWritePaths=/var/cache/ness-os-restic /run/lock
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,9 @@
+# aiops (144.91.115.242): provider gateway is required to reach Zabbix.
+# Destination scope intentionally excludes the rest of the provider subnet.
+network:
+  version: 2
+  ethernets:
+    eth0:
+      routes:
+        - to: 144.91.72.202/32
+          via: 144.91.64.1

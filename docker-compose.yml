@@ -1,0 +1,74 @@
+# -------------------------------------------------------
+# n.infraops — Ponytail Infrastructure (IaC)
+# Stack: FastAPI + Postgres + Caddy
+# -------------------------------------------------------
+version: '3.8'
+
+services:
+  # O Cérebro: n.infraops AI Proxy & HITL Logic
+  api:
+    build:
+      context: ./app/backend
+      dockerfile: Dockerfile
+    container_name: ninf-api
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://admin:${DB_PASSWORD}@postgres:5432/ninf_db
+    networks:
+      - ninf-net
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # O Braço: Evolution API (WhatsApp)
+  evolution-api:
+    image: evoapicloud/evolution-api:latest
+    container_name: ninf-evolution
+    restart: unless-stopped
+    env_file: .env
+    networks:
+      - ninf-net
+
+  # A Base: PostgreSQL 16 + pgvector
+  postgres:
+    image: ankane/pgvector:v0.5.1
+    container_name: ninf-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=${DB_PASSWORD:?DB_PASSWORD is required}
+      - POSTGRES_DB=ninf_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d ninf_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ninf-net
+
+  # A Segurança: Caddy Reverse Proxy & HTTPS
+  caddy:
+    image: caddy:2-alpine
+    container_name: ninf-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - ninf-net
+
+networks:
+  ninf-net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  caddy_data:
+  caddy_config:

@@ -1,0 +1,76 @@
+schema_version: 1
+status: in_progress
+entity_id: 8
+entity: Cavan
+site: matriz-sp
+location:
+  glpi_id: 2
+  name: Matriz — São Paulo
+  city: São Paulo
+  state: SP
+  country: Brasil
+
+source_counts:
+  zabbix_hosts: 15
+  glpi_records: 14
+  canonical_assets_expected: 13
+  zabbix_connectivity_checks: 2
+
+exact_mappings:
+  - zabbix_hostid: 10877
+    glpi_type: Computer
+    glpi_id: 60
+  - zabbix_hostid: 10878
+    glpi_type: Computer
+    glpi_id: 61
+  - zabbix_hostid: 10879
+    glpi_type: Computer
+    glpi_id: 62
+  - zabbix_hostid: 10880
+    glpi_type: Computer
+    glpi_id: 63
+  - zabbix_hostid: 10881
+    glpi_type: Computer
+    glpi_id: 64
+  - zabbix_hostid: 10885
+    glpi_type: Computer
+    glpi_id: 65
+  - zabbix_hostid: 10886
+    glpi_type: Computer
+    glpi_id: 66
+  - zabbix_hostid: 10887
+    glpi_type: Computer
+    glpi_id: 67
+  - zabbix_hostid: 10882
+    glpi_type: Computer
+    glpi_id: 105
+    historical_networkequipment_id: 120
+    classification_migrated_at: '2026-09-08T22:16:47Z'
+  - zabbix_hostid: 10883
+    glpi_type: Computer
+    glpi_id: 106
+    historical_networkequipment_id: 121
+    classification_migrated_at: '2026-09-08T22:16:47Z'
+  - zabbix_hostid: 10884
+    glpi_type: Computer
+    glpi_id: 107
+    historical_networkequipment_id: 122
+    classification_migrated_at: '2026-09-08T22:16:47Z'
+  - zabbix_hostid: 10888
+    glpi_type: NetworkEquipment
+    glpi_id: 123
+    manufacturer: Aruba
+    model: pending_snmp_discovery
+
+firewall_reconciliation:
+  physical_hostid: 10977
+  connectivity_hostids: [10873, 10874]
+  current_glpi_ids: [116, 117]
+  state: requires_history_preserving_consolidation
+
+guardrails:
+  - no_direct_database_writes
+  - do_not_delete_connectivity_history
+  - do_not_infer_aruba_model_before_snmp_discovery
+  - migrate_misclassified_virtual_servers_as_a_separate_change
+  - keep_customer_inventory_out_of_root_entity

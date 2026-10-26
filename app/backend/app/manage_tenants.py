@@ -14,10 +14,8 @@ Uso:
 import argparse
 import asyncio
 import sys
-from typing import Any, cast
 
-from sqlalchemy import select, delete
-from sqlalchemy.engine import CursorResult
+from sqlalchemy import delete, select
 
 from app.database import SessionLocal
 from app.models import CustomerCredentials
@@ -70,7 +68,7 @@ async def delete_tenant(customer_id: str, provider: str) -> None:
                 CustomerCredentials.provider == provider,
             )
             result = await session.execute(stmt)
-            if cast(CursorResult[Any], result).rowcount > 0:
+            if getattr(result, "rowcount", 0) > 0:
                 print(
                     f"✅ Credenciais removidas para o tenant '{customer_id}' (provedor: {provider})"
                 )

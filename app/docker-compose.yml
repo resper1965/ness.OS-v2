@@ -8,14 +8,18 @@ services:
 
   # --- API Backend (FastAPI) ---
   api:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ${NINF_API_IMAGE:?NINF_API_IMAGE is required}
     container_name: ninf-api
     restart: unless-stopped
-    ports:
-      - "8000:8000"
-    env_file: .env
+    env_file:
+      - .env
+      - /etc/ness-os/glpi-integration.env
+      - /etc/ness-os/zabbix-integration.env
+    environment:
+      # JWT secret fixo — tokens sobrevivem restarts do container
+      NINF_JWT_SECRET: ${NINF_JWT_SECRET:?NINF_JWT_SECRET is required}
+      NINF_DASHBOARD_BASE_URL: ${NINF_DASHBOARD_BASE_URL:-https://hub.ness.com.br}
+      NINF_SESSION_COOKIE_SECURE: ${NINF_SESSION_COOKIE_SECURE:-true}
     depends_on:
       postgres:
         condition: service_healthy
@@ -30,9 +34,7 @@ services:
 
   # --- Celery Worker (Alertas) ---
   worker-alerts:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ${NINF_API_IMAGE:?NINF_API_IMAGE is required}
     container_name: ninf-worker-alerts
     restart: unless-stopped
     command: >
@@ -41,11 +43,20 @@ services:
       --concurrency=4
       --loglevel=info
       --hostname=alerts@%h
-    env_file: .env
+    env_file:
+      - .env
+      - /etc/ness-os/glpi-integration.env
+      - /etc/ness-os/zabbix-integration.env
     depends_on:
       - api
     networks:
       - ninf-net
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 15s celery -A app.workers.celery_app inspect ping -d alerts@$$(hostname) 2>&1 | grep -qc pong"]
+      interval: 60s
+      timeout: 30s
+      retries: 3
+      start_period: 30s
     deploy:
       resources:
         limits:
@@ -53,9 +64,7 @@ services:
 
   # --- Celery Worker (ML + Post-mortem) ---
   worker-ml:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ${NINF_API_IMAGE:?NINF_API_IMAGE is required}
     container_name: ninf-worker-ml
     restart: unless-stopped
     command: >
@@ -69,6 +78,12 @@ services:
       - api
     networks:
       - ninf-net
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 15s celery -A app.workers.celery_app inspect ping -d ml@$$(hostname) 2>&1 | grep -qc pong"]
+      interval: 60s
+      timeout: 30s
+      retries: 3
+      start_period: 30s
     deploy:
       resources:
         limits:
@@ -76,15 +91,13 @@ services:
 
   # --- PostgreSQL 16 (TimescaleDB + pgvector) ---
   postgres:
-    image: timescale/timescaledb:latest-pg16
+    image: timescale/timescaledb:latest-pg16@sha256:ba149561ad4ddff5940d6eb0a0df60aefd1355cee1a450928f271267038fc888
     container_name: ninf-postgres
     restart: unless-stopped
-    ports:
-      - "5432:5432"
     environment:
       POSTGRES_DB: nessops
       POSTGRES_USER: nessops
-      POSTGRES_PASSWORD: ${NINF_DB_PASSWORD:-changeme}
+      POSTGRES_PASSWORD: ${NINF_DB_PASSWORD:?NINF_DB_PASSWORD is required}
     volumes:
       - pg-data:/var/lib/postgresql/data
       - ./backend/postgresql.conf:/etc/postgresql/postgresql.conf:ro
@@ -105,11 +118,9 @@ services:
 
   # --- Redis 7 (Cache + Celery Broker + Locks) ---
   redis:
-    image: redis:7-alpine
+    image: redis:7-alpine@sha256:6ab0b6e7381779332f97b8ca76193e45b0756f38d4c0dcda72dbb3c32061ab99
     container_name: ninf-redis
     restart: unless-stopped
-    ports:
-      - "6379:6379"
     command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
     volumes:
       - redis-data:/data
@@ -125,20 +136,179 @@ services:
         limits:
           memory: 300M
 
-  # --- n8n (Orquestração de borda) ---
-  n8n:
-    image: docker.n8n.io/n8nio/n8n:latest
-    container_name: ninf-n8n
+
+  # --- Evolution API (WhatsApp Gateway) ---
+  evolution-api:
+    image: evoapicloud/evolution-api:latest@sha256:966625532d9076a2381e973a271307d107e6f070450de3abeeea8bd18be07252
+    container_name: ninf-evolution
+    restart: on-failure:5
+    environment:
+      - SERVER_URL=http://localhost:8080
+      - AUTHENTICATION_API_KEY=${NINF_EVOLUTION_API_KEY:?NINF_EVOLUTION_API_KEY is required}
+      - DATABASE_PROVIDER=postgresql
+      - DATABASE_CONNECTION_URI=postgresql://nessops:${NINF_DB_PASSWORD:?NINF_DB_PASSWORD is required}@postgres:5432/evolution
+      - DATABASE_CONNECTION_CLIENT_NAME=evolution_api
+      - DATABASE_ENABLED=true
+      - SKIP_MIGRATE=${NINF_EVOLUTION_SKIP_MIGRATE:-false}
+      - CACHE_REDIS_ENABLED=true
+      - CACHE_REDIS_URI=redis://redis:6379/5
+      - CACHE_REDIS_PREFIX_KEY=evolution
+      - CACHE_REDIS_SAVE_INSTANCES=false
+      - CACHE_REDIS_TTL=604800
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - evolution-instances:/evolution/instances
+      - evolution-store:/evolution/store
+    networks:
+      - ninf-net
+    deploy:
+      resources:
+        limits:
+          memory: 1.5G
+
+  # --- Evolution API Manager Dashboard ---
+  evolution-manager:
+    image: evoapicloud/evolution-manager:latest@sha256:cbfeb314afb9d380068c86151fbfa9fd7905d0ad74da77fad01f2c85d01a025a
+    container_name: ninf-evolution-manager
+    restart: unless-stopped
+    entrypoint: ["sh", "-c", "sed -i 's/must-revalidate//g' /etc/nginx/conf.d/nginx.conf && /bin/sh /start.sh"]
+    networks:
+      - ninf-net
+    depends_on:
+      - evolution-api
+
+  # --- Frontend (React/Vite, API same-origin via Caddy) ---
+  frontend:
+    image: ${NINF_FRONTEND_IMAGE:?NINF_FRONTEND_IMAGE is required}
+    container_name: ninf-frontend
+    restart: unless-stopped
+    depends_on:
+      - api
+    networks:
+      - ninf-net
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # --- Caddy (Reverse Proxy + HTTPS Automático) ---
+  caddy:
+    image: caddy:2-alpine@sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648
+    container_name: ninf-caddy
     restart: unless-stopped
     ports:
-      - "5678:5678"
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./public:/srv/public:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks:
+      - ninf-net
+    depends_on:
+      - api
+      - evolution-api
+      - frontend
+
+  # --- n8n Integration Orchestrator ---
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:latest@sha256:4b0b4a48faeaa5e17ea57a578a53078fb6c9b8eb65d1573eb68d8ce8f6022da0
+    container_name: ninf-n8n
+    restart: unless-stopped
     environment:
-      N8N_BASIC_AUTH_ACTIVE: "true"
-      N8N_BASIC_AUTH_USER: admin
-      N8N_BASIC_AUTH_PASSWORD: ${NINF_N8N_PASSWORD:-changeme}
-      WEBHOOK_URL: http://n8n:5678
+      - N8N_HOST=n8n.ness.com.br
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=https
+      - NODE_ENV=production
+      - WEBHOOK_URL=https://n8n.ness.com.br/
+      - N8N_BLOCK_ENV_ACCESS_IN_NODE=false
+      - NINF_EVOLUTION_API_URL=${NINF_EVOLUTION_API_URL}
+      - NINF_EVOLUTION_INSTANCE=${NINF_EVOLUTION_INSTANCE}
+      - NINF_DESKMANAGER_API_URL=${NINF_DESKMANAGER_API_URL}
+      - NINF_WHATSAPP_NOC_GROUP_ID=${NINF_WHATSAPP_NOC_GROUP_ID}
+      - NINF_EVOLUTION_API_KEY=${NINF_EVOLUTION_API_KEY:-}
+      - NINF_N8N_WEBHOOK_API_KEY=${NINF_N8N_WEBHOOK_API_KEY:-}
+      - NINF_SMTP_SENDER=${NINF_SMTP_SENDER:-noc-alerts@ness.com.br}
+      - NINF_TICKET_EMAIL=${NINF_TICKET_EMAIL:-suporte@ness.com.br}
     volumes:
       - n8n-data:/home/node/.n8n
+    networks:
+      - ninf-net
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  # --- Authentik SSO Server ---
+  authentik-server:
+    image: ghcr.io/goauthentik/server:2026.5.6@sha256:ed120caf710ccf82ef0026f0bc74e51615bc95ebff228a7a2d6fc60c441c3868
+    container_name: ninf-authentik-server
+    restart: unless-stopped
+    command: server
+    environment:
+      AUTHENTIK_REDIS__HOST: redis
+      AUTHENTIK_POSTGRESQL__HOST: postgres
+      AUTHENTIK_POSTGRESQL__USER: nessops
+      AUTHENTIK_POSTGRESQL__NAME: authentik
+      AUTHENTIK_POSTGRESQL__PASSWORD: ${NINF_DB_PASSWORD:?NINF_DB_PASSWORD is required}
+      AUTHENTIK_SECRET_KEY: ${NINF_AUTHENTIK_SECRET_KEY:?NINF_AUTHENTIK_SECRET_KEY is required}
+      AUTHENTIK_EMAIL__HOST: ${NINF_SMTP_HOST:-smtp.resend.com}
+      AUTHENTIK_EMAIL__PORT: ${NINF_SMTP_PORT:-587}
+      AUTHENTIK_EMAIL__USERNAME: ${NINF_SMTP_USERNAME:-resend}
+      AUTHENTIK_EMAIL__PASSWORD: ${NINF_RESEND_API_KEY:?NINF_RESEND_API_KEY is required}
+      AUTHENTIK_EMAIL__USE_TLS: ${NINF_SMTP_USE_TLS:-true}
+      AUTHENTIK_EMAIL__USE_SSL: ${NINF_SMTP_USE_SSL:-false}
+      AUTHENTIK_EMAIL__TIMEOUT: 10
+      AUTHENTIK_EMAIL__FROM: "${NINF_AUTHENTIK_EMAIL_FROM:-ness. identidade <identidade@ness.com.br>}"
+    volumes:
+      - authentik-media:/media
+      - authentik-certs:/certs
+      - authentik-templates:/templates
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - ninf-net
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  # --- Authentik SSO Worker ---
+  authentik-worker:
+    image: ghcr.io/goauthentik/server:2026.5.6@sha256:ed120caf710ccf82ef0026f0bc74e51615bc95ebff228a7a2d6fc60c441c3868
+    container_name: ninf-authentik-worker
+    restart: unless-stopped
+    command: worker
+    environment:
+      AUTHENTIK_REDIS__HOST: redis
+      AUTHENTIK_POSTGRESQL__HOST: postgres
+      AUTHENTIK_POSTGRESQL__USER: nessops
+      AUTHENTIK_POSTGRESQL__NAME: authentik
+      AUTHENTIK_POSTGRESQL__PASSWORD: ${NINF_DB_PASSWORD:?NINF_DB_PASSWORD is required}
+      AUTHENTIK_SECRET_KEY: ${NINF_AUTHENTIK_SECRET_KEY:?NINF_AUTHENTIK_SECRET_KEY is required}
+      AUTHENTIK_EMAIL__HOST: ${NINF_SMTP_HOST:-smtp.resend.com}
+      AUTHENTIK_EMAIL__PORT: ${NINF_SMTP_PORT:-587}
+      AUTHENTIK_EMAIL__USERNAME: ${NINF_SMTP_USERNAME:-resend}
+      AUTHENTIK_EMAIL__PASSWORD: ${NINF_RESEND_API_KEY:?NINF_RESEND_API_KEY is required}
+      AUTHENTIK_EMAIL__USE_TLS: ${NINF_SMTP_USE_TLS:-true}
+      AUTHENTIK_EMAIL__USE_SSL: ${NINF_SMTP_USE_SSL:-false}
+      AUTHENTIK_EMAIL__TIMEOUT: 10
+      AUTHENTIK_EMAIL__FROM: "${NINF_AUTHENTIK_EMAIL_FROM:-ness. identidade <identidade@ness.com.br>}"
+    volumes:
+      - authentik-media:/media
+      - authentik-certs:/certs
+      - authentik-templates:/templates
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - ninf-net
     deploy:
@@ -149,7 +319,14 @@ services:
 volumes:
   pg-data:
   redis-data:
+  evolution-instances:
+  evolution-store:
+  caddy-data:
+  caddy-config:
   n8n-data:
+  authentik-media:
+  authentik-certs:
+  authentik-templates:
 
 networks:
   ninf-net:

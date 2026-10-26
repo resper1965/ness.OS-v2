@@ -1,0 +1,13 @@
+[Unit]
+Description=Copy the completed Zabbix backup to Object Storage after the local backup window
+
+[Timer]
+# Local backup starts at 22:00 BRT and can run for up to 6 h. This avoids
+# uploading yesterday's backup while today's dump is still running.
+OnCalendar=*-*-* 05:30:00 America/Sao_Paulo
+Persistent=true
+AccuracySec=1min
+Unit=ness-zabbix-object-storage-backup.service
+
+[Install]
+WantedBy=timers.target

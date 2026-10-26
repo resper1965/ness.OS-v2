@@ -1,0 +1,231 @@
+/**
+ * -------------------------------------------------------------------------
+ * nessai - GLPI Plugin
+ * Copyright (C) 2024-2026 ness. (https://ness.com.br)
+ * -------------------------------------------------------------------------
+ *
+ * Styles for the nessai AI assistant toolbar, modals, and branding.
+ *
+ * @package   nessai
+ * @author    ness.
+ * @copyright 2024-2026 ness.
+ * @license   GPLv3+
+ */
+
+/* ── Google Fonts ──────────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600&display=swap');
+
+/* ── Toolbar ───────────────────────────────────────────────────────────── */
+.nessai-toolbar {
+   display: flex;
+   flex-wrap: wrap;
+   align-items: center;
+   gap: 8px;
+   padding: 12px;
+   margin: 10px 0;
+   border-radius: 8px;
+   background: rgba(0, 173, 232, 0.05);
+   border: 1px solid rgba(0, 173, 232, 0.15);
+}
+
+.nessai-toolbar .btn {
+   font-family: 'Montserrat', sans-serif;
+   font-weight: 500;
+   font-size: 13px;
+   border-radius: 6px;
+   transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+/* ── Suggest (primary) ─────────────────────────────────────────────────── */
+.nessai-btn-suggest {
+   background-color: #00ade8;
+   border-color: #00ade8;
+   color: #fff;
+}
+
+.nessai-btn-suggest:hover,
+.nessai-btn-suggest:focus {
+   background-color: #0095c8;
+   border-color: #0095c8;
+   color: #fff;
+}
+
+.nessai-btn-suggest:disabled {
+   background-color: #00ade8;
+   border-color: #00ade8;
+   opacity: 0.65;
+}
+
+/* ── Summarize (outline-primary) ───────────────────────────────────────── */
+.nessai-btn-summarize {
+   background-color: transparent;
+   border: 1px solid #00ade8;
+   color: #00ade8;
+}
+
+.nessai-btn-summarize:hover,
+.nessai-btn-summarize:focus {
+   background-color: rgba(0, 173, 232, 0.1);
+   border-color: #00ade8;
+   color: #00ade8;
+}
+
+.nessai-btn-summarize:disabled {
+   opacity: 0.65;
+}
+
+/* ── Translate (outline-secondary) ─────────────────────────────────────── */
+.nessai-btn-translate {
+   background-color: transparent;
+   border: 1px solid #6c757d;
+   color: #6c757d;
+}
+
+.nessai-btn-translate:hover,
+.nessai-btn-translate:focus {
+   background-color: rgba(108, 117, 125, 0.1);
+   border-color: #6c757d;
+   color: #6c757d;
+}
+
+.nessai-btn-translate:disabled {
+   opacity: 0.65;
+}
+
+/* ── Spinner ───────────────────────────────────────────────────────────── */
+.nessai-spinner {
+   display: inline-block;
+   width: 16px;
+   height: 16px;
+   border: 2px solid currentColor;
+   border-right-color: transparent;
+   border-radius: 50%;
+   animation: nessai-spin 0.6s linear infinite;
+   vertical-align: middle;
+}
+
+@keyframes nessai-spin {
+   0%   { transform: rotate(0deg);   }
+   100% { transform: rotate(360deg); }
+}
+
+/* ── Branding ──────────────────────────────────────────────────────────── */
+.nessai-branding {
+   font-family: 'Montserrat', sans-serif;
+   font-size: 10px;
+   color: #999;
+   margin-left: auto;
+   user-select: none;
+}
+
+.nessai-branding .nessai-brand-dot {
+   color: #00ade8;
+   font-weight: 600;
+}
+
+/* ── Modal Overlay ─────────────────────────────────────────────────────── */
+.nessai-modal-overlay {
+   position: fixed;
+   top: 0;
+   left: 0;
+   width: 100%;
+   height: 100%;
+   background: rgba(0, 0, 0, 0.45);
+   z-index: 9999;
+   display: flex;
+   align-items: center;
+   justify-content: center;
+}
+
+/* ── Modal Card ────────────────────────────────────────────────────────── */
+.nessai-modal {
+   background: #fff;
+   max-width: 600px;
+   width: 90%;
+   max-height: 70vh;
+   overflow-y: auto;
+   border-radius: 12px;
+   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+   padding: 24px;
+   animation: nessai-modal-in 0.2s ease-out;
+}
+
+@keyframes nessai-modal-in {
+   0%   { opacity: 0; transform: scale(0.95) translateY(8px); }
+   100% { opacity: 1; transform: scale(1) translateY(0);      }
+}
+
+/* ── Modal Header ──────────────────────────────────────────────────────── */
+.nessai-modal-header {
+   display: flex;
+   align-items: center;
+   justify-content: space-between;
+   margin-bottom: 16px;
+}
+
+.nessai-modal-title {
+   font-family: 'Montserrat', sans-serif;
+   font-weight: 600;
+   font-size: 16px;
+   color: #1e293b;
+}
+
+.nessai-modal-close {
+   cursor: pointer;
+   font-size: 20px;
+   line-height: 1;
+   border: none;
+   background: none;
+   color: #64748b;
+   padding: 0 4px;
+   transition: color 0.15s ease;
+}
+
+.nessai-modal-close:hover {
+   color: #1e293b;
+}
+
+/* ── Modal Body ────────────────────────────────────────────────────────── */
+.nessai-modal-body {
+   font-family: 'Montserrat', sans-serif;
+   font-size: 14px;
+   line-height: 1.6;
+   color: #334155;
+   white-space: pre-wrap;
+   word-break: break-word;
+}
+
+/* ── Modal Footer ──────────────────────────────────────────────────────── */
+.nessai-modal-footer {
+   display: flex;
+   justify-content: flex-end;
+   margin-top: 16px;
+   padding-top: 12px;
+   border-top: 1px solid #e2e8f0;
+}
+
+/* ── Copy Button ───────────────────────────────────────────────────────── */
+.nessai-copy-btn {
+   font-family: 'Montserrat', sans-serif;
+   font-weight: 500;
+   font-size: 12px;
+   padding: 5px 14px;
+   border-radius: 6px;
+   border: 1px solid #00ade8;
+   background: transparent;
+   color: #00ade8;
+   cursor: pointer;
+   transition: background-color 0.15s ease;
+}
+
+.nessai-copy-btn:hover {
+   background-color: rgba(0, 173, 232, 0.1);
+}
+
+/* ── Alert ─────────────────────────────────────────────────────────────── */
+.nessai-alert {
+   font-family: 'Montserrat', sans-serif;
+   font-size: 13px;
+   border-radius: 8px;
+   margin-bottom: 8px;
+}

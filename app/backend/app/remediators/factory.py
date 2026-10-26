@@ -147,6 +147,7 @@ class RMMFactory:
     ) -> dict[str, str]:
         """Busca credenciais no banco de dados utilizando SQLAlchemy Async."""
         from sqlalchemy import select
+
         from app.database import SessionLocal
         from app.models import CustomerCredentials
 
@@ -186,7 +187,9 @@ class RMMFactory:
 
         # Tenta buscar no banco de dados (async)
         try:
-            creds = asyncio.run(cls._async_get_db_credentials(customer_id, provider))
+            creds: dict[str, str] | None = asyncio.run(
+                cls._async_get_db_credentials(customer_id, provider)
+            )
         except Exception as e:
             logger.warning("Erro ao executar busca assíncrona de credenciais: %s", e)
             creds = {}

@@ -1,0 +1,15 @@
+[Unit]
+Description=NESS AIOps isolated backup restoration verification
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+User=root
+UMask=0077
+# Verify the encrypted off-site snapshot, not merely the local backup set.
+ExecStart=/usr/local/sbin/ness-aiops-isolated-restore-test --remote
+TimeoutStartSec=30min
+TimeoutStopSec=120
+Nice=15
+IOSchedulingClass=idle

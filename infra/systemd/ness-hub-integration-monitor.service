@@ -1,0 +1,10 @@
+[Unit]
+Description=ness.OS hub GLPI integration health
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/ness-hub-integration-monitor
+TimeoutStartSec=55
+UMask=0077

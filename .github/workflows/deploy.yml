@@ -1,0 +1,17 @@
+name: Deploy n.infraops (disabled)
+
+# Gate 0 containment: the former production workflow was unsafe and targeted
+# a path that is not used by the current VPS. Keep this workflow disabled until
+# immutable images, restricted deploy credentials, protected environments,
+# migrations, smoke tests and rollback are implemented and approved.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy-disabled:
+    name: Production deploy disabled by Gate 0
+    if: ${{ false }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Production deployment is disabled pending Gate 1 CI/CD replacement."

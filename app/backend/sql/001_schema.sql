@@ -5,6 +5,7 @@
 
 -- ENUMs para tipagem forte no banco
 CREATE TYPE asset_type AS ENUM (
+    'unknown',
     'windows',
     'linux',
     'network_device'
@@ -107,6 +108,7 @@ CREATE TABLE n_infraops_incidents (
     title           VARCHAR(512)    NOT NULL,
     severity        SMALLINT        NOT NULL DEFAULT 3,
     status          VARCHAR(32)     NOT NULL DEFAULT 'open',
+    assigned_user_id BIGINT,
 
     -- Referências
     host_id         VARCHAR(64)     NOT NULL,
@@ -139,6 +141,22 @@ CREATE INDEX idx_incidents_last_seen   ON n_infraops_incidents (last_seen DESC);
 CREATE TRIGGER trg_incidents_updated_at
     BEFORE UPDATE ON n_infraops_incidents
     FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+CREATE TABLE n_infraops_incident_actions (
+    id                   BIGSERIAL PRIMARY KEY,
+    incident_id          BIGINT NOT NULL REFERENCES n_infraops_incidents(id),
+    actor_user_id        BIGINT,
+    actor_source         VARCHAR(32) NOT NULL,
+    action               VARCHAR(32) NOT NULL,
+    previous_status      VARCHAR(32),
+    new_status           VARCHAR(32),
+    previous_assignee_id BIGINT,
+    new_assignee_id      BIGINT,
+    note                 TEXT,
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX idx_incident_actions_incident_created
+    ON n_infraops_incident_actions (incident_id, created_at DESC);
 
 
 -- ---------------------------------------------------------
@@ -248,3 +266,44 @@ CREATE INDEX idx_credentials_customer ON n_infraops_customer_credentials (custom
 CREATE TRIGGER trg_credentials_updated_at
     BEFORE UPDATE ON n_infraops_customer_credentials
     FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+-- ---------------------------------------------------------
+-- Tabela de decisões de triagem do SOC (Wazuh SOC Triage Log)
+-- ---------------------------------------------------------
+CREATE TABLE n_secops_soc_decisions (
+    id              BIGSERIAL       PRIMARY KEY,
+    wazuh_rule_id   VARCHAR(64)     NOT NULL,
+    agent_id        VARCHAR(64),
+    agent_name      VARCHAR(255),
+    customer_id     VARCHAR(128)    NOT NULL,
+    classification  VARCHAR(32)     NOT NULL,
+    confidence      DOUBLE PRECISION NOT NULL DEFAULT 1.0,
+    summary         TEXT            NOT NULL,
+    action_taken    VARCHAR(255)    NOT NULL,
+    raw_alert       JSONB           NOT NULL DEFAULT '{}',
+    created_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_soc_decisions_rule ON n_secops_soc_decisions (wazuh_rule_id);
+CREATE INDEX idx_soc_decisions_agent ON n_secops_soc_decisions (agent_id);
+CREATE INDEX idx_soc_decisions_customer ON n_secops_soc_decisions (customer_id);
+CREATE INDEX idx_soc_decisions_classification ON n_secops_soc_decisions (classification);
+
+-- A tabela de usuários precisa existir antes de 002_push_subscriptions.sql.
+CREATE TYPE userrole AS ENUM (
+    'platform_admin', 'admin', 'operator', 'viewer', 'noc', 'soc', 'helpdesk', 'gestao', 'cliente'
+);
+
+CREATE TABLE n_infraops_users (
+    id              BIGSERIAL PRIMARY KEY,
+    email           VARCHAR(255) NOT NULL UNIQUE,
+    hashed_password VARCHAR(255) NOT NULL,
+    full_name       VARCHAR(255),
+    role            userrole NOT NULL DEFAULT 'noc',
+    tenant_id       VARCHAR(128),
+    session_epoch   BIGINT NOT NULL DEFAULT 0,
+    is_active       BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    last_login      TIMESTAMPTZ
+);
+

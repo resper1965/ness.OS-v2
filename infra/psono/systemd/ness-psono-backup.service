@@ -1,0 +1,14 @@
+[Unit]
+Description=ness.os Psono encrypted external backup
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+ExecStart=/opt/ness-os-psono/scripts/backup.sh
+Nice=15
+IOSchedulingClass=idle
+PrivateTmp=true
+NoNewPrivileges=true

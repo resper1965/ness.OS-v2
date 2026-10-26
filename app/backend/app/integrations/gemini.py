@@ -18,6 +18,8 @@ from typing import Any
 import httpx
 
 from app.config import get_settings
+from app.core.ai_context import incident_prompt_data
+from app.core.sanitizer import sanitize, sanitize_value
 from app.models.schemas import PostMortemReport
 
 logger = logging.getLogger(__name__)
@@ -25,24 +27,86 @@ settings = get_settings()
 
 _TIMEOUT = httpx.Timeout(connect=10.0, read=120.0, write=10.0, pool=5.0)
 
+
+def generate_embedding(text: str) -> list[float]:
+    """Gera embedding de 768 dimensões usando o modelo text-embedding-004 do Gemini."""
+    if not settings.gemini_api_key:
+        logger.warning("Gemini API key não configurada. Retornando embedding zerado.")
+        return [0.0] * 768
+
+    api_url = "https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent"
+    headers = {
+        "Content-Type": "application/json",
+        "x-goog-api-key": settings.gemini_api_key,
+    }
+    body = {
+        "model": "models/text-embedding-004",
+        "content": {"parts": [{"text": sanitize(text)}]},
+    }
+    try:
+        with httpx.Client(timeout=_TIMEOUT) as client:
+            response = client.post(
+                api_url,
+                json=body,
+                headers=headers,
+            )
+            response.raise_for_status()
+            result = response.json()
+            return result.get("embedding", {}).get("values", [0.0] * 768)
+    except Exception as exc:
+        logger.error("Falha ao gerar embedding via Gemini: %s", type(exc).__name__)
+        return [0.0] * 768
+
+
 # Prompt estruturado para o Gemini
 _POSTMORTEM_SYSTEM_PROMPT = """\
-Você é um engenheiro SRE sênior da ness. gerando um relatório pós-incidente.
-Analise os dados do incidente e produza um relatório DENSO em Markdown com:
+Você é um engenheiro SRE sênior da ness. gerando um relatório pós-incidente baseado nos padrões da indústria (Google SRE Book, PagerDuty Post-Mortem).
+Analise os dados do incidente e produza um relatório DENSO e PROFISSIONAL em Markdown com as seguintes seções.
 
 ## Estrutura obrigatória:
-1. **Resumo Executivo** — 2-3 frases sobre o que aconteceu
-2. **Linha do Tempo** — Tabela cronológica dos eventos (timestamp | evento)
-3. **Causa Raiz** — Análise técnica detalhada
-4. **Blast Radius** — Serviços e hosts afetados
-5. **Logs Relevantes** — Trechos de log que sustentam a conclusão
-6. **Ações Corretivas** — O que deve ser feito para evitar recorrência
-7. **Métricas Analisadas** — Dados numéricos que apoiam a análise
+
+1. **Metadados do Incidente**
+   - Severidade: [Severidade do Incidente]
+   - MTTR (Tempo Médio de Resolução): [Duração Estimada]
+   - Lead SRE: ness. AIOps Agent
+
+2. **Resumo Executivo**
+   - Escreva 2-3 frases resumidas sobre o que aconteceu, o impacto comercial e como foi mitigado.
+
+3. **Linha do Tempo**
+   - Apresente uma tabela cronológica detalhada dos eventos no formato:
+     | Timestamp | Evento |
+     |---|---|
+     | [Horário] | Detecção do incidente via Zabbix |
+     | [Horário] | Triage e escalonamento |
+     | [Horário] | Aplicação da mitigação |
+     | [Horário] | Resolução e validação |
+
+4. **Causa Raiz**
+   - **Análise Técnica Detalhada**: Explicação técnica aprofundada de por que a falha ocorreu.
+   - **Os 5 Porquês (5 Whys)**: Aplique a técnica dos 5 Porquês sequenciais para investigar as causas sistêmicas subjacentes (Por que aconteceu? -> Por que X ocorreu? -> etc. até o 5º nível).
+
+5. **Blast Radius**
+   - Apresente como lista de itens os serviços, portas, bancos de dados, hosts ou clientes diretamente afetados.
+
+6. **Logs Relevantes**
+   - Apresente trechos de log que explicam e comprovam a conclusão da causa raiz.
+
+7. **Ações Corretivas**
+   - Apresente como lista de itens contendo ações corretivas de curto prazo (mitigações) e longo prazo (melhorias de arquitetura para prevenir reincidência), cada uma com prioridade indicada (P0, P1, P2).
+
+8. **Métricas Analisadas**
+   - Dados numéricos das métricas que apoiam a análise.
+
+9. **Lições Aprendidas (Lessons Learned)**
+   - O que funcionou bem no processo de resposta.
+   - O que deu errado ou poderia ter sido melhor.
+   - Onde tivemos sorte.
 
 ## Regras:
-- Seja objetivo e técnico.
+- Seja extremamente objetivo, analítico e técnico.
 - NÃO invente dados. Se não houver informação suficiente, diga explicitamente.
-- Todos os IPs e credenciais já foram sanitizados. Use [IP_REDACTED] onde necessário.
+- Todos os IPs e credenciais sensíveis devem ser sanitizados para [IP_REDACTED].
 - Formato de saída: Markdown válido.
 - Responda em Português (Brasil).
 """
@@ -67,21 +131,28 @@ def build_postmortem_prompt(
     """
     context_parts = [
         "# Dados do Incidente",
-        f"```json\n{json.dumps(incident, indent=2, ensure_ascii=False)}\n```",
+        f"```json\n{json.dumps(incident_prompt_data(incident), indent=2, ensure_ascii=False)}\n```",
         "",
         "# Métricas Recentes (últimas 24h)",
-        f"```json\n{json.dumps(metrics[:50], indent=2, ensure_ascii=False)}\n```",
+        f"```json\n{json.dumps(sanitize_value(metrics[:50]), indent=2, ensure_ascii=False)}\n```",
         "",
         "# Logs Relacionados",
     ]
 
     for log_entry in related_logs[:100]:  # Cap para não estourar contexto
-        context_parts.append(f"- {log_entry}")
+        context_parts.append(f"- {sanitize(log_entry)}")
 
     if similar_incidents:
         context_parts.append("")
         context_parts.append("# Incidentes Similares Anteriores")
         for si in similar_incidents[:5]:
+            if (
+                not incident.get("customer_name")
+                or str(si.get("customer_name", "")).casefold()
+                != str(incident["customer_name"]).casefold()
+            ):
+                continue
+            si = sanitize_value(si)
             context_parts.append(
                 f"- [{si.get('fingerprint', '?')[:12]}] "
                 f"{si.get('title', '?')} — {si.get('root_cause', 'N/A')}"
@@ -125,8 +196,10 @@ def generate_postmortem(
             response = client.post(
                 api_url,
                 json=request_body,
-                params={"key": settings.gemini_api_key},
-                headers={"Content-Type": "application/json"},
+                headers={
+                    "Content-Type": "application/json",
+                    "x-goog-api-key": settings.gemini_api_key,
+                },
             )
             response.raise_for_status()
             result = response.json()
@@ -152,28 +225,34 @@ def generate_postmortem(
         return PostMortemReport(
             incident_fingerprint=incident.get("fingerprint", ""),
             deskmanager_ticket_id=incident.get("deskmanager_ticket_id"),
+            host_name=incident.get("host_name"),
+            customer_name=incident.get("customer_name") or incident.get("client"),
             markdown_report=markdown,
             summary=_extract_section(markdown, "Resumo Executivo"),
             root_cause=_extract_section(markdown, "Causa Raiz"),
             blast_radius=_extract_list_section(markdown, "Blast Radius"),
             corrective_actions=_extract_list_section(markdown, "Ações Corretivas"),
             timeline=_extract_timeline(markdown),
+            embedding=generate_embedding(markdown),
             gemini_model_used=settings.gemini_model,
             prompt_tokens=usage.get("promptTokenCount", 0),
             completion_tokens=usage.get("candidatesTokenCount", 0),
         )
 
     except httpx.HTTPError as exc:
-        logger.error("Falha na chamada ao Gemini: %s", exc)
+        logger.error("Falha na chamada ao Gemini: %s", type(exc).__name__)
         # Fallback: relatório mínimo sem IA
         return PostMortemReport(
             incident_fingerprint=incident.get("fingerprint", ""),
+            deskmanager_ticket_id=incident.get("deskmanager_ticket_id"),
+            host_name=incident.get("host_name"),
+            customer_name=incident.get("customer_name") or incident.get("client"),
             markdown_report=(
                 "# Relatório Pós-Incidente\n\n"
                 "> ⚠️ Geração automática falhou. Análise manual necessária.\n\n"
                 f"**Incidente:** {incident.get('title', '?')}\n"
                 f"**Host:** {incident.get('host_name', '?')}\n"
-                f"**Erro Gemini:** {exc}\n"
+                f"**Erro Gemini:** {type(exc).__name__}\n"
             ),
             summary="Geração automática falhou",
             root_cause="Análise manual necessária",

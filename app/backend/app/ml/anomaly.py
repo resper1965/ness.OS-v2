@@ -107,7 +107,7 @@ def detect_single(
     Returns:
         Tupla (is_anomaly, z_score_do_valor_atual, resultado_completo).
     """
-    full_data = np.append(historical_data, current_value)
+    full_data: NDArray[np.float64] = np.append(historical_data, current_value)
     result = robust_zscore(full_data)
     z_current = float(result.z_scores[-1])
     is_anomaly = abs(z_current) > threshold

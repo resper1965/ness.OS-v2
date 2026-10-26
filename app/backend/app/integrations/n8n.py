@@ -33,6 +33,14 @@ settings = get_settings()
 _TIMEOUT = httpx.Timeout(connect=5.0, read=10.0, write=5.0, pool=5.0)
 
 
+def _n8n_webhook_headers() -> dict[str, str] | None:
+    """Return the shared auth header only when a strong key is configured."""
+    key = settings.n8n_webhook_api_key
+    if len(key) < 32:
+        return None
+    return {"X-Ness-Webhook-Key": key}
+
+
 def _severity_label(severity: ZabbixSeverity) -> str:
     """Converte enum numérico para label legível."""
     return {
@@ -133,12 +141,23 @@ def notify_incident_created(incident: dict[str, Any]) -> dict[str, Any]:
 
     Retorna a resposta do n8n (contendo ticket_id do DeskManager).
     """
+    if not settings.alert_notifications_enabled:
+        return {"status": "disabled", "ticket_id": None}
     payload = build_incident_payload(incident)
     url = f"{settings.n8n_base_url}{settings.n8n_webhook_incident}"
+    headers = _n8n_webhook_headers()
+    if headers is None:
+        logger.error("NINF_N8N_WEBHOOK_API_KEY ausente ou menor que 32 caracteres")
+        return {
+            "error": "n8n webhook authentication is not configured",
+            "ticket_id": None,
+        }
 
     try:
         with httpx.Client(timeout=_TIMEOUT) as client:
-            response = client.post(url, json=payload.model_dump(mode="json"))
+            response = client.post(
+                url, json=payload.model_dump(mode="json"), headers=headers
+            )
             response.raise_for_status()
             result = response.json()
 
@@ -164,14 +183,47 @@ def notify_postmortem_ready(
       1. Insere o Markdown como Interação Interna no DeskManager.
       2. (Opcional) Notifica no Slack com link do relatório.
     """
+    if not settings.alert_notifications_enabled:
+        return {"status": "disabled"}
     url = f"{settings.n8n_base_url}{settings.n8n_webhook_postmortem}"
+    headers = _n8n_webhook_headers()
+    if headers is None:
+        logger.error("NINF_N8N_WEBHOOK_API_KEY ausente ou menor que 32 caracteres")
+        return {"error": "n8n webhook authentication is not configured"}
 
     try:
         with httpx.Client(timeout=_TIMEOUT) as client:
-            response = client.post(url, json=report.model_dump(mode="json"))
+            response = client.post(
+                url, json=report.model_dump(mode="json"), headers=headers
+            )
             response.raise_for_status()
             return response.json()
 
     except httpx.HTTPError as exc:
         logger.error("Falha ao enviar post-mortem ao n8n: %s", exc)
+        return {"error": str(exc)}
+
+
+def notify_soc_triage_decision(decision_data: dict[str, Any]) -> dict[str, Any]:
+    """Dispara webhook do n8n para nova decisão de triagem do SOC.
+
+    O n8n então:
+      1. Abre chamado de segurança no GLPI (ou DeskManager).
+      2. Envia alerta no WhatsApp se a severidade for HIGH ou CRIT.
+    """
+    if not settings.alert_notifications_enabled:
+        return {"status": "disabled"}
+    url = f"{settings.n8n_base_url}{settings.n8n_webhook_soc}"
+    headers = _n8n_webhook_headers()
+    if headers is None:
+        logger.error("NINF_N8N_WEBHOOK_API_KEY ausente ou menor que 32 caracteres")
+        return {"error": "n8n webhook authentication is not configured"}
+
+    try:
+        with httpx.Client(timeout=_TIMEOUT) as client:
+            response = client.post(url, json=decision_data, headers=headers)
+            response.raise_for_status()
+            return response.json()
+    except httpx.HTTPError as exc:
+        logger.error("Falha ao enviar decisão de triagem SOC ao n8n: %s", exc)
         return {"error": str(exc)}

@@ -7,21 +7,25 @@ on:
       - 'app/frontend/**'
   pull_request:
     branches: [ "main" ]
-    paths:
-      - 'app/frontend/**'
+
+permissions:
+  contents: read
 
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: ./app/frontend
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      with:
+        persist-credentials: false
     
     - name: Use Node.js 20.x
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
       with:
         node-version: 20.x
         cache: 'npm'
@@ -32,6 +36,9 @@ jobs:
       
     - name: Lint (Oxlint/ESLint)
       run: npm run lint
+
+    - name: Check TypeScript project references
+      run: npm run typecheck
       
     - name: Build for production
       run: npm run build

@@ -1,0 +1,29 @@
+services:
+  api:
+    image: ness-api:dev
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./backend/app:/app/app:ro
+
+  worker-alerts:
+    image: ness-api:dev
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./backend/app:/app/app:ro
+
+  worker-ml:
+    image: ness-api:dev
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./backend/app:/app/app:ro
+
+  frontend:
+    image: ness-frontend:dev
+    build:
+      context: ./frontend

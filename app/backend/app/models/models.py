@@ -7,25 +7,26 @@ import enum
 from datetime import datetime
 from typing import Any
 
+from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     BigInteger,
     DateTime,
+    Enum,
     ForeignKey,
     Integer,
     SmallInteger,
     String,
     Text,
-    Enum,
     func,
 )
 from sqlalchemy.dialects.postgresql import INET, JSONB
-from sqlalchemy.orm import relationship, Mapped, mapped_column
-from pgvector.sqlalchemy import Vector
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
 
 
 class AssetType(str, enum.Enum):
+    UNKNOWN = "unknown"
     WINDOWS = "windows"
     LINUX = "linux"
     NETWORK_DEVICE = "network_device"
@@ -60,19 +61,34 @@ class Asset(Base):
 
     # Classificação
     asset_type: Mapped[AssetType] = mapped_column(
-        Enum(AssetType, name="asset_type", create_type=False),
+        Enum(
+            AssetType,
+            name="asset_type",
+            create_type=False,
+            values_callable=lambda x: [e.value for e in x],
+        ),
         nullable=False,
         default=AssetType.LINUX,
     )
     status: Mapped[AssetStatus] = mapped_column(
-        Enum(AssetStatus, name="asset_status", create_type=False),
+        Enum(
+            AssetStatus,
+            name="asset_status",
+            create_type=False,
+            values_callable=lambda x: [e.value for e in x],
+        ),
         nullable=False,
         default=AssetStatus.ACTIVE,
     )
 
     # Multi-RMM
     rmm_provider: Mapped[RmmProvider] = mapped_column(
-        Enum(RmmProvider, name="rmm_provider", create_type=False),
+        Enum(
+            RmmProvider,
+            name="rmm_provider",
+            create_type=False,
+            values_callable=lambda x: [e.value for e in x],
+        ),
         nullable=False,
         default=RmmProvider.NONE,
     )
@@ -130,6 +146,7 @@ class Incident(Base):
     status: Mapped[str] = mapped_column(
         String(32), nullable=False, default="open", server_default="open"
     )
+    assigned_user_id: Mapped[int | None] = mapped_column(BigInteger)
 
     # Zabbix IDs
     host_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
@@ -179,6 +196,28 @@ class Incident(Base):
     )
     playbook_executions: Mapped[list[PlaybookExecution]] = relationship(
         "PlaybookExecution", back_populates="incident"
+    )
+
+
+class IncidentAction(Base):
+    """Durable, attributable history of operator and integration actions."""
+
+    __tablename__ = "n_infraops_incident_actions"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    incident_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("n_infraops_incidents.id"), nullable=False
+    )
+    actor_user_id: Mapped[int | None] = mapped_column(BigInteger)
+    actor_source: Mapped[str] = mapped_column(String(32), nullable=False)
+    action: Mapped[str] = mapped_column(String(32), nullable=False)
+    previous_status: Mapped[str | None] = mapped_column(String(32))
+    new_status: Mapped[str | None] = mapped_column(String(32))
+    previous_assignee_id: Mapped[int | None] = mapped_column(BigInteger)
+    new_assignee_id: Mapped[int | None] = mapped_column(BigInteger)
+    note: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
 
@@ -245,7 +284,12 @@ class PlaybookExecution(Base):
     # Definição e provedor
     playbook_name: Mapped[str] = mapped_column(String(128), nullable=False)
     rmm_provider: Mapped[RmmProvider] = mapped_column(
-        Enum(RmmProvider, name="rmm_provider", create_type=False),
+        Enum(
+            RmmProvider,
+            name="rmm_provider",
+            create_type=False,
+            values_callable=lambda x: [e.value for e in x],
+        ),
         nullable=False,
     )
     execution_mode: Mapped[str] = mapped_column(
@@ -305,6 +349,9 @@ class CustomerCredentials(Base):
     api_secret: Mapped[str | None] = mapped_column(String(255))
     api_url: Mapped[str | None] = mapped_column(String(512))
 
+    # ID deste cliente dentro do RMM (ex: CustomerID no Atera)
+    rmm_customer_id: Mapped[str | None] = mapped_column(String(128), index=True)
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
@@ -313,4 +360,54 @@ class CustomerCredentials(Base):
         nullable=False,
         server_default=func.now(),
         onupdate=func.now(),
+    )
+
+
+class TenantMapping(Base):
+    """Mapeamento explícito de IDs de plataformas externas para Clientes internos."""
+
+    __tablename__ = "n_infraops_tenant_mappings"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    internal_customer_id: Mapped[str] = mapped_column(
+        String(128), nullable=False, index=True
+    )
+
+    external_platform: Mapped[str] = mapped_column(
+        String(64), nullable=False
+    )  # 'atera', 'datto', 'zabbix'
+    external_customer_id: Mapped[str] = mapped_column(
+        String(128), nullable=False, index=True
+    )
+    external_customer_name: Mapped[str | None] = mapped_column(String(255))
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class SocDecision(Base):
+    """Registro de decisões de triagem e inteligência geradas pelo Analista SOC IA."""
+
+    __tablename__ = "n_secops_soc_decisions"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    wazuh_rule_id: Mapped[str] = mapped_column(String(64), index=True)
+    agent_id: Mapped[str | None] = mapped_column(String(64), index=True)
+    agent_name: Mapped[str | None] = mapped_column(String(255))
+    customer_id: Mapped[str | None] = mapped_column(String(128), index=True)
+
+    classification: Mapped[str] = mapped_column(
+        String(32), index=True
+    )  # FP, LOW, MED, HIGH, CRIT
+    confidence: Mapped[float] = mapped_column(nullable=False, default=1.0)
+    summary: Mapped[str] = mapped_column(Text, nullable=False)
+    action_taken: Mapped[str] = mapped_column(String(255), nullable=False)
+
+    raw_alert: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, default=dict, server_default="{}"
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
     )

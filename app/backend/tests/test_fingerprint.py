@@ -1,7 +1,7 @@
 # -------------------------------------------------------
 # n.infraops — Testes unitários do Fingerprint
 # -------------------------------------------------------
-from datetime import datetime
+from datetime import UTC, datetime
 from app.core.fingerprint import generate_fingerprint
 from app.models.schemas import ZabbixAlertPayload, ZabbixSeverity
 
@@ -15,7 +15,7 @@ def test_generate_fingerprint_deterministic():
         trigger_id="20002",
         trigger_name="CPU usage is high",
         severity=ZabbixSeverity.HIGH,
-        timestamp=datetime.utcnow(),
+        timestamp=datetime.now(UTC),
     )
 
     # Outro payload com timestamp e event_id diferentes, mas mesmo host_id e trigger_id
@@ -27,7 +27,7 @@ def test_generate_fingerprint_deterministic():
         trigger_id="20002",
         trigger_name="CPU usage is high",
         severity=ZabbixSeverity.HIGH,
-        timestamp=datetime.utcnow(),
+        timestamp=datetime.now(UTC),
     )
 
     fp1 = generate_fingerprint(payload1)

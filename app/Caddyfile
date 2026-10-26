@@ -1,0 +1,94 @@
+hub.ness.com.br {
+    header {
+        Strict-Transport-Security "max-age=31536000"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "same-origin"
+        Permissions-Policy "camera=(), microphone=(), geolocation=()"
+        -Server
+    }
+
+    @auth path /api/auth/*
+    header @auth Cache-Control "no-store"
+
+    handle /api/* {
+        reverse_proxy api:8000
+    }
+    handle /v1/* {
+        reverse_proxy api:8000
+    }
+    handle /webhook/* {
+        reverse_proxy api:8000
+    }
+    handle {
+        reverse_proxy frontend:3000
+    }
+}
+
+# n8n Integration Orchestrator (Forward Auth via Authentik SSO)
+n8n.ness.com.br {
+    forward_auth authentik-server:9000 {
+        uri /outpost.goauthentik.io/auth/caddy
+        copy_headers X-Authentik-Username X-Authentik-Groups X-Authentik-Email X-Authentik-Name X-Authentik-Uid
+    }
+
+    reverse_proxy n8n:5678
+}
+
+# Authentik SSO Identity Provider
+sso.ness.com.br {
+    reverse_proxy authentik-server:9000
+}
+
+api.ness.com.br {
+    basicauth {
+        admin $2b$14$aADfhsw7v4QDBbqbTUZTbOVtl4mxRAfgENJ/DenyfJHr1g8oz5G2C
+    }
+    reverse_proxy api:8000
+}
+
+waba.ness.com.br {
+    reverse_proxy evolution-api:8080
+}
+
+# GLPI Service Desk with Authentik Forward Auth SSO
+n-ticket.ness.com.br {
+    route {
+        @glpi_api path_regexp (?i)(apirest\.php|%[0-9a-f]{2})
+        respond @glpi_api 403
+
+        # Autenticar via Authentik Forward Auth
+        forward_auth authentik-server:9000 {
+            uri /outpost.goauthentik.io/auth/caddy
+            copy_headers X-Authentik-Username X-Authentik-Groups X-Authentik-Email X-Authentik-Name X-Authentik-Uid
+        }
+
+        # Injetar o username do Authentik como REMOTE_USER para o GLPI
+        request_header X-Remote-User {http.request.header.X-Authentik-Username}
+        request_header Remote-User {http.request.header.X-Authentik-Username}
+
+        reverse_proxy ninf-glpi:80
+    }
+}
+
+# Psono Community — temporary AIOps placement; application authentication is native.
+cofre.ness.com.br {
+    encode zstd gzip
+
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "same-origin"
+        -Server
+    }
+
+    @runtime_branding path / /index.html /config.json /css/custom.css /service-worker.js /js/service-worker-load.js /js/language-default.js /portal /portal/ /portal/index.html /portal/config.json
+    header @runtime_branding {
+        >Cache-Control "private, max-age=0, no-cache, no-store, must-revalidate"
+        >Pragma "no-cache"
+        >Expires "0"
+    }
+
+    reverse_proxy ness-psono:80
+}

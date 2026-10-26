@@ -2,7 +2,7 @@
 # n.infraops — Dockerfile (Backend API)
 # Multi-stage build: slim + sem root
 # ================================================
-FROM python:3.12-slim AS base
+FROM python:3.12-slim@sha256:f77ac9e44ae96ef2c90b8053ea08c31f8be030f824196b0ae4db6d462c84e51f AS base
 
 # Metadados
 LABEL maintainer="ness. <ops@ness.com.br>"
@@ -32,13 +32,15 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copiar código
 COPY backend/ .
+COPY cli/ ./cli/
+RUN python -c "from cli.contabo.api_client import ContaboAPIClient"
 
 # Trocar para usuário não-root
 USER nessops
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD curl -f http://localhost:8000/ || exit 1
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+    CMD curl -fsS http://localhost:8000/ready > /dev/null || exit 1
 
 # Porta da API
 EXPOSE 8000
