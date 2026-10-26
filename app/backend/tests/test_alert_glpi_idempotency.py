@@ -4,11 +4,12 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock
 
+import httpx
 import pytest
 from celery.exceptions import Retry
 from sqlalchemy.exc import OperationalError
 
-from app.integrations.glpi import GLPIPermanentError, GLPITransientError
+from app.integrations.glpi import GLPIClient, GLPIPermanentError, GLPITransientError
 from app.ml.analyzer import AIAnalysisResult
 from app.models import Incident, IncidentAction
 from app.workers import alerts
@@ -859,3 +860,133 @@ async def test_pipeline_persists_incident_and_retries_glpi_failure(
     else:
         whatsapp.send_text_message.assert_awaited_once()
         push.assert_called_once()
+
+
+class FakeGLPI:
+    """In-memory GLPI REST API behind httpx.MockTransport, plus in-memory reservations."""
+
+    def __init__(self, monkeypatch, post_ticket):
+        self.tickets: list[dict] = []
+        self.posts = 0
+        self.reservations: set[tuple[int, str]] = set()
+        self._post_ticket = post_ticket
+        original = httpx.AsyncClient
+        monkeypatch.setattr(
+            httpx,
+            "AsyncClient",
+            lambda **kw: original(transport=httpx.MockTransport(self._handle), **kw),
+        )
+
+        @asynccontextmanager
+        async def session_factory():
+            session = MagicMock()
+
+            @asynccontextmanager
+            async def transaction():
+                yield
+
+            async def execute(statement, params=None):
+                if "n_infraops_glpi_ticket_post_reservations" in str(statement):
+                    key = (params["entity_id"], params["fingerprint"])
+                    claimed = key not in self.reservations
+                    self.reservations.add(key)
+                    return MagicMock(scalar_one_or_none=lambda: 1 if claimed else None)
+                return MagicMock()
+
+            session.begin.side_effect = transaction
+            session.execute = execute
+            yield session
+
+        monkeypatch.setattr(alerts, "SessionLocal", session_factory)
+
+    def client(self) -> GLPIClient:
+        client = GLPIClient(
+            base_url="http://glpi/apirest.php", app_token="app", user_token="user"
+        )
+        client.session_token = "session"
+        return client
+
+    def _handle(self, request):
+        path = request.url.path.removeprefix("/apirest.php")
+        if path == "/changeActiveEntities":
+            return httpx.Response(200, json=True)
+        if path == "/getActiveEntities":
+            return httpx.Response(
+                200,
+                json={
+                    "active_entity": {
+                        "id": 8,
+                        "active_entity_recursive": False,
+                        "active_entities": [{"id": 8}],
+                    }
+                },
+            )
+        if path == "/Ticket/" and request.method == "GET":
+            total = len(self.tickets)
+            return httpx.Response(
+                200,
+                headers={"Content-Range": f"0-{total - 1}/{total}" if total else "*/0"},
+                json=self.tickets,
+            )
+        if path == "/Ticket" and request.method == "POST":
+            self.posts += 1
+            return self._post_ticket(self, request)
+        return httpx.Response(200, json={"id": 1})
+
+    def create(self, request):
+        data = json.loads(request.content)["input"]
+        self.tickets.append(
+            {"id": len(self.tickets) + 1, "name": data["name"], "entities_id": 8}
+        )
+        return self.tickets[-1]
+
+
+TICKET_KWARGS = dict(
+    fingerprint="c" * 64, entity_id=8, category_id=1, title="Synthetic", content="x"
+)
+
+
+@pytest.mark.asyncio
+async def test_timeout_after_create_then_replay_creates_one_ticket(monkeypatch):
+    def post_ticket(fake, request):
+        fake.create(request)
+        raise httpx.ReadTimeout("response lost after create", request=request)
+
+    fake = FakeGLPI(monkeypatch, post_ticket)
+
+    with pytest.raises(GLPITransientError):
+        await ensure_glpi_ticket_serialized(fake.client(), **TICKET_KWARGS)
+    for _ in range(3):
+        assert await ensure_glpi_ticket_serialized(fake.client(), **TICKET_KWARGS) == (
+            1,
+            False,
+        )
+
+    assert len(fake.tickets) == 1 and fake.posts == 1
+    # The schema has no delivery state: the reservation row is the only record.
+    assert fake.reservations == {(8, "c" * 64)}
+
+
+def test_permission_error_not_retried_forever(monkeypatch):
+    fake = FakeGLPI(
+        monkeypatch, lambda _fake, request: httpx.Response(403, request=request)
+    )
+    redis = MagicMock()
+    redis.set.return_value = True
+    retry = MagicMock(side_effect=Retry())
+    monkeypatch.setattr(alerts, "_get_sync_redis", lambda: redis)
+    monkeypatch.setattr(alerts.process_alert_v1, "retry", retry)
+    monkeypatch.setattr(
+        alerts,
+        "_async_process_alert_v1",
+        lambda *_: ensure_glpi_ticket_serialized(fake.client(), **TICKET_KWARGS),
+    )
+
+    result = alerts.process_alert_v1.run({}, "c" * 64)
+
+    assert result["status"] == "blocked" and result["reason"] == "glpi_permission"
+    retry.assert_not_called()
+    for _ in range(3):  # replays never POST again; they only await reconciliation
+        with pytest.raises(Retry):
+            alerts.process_alert_v1.run({}, "c" * 64)
+    assert fake.posts == 1 and not fake.tickets
