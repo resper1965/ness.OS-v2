@@ -8,7 +8,7 @@
 # Responsabilidades da role 'common':
 #   - Atualização de pacotes do sistema
 #   - Configuração de fuso horário e localidade
-#   - Hardening SSH (porta 2222, desabilitar root login)
+#   - Hardening SSH (drop-in zz-ness-baseline; porta por host em ssh_port)
 #   - Configuração do firewall (UFW/iptables)
 #   - Instalação de pacotes essenciais (curl, wget, gnupg, etc.)
 #   - Configuração de NTP/chrony para sincronização de tempo

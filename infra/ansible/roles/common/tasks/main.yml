@@ -63,7 +63,7 @@
 # --------------------------------------------------------------------------
 - name: Definir hostname do servidor
   ansible.builtin.hostname:
-    name: "{{ inventory_hostname }}"
+    name: "{{ system_hostname | default(inventory_hostname) }}"
   tags:
     - hostname
 
@@ -71,7 +71,7 @@
   ansible.builtin.lineinfile:
     path: /etc/hosts
     regexp: '^127\.0\.1\.1'
-    line: "127.0.1.1 {{ inventory_hostname }}"
+    line: "127.0.1.1 {{ system_hostname | default(inventory_hostname) }}"
     state: present
   tags:
     - hostname
@@ -147,19 +147,70 @@
 
 # --------------------------------------------------------------------------
 # 8. Baseline SSH em drop-in próprio (nunca toca sshd_config nem outros drop-ins)
+# zz- ordena depois de 00-/50-/99-*: no sshd a primeira ocorrência vence,
+# então o baseline só preenche o que nenhum drop-in operacional definiu.
 # --------------------------------------------------------------------------
-- name: Instalar drop-in SSH do baseline ness
-  ansible.builtin.template:
-    src: sshd-ness.conf.j2
-    dest: /etc/ssh/sshd_config.d/50-ness-baseline.conf
-    owner: root
-    group: root
-    mode: "0644"
-    validate: "sshd -t -f %s"
+- name: Remover drop-in 50-ness-baseline antigo
+  ansible.builtin.file:
+    path: /etc/ssh/sshd_config.d/50-ness-baseline.conf
+    state: absent
   notify: Recarregar SSH
   tags:
     - ssh
     - seguranca
+
+- name: Aplicar baseline SSH com validação da configuração efetiva
+  tags:
+    - ssh
+    - seguranca
+  block:
+    - name: Instalar drop-in SSH do baseline ness
+      ansible.builtin.template:
+        src: sshd-ness.conf.j2
+        dest: /etc/ssh/sshd_config.d/zz-ness-baseline.conf
+        owner: root
+        group: root
+        mode: "0644"
+        backup: true
+      register: sshd_baseline
+      notify: Recarregar SSH
+
+    - name: Validar configuração completa do sshd
+      ansible.builtin.command: sshd -t
+      changed_when: false
+
+    - name: Obter configuração efetiva do sshd
+      ansible.builtin.command: sshd -T
+      register: sshd_effective
+      changed_when: false
+
+    - name: Afirmar valores efetivos mínimos do sshd
+      ansible.builtin.assert:
+        that:
+          - "'passwordauthentication no' in sshd_effective.stdout_lines"
+          - "'pubkeyauthentication yes' in sshd_effective.stdout_lines"
+          - "sshd_effective.stdout_lines | select('match', '^permitrootlogin (no|prohibit-password|without-password)$') | list | length == 1"
+          - "('port ' ~ ssh_port) in sshd_effective.stdout_lines"
+        fail_msg: "Outro drop-in torna o baseline SSH ineficaz; drop-in zz-ness-baseline revertido"
+
+  rescue:
+    - name: Restaurar drop-in anterior do baseline
+      ansible.builtin.copy:
+        src: "{{ sshd_baseline.backup_file }}"
+        dest: /etc/ssh/sshd_config.d/zz-ness-baseline.conf
+        remote_src: true
+        mode: "0644"
+      when: sshd_baseline.backup_file | default('') | length > 0
+
+    - name: Remover drop-in do baseline sem versão anterior
+      ansible.builtin.file:
+        path: /etc/ssh/sshd_config.d/zz-ness-baseline.conf
+        state: absent
+      when: sshd_baseline.backup_file | default('') | length == 0
+
+    - name: Falhar sem recarregar o sshd
+      ansible.builtin.fail:
+        msg: "Baseline SSH rejeitado (sshd -t/-T); drop-in revertido e sshd não recarregado"
 
 # --------------------------------------------------------------------------
 # 9. Instalar e configurar UFW (Uncomplicated Firewall)
@@ -195,7 +246,7 @@
     rule: allow
     port: "{{ ssh_port }}"
     proto: tcp
-    comment: "SSH - porta customizada"
+    comment: "SSH - porta por host (ssh_port)"
   notify: Recarregar UFW
   tags:
     - firewall

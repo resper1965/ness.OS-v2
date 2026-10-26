@@ -21,7 +21,7 @@ backend = systemd
 # Habilitar proteção para o serviço SSH
 enabled = true
 
-# Porta SSH customizada (deve coincidir com sshd_config)
+# Porta SSH por host (ssh_port; deve coincidir com a porta efetiva do sshd)
 port = {{ ssh_port }}
 
 # Caminho do log do SSH (variável padrão do fail2ban)

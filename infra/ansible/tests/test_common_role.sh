@@ -23,9 +23,12 @@ useradd -m -s /bin/bash ness_admin
 install -d -m 700 -o ness_admin -g ness_admin /home/ness_admin/.ssh
 printf "%s" "$(cat /tmp/key.pub)" > /home/ness_admin/.ssh/authorized_keys
 chown ness_admin:ness_admin /home/ness_admin/.ssh/authorized_keys
-printf "ClientAliveInterval 60\n" > /etc/ssh/sshd_config.d/99-ness-gate0.conf'
+printf "ClientAliveInterval 60\n" > /etc/ssh/sshd_config.d/99-ness-gate0.conf
+printf "PermitRootLogin prohibit-password\n" > /etc/ssh/sshd_config.d/00-ness-nominal-access.conf
+printf "Port 22\n" > /etc/ssh/sshd_config.d/50-ness-baseline.conf'
 dx "service ssh start >/dev/null"
-BEFORE="$(dx 'sha256sum /etc/ssh/sshd_config /etc/ssh/sshd_config.d/99-ness-gate0.conf')"
+FILES='/etc/ssh/sshd_config /etc/ssh/sshd_config.d/00-ness-nominal-access.conf /etc/ssh/sshd_config.d/99-ness-gate0.conf'
+BEFORE="$(dx "sha256sum $FILES")"
 
 printf '[test]\ncontainer ansible_connection=docker ansible_host=%s ansible_user=root ansible_python_interpreter=/usr/bin/python3 ansible_become=false\n' "$NAME" > "$TMP/inventory"
 printf -- '- hosts: test\n  gather_facts: false\n  roles: [common]\n' > "$TMP/play.yml"
@@ -38,9 +41,21 @@ run() {
 run || fail "first run"
 [ "$(dx 'grep -c "" /home/ness_admin/.ssh/authorized_keys')" = 2 ] || fail "authorized_keys must have 2 lines"
 [ "$(dx 'ssh-keygen -lf /home/ness_admin/.ssh/authorized_keys | wc -l')" = 2 ] || fail "authorized_keys must have 2 valid keys"
-[ "$(dx 'sha256sum /etc/ssh/sshd_config /etc/ssh/sshd_config.d/99-ness-gate0.conf')" = "$BEFORE" ] || fail "sshd_config or 99 drop-in changed"
-dx 'test -f /etc/ssh/sshd_config.d/50-ness-baseline.conf' || fail "baseline drop-in missing"
+[ "$(dx "sha256sum $FILES")" = "$BEFORE" ] || fail "sshd_config or existing drop-ins changed"
+dx 'test -f /etc/ssh/sshd_config.d/zz-ness-baseline.conf' || fail "baseline drop-in missing"
+dx '! test -e /etc/ssh/sshd_config.d/50-ness-baseline.conf' || fail "old 50- drop-in not removed"
 dx 'sshd -t' || fail "sshd -t"
+EFF="$(dx 'sshd -T')"
+# OpenSSH 9.2 prints prohibit-password as without-password
+for v in 'clientaliveinterval 60' 'permitrootlogin without-password' 'passwordauthentication no' 'pubkeyauthentication yes' 'port 22'; do
+  grep -qx "$v" <<<"$EFF" || fail "effective sshd value missing: $v"
+done
 run | tee "$TMP/second.log" >/dev/null || fail "second run"
 grep -q 'changed=0 ' "$TMP/second.log" || { cat "$TMP/second.log"; fail "second run not idempotent"; }
+
+# negative: existing drop-in forces PasswordAuthentication yes -> role must fail, leave no zz- applied
+dx 'rm /etc/ssh/sshd_config.d/zz-ness-baseline.conf; printf "PasswordAuthentication yes\n" > /etc/ssh/sshd_config.d/10-bad.conf'
+if run >"$TMP/neg.log" 2>&1; then cat "$TMP/neg.log"; fail "role must fail when PasswordAuthentication yes is forced"; fi
+grep -q "Baseline SSH rejeitado" "$TMP/neg.log" || fail "negative case failed for the wrong reason"
+dx '! test -e /etc/ssh/sshd_config.d/zz-ness-baseline.conf' || fail "zz- baseline left applied after failed validation"
 echo PASS
