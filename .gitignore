@@ -32,6 +32,7 @@ infra/terraform/.terraform.lock.hcl
 
 # --- Ansible ---
 infra/ansible/*.retry
+infra/.venv/
 
 # --- Environment & Secrets ---
 .env

@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Run Terraform from a pinned image; forwards TF_VAR_*, CONTABO_*, AWS_* by name only (values never written).
+set -euo pipefail
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+env_args=()
+while IFS= read -r name; do env_args+=(-e "$name"); done < <(compgen -e | grep -E '^(TF_VAR_|CONTABO_|AWS_)' || true)
+exec docker run --rm "${env_args[@]}" -v "$REPO/infra/terraform:/w" -w /w hashicorp/terraform:1.9.8 "$@"
