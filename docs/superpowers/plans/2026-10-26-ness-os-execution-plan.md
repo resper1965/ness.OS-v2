@@ -144,7 +144,7 @@ aqui. Cada recurso entra primeiro como entrada no mapa `instances` do Terraform.
 - [ ] **Step 4:** `pytest app/backend -q` e `pytest infra/tests -q` sem regressão.
 - [ ] **Step 5:** PR `chore: limpar raiz do repositório`; merge só após revisão do Ricardo.
 
-### Task 0.3: CI confiável — D1 `[R]` → `[A]`
+### Task 0.3: CI confiável — D1 `[R]` → `[A]` — **VERIFIED 26/10**: Actions religado; #81 → `76b90cc`, #64 → `42db505` na `main`, checks verdes
 
 **Path A (recomendado):** Ricardo reativa Actions com limite de gasto.
 - [ ] **Step A1:** Rodar os quatro checks exigidos pela proteção (`build-and-test`, `test-and-lint`, `lint`, `gitleaks`) no head do #81 e do #64.
