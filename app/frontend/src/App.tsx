@@ -13,6 +13,7 @@ import ModuleSwitcher, { type NessModule } from './components/ModuleSwitcher';
 import CoreDashboard from './components/CoreDashboard';
 import { useAuth } from './hooks/useAuth';
 import PushNotificationToggle from './components/PushNotificationToggle';
+import * as access from './access';
 import BrandMark from './components/BrandMark';
 import PricingModule from './components/PricingModule';
 
@@ -58,13 +59,6 @@ interface Problem {
 }
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
-function timeAgo(clock: number): string {
-  const s = Math.floor(Date.now() / 1000) - clock;
-  if (s < 60) return `há ${s}s`;
-  if (s < 3600) return `há ${Math.floor(s / 60)}min`;
-  if (s < 86400) return `há ${Math.floor(s / 3600)}h`;
-  return `há ${Math.floor(s / 86400)}d`;
-}
 function formatNumber(n: number): string {
   if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
   if (n >= 1000) return `${(n / 1000).toFixed(0)}k`;
@@ -202,7 +196,7 @@ function ProblemRow({ p }: { p: Problem }) {
           {SEVERITY_LABEL[p.severity] || p.severity}
         </span>
         <span className="text-[11px] text-[var(--color-brand-muted)] tabular-nums w-8 text-right">
-          {timeAgo(p.clock)}
+          {access.timeAgo(p.clock)}
         </span>
       </div>
     </div>
@@ -242,8 +236,8 @@ function AppShellBody({ AUTH, logout, user }: {
   logout: () => Promise<void>;
   user: import('./hooks/useAuth').User | null;
 }) {
-  const isOperator = ['platform_admin', 'admin', 'noc', 'soc'].includes(user?.role ?? '');
-  const canActOnIncidents = isOperator || user?.role === 'operator';
+  const isOperator = access.isOperator(user?.role);
+  const canActOnIncidents = access.canActOnIncidents(user?.role);
   const [activeModule, setActiveModule] = useState<NessModule>(isOperator ? 'core' : 'infraops');
   const [currentView, setCurrentView] = useState<View>(isOperator ? 'dashboard' : 'incidents');
   const [selectedTenant, setSelectedTenant] = useState<string | null>(null);
@@ -292,7 +286,8 @@ function AppShellBody({ AUTH, logout, user }: {
     if (offset === 0) setIncidentsLoading(true);
     else setIncidentsMoreLoading(true);
     try {
-      const scope = isOperator && selectedTenant ? `&tenant_id=${encodeURIComponent(selectedTenant.trim().toLowerCase())}` : '';
+      const tenant = access.tenantScope(user?.role, selectedTenant);
+      const scope = tenant ? `&tenant_id=${encodeURIComponent(tenant)}` : '';
       const res = await fetch(`${API_BASE}/api/incidents?limit=20&offset=${offset}${scope}`, { credentials: 'include', headers: AUTH });
       if (!res.ok) throw new Error();
       const data = await res.json();
@@ -331,7 +326,7 @@ function AppShellBody({ AUTH, logout, user }: {
     eventSource.addEventListener('incident', (event) => {
       try {
         const eventData = JSON.parse(event.data);
-        if (selectedTenant && eventData.tenant_id !== selectedTenant.trim().toLowerCase()) return;
+        if (!access.matchesTenant(selectedTenant, eventData.tenant_id)) return;
         if (currentView === 'incidents') void fetchIncidents();
         if (isOperator) void fetchData();
       } catch (err) {
@@ -358,7 +353,7 @@ function AppShellBody({ AUTH, logout, user }: {
   }, [user, fetchData, fetchIncidents, selectedTenant, currentView, isOperator, logout]);
 
   const hasCritical = summary && summary.problems_critical > 0;
-  const canAccessPricing = user?.role === 'platform_admin' || user?.role === 'admin' || user?.role === 'gestao';
+  const canAccessPricing = access.canAccessPricing(user?.role);
   const connectionError = isOperator ? error : incidentsError;
 
   return (

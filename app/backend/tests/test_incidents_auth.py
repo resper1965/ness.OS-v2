@@ -335,3 +335,70 @@ async def test_stream_closes_when_session_token_expires():
         assert (await anext(events)).startswith("event: ping")
         assert (await anext(events)).startswith("event: auth\n")
         await events.aclose()
+
+
+async def _open_stream(user, tenants=("tenant-a",), **token_args):
+    token = create_access_token(
+        user_id=user.id,
+        role=user.role.value,
+        extra_claims={"tenant_id": user.tenant_id},
+        **token_args,
+    )
+    request = Request(
+        {
+            "type": "http",
+            "method": "GET",
+            "path": "/api/incidents/stream",
+            "headers": [(b"cookie", f"ninf_session={token}".encode())],
+        }
+    )
+    with (
+        patch(
+            "app.api.routers.incidents.Redis.from_url",
+            return_value=_StreamRedis(tenants),
+        ),
+        patch(
+            "app.api.routers.incidents.SessionLocal",
+            return_value=_StreamSession(user),
+        ),
+    ):
+        response = await stream_incidents(request=request, current_user=user)
+        events = response.body_iterator
+        assert (await anext(events)).startswith("event: ping")
+        yield events
+        await events.aclose()
+
+
+def _tenant_user():
+    return SimpleNamespace(
+        id=42, role=UserRole.cliente, tenant_id="tenant-a", is_active=True
+    )
+
+
+@pytest.mark.asyncio
+async def test_sse_does_not_stream_other_tenant():
+    # other-tenant and tenant-less events must be dropped, only the own one delivered
+    async for events in _open_stream(_tenant_user(), ("tenant-b", None, "tenant-a")):
+        delivered = await anext(events)
+        assert '"tenant_id": "tenant-a"' in delivered
+        assert "tenant-b" not in delivered
+
+
+@pytest.mark.asyncio
+async def test_sse_closes_after_token_revoked():
+    user = _tenant_user()
+    async for events in _open_stream(user):
+        user.session_epoch = 1  # logout / password change bumps the epoch
+        assert (await anext(events)).startswith("event: auth\n")
+        with pytest.raises(StopAsyncIteration):
+            await anext(events)
+
+
+@pytest.mark.asyncio
+async def test_user_removed_from_tenant_mid_session_loses_stream():
+    user = _tenant_user()
+    async for events in _open_stream(user):
+        user.tenant_id = None
+        assert (await anext(events)).startswith("event: auth\n")
+        with pytest.raises(StopAsyncIteration):
+            await anext(events)
