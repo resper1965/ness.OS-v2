@@ -157,6 +157,7 @@ def test_gateway_hides_upstream_failure_details_and_closes_session(error, status
     assert "upstream" not in response.text
     assert closed == [True]
 
+
 def test_gateway_rejects_query_parameters_before_opening_glpi_session():
     def client_factory():
         raise AssertionError("GLPI must not be contacted")
