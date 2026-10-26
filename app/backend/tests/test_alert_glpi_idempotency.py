@@ -888,6 +888,9 @@ class FakeGLPI:
             async def execute(statement, params=None):
                 if "n_infraops_glpi_ticket_post_reservations" in str(statement):
                     key = (params["entity_id"], params["fingerprint"])
+                    if str(statement).startswith("DELETE"):
+                        self.reservations.discard(key)
+                        return MagicMock()
                     claimed = key not in self.reservations
                     self.reservations.add(key)
                     return MagicMock(scalar_one_or_none=lambda: 1 if claimed else None)
@@ -967,10 +970,15 @@ async def test_timeout_after_create_then_replay_creates_one_ticket(monkeypatch):
     assert fake.reservations == {(8, "c" * 64)}
 
 
-def test_permission_error_not_retried_forever(monkeypatch):
-    fake = FakeGLPI(
-        monkeypatch, lambda _fake, request: httpx.Response(403, request=request)
-    )
+def test_permission_error_blocks_without_retry_and_releases_claim(monkeypatch):
+    allowed = {"value": False}
+
+    def post_ticket(fake, request):
+        if not allowed["value"]:
+            return httpx.Response(403, request=request)
+        return httpx.Response(201, json=fake.create(request))
+
+    fake = FakeGLPI(monkeypatch, post_ticket)
     redis = MagicMock()
     redis.set.return_value = True
     retry = MagicMock(side_effect=Retry())
@@ -986,7 +994,10 @@ def test_permission_error_not_retried_forever(monkeypatch):
 
     assert result["status"] == "blocked" and result["reason"] == "glpi_permission"
     retry.assert_not_called()
-    for _ in range(3):  # replays never POST again; they only await reconciliation
-        with pytest.raises(Retry):
-            alerts.process_alert_v1.run({}, "c" * 64)
-    assert fake.posts == 1 and not fake.tickets
+    assert fake.posts == 1 and not fake.tickets and not fake.reservations
+
+    allowed["value"] = True  # permission fixed: a replay delivers exactly one ticket
+    alerts.process_alert_v1.run({}, "c" * 64)
+    alerts.process_alert_v1.run({}, "c" * 64)
+    retry.assert_not_called()
+    assert fake.posts == 2 and len(fake.tickets) == 1
