@@ -22,6 +22,7 @@ services=(api worker-alerts worker-ml)
 
 # 1. Backup under 30 min old, verified by its COMPLETED marker. Reuse the
 # nightly when fresh: the backup stops GLPI and n8n for several minutes.
+while systemctl is-active -q ness-aiops-backup.service; do sleep 30; done
 latest_backup() { find /opt/n-infraops/backups/nightly -mindepth 1 -maxdepth 1 -type d -printf "%T@ %f\n" | sort -rn | head -1 | cut -d" " -f2; }
 backup_set="$(latest_backup)"
 if ! find "/opt/n-infraops/backups/nightly/${backup_set}" -maxdepth 0 -mmin -30 | grep -q .; then
