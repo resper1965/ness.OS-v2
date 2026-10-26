@@ -47,7 +47,7 @@ for e in (1, 5):
 
 prof = add("Profile", name="lab-maintenance-ro", interface="central")
 user = add("User", name="svc_lab_maintenance", password="Lab-only-pass-1!", password2="Lab-only-pass-1!")
-add("Profile_User", users_id=user, profiles_id=prof, entities_id=1, is_recursive=0)
+add("Profile_User", users_id=user, profiles_id=prof, entities_id=1, is_recursive=1)  # recursive: entity 5 is reachable natively, so the gateway check is what denies it
 # App-Token is stored encrypted, so create the API client through GLPI itself.
 add("APIClient", name="lab maintenance gateway", is_active=1, app_token=os.environ["APP_TOKEN"],
     ipv4_range_start=os.environ["GATEWAY_IP"], ipv4_range_end=os.environ["GATEWAY_IP"])
