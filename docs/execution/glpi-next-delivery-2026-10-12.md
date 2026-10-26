@@ -712,7 +712,7 @@ consegue entregar inventário. Nenhum agente, ativo, regra de entidade ou
 endpoint foi modificado; não iniciar o piloto de cinco sem identidade de
 inventário e teste de associação entre entidades.
 
-Dependência nominal registrada na [issue #79](https://github.com/resper1965/n-infraops/issues/79),
+Dependência nominal registrada na [issue #79](https://github.com/resper1965/ness.OS-v2/issues/79),
 com seleção dos cinco ativos, autenticação no cofre, negativa de entidade
 forjada, dois contatos e rollback. Instruções enviadas a Ismael com Ricardo
 em cópia. O primeiro e-mail teve corpo incompleto; a correção completa foi

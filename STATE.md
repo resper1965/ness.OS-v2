@@ -4,7 +4,9 @@
 
 **Estágio:** em andamento
 
-**Próximo passo:** Executar a Task 0.1 do plano de execução (reconciliar estado e documentos) e obter do Ricardo a decisão D1 sobre a CI confiável.
+**Próximo passo:** Ricardo decide D1 (CI confiável, agora com o PR #84 como base); em paralelo, Task 0.4 (ferramental IaC) e Task 2.1 (matriz negativa GLPI T03 em laboratório).
+
+Task 0.1 concluída em 26/10: `docs/execution/evidence/state-reconciliation-2026-10-26.md`.
 
 ## Foco
 

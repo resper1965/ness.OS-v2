@@ -26,7 +26,7 @@ Antes de iniciar, garanta que o servidor possui os seguintes requisitos instalad
 
 2. Transfira a pasta `app/` do monorepo para este diretório. Você pode clonar o repositório diretamente se configuradas as chaves de deploy do GitHub:
    ```bash
-   git clone git@github.com:resper1965/n-infraops.git .
+   git clone git@github.com:resper1965/ness.OS-v2.git .
    cd app/
    ```
 

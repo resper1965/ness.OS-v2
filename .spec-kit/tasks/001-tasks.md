@@ -32,4 +32,4 @@ Status e progresso da implementação da plataforma n.infraops.
 ## 🚀 Fase 5: Implantação e Execução de Testes
 *   [x] Criar ambiente virtual local (.venv) e instalar as dependências.
 *   [x] Executar `pytest tests/` no backend para validação das regras implementadas.
-*   [x] Realizar push do monorepo completo para o GitHub remoto `https://github.com/resper1965/n-infraops.git`.
+*   [x] Realizar push do monorepo completo para o GitHub remoto `https://github.com/resper1965/ness.OS-v2.git`.
