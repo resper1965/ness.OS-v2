@@ -62,4 +62,9 @@ resource "contabo_object_storage" "data_storage" {
     state         = var.object_storage_auto_scaling_enabled ? "enabled" : "disabled"
     size_limit_tb = var.object_storage_auto_scaling_limit_tb
   }
+
+  # Holds the backups.
+  lifecycle {
+    prevent_destroy = true
+  }
 }
