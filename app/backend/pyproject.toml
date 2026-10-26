@@ -17,3 +17,7 @@ quote-style = "double"
 indent-style = "space"
 line-ending = "lf"
 
+
+[tool.pytest.ini_options]
+# cli/ lives in app/ (copied next to the backend in the Docker image)
+pythonpath = [".", ".."]
