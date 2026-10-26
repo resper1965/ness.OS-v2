@@ -156,3 +156,21 @@ def test_gateway_hides_upstream_failure_details_and_closes_session(error, status
     assert response.status_code == status
     assert "upstream" not in response.text
     assert closed == [True]
+
+def test_gateway_rejects_query_parameters_before_opening_glpi_session():
+    def client_factory():
+        raise AssertionError("GLPI must not be contacted")
+
+    app = create_app(
+        client_factory,
+        entity_id=1,
+        approved_ids={41},
+        bearer_token="local-adapter-token",
+    )
+
+    response = TestClient(app).get(
+        "/v1/computers/41?entities_id=all",
+        headers={"Authorization": "Bearer local-adapter-token"},
+    )
+
+    assert response.status_code == 404
