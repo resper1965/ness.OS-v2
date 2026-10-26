@@ -1,0 +1,17 @@
+# Reviewed false positives after isolated sensitive-data rewrite.
+# Exact fingerprints only; default rules remain enabled.
+b4a3bebd2562ee8cf08fbbb4d1821f151d40e421:docs/execution/evidence/phase-0-local-release-manifest-2026-09-27.json:generic-api-key:42
+b4a3bebd2562ee8cf08fbbb4d1821f151d40e421:docs/execution/evidence/phase-0-local-release-manifest-2026-09-27.json:generic-api-key:66
+b4a3bebd2562ee8cf08fbbb4d1821f151d40e421:docs/execution/evidence/phase-0-local-release-manifest-2026-09-27.json:generic-api-key:67
+04be28f02895955fca9e1ca01fe011ee8d9267ef:docs/execution/evidence/phase-0-production-manifest.json:generic-api-key:87
+04be28f02895955fca9e1ca01fe011ee8d9267ef:docs/execution/evidence/phase-0-production-manifest.json:generic-api-key:111
+04be28f02895955fca9e1ca01fe011ee8d9267ef:docs/execution/evidence/phase-0-production-manifest.json:generic-api-key:112
+04be28f02895955fca9e1ca01fe011ee8d9267ef:docs/execution/evidence/phase-0-production-manifest.json:generic-api-key:190
+04be28f02895955fca9e1ca01fe011ee8d9267ef:docs/execution/evidence/phase-0-production-manifest.json:generic-api-key:482
+df7bc4fc1cf00de2135e228c6b9f95d41ae50699:app/keep/workflows/escalate-incident.yml:generic-api-key:88
+ea33ccc6476954c48c8d5d6dd6625d445bfe4161:app/keep/workflows/escalate-incident.yml:generic-api-key:42
+83cce3ddfc67b0ff443cbf2bb674b9254e428d94:app/backend/tests/test_sanitizer.py:generic-api-key:42
+app/backend/tests/test_sanitizer.py:generic-api-key:42
+# Public browser localStorage key (STORAGE_KEY), not an authentication credential.
+9519ffe9c0199868b6e14f7427ad25a501126a53:app/frontend/src/components/PricingModule.tsx:generic-api-key:91
+175a43cf786e296cfff4abf8268f9b02933ca7d1:app/frontend/src/components/PricingModule.tsx:generic-api-key:91
