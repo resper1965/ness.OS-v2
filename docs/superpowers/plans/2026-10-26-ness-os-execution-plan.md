@@ -73,7 +73,7 @@ Ricardo (ou pessoa nomeada) · `[$ Rn]` espera contratação do recurso Rn.
 
 | # | Decisão | Destrava | Recomendação |
 |---|---|---|---|
-| D1 | Forma da CI confiável | G0 → toda promoção | **Reativar Actions com limite de gasto** (issue #67). Custo mensal pequeno, elimina o projeto de signer e a VPS dele. Alternativa: VPS de signer (R1) + plano 2026-10-22 |
+| D1 | Forma da CI confiável — **decidido 26/10: A (Actions com limite)** | G0 → toda promoção | **Reativar Actions com limite de gasto** (issue #67). Custo mensal pequeno, elimina o projeto de signer e a VPS dele. Alternativa: VPS de signer (R1) + plano 2026-10-22 |
 | D2 | Janela + GO para gateway GLPI e migração T04 na AIOps | T03, T04, F3, F5 | Janela 22:00–00:00 BRT após Task 2.2 |
 | D3 | Contratar VPS Psono (R2), issue #48 | F1 cofre | Contratar após Task 4.3 passar no lab |
 | D4 | MFA nominal (#66), dois recipients age (#45), recovery (#43/#44) | G2, SOPS | Pessoas: Ricardo, Ismael, Rogerio |

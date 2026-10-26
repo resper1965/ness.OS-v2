@@ -4,7 +4,7 @@
 
 **Estágio:** em andamento
 
-**Próximo passo:** Ricardo decide D1 (CI confiável, agora com o PR #84 como base); em paralelo, Task 0.4 (ferramental IaC) e Task 2.1 (matriz negativa GLPI T03 em laboratório).
+**Próximo passo:** Ricardo religa o GitHub Actions com limite de gasto (D1 = A, decidido em 26/10); depois rodar os checks nos PRs #64/#81 e integrar.
 
 Task 0.1 concluída em 26/10: `docs/execution/evidence/state-reconciliation-2026-10-26.md`.
 
