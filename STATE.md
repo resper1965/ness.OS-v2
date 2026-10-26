@@ -4,7 +4,9 @@
 
 **Estágio:** em andamento
 
-**Próximo passo:** Ricardo religa o GitHub Actions com limite de gasto (D1 = A, decidido em 26/10); depois rodar os checks nos PRs #64/#81 e integrar.
+**Próximo passo:** Task 3.1 — publicar e promover o Hub a partir da `main` (`42db505`) com GO; em paralelo, Task 0.4 (ferramental IaC) e Task 2.1 (matriz negativa GLPI T03).
+
+D1 resolvida em 26/10: Actions religado (repositório público, sem custo); PRs #81 (`76b90cc`) e #64 (`42db505`) integrados com os cinco checks verdes.
 
 Task 0.1 concluída em 26/10: `docs/execution/evidence/state-reconciliation-2026-10-26.md`.
 
