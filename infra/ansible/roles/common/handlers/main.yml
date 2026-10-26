@@ -4,13 +4,12 @@
 # Descrição: Handlers para reinício/recarga de serviços após alterações
 # ============================================================================
 
-# Handler para reiniciar o serviço SSH após alterações no sshd_config
-- name: Reiniciar SSH
-  ansible.builtin.systemd:
-    name: sshd
-    state: restarted
-    daemon_reload: true
-  listen: Reiniciar SSH
+# Reload (não restart) preserva as sessões SSH abertas
+- name: Recarregar SSH
+  ansible.builtin.service:
+    name: ssh
+    state: reloaded
+  listen: Recarregar SSH
 
 # Handler para recarregar regras do UFW após alterações no firewall
 - name: Recarregar UFW

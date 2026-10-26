@@ -39,7 +39,7 @@
 # =============================================================================
 
 - name: "Instalação dos componentes Zabbix (Server + Frontend + Agent)"
-  hosts: zabbix_servers
+  hosts: zabbix_prod
   become: true
   gather_facts: true
 

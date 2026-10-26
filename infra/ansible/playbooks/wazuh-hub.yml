@@ -5,6 +5,7 @@
 # Descrição: Instala dependências, configura UFW de segurança e inicia a
 #            stack dockerizada do Wazuh (Indexer, Manager, Dashboard) no Hub.
 # =============================================================================
+# BLOQUEADO (D6): grupo wazuh_hubs está vazio no inventário; o play não alcança nenhum host.
 
 - name: Implantar e Configurar Wazuh Hub 4.14.6
   hosts: wazuh_hubs
