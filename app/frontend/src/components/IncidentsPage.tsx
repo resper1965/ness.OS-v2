@@ -1,4 +1,5 @@
 import React from 'react';
+import { timeAgo } from '../access';
 import { ShieldAlert, CheckCircle, Clock, Server, AlertTriangle, RefreshCw } from 'lucide-react';
 
 const SEVERITY_CONFIG: Record<string, { badge: string; dot: string; label: string }> = {
@@ -67,15 +68,6 @@ function IncidentTimeline({ stage }: { stage: string }) {
       </div>
     </div>
   );
-}
-
-function timeAgo(iso: string | null): string {
-  if (!iso) return '—';
-  const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
-  if (s < 60)    return `${s}s`;
-  if (s < 3600)  return `${Math.floor(s / 60)}min`;
-  if (s < 86400) return `${Math.floor(s / 3600)}h`;
-  return `${Math.floor(s / 86400)}d`;
 }
 
 interface Incident {
