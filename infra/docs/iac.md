@@ -6,7 +6,6 @@ runs `ansible-playbook|ansible-lint|ansible-inventory` from `infra/.venv` (built
 ## Environment variables (names only, from the environment or direnv; never committed)
 
 - `TF_VAR_contabo_oauth2_client_id`, `TF_VAR_contabo_oauth2_client_secret`, `TF_VAR_contabo_oauth2_user`, `TF_VAR_contabo_oauth2_pass`
-- `TF_VAR_ssh_public_key`
 - `CONTABO_*` and `AWS_*` (e.g. `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`) when a remote S3 backend is used
 
 The wrapper forwards every `TF_VAR_*`, `CONTABO_*` and `AWS_*` variable set in the caller's environment.
@@ -14,12 +13,12 @@ The wrapper forwards every `TF_VAR_*`, `CONTABO_*` and `AWS_*` variable set in t
 ## Order: plan → guard → apply
 
 1. `infra/bin/tf plan -var-file=environments/prod.tfvars -out=prod.tfplan` (contains secrets: never commit or share)
-2. Run the plan guard (Task 1.1, `infra/scripts/tf-plan-guard.sh`): abort on any `destroy`/`replace` in production.
-3. `infra/bin/tf apply prod.tfplan` only after the plan was reviewed. `prevent_destroy` is still `false` in `main.tf` until Task 1.1 imports the real VPS; until then the guard is the only protection.
+2. `infra/bin/tf show -json prod.tfplan | infra/scripts/tf-plan-guard.sh -`: exit 1 on any delete, replace or forget. Pipe it; the JSON holds the credentials in clear.
+3. `infra/bin/tf apply prod.tfplan` only after a human read the plan: the guard does not stop in-place updates such as `product_id` or `total_purchased_space_tb`, which change billing. Every VPS and the Object Storage have `prevent_destroy = true`; `image_id`, `ssh_keys`, `default_user` and `region` are in `ignore_changes` (the provider does not read them back on import and changing them would force a replace).
 
 ## Import
 
-Existing resources enter state via `import` blocks (`imports.tf`) or `infra/bin/tf import <addr> <id>`; run `plan` afterwards and expect no diff.
+Existing resources enter state via `import` blocks (`imports.tf`) or `infra/bin/tf import <addr> <id>`; run `plan` afterwards and expect no diff. Currently imported: `contabo_instance.vps[zabbix_prod|aiops|zabbix_uat]` and `contabo_object_storage.data_storage`. Keep `-var-file=environments/prod.tfvars` in every command.
 
 ## Safe destruction
 

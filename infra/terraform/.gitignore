@@ -64,3 +64,5 @@ override.tf.json
 *~
 .vscode/
 .idea/
+p.json
+*.tfplan.json
