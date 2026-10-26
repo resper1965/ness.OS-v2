@@ -197,7 +197,7 @@ class RMMFactory:
         # Fallback para o registry em memória (útil para testes/mocks)
         if not creds:
             key = f"{customer_id}:{provider}"
-            creds = cls._credential_store.get(key)
+            creds = cls._credential_store.get(key) or {}
 
         if not creds:
             # Fallback para credenciais globais em memória
