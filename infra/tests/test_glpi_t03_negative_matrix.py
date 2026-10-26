@@ -115,9 +115,17 @@ def test_reused_session_denied():
     assert out.returncode == 0
     session = out.stdout.strip()
     SECRETS.append(session)
-    h = {"Session-Token": session, "App-Token": SECRETS[0]}
-    assert_denied(call("GET", f"/v1/computers/{E5['Computer']}", headers=h))
-    assert call("GET", f"/v1/computers/{E1['Computer']}", headers=h).json()["entities_id"] == 1
+    # Replay it from the Hub straight at GLPI (the gateway ignores client tokens).
+    replay = (
+        "import os,sys,urllib.request as u,urllib.error as e\n"
+        "q=u.Request('http://ness-glpi-lab-glpi/apirest.php/Computer/'+os.environ['C'],"
+        "headers={'App-Token':os.environ['A'],'Session-Token':os.environ['S']})\n"
+        "try: u.urlopen(q,timeout=5); print('READ')\n"
+        "except e.HTTPError as x: print(x.code)\n"
+    )
+    out = docker("exec", "-e", f"A={SECRETS[0]}", "-e", f"S={session}", "-e", f"C={E5['Computer']}",
+                 "ness-glpi-lab-hub", "python", "-c", replay)
+    assert out.returncode == 0 and out.stdout.strip() in {"400", "401", "403"}, out.stdout + out.stderr
 
 def test_upstream_token_never_returned():
     seen = [
@@ -135,15 +143,20 @@ def test_upstream_token_never_returned():
 def test_direct_upstream_from_hub_network_denied():
     # The Hub keeps its native route to GLPI (ADR 0020), so the maintenance credential must be useless from there.
     probe = (
-        "import os,urllib.request as u,urllib.error\n"
+        "import os,urllib.request as u,urllib.error as e\n"
         "for h in ('ness-glpi-lab-glpi','glpi-maintenance-private'):\n"
         "    q=u.Request(f'http://{h}/apirest.php/initSession',headers={'App-Token':os.environ['A'],"
         "'Authorization':'user_token '+os.environ['U'],'X-Forwarded-For':'172.30.250.3'})\n"
-        "    try: u.urlopen(q,timeout=3); print('LOGGED_IN',h)\n"
-        "    except Exception: pass\n"
+        "    try: u.urlopen(q,timeout=3); print(h,'LOGGED_IN')\n"
+        "    except e.HTTPError as x: print(h,x.code)\n"
+        "    except OSError: print(h,'UNREACHABLE')\n"
     )
     out = docker("exec", "-e", f"A={SECRETS[0]}", "-e", f"U={SECRETS[1]}", "ness-glpi-lab-hub", "python", "-c", probe)
-    assert out.returncode == 0 and out.stdout.strip() == ""
+    assert out.returncode == 0, out.stderr
+    result = dict(line.split() for line in out.stdout.splitlines())
+    # Native route must exist and refuse the credential; the private alias must not resolve/route at all.
+    assert result["ness-glpi-lab-glpi"] in {"400", "401", "403"}, result
+    assert result["glpi-maintenance-private"] == "UNREACHABLE", result
 
 def test_exclusive_subnet_has_no_collision():
     names = docker("network", "ls", "-q").stdout.split()
