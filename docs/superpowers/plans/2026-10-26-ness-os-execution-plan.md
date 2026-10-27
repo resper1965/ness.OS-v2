@@ -296,7 +296,7 @@ Executar o plano GLPI na ordem T05 → T06 → T07 → T08/T09 → T10–T14. Po
 - [x] **Step 1:** Publicar imagens por digest a partir do SHA da `main` (contrato [release Hub](2026-10-12-hub-immutable-release-contract.md)).
 - [x] **Step 2:** Canário + rollback ensaiado só se a configuração afetada mudou; manifesto aponta digests exatos.
 - [x] **Step 3:** G0 com evidência no registro de gates.
-- Concluída em 27/10: [evidência](../../execution/evidence/hub-release-2026-10-26.md) (API `412bdc0`; promoção de 26/10 revertida por regressão GLPI, corrigida no #95).
+- Concluída em 27/10: [evidência](../../execution/evidence/hub-release-2026-10-26.md) (API `412bdc0`; promoção de 26/10 revertida por regressão GLPI, corrigida no #95). Em 27/10 19:10, API `9c34eda` com monitor acionável (#111).
 
 ### Task 3.2: Continuidade observável `[A]`
 
