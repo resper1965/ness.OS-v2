@@ -1,7 +1,7 @@
 ---
 # ============================================================================
 # Role: common - Hardening e configuração base do servidor
-# Alvo: Debian 12 (Bookworm)
+# Alvo: Debian 12 (Bookworm) e Ubuntu 24.04
 # Descrição: Tarefas de provisionamento inicial, segurança e performance
 # ============================================================================
 
@@ -181,7 +181,9 @@
     - name: Validar configuração completa do sshd
       ansible.builtin.command: sshd -t
       changed_when: false
-      check_mode: false  # read-only; without it --check skips and the assert fails
+      # read-only; without it --check skips and the assert fails. In --check the
+      # template is not written, so this validates the current config, not the baseline.
+      check_mode: false
 
     - name: Obter configuração efetiva do sshd
       ansible.builtin.command: sshd -T
@@ -211,7 +213,9 @@
       ansible.builtin.file:
         path: /etc/ssh/sshd_config.d/zz-ness-baseline.conf
         state: absent
-      when: sshd_baseline.backup_file | default('') | length == 0
+      when:
+        - sshd_baseline.backup_file | default('') | length == 0
+        - sshd_baseline is changed  # unchanged file was already accepted; keep it
 
     - name: Falhar sem recarregar o sshd
       ansible.builtin.fail:
