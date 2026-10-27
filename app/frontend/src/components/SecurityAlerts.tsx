@@ -17,7 +17,7 @@ export default function SecurityAlerts() {
   const [audits, setAudits] = useState<AuditItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [visible, setVisible] = useState(true);
-  const [fetchedAt, setFetchedAt] = useState<number | null>(null);
+  const [fetchedAt, setFetchedAt] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
@@ -26,7 +26,7 @@ export default function SecurityAlerts() {
         const res = await fetch(`${API_BASE}/api/tenants/security-audit`, { credentials: 'include', headers: authHeader() });
         if (!res.ok) throw new Error(String(res.status));
         setAudits(await res.json());
-        setFetchedAt(Date.now());
+        setFetchedAt(new Date().toISOString());
         setFailed(false);
       } catch (e) {
         console.error('Failed to fetch security audits', e);

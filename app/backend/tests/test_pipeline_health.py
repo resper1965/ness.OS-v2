@@ -295,3 +295,16 @@ async def test_recent_failure_and_never_succeeded(monkeypatch, cache):
     assert result["ready"] is False
     assert result["zabbix"]["last_success_at"] is None
     assert result["zabbix"]["freshness_seconds"] is None
+
+
+@pytest.mark.asyncio
+async def test_redis_down_does_not_break_pipeline_health(monkeypatch, cache):
+    boom = AsyncMock(side_effect=ConnectionError("redis-secret"))
+    cache.get = cache.set = boom
+    _probes(monkeypatch, {"side_effect": TimeoutError("x")})
+    result = await health.pipeline_health()
+    assert result["ready"] is False and result["zabbix"]["stale"] is True
+    assert result["zabbix"]["last_success_at"] is None
+    # healthy sources still report fresh even if the cache cannot be written
+    assert result["glpi"]["stale"] is False
+    assert "redis-secret" not in str(result)

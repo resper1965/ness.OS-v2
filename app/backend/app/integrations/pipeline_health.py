@@ -244,15 +244,12 @@ async def pipeline_health():
         socket_timeout=2,
     )
     try:
-        zabbix, glpi, workers, delivery = [
-            await with_freshness(name, value, cache, now)
-            for name, value in (
-                ("zabbix", zabbix),
-                ("glpi", glpi),
-                ("workers", workers),
-                ("delivery", delivery),
-            )
-        ]
+        zabbix, glpi, workers, delivery = await asyncio.gather(
+            with_freshness("zabbix", zabbix, cache, now),
+            with_freshness("glpi", glpi, cache, now),
+            with_freshness("workers", workers, cache, now),
+            with_freshness("delivery", delivery, cache, now),
+        )
     finally:
         await cache.aclose()
     return {
@@ -275,4 +272,4 @@ async def pipeline_health():
 if __name__ == "__main__":
     result = asyncio.run(pipeline_health())
     print(json.dumps(result))
-    raise SystemExit(0 if result["status"] == "ok" else 1)
+    raise SystemExit(0 if result["status"] == "ok" and result["ready"] else 1)
