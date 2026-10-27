@@ -4,19 +4,19 @@
 
 **Estágio:** em andamento
 
-**Próximo passo:** ajustes da role `common` para `apply` (UFW por host, chave antiga, sudoers) e 2.5 (T05) em laboratório.
+**Próximo passo:** com OK do Ricardo, `apply` da role `common` (UAT → aiops → prod); 2.5 (T05) em laboratório.
 
 ## Quadro (atualizado a cada task fechada)
 
 Tasks do [plano de execução](docs/superpowers/plans/2026-10-26-ness-os-execution-plan.md).
 
 ### Feito
-- 0.2 Limpeza da raiz — #100
+- 0.2 Limpeza da raiz — #100; CLI Contabo única em `app/cli/contabo` (estava quebrada sem `commands/`) — #105
 - 0.1 Reconciliar estado — [evidência](docs/execution/evidence/state-reconciliation-2026-10-26.md)
 - 0.3 CI — Actions religado; #81, #64 e #85 na `main`
 - 0.4 Ferramental IaC (`infra/bin/tf`, `infra/bin/ansible`) — #89
 - 1.1 Terraform importa as 3 VPS + Object Storage, `prevent_destroy`, guard de plano — #92 ; estado em `s3://ness-os-tfstate`, import aplicado, `plan` sem mudança — #104
-- 1.2 Role `common` — #94; `--check` nos 3 hosts — #97 ([evidência](docs/execution/evidence/ansible-common-check-2026-10-27.md); `apply` bloqueado por UFW/chave/sudoers)
+- 1.2 Role `common` — #94; `--check` nos 3 hosts — #97 ([evidência](docs/execution/evidence/ansible-common-check-2026-10-27.md); pronta para `apply`: UFW por host, chave do agente, sudoers existente, `ignoreip` — #106)
 - 1.3 As-built gerado dos 3 hosts — #98
 - 2.1 Matriz negativa GLPI T03 em lab, correção do gateway — #91
 - 2.2 Step 1: ADR 0020 com contrato e resultado do lab, status proposta — #96
@@ -31,10 +31,10 @@ Tasks do [plano de execução](docs/superpowers/plans/2026-10-26-ness-os-executi
 _nenhuma_
 
 ### Pronto para começar
-- 1.2 ajustes para `apply`: UFW por host, chave antiga, sudoers existente
 - 2.5 T05 do plano GLPI
 
 ### Esperando o Ricardo
+0. GO do `apply` da role `common` (UAT → aiops → prod; muda sshd drop-in, fail2ban, sysctl; root segue liberado na aiops)
 1. Recriar os 215 tickets de 26–27/10 sem cobertura? (escrita no GLPI de cliente)
 2. 9.1 BOM Wazuh (#88): acesso SSH de leitura ao Wazuh Hostinger (`62.72.8.164`; porta 22 não responde da `stack`)
 3. Issue #82: confirmar rotação das credenciais antigas do histórico
