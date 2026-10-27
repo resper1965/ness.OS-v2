@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { ShieldAlert, X } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import { timeAgo } from '../access';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
 
@@ -16,17 +17,20 @@ export default function SecurityAlerts() {
   const [audits, setAudits] = useState<AuditItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [visible, setVisible] = useState(true);
+  const [fetchedAt, setFetchedAt] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     const fetchAudits = async () => {
       try {
         const res = await fetch(`${API_BASE}/api/tenants/security-audit`, { credentials: 'include', headers: authHeader() });
-        if (res.ok) {
-          const data = await res.json();
-          setAudits(data);
-        }
+        if (!res.ok) throw new Error(String(res.status));
+        setAudits(await res.json());
+        setFetchedAt(new Date().toISOString());
+        setFailed(false);
       } catch (e) {
         console.error('Failed to fetch security audits', e);
+        setFailed(true);
       } finally {
         setLoading(false);
       }
@@ -35,7 +39,11 @@ export default function SecurityAlerts() {
   }, [authHeader]);
 
   const issues = audits.filter(a => a.status === 'warning' || a.status === 'danger');
-  if (loading || issues.length === 0 || !visible) return null;
+  if (loading || !visible) return null;
+  if (failed && audits.length === 0) {
+    return <p className="mb-6 text-xs text-amber-300">Auditoria de segurança indisponível: sem dado.</p>;
+  }
+  if (issues.length === 0) return null;
 
   return (
     <div className="mb-6 animate-slide-down">
@@ -72,7 +80,7 @@ export default function SecurityAlerts() {
         </div>
         
         <div className="mt-2 pt-2 border-t border-white/5 flex justify-between items-center">
-            <p className="text-[10px] text-white/30 italic">Ambiente analisado em: {new Date().toLocaleDateString()}</p>
+            <p className="text-[10px] text-white/30 italic">Auditoria consultada {timeAgo(fetchedAt)}{failed ? ' (última consulta falhou)' : ''}</p>
             <button className="text-[10px] font-bold text-red-400 hover:text-red-300 transition-colors uppercase tracking-wider">
               Ver Relatório Completo
             </button>

@@ -13,5 +13,7 @@ class OperationalStatus(BaseModel):
     last_success_at: datetime | None = None
     freshness_seconds: int | None = None
     stale: bool
+    # Credentials are platform-wide: no source is checked per tenant yet.
+    scope: Literal["global"] = "global"
     error_code: str | None = None
     data: dict[str, Any] | None = None
