@@ -215,7 +215,8 @@ def test_guard_accepts_noop(tmp_path):
 - [ ] **Step 2:** `bash infra/ansible/tests/test_common_role.sh` → FAIL na role atual.
 - [ ] **Step 3:** Corrigir a role (drop-in, módulo de chave, porta por host: `2222` em `zabbix_prod`).
 - [ ] **Step 4:** Teste → PASS. `infra/bin/ansible ansible-lint infra/ansible` → sem erro.
-- [ ] **Step 5:** `ansible-playbook -i inventory/hosts.yml playbooks/common.yml --check --diff` nos três hosts: diff vazio ou cada diferença explicada na evidência. **Não aplicar** em produção nesta task.
+- [x] **Step 5:** `ansible-playbook -i inventory/hosts.yml playbooks/common.yml --check --diff` nos três hosts: diff vazio ou cada diferença explicada na evidência. **Não aplicar** em produção nesta task.
+  Feito em 27/10: [evidência](../../execution/evidence/ansible-common-check-2026-10-27.md) — diffs restantes bloqueiam `apply`.
 - [ ] **Step 6:** Commit `fix(ansible): baseline preserva drop-ins e chaves existentes`.
 
 ### Task 1.3: As-built gerado `[A]`
