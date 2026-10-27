@@ -26,4 +26,11 @@ Never `destroy` production. To retire a resource: remove `prevent_destroy` in it
 
 ## Estado remoto
 
-`s3://ness-os-tfstate/prod/terraform.tfstate` (Contabo `eu2`, privado, versionado; criado em 27/10). Sem lock: rode um `plan`/`apply` por vez. Recuperar versão anterior: `aws s3api list-object-versions --bucket ness-os-tfstate` e `get-object --version-id`.
+`s3://ness-os-tfstate/prod/terraform.tfstate` (Contabo `eu2`, privado, versionado; criado em 27/10). Sem lock: rode um `plan`/`apply` por vez. Recuperar versão anterior (credenciais de `/srv/dev/secrets/projetos.env` no ambiente):
+
+```bash
+S3='docker run --rm -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_DEFAULT_REGION=default -v /tmp/opencode:/out amazon/aws-cli:2.22.35 --endpoint-url https://eu2.contabostorage.com'
+$S3 s3api list-object-versions --bucket ness-os-tfstate --prefix prod/terraform.tfstate --query 'Versions[].[VersionId,LastModified]' --output text
+$S3 s3api get-object --bucket ness-os-tfstate --key prod/terraform.tfstate --version-id <VersionId> /out/terraform.tfstate
+```
+
