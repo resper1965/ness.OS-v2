@@ -48,4 +48,11 @@ bash "${script}"
 [[ "$(sends)" == 3 ]]
 bash "${script}" recovered
 [[ "$(sends)" == 4 && ! -e "${tmp}/state/alert-mail.stamp" ]]
+
+# failed send: exit 1, retry throttled (stamp ~55 min old, so no resend within 5 min)
+printf '#!/usr/bin/env bash\ncat >/dev/null; exit 22\n' >"${tmp}/bin/curl"
+rm -f "${tmp}/state/alert-mail.stamp"
+! bash "${script}" 2>/dev/null
+[[ -e "${tmp}/state/alert-mail.stamp" ]]
+(( $(date +%s) - $(stat -c %Y "${tmp}/state/alert-mail.stamp") > 3000 ))
 echo "hub-alert-mail: PASS"

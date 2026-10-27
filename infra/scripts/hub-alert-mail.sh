@@ -17,9 +17,7 @@ if [[ -z $to ]]; then
   echo "hub-alert-mail: NESS_ALERT_MAIL_TO not set; skipping"
   exit 0
 fi
-if [[ $mode == recovered ]]; then
-  rm -f -- "$stamp"
-elif [[ -e $stamp ]] && (( $(date +%s) - $(stat -c %Y "$stamp") < 3600 )); then
+if [[ $mode != recovered && -e $stamp ]] && (( $(date +%s) - $(stat -c %Y "$stamp") < 3600 )); then
   exit 0
 fi
 key=$(val "$conf" RESEND_API_KEY)
@@ -27,6 +25,7 @@ key=$(val "$conf" RESEND_API_KEY)
 [[ -n $key ]] || key=$(val "$psono" RESEND_API_KEY)
 if [[ -z $key ]]; then
   echo "hub-alert-mail: no RESEND_API_KEY; skipping"
+  [[ $mode != recovered ]] || rm -f -- "$stamp"  # nothing to retry; avoids a per-minute loop
   exit 0
 fi
 
@@ -52,10 +51,12 @@ print(json.dumps({
     "text": "\n".join(lines) + "\n",
 }))
 PY
-if printf 'header = "Authorization: Bearer %s"\n' "$key" | curl -fsS -o /dev/null --max-time 15 --config - \
+if printf 'header = "Authorization: Bearer %s"\n' "$key" | curl -fsS -o /dev/null --max-time 8 --config - \
   -H 'Content-Type: application/json' --data-binary @"$work/payload.json" https://api.resend.com/emails; then
-  [[ $mode == recovered ]] || touch -- "$stamp"
+  if [[ $mode == recovered ]]; then rm -f -- "$stamp"; else touch -- "$stamp"; fi
 else
+  # retry in ~5 min instead of every minute (OnFailure fires on each timer run)
+  [[ $mode == recovered ]] || touch -d '55 minutes ago' -- "$stamp"
   echo "hub-alert-mail: send failed" >&2
   exit 1
 fi
