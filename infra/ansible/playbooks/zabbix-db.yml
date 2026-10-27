@@ -20,7 +20,7 @@
 # =============================================================================
 
 - name: "Instalação e configuração do MariaDB 10.11"
-  hosts: zabbix_servers
+  hosts: zabbix_prod
   become: true
   gather_facts: true
 
