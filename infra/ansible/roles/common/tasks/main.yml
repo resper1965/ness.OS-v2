@@ -201,11 +201,12 @@
           - "('port ' ~ ssh_port) in sshd_effective.stdout_lines"
         fail_msg: "Outro drop-in torna o baseline SSH ineficaz; drop-in zz-ness-baseline revertido"
 
-    # not in --check: the template is not written, so sshd -T still shows the pre-baseline AllowUsers
+    # not in --check: the template is not written, so sshd -T still shows the pre-baseline AllowUsers.
+    # AllowUsers accumulates across drop-ins and sshd -T prints one line per user, hence unique.
     - name: Afirmar que allowusers efetivo é exatamente ssh_allow_users
       ansible.builtin.assert:
         that:
-          - "(sshd_effective.stdout_lines | select('match', '^allowusers ') | map('regex_replace', '^allowusers ', '') | list | sort) == (ssh_allow_users | sort)"
+          - "(sshd_effective.stdout_lines | select('match', '^allowusers ') | map('regex_replace', '^allowusers ', '') | unique | sort) == (ssh_allow_users | unique | sort)"
         fail_msg: "AllowUsers efetivo difere de ssh_allow_users; drop-in zz-ness-baseline revertido"
       when: not ansible_check_mode
 
