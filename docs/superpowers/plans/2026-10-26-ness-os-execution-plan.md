@@ -182,7 +182,7 @@ aqui. Cada recurso entra primeiro como entrada no mapa `instances` do Terraform.
 - Consumes: `infra/bin/tf` (Task 0.4).
 - Produces: `var.instances` com chaves `zabbix_prod` (`vmi3409070`), `aiops` (`vmi3409271`), `zabbix_uat` (`vmi3532557`); `contabo_instance.vps[<chave>]`; `tf-plan-guard.sh <plan.json>` sai `1` se algum `resource_changes[].change.actions` contém `delete`.
 
-- [ ] **Step 1: Teste do guard.**
+- [x] **Step 1: Teste do guard.**
 
 ```python
 def test_guard_rejects_replace(tmp_path):
@@ -196,11 +196,12 @@ def test_guard_accepts_noop(tmp_path):
     assert run_guard(tmp_path, plan).returncode == 0
 ```
 
-- [ ] **Step 2:** `pytest infra/tests/test_tf_plan_guard.py -v` → FAIL (script ausente).
-- [ ] **Step 3:** Implementar o guard com `jq`/Python stdlib; trocar os três recursos fixos por `for_each`; `lifecycle { prevent_destroy = true; ignore_changes = [image_id, ssh_keys, default_user] }`; backend S3 no Object Storage existente.
-- [ ] **Step 4:** `infra/bin/tf init && infra/bin/tf plan -out p && infra/bin/tf show -json p > p.json && infra/scripts/tf-plan-guard.sh p.json` → exit `0` e plano só com `import`, zero `change`. Ajustar valores até o diff ficar vazio; **não** aplicar diff de atributo.
-- [ ] **Step 5:** `infra/bin/tf apply p` (grava só o estado importado). `infra/bin/tf plan -detailed-exitcode` → exit `0`.
-- [ ] **Step 6:** Commit `feat(infra): terraform importa as VPS existentes`.
+- [x] **Step 2:** `pytest infra/tests/test_tf_plan_guard.py -v` → FAIL (script ausente).
+- [x] **Step 3:** Implementar o guard com `jq`/Python stdlib; trocar os três recursos fixos por `for_each`; `lifecycle { prevent_destroy = true; ignore_changes = [image_id, ssh_keys, default_user] }`; backend S3 no Object Storage existente.
+- [x] **Step 4:** `infra/bin/tf init && infra/bin/tf plan -out p && infra/bin/tf show -json p > p.json && infra/scripts/tf-plan-guard.sh p.json` → exit `0` e plano só com `import`, zero `change`. Ajustar valores até o diff ficar vazio; **não** aplicar diff de atributo.
+- [x] **Step 5:** `infra/bin/tf apply p` (grava só o estado importado). `infra/bin/tf plan -detailed-exitcode` → exit `0`.
+- [x] **Step 6:** Commit `feat(infra): terraform importa as VPS existentes`.
+- Concluída em 27/10: estado em `s3://ness-os-tfstate/prod/terraform.tfstate` (privado, versionado); `apply` = 4 imported, 0 changed; `plan -detailed-exitcode` → 0.
 
 ### Task 1.2: Ansible com inventário real e baseline seguro `[A]`
 
