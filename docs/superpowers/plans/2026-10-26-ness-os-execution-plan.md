@@ -136,11 +136,11 @@ aqui. Cada recurso entra primeiro como entrada no mapa `instances` do Terraform.
 
 ### Task 0.2: Higiene da raiz `[A]` + revisão `[R]`
 
-**Files:** raiz (`get_users.py`, `run_provision_*.py`, `check_glpi_sso.py`, imagens JPEG, `ux_output.md`, `wazuh-secops-plan.md`, `cavan-compras/`), `app/cli/contabo/` (duplicado de `cli/contabo/`)
+**Files:** raiz (`get_users.py`, `run_provision_*.py`, `check_glpi_sso.py`, imagens JPEG, `ux_output.md`, `wazuh-secops-plan.md`, `cavan-compras/`), `cli/contabo/` (duplicado de `app/cli/contabo/`)
 
 - [ ] **Step 1:** Para cada arquivo, `git log --oneline -1 -- <arq>` e `grep -rn <nome>` para achar referências; tabela no PR com destino (remover, mover para `infra/scripts/legacy/`, manter).
 - [ ] **Step 2:** Imagens e material de cliente saem do Git (regra global); listar para o Ricardo decidir onde guardar fora do repositório.
-- [ ] **Step 3:** Manter `cli/contabo/` (tem `commands/`); remover `app/cli/contabo/` se nenhum import o usar (`grep -rn 'app.cli.contabo'` → vazio).
+- [x] **Step 3:** Manter `app/cli/contabo/` (entra na imagem, lê `CONTABO_*`), portar `commands/` e remover `cli/contabo/` da raiz — #105.
 - [ ] **Step 4:** `pytest app/backend -q` e `pytest infra/tests -q` sem regressão.
 - [ ] **Step 5:** PR `chore: limpar raiz do repositório`; merge só após revisão do Ricardo.
 
