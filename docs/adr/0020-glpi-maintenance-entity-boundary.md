@@ -1,6 +1,6 @@
 # ADR 0020 — fronteira de entidade para manutenção GLPI
 
-- Status: proposta — contrato implementado e testado em laboratório; aguarda aprovação do Ricardo; produção bloqueada até a Task 2.3 (janela D2)
+- Status: aceita — aprovada pelo Ricardo em 27/10/2026; contrato testado em laboratório (18/18); produção na Task 2.3 (regra de janela dispensada)
 - Data: 13/10/2026
 - Escopo: identidade `svc_ness_maintenance` (106), perfil 13, entidade Alupar (1)
 

@@ -262,11 +262,11 @@ Detalhe de cada T no [plano GLPI](2026-10-12-glpi-ness-os-complete-delivery.md);
 
 ### Task 2.2: T03 — decisão no ADR `[A]` + aprovação `[R]`
 
-- [ ] **Step 1:** ADR 0020 de "proposta" para "aceita", com contrato final, arquivos e resultado da Task 2.1.
-  - Feito em `docs/adr/0020-glpi-maintenance-entity-boundary.md` (status "proposta — implementada e testada em lab; aguarda aprovação do Ricardo"; contrato, resultado 18/18 e pendências da 2.3).
-- [ ] **Step 2:** Comentar na issue #74; Ricardo aprova o ADR (D2 junto).
+- [x] **Step 1:** ADR 0020 de "proposta" para "aceita", com contrato final, arquivos e resultado da Task 2.1.
+  - Feito em `docs/adr/0020-glpi-maintenance-entity-boundary.md` (status "aceita"; contrato, resultado 18/18 e pendências da 2.3).
+- [x] **Step 2:** Comentar na issue #74; Ricardo aprova o ADR. Aprovado em 27/10, com a regra de janela dispensada.
 
-### Task 2.3: T03 — produção `[R: D2 janela]` → `[A]`
+### Task 2.3: T03 — produção `[A]` (ADR aprovado e janela dispensada em 27/10)
 
 - [ ] **Step 1:** Antes: último backup GLPI `COMPLETED` dentro do RPO; estado do Compose salvo.
 - [ ] **Step 2:** Implantar gateway por digest; filtro de cliente API do GLPI limitado ao IP do gateway.
