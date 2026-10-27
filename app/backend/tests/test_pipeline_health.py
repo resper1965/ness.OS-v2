@@ -1,6 +1,7 @@
 import asyncio
 import json
 import time
+from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 
@@ -10,6 +11,27 @@ from app.api.routers import pipeline
 from app.integrations import pipeline_health as health
 from app.integrations.glpi import GLPIClient
 from app.workers.celery_app import add_publish_timestamp
+
+
+class FakeCache:
+    def __init__(self, saved=None):
+        self.saved = dict(saved or {})
+
+    async def set(self, key, value):
+        self.saved[key] = value
+
+    async def get(self, key):
+        return self.saved.get(key)
+
+    async def aclose(self):
+        pass
+
+
+@pytest.fixture(autouse=True)
+def cache(monkeypatch):
+    fake = FakeCache()
+    monkeypatch.setattr(health.Redis, "from_url", lambda *a, **kw: fake)
+    return fake
 
 
 @pytest.mark.asyncio
@@ -227,3 +249,49 @@ async def test_cancelled_glpi_probe_closes_acquired_session(monkeypatch):
     with pytest.raises(asyncio.CancelledError):
         await task
     close.assert_awaited_once()
+
+
+def _probes(monkeypatch, zabbix):
+    monkeypatch.setattr(health.ZabbixClient, "readiness_probe", AsyncMock(**zabbix))
+    monkeypatch.setattr(
+        health.GLPIClient,
+        "readiness_probe",
+        AsyncMock(return_value={"status": "ready"}),
+    )
+    ok = AsyncMock(return_value={"status": "ok"})
+    monkeypatch.setattr(health, "workers_health", ok)
+    monkeypatch.setattr(health, "incident_health", ok)
+
+
+@pytest.mark.asyncio
+async def test_stopped_source_makes_pipeline_not_ready(monkeypatch, cache):
+    old = datetime.now(timezone.utc) - timedelta(
+        seconds=health.MAX_SOURCE_AGE_SECONDS + 60
+    )
+    cache.saved["ninf:pipeline:last-success:zabbix"] = old.isoformat()
+    _probes(monkeypatch, {"side_effect": TimeoutError("secret-token")})
+    result = await health.pipeline_health()
+    zabbix = result["zabbix"]
+    assert result["ready"] is False and result["status"] == "degraded"
+    assert zabbix["stale"] is True and zabbix["last_error"] == "TimeoutError"
+    assert "secret-token" not in str(result)
+    assert zabbix["last_success_at"] == old.isoformat()
+    assert zabbix["freshness_seconds"] > health.MAX_SOURCE_AGE_SECONDS
+    assert zabbix["scope"] == "global"
+    assert result["glpi"]["stale"] is False and result["glpi"]["freshness_seconds"] == 0
+
+
+@pytest.mark.asyncio
+async def test_recent_failure_and_never_succeeded(monkeypatch, cache):
+    recent = datetime.now(timezone.utc) - timedelta(seconds=30)
+    cache.saved["ninf:pipeline:last-success:zabbix"] = recent.isoformat()
+    _probes(monkeypatch, {"side_effect": TimeoutError("secret-token")})
+    result = await health.pipeline_health()
+    assert result["ready"] is True and result["status"] == "degraded"
+    assert result["zabbix"]["stale"] is False
+
+    cache.saved.clear()
+    result = await health.pipeline_health()
+    assert result["ready"] is False
+    assert result["zabbix"]["last_success_at"] is None
+    assert result["zabbix"]["freshness_seconds"] is None

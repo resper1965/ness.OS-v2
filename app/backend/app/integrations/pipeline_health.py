@@ -19,6 +19,7 @@ from app.workers.telemetry import KEY
 
 PROBE_TIMEOUT_SECONDS = 20
 MAX_QUEUE_AGE_SECONDS = 300
+MAX_SOURCE_AGE_SECONDS = 900
 
 
 def _broker_read_url():
@@ -204,6 +205,29 @@ async def incident_health():
         return {"status": "error", "detail": type(exc).__name__}
 
 
+async def with_freshness(name, result, cache, now):
+    """Add scope, last success, age and last error; only a healthy probe counts as success."""
+    key = f"ninf:pipeline:last-success:{name}"
+    last = now if result["status"] == "ok" else None
+    try:
+        if last:
+            await cache.set(key, now.isoformat())
+        else:
+            last = datetime.fromisoformat(await cache.get(key))
+    except Exception:
+        pass  # unknown last success is reported as stale below
+    age = max(0, int((now - last).total_seconds())) if last else None
+    return {
+        **result,
+        # Platform-wide credentials: these probes do not check any single tenant.
+        "scope": "global",
+        "last_success_at": last.isoformat() if last else None,
+        "freshness_seconds": age,
+        "stale": age is None or age > MAX_SOURCE_AGE_SECONDS,
+        "last_error": None if result["status"] == "ok" else result.get("detail"),
+    }
+
+
 async def pipeline_health():
     started = monotonic()
     zabbix, glpi, workers, delivery = await asyncio.gather(
@@ -212,12 +236,33 @@ async def pipeline_health():
         probe(workers_health, readiness=False),
         probe(incident_health, readiness=False),
     )
+    now = datetime.now(timezone.utc)
+    cache = Redis.from_url(
+        get_settings().redis_url,
+        decode_responses=True,
+        socket_connect_timeout=2,
+        socket_timeout=2,
+    )
+    try:
+        zabbix, glpi, workers, delivery = [
+            await with_freshness(name, value, cache, now)
+            for name, value in (
+                ("zabbix", zabbix),
+                ("glpi", glpi),
+                ("workers", workers),
+                ("delivery", delivery),
+            )
+        ]
+    finally:
+        await cache.aclose()
     return {
         "status": (
             "ok"
             if all(x["status"] == "ok" for x in (zabbix, glpi, workers, delivery))
             else "degraded"
         ),
+        # Not a container healthcheck: /ready stays independent of external sources.
+        "ready": not any(x["stale"] for x in (zabbix, glpi, workers, delivery)),
         "checked_at": datetime.now(timezone.utc).isoformat(),
         "duration_ms": round((monotonic() - started) * 1000, 1),
         "zabbix": zabbix,
