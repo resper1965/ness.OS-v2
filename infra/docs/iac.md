@@ -23,3 +23,7 @@ Existing resources enter state via `import` blocks (`imports.tf`) or `infra/bin/
 ## Safe destruction
 
 Never `destroy` production. To retire a resource: remove `prevent_destroy` in its own reviewed PR, run `plan`, confirm the exact set in the guard, get explicit approval (window, GO, rollback), then apply.
+
+## Estado remoto
+
+`s3://ness-os-tfstate/prod/terraform.tfstate` (Contabo `eu2`, privado, versionado; criado em 27/10). Sem lock: rode um `plan`/`apply` por vez. Recuperar versão anterior: `aws s3api list-object-versions --bucket ness-os-tfstate` e `get-object --version-id`.
