@@ -59,3 +59,7 @@ Ordem UAT → aiops → prod, cada um com sessão SSH de reserva aberta.
 | zabbix-prod | rc=0, changed=6 | `port 2222`, `allowusers ness_admin`; `visudo -c` ok; zabbix-server/mariadb/apache2/fail2ban active; `https://zabbix.ness.com.br/` → 200 |
 
 Idempotência: `--check --diff` logo após → `changed=0` nos três.
+
+### Root sem SSH na aiops-01 (27/10, OK do Ricardo)
+
+Logins de root nos últimos 14 dias vieram só de duas chaves (`cursor-agent-stackvps` e a do agente), ambas também em `ness_admin`. `ssh_allow_users` volta ao padrão: apply rc=0, changed=2 (drop-in + reload); `allowusers ness_admin`; `root@` → `Permission denied (publickey)`; `ness_admin` + sudo ok.
