@@ -228,9 +228,9 @@ def test_guard_accepts_noop(tmp_path):
 **Interfaces:**
 - Produces: `as-built-collect.sh <host> [porta]` → markdown com SO/kernel, disco, serviços (`systemctl is-active/is-enabled`), portas em escuta, timers de backup, contêineres e imagens; sem IP privado, token ou variável de ambiente.
 
-- [ ] **Step 1:** Escrever o script só com comandos de leitura; `shellcheck` limpo.
-- [ ] **Step 2:** Rodar nos três hosts; `grep -iE 'password|token|secret' saída` → vazio.
-- [ ] **Step 3:** Atualizar `as-built-vps.md`; commit `docs(infra): as-built das VPS em 26/10`.
+- [x] **Step 1:** Escrever o script só com comandos de leitura; `shellcheck` limpo.
+- [x] **Step 2:** Rodar nos três hosts; `grep -iE 'password|token|secret' saída` → vazio.
+- [x] **Step 3:** Atualizar `as-built-vps.md`; commit `docs(infra): as-built das VPS em 26/10`.
 
 ---
 
