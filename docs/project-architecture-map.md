@@ -167,7 +167,7 @@ flowchart LR
 
 ## 4. Onde Opera a Inteligência AIOps do Wazuh?
 
-Conforme definido na especificação **Hub-to-Spoke** do repositório ([wazuh-secops-plan.md](../wazuh-secops-plan.md)):
+Conforme definido na especificação **Hub-to-Spoke** do repositório ([wazuh-secops-plan.md](wazuh-secops-plan.md)):
 
 ```mermaid
 sequenceDiagram
