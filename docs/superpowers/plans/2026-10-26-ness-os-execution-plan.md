@@ -261,6 +261,7 @@ Detalhe de cada T no [plano GLPI](2026-10-12-glpi-ness-os-complete-delivery.md);
 ### Task 2.2: T03 — decisão no ADR `[A]` + aprovação `[R]`
 
 - [ ] **Step 1:** ADR 0020 de "proposta" para "aceita", com contrato final, arquivos e resultado da Task 2.1.
+  - Feito em `docs/adr/0020-glpi-maintenance-entity-boundary.md` (status "aceita, pendente aprovação do Ricardo"; contrato, resultado 18/18 e pendências da 2.3).
 - [ ] **Step 2:** Comentar na issue #74; Ricardo aprova o ADR (D2 junto).
 
 ### Task 2.3: T03 — produção `[R: D2 janela]` → `[A]`

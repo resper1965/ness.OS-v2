@@ -1,8 +1,42 @@
 # ADR 0020 — fronteira de entidade para manutenção GLPI
 
-- Status: proposta; acesso produtivo bloqueado até ensaio negativo completo
+- Status: aceita (pendente aprovação do Ricardo); produção bloqueada até a Task 2.3 (janela D2)
 - Data: 13/10/2026
 - Escopo: identidade `svc_ness_maintenance` (106), perfil 13, entidade Alupar (1)
+
+## Decisão e contrato final (main)
+
+Decisão: a fronteira é o **gateway de manutenção + filtro de IP/App-Token do
+cliente API do GLPI**, não o perfil GLPI. Contrato implementado na `main`:
+
+- Código: `app/backend/app/integrations/glpi_boundary.py` (política e rotas),
+  `glpi_maintenance_runtime.py` (`build_app`: URL exata
+  `http://glpi-maintenance-private/apirest.php`, 1–5 IDs, três secrets em
+  arquivo), `glpi_maintenance_entrypoint.py` (inicia como root, lê secrets,
+  rebaixa para `nessops`); `app/docker-compose.glpi-maintenance.yml` (override
+  opt-in).
+- Rotas: somente `GET /live` e `GET /v1/computers/{id}`; sem docs/OpenAPI.
+  Bearer interno obrigatório; **qualquer query string → 404 antes de abrir
+  sessão upstream**; ID fora da allowlist → 404; o objeto retornado tem ID e
+  `entities_id` conferidos contra a entidade 1 (senão 404); resposta com três
+  campos e `Cache-Control: no-store`; upstream 502/503 sem detalhes.
+- Rede: gateway em rede Docker **interna exclusiva** `172.30.250.0/28` (IP
+  estático) além de `ninf-net`; nenhuma porta publicada.
+
+## Resultado da Task 2.1 (PR #91, merge `92a2f19`)
+
+Lab `infra/tests/glpi-lab` e matriz `infra/tests/test_glpi_t03_negative_matrix.py`:
+**18/18 PASS**. A primeira rodada teve 2 falhas (`entities_id=all` e ID
+estrangeiro em query string), corrigidas no gateway (regra da query acima). O
+GLPI nativo, com perfil recursivo, libera a entidade 5 após a troca de
+entidade — confirma que o perfil não é fronteira.
+
+## Pendências para a Task 2.3 (produção, janela D2)
+
+- Rota pública/Caddy não coberta pela matriz do lab.
+- Checagem de colisão de `172.30.250.0/28` no host de produção (Docker rootful).
+- Imagens do lab por tag, não digest; produção exige imagem por digest.
+- Conta 106 continua desativada até lá; T03/G2 só fecham após a Task 2.3.
 
 ## Estado produtivo em 13/10, 08:34 BRT
 
@@ -461,6 +495,6 @@ negativa direta nem o GO de implantação.
 
 ## Estado e reversão
 
-Esta ADR não aprova T03, G2, ativação de 106 nem onda de três ativos. O
+Esta ADR (aceita, pendente de aprovação do Ricardo) não aprova T03, G2, ativação de 106 nem onda de três ativos. O
 rollback do futuro adaptador será bloquear a rota e desativar 106; os ativos
 existentes e a conta Hub 94 devem permanecer intactos.
