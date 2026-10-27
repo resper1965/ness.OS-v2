@@ -308,3 +308,86 @@ async def test_redis_down_does_not_break_pipeline_health(monkeypatch, cache):
     # healthy sources still report fresh even if the cache cannot be written
     assert result["glpi"]["stale"] is False
     assert "redis-secret" not in str(result)
+
+
+class _Session:
+    def __init__(self, seen):
+        self.seen = seen
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *_):
+        pass
+
+    async def scalar(self, stmt):
+        from sqlalchemy.dialects import postgresql
+
+        self.seen.append(
+            str(
+                stmt.compile(
+                    dialect=postgresql.dialect(), compile_kwargs={"literal_binds": True}
+                )
+            )
+        )
+        return 0
+
+
+@pytest.mark.asyncio
+async def test_missing_ticket_only_counts_open_incidents_in_last_hour(monkeypatch):
+    seen = []
+    monkeypatch.setattr(health, "SessionLocal", lambda: _Session(seen))
+    result = await health.incident_health()
+    sql = seen[0]
+    assert result["status"] == "ok"
+    assert "status = 'open'" in sql
+    # lower and upper bound on created_at: old backlog falls outside the window
+    assert sql.count("created_at") == 2
+    assert "created_at >=" in sql and "created_at <" in sql
+
+
+async def _workers_with_records(monkeypatch, records):
+    class FakeRedis:
+        async def llen(self, _queue):
+            return 0
+
+        async def hgetall(self, _key):
+            return {str(i): json.dumps(r) for i, r in enumerate(records)}
+
+        async def aclose(self):
+            pass
+
+    broker = Mock()
+    broker.as_uri.return_value = "redis://broker/1"
+    inspection = SimpleNamespace(
+        active_queues=Mock(
+            return_value={
+                "w": [{"name": q} for q in ("alerts.primary", "alerts.deferred", "ml")]
+            }
+        )
+    )
+    celery = SimpleNamespace(
+        connection_for_read=Mock(return_value=broker),
+        control=SimpleNamespace(inspect=Mock(return_value=inspection)),
+    )
+    monkeypatch.setattr(health, "celery_app", celery)
+    monkeypatch.setattr(
+        health, "Redis", SimpleNamespace(from_url=lambda *a, **k: FakeRedis())
+    )
+    monkeypatch.setattr(
+        health, "get_settings", lambda: SimpleNamespace(redis_url="redis://r/0")
+    )
+    return await health.workers_health()
+
+
+@pytest.mark.asyncio
+async def test_old_worker_failures_do_not_alert_but_new_ones_do(monkeypatch):
+    now = int(time.time())
+    old = {"state": "failed", "at": now - 3600}
+    result = await _workers_with_records(monkeypatch, [old] * 1000)
+    assert result["status"] == "ok" and result["failed_tasks"] == 0
+
+    result = await _workers_with_records(
+        monkeypatch, [old, {"state": "failed", "at": now - 30}]
+    )
+    assert result["status"] == "error" and result["failed_tasks"] == 1

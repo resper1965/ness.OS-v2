@@ -1,3 +1,4 @@
+import time
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
@@ -76,7 +77,7 @@ async def test_empty_queues_with_no_workers_are_not_healthy(monkeypatch):
 async def test_exhausted_task_is_visible_even_with_live_workers(monkeypatch):
     redis = AsyncMock()
     redis.llen.return_value = 0
-    redis.hgetall.return_value = {"x": '{"state":"failed"}'}
+    redis.hgetall.return_value = {"x": f'{{"state":"failed","at":{int(time.time())}}}'}
     monkeypatch.setattr(health.Redis, "from_url", lambda *a, **kw: redis)
     inspector = MagicMock()
     inspector.active_queues.return_value = {
