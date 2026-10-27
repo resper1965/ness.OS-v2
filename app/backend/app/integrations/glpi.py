@@ -263,7 +263,7 @@ class GLPIClient:
         """Read every page; callers supply a fixed item type or sub-item path."""
         if not self.session_token:
             await self.init_session()
-        items = []
+        items: list[dict] = []
         try:
             async with httpx.AsyncClient(timeout=15, follow_redirects=False) as client:
                 start = 0
@@ -281,6 +281,9 @@ class GLPIClient:
                     if not isinstance(page, list):
                         raise ValueError("GLPI returned an invalid collection")
                     content_range = response.headers.get("Content-Range", "")
+                    # GLPI answers an empty collection with 200, [] and no Content-Range.
+                    if not content_range and not page and start == 0:
+                        return items
                     parsed_range = re.fullmatch(
                         r"(?:(\d+)-(\d+)|\*)/(\d+)", content_range
                     )
@@ -440,6 +443,9 @@ class GLPIClient:
                             "GLPI retornou tickets idempotentes duplicados"
                         )
                     content_range = res.headers.get("Content-Range", "")
+                    # GLPI answers an empty search with 200, [] and no Content-Range.
+                    if not content_range and not page and start == 0:
+                        return None
                     if not content_range:
                         raise RuntimeError("GLPI omitiu Content-Range da busca")
                     parsed_range = re.fullmatch(

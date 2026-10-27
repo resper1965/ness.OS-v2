@@ -928,7 +928,7 @@ class FakeGLPI:
             total = len(self.tickets)
             return httpx.Response(
                 200,
-                headers={"Content-Range": f"0-{total - 1}/{total}" if total else "*/0"},
+                headers={"Content-Range": f"0-{total - 1}/{total}"} if total else {},
                 json=self.tickets,
             )
         if path == "/Ticket" and request.method == "POST":

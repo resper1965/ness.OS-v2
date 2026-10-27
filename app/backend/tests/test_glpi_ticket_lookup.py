@@ -193,3 +193,24 @@ async def test_ticket_lookup_classifies_forbidden_response_as_permanent(monkeypa
 
     with pytest.raises(PermissionError, match="GLPI"):
         await client.find_ticket_by_name_marker("[n.infraops:abc]", 1)
+
+
+@pytest.mark.asyncio
+async def test_ticket_lookup_accepts_glpi_empty_search_without_range(monkeypatch):
+    # Observed on production GLPI: an empty search returns 200, [] and no Content-Range.
+    original = httpx.AsyncClient
+    monkeypatch.setattr(
+        httpx,
+        "AsyncClient",
+        lambda **kwargs: original(
+            transport=httpx.MockTransport(lambda _r: httpx.Response(200, json=[])),
+            **kwargs,
+        ),
+    )
+    client = GLPIClient(
+        base_url="http://glpi/apirest.php", app_token="app", user_token="user"
+    )
+    client.session_token = "session"
+
+    assert await client.find_ticket_by_name_marker("[n.infraops:abc]", 1) is None
+    assert await client.list_items("Ticket/1/Document_Item") == []
