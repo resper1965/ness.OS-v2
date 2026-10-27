@@ -24,7 +24,7 @@ install -d -m 700 -o ness_admin -g ness_admin /home/ness_admin/.ssh
 printf "%s" "$(cat /tmp/key.pub)" > /home/ness_admin/.ssh/authorized_keys
 chown ness_admin:ness_admin /home/ness_admin/.ssh/authorized_keys
 printf "ClientAliveInterval 60\n" > /etc/ssh/sshd_config.d/99-ness-gate0.conf
-printf "PermitRootLogin prohibit-password\n" > /etc/ssh/sshd_config.d/00-ness-nominal-access.conf
+printf "PermitRootLogin prohibit-password\nAllowUsers ness_admin\n" > /etc/ssh/sshd_config.d/00-ness-nominal-access.conf
 printf "Port 22\n" > /etc/ssh/sshd_config.d/50-ness-baseline.conf
 printf "ness_admin ALL=(ALL) NOPASSWD: ALL\n" > /etc/sudoers.d/90-ness_admin; chmod 440 /etc/sudoers.d/90-ness_admin'
 dx "service ssh start >/dev/null"
@@ -63,4 +63,10 @@ dx 'rm /etc/ssh/sshd_config.d/zz-ness-baseline.conf; printf "PasswordAuthenticat
 if run >"$TMP/neg.log" 2>&1; then cat "$TMP/neg.log"; fail "role must fail when PasswordAuthentication yes is forced"; fi
 grep -q "Baseline SSH rejeitado" "$TMP/neg.log" || fail "negative case failed for the wrong reason"
 dx '! test -e /etc/ssh/sshd_config.d/zz-ness-baseline.conf' || fail "zz- baseline left applied after failed validation"
+
+# negative: an extra effective AllowUsers user must fail the assert, leave no zz- applied
+dx 'rm /etc/ssh/sshd_config.d/10-bad.conf; printf "AllowUsers Ness_admin\n" > /etc/ssh/sshd_config.d/10-extra.conf'
+if run >"$TMP/neg2.log" 2>&1; then cat "$TMP/neg2.log"; fail "extra AllowUsers user accepted"; fi
+grep -q "AllowUsers efetivo difere" "$TMP/neg2.log" || fail "AllowUsers negative failed for the wrong reason"
+dx '! test -e /etc/ssh/sshd_config.d/zz-ness-baseline.conf' || fail "zz- baseline left applied after AllowUsers mismatch"
 echo PASS
