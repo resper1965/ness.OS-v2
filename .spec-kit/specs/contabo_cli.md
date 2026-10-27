@@ -1,24 +1,24 @@
 # Contabo CLI Spec
 
 ## Arquitetura
-O CLI para gerenciamento da infraestrutura na Contabo é parte integrante do projeto `n.infraops`, localizado em `cli/contabo/`. 
+O CLI para gerenciamento da infraestrutura na Contabo é parte integrante do projeto `n.infraops`, localizado em `app/cli/contabo/`. 
 Foi construído utilizando **Typer**, **HTTPX**, **Pydantic**, e **Rich**.
 
 ## Estrutura de Comandos
 ```bash
 # Autenticação e Configuração
-python -m cli.contabo.main login --client-id XXX --client-secret YYY --user admin
+cd app && python -m cli.contabo.main login --client-id XXX --client-secret YYY --user admin
 
 # Gerenciamento de Instâncias (VPS)
-python -m cli.contabo.main compute list
-python -m cli.contabo.main compute restart <instance_id>
+cd app && python -m cli.contabo.main compute list
+cd app && python -m cli.contabo.main compute restart <instance_id>
 
 # Gerenciamento de Object Storage
-python -m cli.contabo.main storage list
+cd app && python -m cli.contabo.main storage list
 
 # Gerenciamento de Tags
-python -m cli.contabo.main tags list
-python -m cli.contabo.main tags create "Nome" --color "#HEX"
+cd app && python -m cli.contabo.main tags list
+cd app && python -m cli.contabo.main tags create "Nome" --color "#HEX"
 ```
 
 ## Credenciais

@@ -19,24 +19,20 @@ terraform {
     }
   }
 
-  # =========================================================================
-  # Backend de Estado (State)
-  # =========================================================================
-  # PENDENTE (Task 1.1): backend S3 depende das chaves do Object Storage; estado local até lá.
-  # RECOMENDAÇÃO: Em produção, utilize um backend remoto para armazenar
-  # o estado do Terraform de forma segura e compartilhada.
-  #
-  # Exemplo com S3 (compatível com Contabo Object Storage):
-  #
-  # backend "s3" {
-  #   bucket                      = "zabbix-ness-terraform-state"
-  #   key                         = "prod/terraform.tfstate"
-  #   region                      = "us-east-1"
-  #   endpoint                    = "https://eu2.contabostorage.com"
-  #   skip_credentials_validation = true
-  #   skip_metadata_api_check     = true
-  #   skip_region_validation      = true
-  #   force_path_style            = true
-  # }
-  # =========================================================================
+  # Estado remoto: bucket próprio, privado e versionado (Task 1.1). Credenciais
+  # AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY vêm do ambiente (infra/bin/tf).
+  # ponytail: sem lock (S3 compatível da Contabo, sem DynamoDB); upgrade path:
+  # use_lockfile = true quando o Terraform >= 1.10 for fixado e o endpoint suportar.
+  backend "s3" {
+    bucket                      = "ness-os-tfstate"
+    key                         = "prod/terraform.tfstate"
+    region                      = "default"
+    endpoints                   = { s3 = "https://eu2.contabostorage.com" }
+    use_path_style              = true
+    skip_credentials_validation = true
+    skip_metadata_api_check     = true
+    skip_region_validation      = true
+    skip_requesting_account_id  = true
+    skip_s3_checksum            = true
+  }
 }
