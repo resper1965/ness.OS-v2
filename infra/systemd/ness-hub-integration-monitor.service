@@ -2,6 +2,7 @@
 Description=ness.OS hub GLPI integration health
 After=docker.service
 Requires=docker.service
+OnFailure=ness-hub-alert-mail.service
 
 [Service]
 Type=oneshot

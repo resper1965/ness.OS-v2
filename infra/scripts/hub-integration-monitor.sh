@@ -10,3 +10,7 @@ trap 'rm -f -- "$temporary"' EXIT
 # Leave time for publishing a failure sample before systemd's 55-second deadline.
 timeout --kill-after=2s 40s docker exec ninf-api timeout --kill-after=2s 35s python -m app.integrations.pipeline_health > "$temporary" || status=$?
 python3 /usr/local/sbin/ness-hub-health-history --directory "$report_dir" --exit-code "$status" < "$temporary"
+# Recovery notice only if a failure alert was sent before (the stamp is removed by the alert script).
+if [[ -e $report_dir/alert-mail.stamp ]]; then
+  /usr/local/sbin/ness-hub-alert-mail recovered || true
+fi

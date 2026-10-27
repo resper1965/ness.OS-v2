@@ -13,6 +13,8 @@ on:
       - 'infra/scripts/hub-integration-readiness-report.sh'
       - 'infra/scripts/hub-health-history.py'
       - 'infra/scripts/hub-integration-monitor.sh'
+      - 'infra/scripts/hub-alert-mail.sh'
+      - 'infra/tests/test-hub-alert-mail.sh'
       - 'infra/tests/test-hub-integration-readiness-report.sh'
       - 'infra/tests/test-hub-health-history.py'
       - 'infra/tests/run-hub-local-flow.sh'
@@ -125,6 +127,7 @@ jobs:
       run: |
         python3 infra/tests/test-hub-health-history.py
         bash -n infra/scripts/hub-integration-monitor.sh
+        bash infra/tests/test-hub-alert-mail.sh
         bash infra/tests/test-hub-integration-readiness-report.sh
 
     - name: Set up Node.js 20 for n8n workflow checks

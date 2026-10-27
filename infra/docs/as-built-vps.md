@@ -244,6 +244,17 @@ phpsessionclean.timer phpsessionclean.service
 systemd-tmpfiles-clean.timer systemd-tmpfiles-clean.service
 ```
 
+#### Alerta por e-mail do monitor do hub
+
+`ness-hub-integration-monitor.service` tem `OnFailure=ness-hub-alert-mail.service`, que envia e-mail pela API da Resend (remetente `ness.OS Monitor <monitor@ness.com.br>`), no máximo um por hora enquanto a falha durar, e um aviso de recuperação quando o monitor volta a ok. Instalação (não automatizada):
+
+- `infra/scripts/hub-alert-mail.sh` → `/usr/local/sbin/ness-hub-alert-mail` (0755, root); `infra/scripts/hub-integration-monitor.sh` atualizado em `/usr/local/sbin/ness-hub-integration-monitor`.
+- `infra/systemd/ness-hub-alert-mail.service` e `ness-hub-integration-monitor.service` → `/etc/systemd/system/`, depois `systemctl daemon-reload`.
+- `/etc/ness-os/alert-mail.env` (root, 0600): `NESS_ALERT_MAIL_TO=a@x,b@y` (obrigatório; sem ele o script só registra uma linha e sai com 0) e, opcionalmente, `RESEND_API_KEY` (se ausente, reusa a do `/etc/ness-os/psono.env`).
+- Carimbo antispam: `/var/lib/ness-os/hub-integration/alert-mail.stamp`.
+
+O app mobile planejado vai consumir alertas no futuro (push); `hub-alert-mail.sh` é o ponto único onde acrescentar esse canal.
+
 #### Portas em escuta (fora de loopback)
 
 ```

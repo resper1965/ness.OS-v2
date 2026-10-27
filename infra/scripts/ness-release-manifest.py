@@ -39,6 +39,7 @@ DEPLOYED_NAMES = {
     "infra/scripts/hub-clean-engine-restore.sh",
     "infra/scripts/hub-cmdb-sync.sh",
     "infra/scripts/hub-health-history.py",
+    "infra/scripts/hub-alert-mail.sh",
     "infra/scripts/hub-integration-monitor.sh",
     "infra/scripts/ness-object-storage-restic.sh",
     "infra/scripts/zabbix-nightly-backup.sh",

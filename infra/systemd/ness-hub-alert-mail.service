@@ -1,0 +1,8 @@
+[Unit]
+Description=Mail alert for ness.OS hub integration monitor failure
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/ness-hub-alert-mail
+TimeoutStartSec=30
+UMask=0077
