@@ -1,9 +1,12 @@
 import React from 'react';
+import { timeAgo } from '../access';
 import { Zap, Cpu, GitBranch, Ticket, MessageCircle, CheckCircle2, AlertCircle, Minus } from 'lucide-react';
 
 interface NodeStatus {
   status: 'ok' | 'error' | 'unconfigured' | 'degraded' | 'disabled';
   detail?: string;
+  last_success_at?: string | null;
+  last_error?: string | null;
 }
 
 interface PipelineData {
@@ -80,10 +83,10 @@ function PipelineNode({
         </div>
 
         {/* Tooltip */}
-        {data?.detail && (
+        {(data?.detail || data?.last_success_at !== undefined) && (
           <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-50 pointer-events-none">
             <div className="bg-[#0c0c18] border border-white/10 rounded-lg px-3 py-1.5 text-[10px] text-white/70 whitespace-nowrap shadow-2xl">
-              {data.detail}
+              {data?.detail}{data?.detail && ' · '}última coleta válida: {timeAgo(data?.last_success_at)}
               <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-white/10" />
             </div>
           </div>
