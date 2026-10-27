@@ -410,7 +410,7 @@ Entrada: G0–G3 e T03/T04 `RELEASED`. Testes reaproveitam o [plano MVP](2026-09
 
 ### Task 8.1: Contrato versionado e sanitização `[A]`
 
-- [ ] Schema alerta/incidente/enriquecimento/decisão com tenant, source event ID, severidade, frescor, evidência; teste `test_gemini_payload_has_no_secrets_or_other_tenant`; métricas de custo/latência/erro.
+- [x] Schema alerta/incidente/enriquecimento/decisão com tenant, source event ID, severidade, frescor, evidência; teste `test_gemini_payload_has_no_secrets_or_other_tenant`; métricas de custo/latência/erro.
 
 ### Task 8.2: n8n → Node-RED `[A]`
 
