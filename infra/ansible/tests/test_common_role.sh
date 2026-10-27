@@ -63,4 +63,10 @@ dx 'rm /etc/ssh/sshd_config.d/zz-ness-baseline.conf; printf "PasswordAuthenticat
 if run >"$TMP/neg.log" 2>&1; then cat "$TMP/neg.log"; fail "role must fail when PasswordAuthentication yes is forced"; fi
 grep -q "Baseline SSH rejeitado" "$TMP/neg.log" || fail "negative case failed for the wrong reason"
 dx '! test -e /etc/ssh/sshd_config.d/zz-ness-baseline.conf' || fail "zz- baseline left applied after failed validation"
+
+# negative: an extra effective AllowUsers user must fail the assert, leave no zz- applied
+dx 'rm /etc/ssh/sshd_config.d/10-bad.conf; printf "AllowUsers intruder\n" > /etc/ssh/sshd_config.d/10-extra.conf'
+if run >"$TMP/neg2.log" 2>&1; then cat "$TMP/neg2.log"; fail "extra AllowUsers user accepted"; fi
+grep -q "AllowUsers efetivo difere" "$TMP/neg2.log" || fail "AllowUsers negative failed for the wrong reason"
+dx '! test -e /etc/ssh/sshd_config.d/zz-ness-baseline.conf' || fail "zz- baseline left applied after AllowUsers mismatch"
 echo PASS

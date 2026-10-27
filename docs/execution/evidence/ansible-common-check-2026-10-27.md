@@ -1,6 +1,6 @@
 # Ansible `common` — `--check --diff` nos três hosts (Task 1.2 Step 5)
 
-27/10/2026, só leitura (`--check`), chave `nessos_agent`. **Nada aplicado.**
+27/10/2026, chave `nessos_agent`. As seções até "Apply" são `--check` (só leitura); o apply está na seção "Apply", no fim.
 
 ## Correções para o `--check` rodar
 
@@ -36,7 +36,7 @@ Resultado: `rc=0`; `changed` aiops-01=15, zabbix-prod=5, zabbix-uat=15.
 | sysctl | aiops-01, zabbix-uat (+ `tcp_max_syn_backlog` nos três) | Tuning do kernel; aceitar só com valores revisados |
 | Pacotes básicos / cache APT | aiops-01, zabbix-uat | Inofensivo |
 
-Restam antes do `apply`: revisar o template do fail2ban e os valores de sysctl.
+Revisados antes do `apply` (revisor do #106): fail2ban com `ignoreip`; sysctl só aumenta valores.
 
 ## Ajustes da revisão
 
