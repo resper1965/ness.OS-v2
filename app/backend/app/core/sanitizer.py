@@ -32,27 +32,35 @@ _PATTERNS: Final[list[tuple[re.Pattern[str], str]]] = [
         ),
         "[CONN_STRING_REDACTED]",
     ),
-    # Passwords em key=value ou key:value
+    # Credenciais em URL (scheme://user:pass@host)
+    (
+        re.compile(r"(?i)\b([a-z][a-z0-9+.\-]*)://[^\s/:@]+:[^\s/@]+@"),
+        r"\1://[REDACTED]@",
+    ),
+    # Passwords em key=value ou key:value (inclui JSON: "password":"x")
     (
         re.compile(
-            r"(?i)(password|passwd|pwd|pass|db_pass|db_password)" r"\s*[=:]\s*\S+",
+            r"(?i)(?<![A-Za-z0-9])(password|passwd|pwd|pass|db_pass|db_password)"
+            r"[\"']?\s*[=:]\s*[\"']?\S+",
         ),
         r"\1=[REDACTED]",
     ),
-    # API keys, tokens, secrets em key=value
+    # API keys, tokens, secrets em key=value (inclui JSON)
     (
         re.compile(
-            r"(?i)(api[_-]?key|secret[_-]?key|access[_-]?token|auth[_-]?token"
-            r"|bearer[_-]?token|client[_-]?secret|private[_-]?key)"
-            r"\s*[=:]\s*\S+",
+            r"(?i)(?<![A-Za-z0-9])(api[_-]?key|secret|token|private[_-]?key)"
+            r"[\"']?\s*[=:]\s*[\"']?\S+",
         ),
         r"\1=[REDACTED]",
     ),
-    # Bearer tokens em headers
+    # Bearer/Basic em headers
     (
-        re.compile(r"(?i)Bearer\s+[A-Za-z0-9._\-/+=]{8,}"),
-        "Bearer [REDACTED]",
+        re.compile(r"(?i)\b(Bearer|Basic)\s+[A-Za-z0-9._\-/+=]{8,}"),
+        r"\1 [REDACTED]",
     ),
+    # Google API keys e JWTs
+    (re.compile(r"\bAIza[0-9A-Za-z_\-]{35}\b"), "[GOOGLE_KEY_REDACTED]"),
+    (re.compile(r"\beyJ[\w-]+\.[\w-]+\.[\w-]+"), "[JWT_REDACTED]"),
     # AWS-style keys (AKIA...)
     (
         re.compile(r"\b(AKIA|ASIA)[A-Z0-9]{16}\b"),

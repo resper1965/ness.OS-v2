@@ -13,12 +13,13 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from typing import Any
 
 import httpx
 
 from app.config import get_settings
-from app.core.ai_context import incident_prompt_data
+from app.core.ai_context import incident_prompt_data, log_ai_call
 from app.core.sanitizer import sanitize, sanitize_value
 from app.models.schemas import PostMortemReport
 
@@ -191,6 +192,7 @@ def generate_postmortem(
         },
     }
 
+    started = time.perf_counter()
     try:
         with httpx.Client(timeout=_TIMEOUT) as client:
             response = client.post(
@@ -214,6 +216,7 @@ def generate_postmortem(
 
         # Extrair metadados de uso
         usage = result.get("usageMetadata", {})
+        log_ai_call("postmortem", "ok", started, usage)
 
         logger.info(
             "Post-mortem gerado | fingerprint=%s tokens_in=%d tokens_out=%d",
@@ -240,6 +243,7 @@ def generate_postmortem(
         )
 
     except httpx.HTTPError as exc:
+        log_ai_call("postmortem", "error", started)
         logger.error("Falha na chamada ao Gemini: %s", type(exc).__name__)
         # Fallback: relatório mínimo sem IA
         return PostMortemReport(

@@ -1,11 +1,20 @@
 """Allowlisted provider context and authoritative post-incident identity."""
 
+import json
+import logging
+import time
+from datetime import UTC, datetime
+from typing import Any, Literal
+
+from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, field_validator
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
-from app.core.sanitizer import sanitize_dict
+from app.core.sanitizer import sanitize_dict, sanitize_value
 from app.database import SessionLocal
 from app.models import Incident
+
+logger = logging.getLogger(__name__)
 
 INCIDENT_FIELDS = {
     "title",
@@ -24,6 +33,65 @@ INCIDENT_FIELDS = {
 def incident_prompt_data(incident):
     return sanitize_dict(
         {key: value for key, value in incident.items() if key in INCIDENT_FIELDS}
+    )
+
+
+class AIRequestV1(BaseModel):
+    """Only shape allowed to reach an LLM provider; values are sanitized on build."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: Literal["1"] = "1"
+    tenant: str = Field(min_length=1)
+    source_event_id: str = Field(min_length=1)
+    severity: str
+    observed_at: datetime  # freshness: when the source event happened
+    evidence: dict[str, Any]
+
+    @field_validator("*")
+    @classmethod
+    def _sanitize(cls, value: Any) -> Any:
+        return sanitize_value(value)
+
+
+def _observed_at(value: Any) -> datetime:
+    try:
+        return TypeAdapter(datetime).validate_python(value)
+    except ValueError:
+        # ponytail: unparseable -> now; add strict reject if sources drift
+        logger.warning("AI request observed_at unparseable; using current time")
+        return datetime.now(UTC)
+
+
+def incident_ai_request(incident, tenant) -> AIRequestV1:
+    severity = incident.get("severity")
+    return AIRequestV1(
+        tenant=str(tenant or "unknown"),
+        source_event_id=str(
+            incident.get("event_id") or incident.get("fingerprint") or "unknown"
+        ),
+        severity=str(getattr(severity, "value", severity)),
+        observed_at=_observed_at(
+            incident.get("timestamp") or incident.get("last_seen")
+        ),
+        evidence=incident_prompt_data(incident),
+    )
+
+
+def log_ai_call(kind, outcome, started, usage=None):
+    """Structured metrics line (no metrics backend in the stack yet)."""
+    usage = usage or {}
+    logger.info(
+        "ai_call %s",
+        json.dumps(
+            {
+                "kind": kind,
+                "outcome": outcome,
+                "latency_ms": round((time.perf_counter() - started) * 1000),
+                "prompt_tokens": usage.get("promptTokenCount", 0),
+                "completion_tokens": usage.get("candidatesTokenCount", 0),
+            }
+        ),
     )
 
 

@@ -1,12 +1,13 @@
 import json
 import logging
+import time
 from typing import Any, Dict, List, Literal, Optional
 
 import httpx
 from pydantic import BaseModel, Field
 
 from app.config import get_settings
-from app.core.ai_context import incident_prompt_data
+from app.core.ai_context import incident_ai_request, log_ai_call
 from app.core.sanitizer import sanitize_value
 
 logger = logging.getLogger(__name__)
@@ -104,9 +105,12 @@ async def analyze_incident(
         "Análise de Conectividade VPN / IPSec Reset",
     ]
 
+    ai_request = incident_ai_request(
+        incident_data, (customer_metadata or {}).get("customer_name")
+    )
     prompt = f"""
 # Dados do Incidente:
-{json.dumps(incident_prompt_data(incident_data), indent=2, ensure_ascii=False)}
+{json.dumps(ai_request.model_dump(mode="json"), indent=2, ensure_ascii=False)}
 
 # Escopo: somente o incidente atual; sem credenciais ou cadastro do cliente.
 
@@ -152,6 +156,9 @@ Gere a análise estruturada em JSON correspondente ao incidente acima.
         },
     }
 
+    started = time.perf_counter()
+    usage: Dict[str, Any] = {}
+    outcome = "error"
     try:
         async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
             res = await client.post(
@@ -164,6 +171,7 @@ Gere a análise estruturada em JSON correspondente ao incidente acima.
             )
             res.raise_for_status()
             result = res.json()
+        usage = result.get("usageMetadata", {})
 
         raw_text = (
             result.get("candidates", [{}])[0]
@@ -177,8 +185,11 @@ Gere a análise estruturada em JSON correspondente ao incidente acima.
         minimum = source_urgency(incident_data)
         if URGENCY_ORDER.index(analysis.urgency) < URGENCY_ORDER.index(minimum):
             analysis.urgency = minimum
+        outcome = "ok"
         return analysis
 
     except Exception as exc:
         logger.error("Falha ao rodar analisador IA: %s", type(exc).__name__)
         return manual_triage(incident_data)
+    finally:
+        log_ai_call("incident_analysis", outcome, started, usage)
