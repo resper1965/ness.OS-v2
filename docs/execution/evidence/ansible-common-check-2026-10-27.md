@@ -47,3 +47,15 @@ Restam antes do `apply`: revisar o template do fail2ban e os valores de sysctl.
 ## Ordem do apply
 
 UAT → aiops-01 → zabbix-prod (produção por último), um host por vez, com uma **segunda sessão SSH aberta** durante o apply e `sshd -T`/login testado em nova sessão antes de seguir ao próximo. `common_full_upgrade` continua desligado.
+
+## Apply (27/10, GO do Ricardo)
+
+Ordem UAT → aiops → prod, cada um com sessão SSH de reserva aberta.
+
+| Host | Resultado | Verificação pós-apply |
+|---|---|---|
+| zabbix-uat | 1ª tentativa: assert de `allowusers` falhou (linha duplicada no `sshd -T`, ver #108); rescue reverteu o drop-in, sshd não recarregado, acesso intacto. 2ª (com #108): rc=0, changed=7 | sessão nova ok; `allowusers ness_admin`, `maxauthtries 3`; fail2ban `sshd` ativo; `zabbix-server` já estava `masked` antes (não é efeito do apply) |
+| aiops-01 | rc=0, changed=12 | `allowusers ness_admin root`; `ignoreip` com stack/hub/zabbix; todos os contêineres Up; API/worker/postgres healthy; worker sem `raised unexpected`; `https://hub.ness.com.br/api/assets` → 401 |
+| zabbix-prod | rc=0, changed=6 | `port 2222`, `allowusers ness_admin`; `visudo -c` ok; zabbix-server/mariadb/apache2/fail2ban active; `https://zabbix.ness.com.br/` → 200 |
+
+Idempotência: `--check --diff` logo após → `changed=0` nos três.
