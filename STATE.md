@@ -4,19 +4,19 @@
 
 **Estágio:** em andamento
 
-**Próximo passo:** ajustes da role `common` para `apply` (UFW por host, chave antiga, sudoers) e 2.5 (T05) em laboratório.
+**Próximo passo:** 2.5 (T05) do plano GLPI em laboratório.
 
 ## Quadro (atualizado a cada task fechada)
 
 Tasks do [plano de execução](docs/superpowers/plans/2026-10-26-ness-os-execution-plan.md).
 
 ### Feito
-- 0.2 Limpeza da raiz — #100
+- 0.2 Limpeza da raiz — #100; CLI Contabo única em `app/cli/contabo` (estava quebrada sem `commands/`) — #105
 - 0.1 Reconciliar estado — [evidência](docs/execution/evidence/state-reconciliation-2026-10-26.md)
 - 0.3 CI — Actions religado; #81, #64 e #85 na `main`
 - 0.4 Ferramental IaC (`infra/bin/tf`, `infra/bin/ansible`) — #89
 - 1.1 Terraform importa as 3 VPS + Object Storage, `prevent_destroy`, guard de plano — #92 ; estado em `s3://ness-os-tfstate`, import aplicado, `plan` sem mudança — #104
-- 1.2 Role `common` — #94; `--check` nos 3 hosts — #97 ([evidência](docs/execution/evidence/ansible-common-check-2026-10-27.md); `apply` bloqueado por UFW/chave/sudoers)
+- 1.2 Role `common` — #94; `--check` nos 3 hosts — #97 ([evidência](docs/execution/evidence/ansible-common-check-2026-10-27.md); aplicada nos 3 hosts em 27/10, re-check `changed=0` — #106, #108)
 - 1.3 As-built gerado dos 3 hosts — #98
 - 2.1 Matriz negativa GLPI T03 em lab, correção do gateway — #91
 - 2.2 Step 1: ADR 0020 com contrato e resultado do lab, status proposta — #96
@@ -31,7 +31,6 @@ Tasks do [plano de execução](docs/superpowers/plans/2026-10-26-ness-os-executi
 _nenhuma_
 
 ### Pronto para começar
-- 1.2 ajustes para `apply`: UFW por host, chave antiga, sudoers existente
 - 2.5 T05 do plano GLPI
 
 ### Esperando o Ricardo
