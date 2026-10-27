@@ -129,13 +129,14 @@ A sonda precisa da 106 **ativa**: inativa, o GLPI recusa de qualquer forma e o r
 
 ```bash
 $P user --activate < $RB/glpi-maintenance-admin.php
-sudo -n python3 infra/scripts/glpi_t03_functional_probe.py --docker "docker" --skip-env-token \
-  --allowed-id <ID_ENTIDADE_1> --denied-id <ID_FILHA> <ID_INEXISTENTE>
-echo rc=$?
+PROBE="sudo -n python3 infra/scripts/glpi_t03_functional_probe.py --docker docker --allowed-id <ID_ENTIDADE_1> --denied-id <ID_FILHA> <ID_INEXISTENTE>"
+$PROBE || { $P user --deactivate < $RB/glpi-maintenance-admin.php; echo "FAIL: 106 desativada"; }   # sem a flag: falha por desenho (ver abaixo)
 ```
 
-**Esperado: a linha do `container-env` FALHA** (`initSession ... container-env -> 200`) nos dois contêineres. O Hub tem o App-Token do cliente 2, válido a partir do IP dele, e o GLPI valida só App-Token + `user_token`: quem juntar o `user_token` da 106 com o token do Hub entra. O lab (App-Token só do gateway) não mostrava isso. A fronteira real é, portanto, o **sigilo do `user_token`** (arquivo 0600 root + gateway) + a checagem de entidade do gateway; o Hub não tem o `user_token`. Para aceitar o risco explicitamente, rodar com `--skip-env-token`: então esperado `PASS_FUNCTIONAL_PROBE`, rc 0, e registrar o risco aceito no ADR 0020. Sem `--skip-env-token` o rc é 1 por desenho, e a decisão fica com o Ricardo. A sonda prova, de dentro de `ninf-api` e `worker-alerts`: `initSession` com o `user_token` da 106 é recusado (400/401/403) com (a) nenhum App-Token, (b) o App-Token do gateway, (c) o `NINF_GLPI_APP_TOKEN` do próprio contêiner (omitido com `--skip-env-token`); e que o gateway devolve 200 só para o ID permitido (corpo `{id,name,entities_id=1}`), 404 para os demais, com query string, sem bearer (401) e POST. Os tokens vão por `stdin`, nunca por argv ou saída.
-Se `FAIL`: `$P user --deactivate < ...` imediatamente e reverter os passos 6 e 5.
+`user --activate` recusa ativar se a 106 não tiver exatamente um vínculo `[13, 1, 0]` em `glpi_profiles_users`.
+
+**Esperado: a linha do `container-env` FALHA** (`initSession ... container-env -> 200`) nos dois contêineres. O Hub tem o App-Token do cliente 2, válido a partir do IP dele, e o GLPI valida só App-Token + `user_token`: quem juntar o `user_token` da 106 com o token do Hub entra. O lab (App-Token só do gateway) não mostrava isso. A fronteira real é, portanto, o **sigilo do `user_token`** (arquivo 0600 root + gateway) + a checagem de entidade do gateway; o Hub não tem o `user_token`. `--skip-env-token` **não é o padrão**: só vale depois que o Ricardo aceitar o risco e ele constar no ADR 0020; a sonda imprime um `WARNING` no stderr. Com a aceitação, rodar `PROBE="$PROBE --skip-env-token"` e repetir o `||` acima: então esperado `PASS_FUNCTIONAL_PROBE`, rc 0, e registrar o risco aceito no ADR 0020. Sem `--skip-env-token` o rc é 1 por desenho, e a decisão fica com o Ricardo. A sonda prova, de dentro de `ninf-api` e `worker-alerts`: `initSession` com o `user_token` da 106 é recusado (400/401/403) com (a) nenhum App-Token, (b) o App-Token do gateway, (c) o `NINF_GLPI_APP_TOKEN` do próprio contêiner (omitido com `--skip-env-token`); e que o gateway devolve 200 só para o ID permitido (corpo `{id,name,entities_id=1}`), 404 para os demais, com query string, sem bearer (401) e POST. Os tokens vão por `stdin`, nunca por argv ou saída.
+Se `FAIL`: a linha `||` acima já desativa a 106; reverter os passos 6 e 5.
 Rota pública: `/apirest.php` e `/apirest%252Ephp/initSession` → 403.
 Verificação final: `user` mostra um único vínculo `[13, 1, 0]` (perfil 13, entidade 1, não recursivo). Rollback: `user --deactivate`.
 

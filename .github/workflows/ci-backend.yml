@@ -17,6 +17,8 @@ on:
       - 'infra/tests/test-hub-health-history.py'
       - 'infra/tests/run-hub-local-flow.sh'
       - 'infra/scripts/ness-release-manifest.py'
+      - 'infra/scripts/glpi_t03_functional_probe.py'
+      - 'infra/tests/test_glpi_t03_prod_tooling.py'
       - 'infra/tests/test-ness-release-manifest.py'
       - 'infra/scripts/aiops-runtime-readiness.sh'
       - 'infra/tests/test-aiops-runtime-readiness.sh'
@@ -81,6 +83,7 @@ jobs:
         python -m pytest -q infra/tests/test-psono-custodian-readiness.py
         python -m pytest -q infra/tests/test-zabbix-quality-wave.py
         python -m pytest -q infra/tests/test_glpi_network_boundary_probe.py
+        python -m pytest -q infra/tests/test_glpi_t03_prod_tooling.py
         bash infra/tests/test-aiops-runtime-readiness.sh
 
     - name: Validate merged AIOps Compose without starting services

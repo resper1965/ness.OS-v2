@@ -82,12 +82,35 @@ def test_tokens_travel_by_stdin_not_argv(monkeypatch):
     assert "SECRET" not in " ".join(seen["cmd"]) and "SECRET" in seen["input"]
 
 
+def test_session_script_keeps_200_when_killsession_is_refused():
+    import http.server, threading
+
+    class H(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            ok = self.path.endswith("/initSession")
+            body = b'{"session_token":"s"}' if ok else b"{}"
+            self.send_response(200 if ok else 401)
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *a):
+            pass
+
+    srv = http.server.HTTPServer(("127.0.0.1", 0), H)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    payload = {"user_token": "U", "app_tokens": {}, "glpi_url": f"http://127.0.0.1:{srv.server_port}", "env_token": False}
+    p = subprocess.run(["python3", "-c", probe._SESSION], input=json.dumps(payload), capture_output=True, text=True)
+    srv.shutdown()
+    assert json.loads(p.stdout) == {"none": 200}
+    assert probe.judge_session("c", {"none": 200})
+
+
 # ---- lab (real GLPI 11 + real PHP + real gateway) ---------------------------------------
 LAB_URL = os.getenv("GLPI_LAB_URL")
 LAB = Path(os.getenv("GLPI_LAB_DIR", "/tmp/opencode/glpi-lab"))
 lab = pytest.mark.skipif(not LAB_URL, reason="GLPI_LAB_URL not set")
 ADMIN = (SCRIPTS / "glpi-maintenance-admin.php").read_text()
-LAB_OPTS = ["--user=7", "--user-name=svc_lab_maintenance", "--profile=9", "--profile-name=lab-maintenance-ro"]
+LAB_OPTS = ["--user=7", "--user-name=svc_lab_maintenance", "--profile=9", "--profile-name=lab-maintenance-ro", "--recursive=1"]
 
 
 def php(*args):

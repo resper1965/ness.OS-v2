@@ -36,7 +36,10 @@ for label, app in apps.items():
         r = u.urlopen(q, timeout=8)
         out[label] = r.status
         k = u.Request(base + "/killSession", headers={**({"App-Token": app} if app else {}), "Session-Token": json.load(r)["session_token"]})
-        u.urlopen(k, timeout=8).read()
+        try:
+            u.urlopen(k, timeout=8).read()
+        except Exception:
+            pass  # cleanup failure must not overwrite an accepted login (status stays 200)
     except e.HTTPError as x:
         out[label] = x.code
     except Exception as x:
@@ -143,6 +146,8 @@ def main(argv=None) -> int:
     ap.add_argument("--allowed-id", type=int, required=True, help="approved entity-1 Computer ID")
     ap.add_argument("--denied-id", type=int, nargs="+", required=True, help="IDs outside the allowlist (e.g. a child-entity Computer)")
     a = ap.parse_args(argv)
+    if a.skip_env_token:
+        print("WARNING: --skip-env-token: container NINF_GLPI_APP_TOKEN NOT tested (accepted risk, ADR 0020)", file=sys.stderr)
     d = Path(a.secrets_dir)
     tokens = {k: (d / f).read_text().strip() for k, f in (("app", "app_token"), ("user", "user_token"), ("bearer", "bearer"))}
     findings = run(

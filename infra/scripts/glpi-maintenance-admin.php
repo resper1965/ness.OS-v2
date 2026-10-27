@@ -6,7 +6,7 @@
 //   user --activate|--deactivate          flip is_active
 //   client --id=N --activate|--deactivate flip is_active of an existing API client (readback of the full row)
 // Secrets go to STDOUT only (caller redirects to a 0600 file); status/readback JSON goes to STDERR.
-// Defaults are production; override with --user= --user-name= --profile= --profile-name= --client-name= --ip=.
+// Defaults are production; override with --user= --user-name= --profile= --profile-name= --client-name= --ip= --entity= --recursive= (the only profile binding `user --activate` accepts).
 // Dry-run unless --apply (user: the flag itself is the intent).
 require '/var/www/glpi/vendor/autoload.php';
 $kernel = new \Glpi\Kernel\Kernel();
@@ -15,7 +15,7 @@ global $DB;
 
 $cmd = $argv[1] ?? '';
 $opt = ['user' => '106', 'user-name' => 'svc_ness_maintenance', 'profile' => '13', 'profile-name' => 'ness-maintenance-alupar',
-    'client-name' => 'ness-os-maintenance-gateway', 'ip' => '172.30.250.3'];
+    'client-name' => 'ness-os-maintenance-gateway', 'ip' => '172.30.250.3', 'entity' => '1', 'recursive' => '0'];
 $flags = [];
 foreach (array_slice($argv, 2) as $a) {
     if (preg_match('/^--([a-z-]+)=(.*)$/', $a, $m)) $opt[$m[1]] = $m[2];
@@ -101,10 +101,13 @@ Session::callAsSystem(function () use ($cmd, $opt, $flags, $apply, $DB) {
     case 'user':
         $u = user($opt);
         $want = in_array('--activate', $flags, true) ? 1 : (in_array('--deactivate', $flags, true) ? 0 : fail('need --activate or --deactivate'));
+        $links = iterator_to_array($DB->request(['FROM' => 'glpi_profiles_users', 'WHERE' => ['users_id' => (int)$u['id']]]));
+        $l = reset($links);
+        if ($want === 1 && (count($links) !== 1 || (int)$l['profiles_id'] !== (int)$opt['profile'] || (int)$l['entities_id'] !== (int)$opt['entity'] || (int)$l['is_recursive'] !== (int)$opt['recursive']))
+            fail('profile bindings are not exactly [profile, entity, recursive]; refusing to activate');
         if ((int)$u['is_active'] !== $want) new_updater(User::class, ['id' => $u['id'], 'is_active' => $want]);
         $n = one('glpi_users', ['id' => $u['id']]);
         if ((int)$n['is_active'] !== $want) fail('user readback mismatch');
-        $links = iterator_to_array($DB->request(['FROM' => 'glpi_profiles_users', 'WHERE' => ['users_id' => (int)$u['id']]]));
         out(['user' => (int)$u['id'], 'is_active' => $want, 'profiles' => array_map(fn($l) => [(int)$l['profiles_id'], (int)$l['entities_id'], (int)$l['is_recursive']], array_values($links))]);
         return;
 
