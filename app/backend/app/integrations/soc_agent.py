@@ -1,10 +1,12 @@
 import json
 import logging
+import time
 from typing import Any, TypedDict
 
 import httpx
 
 from app.config import get_settings
+from app.core.ai_context import AIRequestV1, _observed_at, log_ai_call
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -38,6 +40,34 @@ Você deve responder rigorosamente no formato JSON com os seguintes campos:
 """
 
 
+_WAZUH_FIELDS = (
+    "rule",
+    "full_log",
+    "data",
+    "syscheck",
+    "location",
+    "decoder",
+    "threat_intel_enrichment",
+)
+
+
+def wazuh_ai_request(alert: dict[str, Any]) -> AIRequestV1:
+    """Allowlist Wazuh fields; manager/cluster and unknown keys never leave."""
+    raw_agent, raw_rule = alert.get("agent"), alert.get("rule")
+    agent: dict[str, Any] = raw_agent if isinstance(raw_agent, dict) else {}
+    rule: dict[str, Any] = raw_rule if isinstance(raw_rule, dict) else {}
+    group = agent.get("group")
+    evidence = {k: alert[k] for k in _WAZUH_FIELDS if k in alert}
+    evidence["agent"] = {k: agent[k] for k in ("id", "name") if k in agent}
+    return AIRequestV1(
+        tenant=str(group[0]) if isinstance(group, list) and group else "default",
+        source_event_id=str(alert.get("id") or f"{agent.get('id')}:{rule.get('id')}"),
+        severity=str(rule.get("level", "unknown")),
+        observed_at=_observed_at(alert.get("timestamp")),
+        evidence=evidence,
+    )
+
+
 def triage_wazuh_alert(alert_payload: dict[str, Any]) -> TriageResult:
     """Realiza a triagem inteligente de um alerta do Wazuh usando o Gemini 2.5 Flash."""
     # Obter chave de API a partir de gemini_api_key
@@ -54,14 +84,15 @@ def triage_wazuh_alert(alert_payload: dict[str, Any]) -> TriageResult:
         }
 
     api_url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
-    headers = {"Content-Type": "application/json"}
+    headers = {"Content-Type": "application/json", "x-goog-api-key": gemini_key}
+    ai_request = wazuh_ai_request(alert_payload)
 
     body = {
         "contents": [
             {
                 "parts": [
                     {
-                        "text": f"Alerta Wazuh a ser analisado:\n{json.dumps(alert_payload, indent=2, ensure_ascii=False)}"
+                        "text": f"Alerta Wazuh a ser analisado:\n{json.dumps(ai_request.model_dump(mode='json'), indent=2, ensure_ascii=False)}"
                     }
                 ]
             }
@@ -85,16 +116,15 @@ def triage_wazuh_alert(alert_payload: dict[str, Any]) -> TriageResult:
         },
     }
 
+    started = time.perf_counter()
+    usage: dict[str, Any] = {}
+    outcome = "error"
     try:
         with httpx.Client(timeout=_TIMEOUT) as client:
-            response = client.post(
-                api_url,
-                json=body,
-                params={"key": gemini_key},
-                headers=headers,
-            )
+            response = client.post(api_url, json=body, headers=headers)
             response.raise_for_status()
             result = response.json()
+            usage = result.get("usageMetadata", {})
 
             text_response = (
                 result.get("candidates", [{}])[0]
@@ -104,6 +134,7 @@ def triage_wazuh_alert(alert_payload: dict[str, Any]) -> TriageResult:
             )
 
             triage_data = json.loads(text_response)
+            outcome = "ok"
             logger.info(
                 "Triage SOC concluída via Gemini | classificação=%s confiança=%s",
                 triage_data.get("classification"),
@@ -112,10 +143,12 @@ def triage_wazuh_alert(alert_payload: dict[str, Any]) -> TriageResult:
             return triage_data
 
     except Exception as exc:
-        logger.error("Falha ao realizar triagem via Gemini: %s", exc)
+        logger.error("Falha ao realizar triagem via Gemini: %s", type(exc).__name__)
         return {
             "classification": "HIGH",
             "confidence": 0.5,
-            "summary": f"Erro na triagem automática: {str(exc)}. Alerta original: {alert_payload.get('description', 'Sem descrição')}",
+            "summary": f"Erro na triagem automática: {type(exc).__name__}. Alerta original: {alert_payload.get('description', 'Sem descrição')}",
             "action_taken": "Criar ticket de triagem manual",
         }
+    finally:
+        log_ai_call("soc_triage", outcome, started, usage)

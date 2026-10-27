@@ -1,7 +1,7 @@
 ---
 # ============================================================================
 # Role: common - Hardening e configuração base do servidor
-# Alvo: Debian 12 (Bookworm)
+# Alvo: Debian 12 (Bookworm) e Ubuntu 24.04
 # Descrição: Tarefas de provisionamento inicial, segurança e performance
 # ============================================================================
 
@@ -16,11 +16,14 @@
     - apt
     - upgrade
 
+# Off by default: on 27/10 --check showed it would upgrade docker-ce on aiops
+# (restarting every container) and autoremove MariaDB plugins on zabbix-prod.
 - name: Fazer upgrade completo do sistema
   ansible.builtin.apt:
     upgrade: dist
     autoremove: true
     autoclean: true
+  when: common_full_upgrade | default(false) | bool
   tags:
     - apt
     - upgrade
@@ -178,11 +181,15 @@
     - name: Validar configuração completa do sshd
       ansible.builtin.command: sshd -t
       changed_when: false
+      # read-only; without it --check skips and the assert fails. In --check the
+      # template is not written, so this validates the current config, not the baseline.
+      check_mode: false
 
     - name: Obter configuração efetiva do sshd
       ansible.builtin.command: sshd -T
       register: sshd_effective
       changed_when: false
+      check_mode: false
 
     - name: Afirmar valores efetivos mínimos do sshd
       ansible.builtin.assert:
@@ -206,7 +213,9 @@
       ansible.builtin.file:
         path: /etc/ssh/sshd_config.d/zz-ness-baseline.conf
         state: absent
-      when: sshd_baseline.backup_file | default('') | length == 0
+      when:
+        - sshd_baseline.backup_file | default('') | length == 0
+        - sshd_baseline is changed  # unchanged file was already accepted; keep it
 
     - name: Falhar sem recarregar o sshd
       ansible.builtin.fail:

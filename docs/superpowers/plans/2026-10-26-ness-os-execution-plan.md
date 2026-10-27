@@ -215,7 +215,8 @@ def test_guard_accepts_noop(tmp_path):
 - [ ] **Step 2:** `bash infra/ansible/tests/test_common_role.sh` → FAIL na role atual.
 - [ ] **Step 3:** Corrigir a role (drop-in, módulo de chave, porta por host: `2222` em `zabbix_prod`).
 - [ ] **Step 4:** Teste → PASS. `infra/bin/ansible ansible-lint infra/ansible` → sem erro.
-- [ ] **Step 5:** `ansible-playbook -i inventory/hosts.yml playbooks/common.yml --check --diff` nos três hosts: diff vazio ou cada diferença explicada na evidência. **Não aplicar** em produção nesta task.
+- [x] **Step 5:** `ansible-playbook -i inventory/hosts.yml playbooks/common.yml --check --diff` nos três hosts: diff vazio ou cada diferença explicada na evidência. **Não aplicar** em produção nesta task.
+  Feito em 27/10: [evidência](../../execution/evidence/ansible-common-check-2026-10-27.md) — diffs restantes bloqueiam `apply`.
 - [ ] **Step 6:** Commit `fix(ansible): baseline preserva drop-ins e chaves existentes`.
 
 ### Task 1.3: As-built gerado `[A]`
@@ -227,9 +228,9 @@ def test_guard_accepts_noop(tmp_path):
 **Interfaces:**
 - Produces: `as-built-collect.sh <host> [porta]` → markdown com SO/kernel, disco, serviços (`systemctl is-active/is-enabled`), portas em escuta, timers de backup, contêineres e imagens; sem IP privado, token ou variável de ambiente.
 
-- [ ] **Step 1:** Escrever o script só com comandos de leitura; `shellcheck` limpo.
-- [ ] **Step 2:** Rodar nos três hosts; `grep -iE 'password|token|secret' saída` → vazio.
-- [ ] **Step 3:** Atualizar `as-built-vps.md`; commit `docs(infra): as-built das VPS em 26/10`.
+- [x] **Step 1:** Escrever o script só com comandos de leitura; `shellcheck` limpo.
+- [x] **Step 2:** Rodar nos três hosts; `grep -iE 'password|token|secret' saída` → vazio.
+- [x] **Step 3:** Atualizar `as-built-vps.md`; commit `docs(infra): as-built das VPS em 26/10`.
 
 ---
 
@@ -261,6 +262,7 @@ Detalhe de cada T no [plano GLPI](2026-10-12-glpi-ness-os-complete-delivery.md);
 ### Task 2.2: T03 — decisão no ADR `[A]` + aprovação `[R]`
 
 - [ ] **Step 1:** ADR 0020 de "proposta" para "aceita", com contrato final, arquivos e resultado da Task 2.1.
+  - Feito em `docs/adr/0020-glpi-maintenance-entity-boundary.md` (status "proposta — implementada e testada em lab; aguarda aprovação do Ricardo"; contrato, resultado 18/18 e pendências da 2.3).
 - [ ] **Step 2:** Comentar na issue #74; Ricardo aprova o ADR (D2 junto).
 
 ### Task 2.3: T03 — produção `[R: D2 janela]` → `[A]`
@@ -290,9 +292,10 @@ Executar o plano GLPI na ordem T05 → T06 → T07 → T08/T09 → T10–T14. Po
 
 ### Task 3.1: Release do Hub da `main` `[A]` → `[R: GO]`
 
-- [ ] **Step 1:** Publicar imagens por digest a partir do SHA da `main` (contrato [release Hub](2026-10-12-hub-immutable-release-contract.md)).
-- [ ] **Step 2:** Canário + rollback ensaiado só se a configuração afetada mudou; manifesto aponta digests exatos.
-- [ ] **Step 3:** G0 com evidência no registro de gates.
+- [x] **Step 1:** Publicar imagens por digest a partir do SHA da `main` (contrato [release Hub](2026-10-12-hub-immutable-release-contract.md)).
+- [x] **Step 2:** Canário + rollback ensaiado só se a configuração afetada mudou; manifesto aponta digests exatos.
+- [x] **Step 3:** G0 com evidência no registro de gates.
+- Concluída em 27/10: [evidência](../../execution/evidence/hub-release-2026-10-26.md) (API `412bdc0`; promoção de 26/10 revertida por regressão GLPI, corrigida no #95).
 
 ### Task 3.2: Continuidade observável `[A]`
 

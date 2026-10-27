@@ -25,12 +25,12 @@
     - name: "Validar sistema operacional suportado"
       ansible.builtin.assert:
         that:
-          - ansible_distribution == "Debian"
-          - ansible_distribution_major_version == "12"
+          - (ansible_distribution == "Debian" and ansible_distribution_major_version == "12")
+            or (ansible_distribution == "Ubuntu" and ansible_distribution_version == "24.04")
         fail_msg: >
           Sistema operacional não suportado: {{ ansible_distribution }} {{ ansible_distribution_version }}.
-          Este playbook requer Debian 12 (Bookworm).
-        success_msg: "Sistema operacional validado: Debian 12 (Bookworm)"
+          Este playbook requer Debian 12 ou Ubuntu 24.04 (zabbix-uat).
+        success_msg: "Sistema operacional validado: {{ ansible_distribution }} {{ ansible_distribution_version }}"
       tags: [always]
 
   roles:
