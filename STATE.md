@@ -38,7 +38,7 @@ _nenhuma_
 2. 9.1 BOM Wazuh (#88): acesso SSH de leitura ao Wazuh Hostinger (`62.72.8.164`; porta 22 não responde da `stack`)
 3. Issue #82: rotacionar senhas admin/SSO do GLPI, root MariaDB e chave S3 de backup (sem reescrever histórico)
 4. Restringir a chave do agente à `stack` (`from=`)
-7. Depois: D4 MFA, D3/D6 compras Psono/Wazuh
+5. Depois: D4 MFA, D3/D6 compras Psono/Wazuh
 
 ## Foco
 
