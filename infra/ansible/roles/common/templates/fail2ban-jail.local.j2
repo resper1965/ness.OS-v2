@@ -5,6 +5,9 @@
 # ============================================================================
 
 [DEFAULT]
+# Nunca banir localhost nem os IPs operacionais (fail2ban_ignoreip)
+ignoreip = {{ fail2ban_ignoreip | join(' ') }}
+
 # Tempo de banimento em segundos (1 hora)
 bantime = 3600
 

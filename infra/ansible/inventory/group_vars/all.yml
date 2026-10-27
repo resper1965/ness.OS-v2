@@ -29,6 +29,17 @@ sudoers_file: "90-ness_admin"
 # Portas TCP extras no UFW além do SSH; só o SSH por padrão. Cada item: port, comment, from_ip (opcional)
 ufw_allow: []
 
+# Usuários com login SSH (AllowUsers do baseline)
+ssh_allow_users: ["{{ admin_user }}"]
+
+# IPs que o fail2ban nunca bane: localhost, stack e as VPS próprias
+fail2ban_ignoreip:
+  - 127.0.0.1/8
+  - ::1
+  - 148.230.77.242
+  - 144.91.115.242
+  - 144.91.72.202
+
 # Localidade do sistema
 system_locale: "pt_BR.UTF-8"
 

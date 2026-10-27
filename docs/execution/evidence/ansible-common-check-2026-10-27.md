@@ -23,7 +23,7 @@ Resultado: `rc=0`; `changed` aiops-01=15, zabbix-prod=5, zabbix-uat=15.
 
 ## Re-check `--check --diff` (27/10/2026, nada aplicado)
 
-`rc=0`; `changed` aiops-01=10, zabbix-prod=6, zabbix-uat=10. Diff residual:
+`rc=0`; `changed` aiops-01=10, zabbix-prod=6, zabbix-uat=10 (após ajustes da revisão: `ssh_allow_users`, `fail2ban_ignoreip`). Diff residual:
 
 | Tarefa | Hosts | Observação |
 |---|---|---|
@@ -31,9 +31,19 @@ Resultado: `rc=0`; `changed` aiops-01=15, zabbix-prod=5, zabbix-uat=15.
 | `authorized_key` | nenhum | — |
 | sudoers | zabbix-prod | `(ALL)` → `(ALL:ALL)`: equivalente, mesmo arquivo; nenhum arquivo novo |
 | `/etc/hosts` `127.0.1.1` | aiops-01, zabbix-uat | Tira o FQDN `*.contaboserver.net`; inofensivo |
-| `fail2ban` `jail.local` novo | os três | **Ainda a revisar** (muda bantime/jails ativos) |
-| Drop-in `zz-ness-baseline.conf` | os três | Efetivo já é `password no`, `kbd no`; esperado |
+| `fail2ban` `jail.local` novo | os três | Com `ignoreip` (localhost, stack, aiops, zabbix-prod). Em aiops-01 e UAT, `jail.d/*.local` (`maxretry = 5`, `bantime = 1h`) sobrepõe o `jail.local`, então o efetivo não muda lá |
+| Drop-in `zz-ness-baseline.conf` | os três | Efetivo já é `password no`, `kbd no`; `AllowUsers ness_admin` (aiops-01: `ness_admin root`, ver abaixo) |
 | sysctl | aiops-01, zabbix-uat (+ `tcp_max_syn_backlog` nos três) | Tuning do kernel; aceitar só com valores revisados |
 | Pacotes básicos / cache APT | aiops-01, zabbix-uat | Inofensivo |
 
 Restam antes do `apply`: revisar o template do fail2ban e os valores de sysctl.
+
+## Ajustes da revisão
+
+- `AllowUsers` vem de `ssh_allow_users` (padrão `[admin_user]`). Em aiops-01 é `[ness_admin, root]`: root loga lá por chave e remover root depende do OK do Ricardo. O assert checa que `sshd -T` `allowusers` é exatamente `ssh_allow_users` (fora do `--check`, pois o template não é escrito).
+- `fail2ban_ignoreip` em `group_vars/all.yml`, aplicado no `[DEFAULT]`.
+- Teste: sudoers pré-existente `(ALL)` vira `(ALL:ALL)` no mesmo arquivo e passa no `visudo -c`; `allowusers ness_admin` verificado.
+
+## Ordem do apply
+
+UAT → aiops-01 → zabbix-prod (produção por último), um host por vez, com uma **segunda sessão SSH aberta** durante o apply e `sshd -T`/login testado em nova sessão antes de seguir ao próximo. `common_full_upgrade` continua desligado.

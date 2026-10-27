@@ -27,8 +27,8 @@ MaxAuthTries 3
 LoginGraceTime 30
 
 # --- Controle de acesso ---
-# Permitir acesso SSH somente para o usuário administrador
-AllowUsers {{ admin_user }}
+# Permitir acesso SSH somente aos usuários de ssh_allow_users
+AllowUsers {{ ssh_allow_users | join(' ') }}
 
 # --- Protocolo e segurança ---
 # Nível de log detalhado para auditoria
