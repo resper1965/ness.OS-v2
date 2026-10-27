@@ -96,8 +96,9 @@
 
 - name: Configurar NOPASSWD no sudoers para {{ admin_user }}
   ansible.builtin.lineinfile:
-    path: "/etc/sudoers.d/{{ admin_user }}"
-    line: "{{ admin_user }} ALL=(ALL) NOPASSWD: ALL"
+    path: "/etc/sudoers.d/{{ sudoers_file }}"
+    regexp: '^{{ admin_user }}\s'
+    line: "{{ admin_user }} ALL=(ALL:ALL) NOPASSWD: ALL"
     create: true
     owner: root
     group: root
@@ -108,7 +109,7 @@
     - seguranca
 
 # --------------------------------------------------------------------------
-# 6. Configurar chave SSH autorizada para o usuário admin
+# 6. Garantir a chave do agente (VPS nova não fica sem acesso após AllowUsers)
 # --------------------------------------------------------------------------
 - name: Configurar chave SSH autorizada para {{ admin_user }}
   ansible.posix.authorized_key:
@@ -200,6 +201,14 @@
           - "('port ' ~ ssh_port) in sshd_effective.stdout_lines"
         fail_msg: "Outro drop-in torna o baseline SSH ineficaz; drop-in zz-ness-baseline revertido"
 
+    # not in --check: the template is not written, so sshd -T still shows the pre-baseline AllowUsers
+    - name: Afirmar que allowusers efetivo é exatamente ssh_allow_users
+      ansible.builtin.assert:
+        that:
+          - "(sshd_effective.stdout_lines | select('match', '^allowusers ') | map('regex_replace', '^allowusers ', '') | list | sort) == (ssh_allow_users | sort)"
+        fail_msg: "AllowUsers efetivo difere de ssh_allow_users; drop-in zz-ness-baseline revertido"
+      when: not ansible_check_mode
+
   rescue:
     - name: Restaurar drop-in anterior do baseline
       ansible.builtin.copy:
@@ -255,40 +264,20 @@
     rule: allow
     port: "{{ ssh_port }}"
     proto: tcp
-    comment: "SSH - porta por host (ssh_port)"
+    comment: "{{ ufw_ssh_comment | default(omit) }}"
   notify: Recarregar UFW
   tags:
     - firewall
     - seguranca
 
-- name: Permitir porta HTTP (80/tcp)
+- name: Permitir portas extras do host (ufw_allow)
   community.general.ufw:
     rule: allow
-    port: "80"
+    port: "{{ item.port }}"
     proto: tcp
-    comment: "HTTP"
-  notify: Recarregar UFW
-  tags:
-    - firewall
-    - seguranca
-
-- name: Permitir porta HTTPS (443/tcp)
-  community.general.ufw:
-    rule: allow
-    port: "443"
-    proto: tcp
-    comment: "HTTPS"
-  notify: Recarregar UFW
-  tags:
-    - firewall
-    - seguranca
-
-- name: Permitir porta Zabbix Trapper (10051/tcp)
-  community.general.ufw:
-    rule: allow
-    port: "10051"
-    proto: tcp
-    comment: "Zabbix Trapper"
+    from_ip: "{{ item.from_ip | default('any') }}"
+    comment: "{{ item.comment | default(omit) }}"
+  loop: "{{ ufw_allow }}"
   notify: Recarregar UFW
   tags:
     - firewall
