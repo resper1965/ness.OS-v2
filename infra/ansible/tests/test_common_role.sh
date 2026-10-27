@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Role common vs. a Debian 12 container with an existing sshd drop-in and an
-# authorized_keys file without trailing newline. Usage: bash infra/ansible/tests/test_common_role.sh
+# authorized_keys file without trailing newline (role must leave it untouched). Usage: bash infra/ansible/tests/test_common_role.sh
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 ANSIBLE="$ROOT/infra/bin/ansible"
@@ -39,8 +39,8 @@ run() {
 }
 
 run || fail "first run"
-[ "$(dx 'grep -c "" /home/ness_admin/.ssh/authorized_keys')" = 2 ] || fail "authorized_keys must have 2 lines"
-[ "$(dx 'ssh-keygen -lf /home/ness_admin/.ssh/authorized_keys | wc -l')" = 2 ] || fail "authorized_keys must have 2 valid keys"
+[ "$(dx 'cat /home/ness_admin/.ssh/authorized_keys')" = "$(cat "$TMP/key.pub")" ] || fail "authorized_keys must stay untouched"
+dx 'test -f /etc/sudoers.d/90-ness_admin && ! test -e /etc/sudoers.d/ness_admin' || fail "sudoers must be 90-ness_admin only"
 [ "$(dx "sha256sum $FILES")" = "$BEFORE" ] || fail "sshd_config or existing drop-ins changed"
 dx 'test -f /etc/ssh/sshd_config.d/zz-ness-baseline.conf' || fail "baseline drop-in missing"
 dx '! test -e /etc/ssh/sshd_config.d/50-ness-baseline.conf' || fail "old 50- drop-in not removed"

@@ -23,7 +23,11 @@ ssh_port: 22
 
 # Usuário administrador do sistema
 admin_user: "ness_admin"
-admin_ssh_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILy+Bn+pSy9Zkx3UQLnD/d53nP7Lg1Yx0mVMEnPter1Q cursor-agent-stackvps"
+# Arquivo em /etc/sudoers.d (hosts com nome próprio sobrescrevem no inventário)
+sudoers_file: "90-ness_admin"
+
+# Portas TCP extras no UFW além do SSH; só o SSH por padrão. Cada item: port, comment, from_ip (opcional)
+ufw_allow: []
 
 # Localidade do sistema
 system_locale: "pt_BR.UTF-8"

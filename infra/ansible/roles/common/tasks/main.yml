@@ -96,8 +96,9 @@
 
 - name: Configurar NOPASSWD no sudoers para {{ admin_user }}
   ansible.builtin.lineinfile:
-    path: "/etc/sudoers.d/{{ admin_user }}"
-    line: "{{ admin_user }} ALL=(ALL) NOPASSWD: ALL"
+    path: "/etc/sudoers.d/{{ sudoers_file }}"
+    regexp: '^{{ admin_user }}\s'
+    line: "{{ admin_user }} ALL=(ALL:ALL) NOPASSWD: ALL"
     create: true
     owner: root
     group: root
@@ -105,19 +106,6 @@
     validate: /usr/sbin/visudo -cf %s
   tags:
     - usuario
-    - seguranca
-
-# --------------------------------------------------------------------------
-# 6. Configurar chave SSH autorizada para o usuário admin
-# --------------------------------------------------------------------------
-- name: Configurar chave SSH autorizada para {{ admin_user }}
-  ansible.posix.authorized_key:
-    user: "{{ admin_user }}"
-    key: "{{ admin_ssh_key }}"
-    state: present
-    exclusive: false
-  tags:
-    - ssh
     - seguranca
 
 # --------------------------------------------------------------------------
@@ -255,40 +243,20 @@
     rule: allow
     port: "{{ ssh_port }}"
     proto: tcp
-    comment: "SSH - porta por host (ssh_port)"
+    comment: "{{ ufw_ssh_comment | default(omit) }}"
   notify: Recarregar UFW
   tags:
     - firewall
     - seguranca
 
-- name: Permitir porta HTTP (80/tcp)
+- name: Permitir portas extras do host (ufw_allow)
   community.general.ufw:
     rule: allow
-    port: "80"
+    port: "{{ item.port }}"
     proto: tcp
-    comment: "HTTP"
-  notify: Recarregar UFW
-  tags:
-    - firewall
-    - seguranca
-
-- name: Permitir porta HTTPS (443/tcp)
-  community.general.ufw:
-    rule: allow
-    port: "443"
-    proto: tcp
-    comment: "HTTPS"
-  notify: Recarregar UFW
-  tags:
-    - firewall
-    - seguranca
-
-- name: Permitir porta Zabbix Trapper (10051/tcp)
-  community.general.ufw:
-    rule: allow
-    port: "10051"
-    proto: tcp
-    comment: "Zabbix Trapper"
+    from_ip: "{{ item.from_ip | default('any') }}"
+    comment: "{{ item.comment | default(omit) }}"
+  loop: "{{ ufw_allow }}"
   notify: Recarregar UFW
   tags:
     - firewall
