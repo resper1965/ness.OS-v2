@@ -4,7 +4,7 @@
 
 **Estágio:** em andamento
 
-**Próximo passo:** 6.2 + 6.4 e 0.2 em paralelo; com OK do Ricardo, criar o bucket `ness-os-tfstate` e aplicar o import do Terraform (1.1).
+**Próximo passo:** ajustes da role `common` para `apply` (UFW por host, chave antiga, sudoers) e 2.5 (T05) em laboratório; com OK do Ricardo, criar o bucket `ness-os-tfstate` e aplicar o import do Terraform (1.1).
 
 ## Quadro (atualizado a cada task fechada)
 
@@ -22,18 +22,19 @@ Tasks do [plano de execução](docs/superpowers/plans/2026-10-26-ness-os-executi
 - 2.4 GLPI T04: um ticket por alerta; 403 libera a reserva — #93
 - 3.1 Hub API + workers em `412bdc0` desde 27/10 — [evidência](docs/execution/evidence/hub-release-2026-10-26.md); promoção de 26/10 revertida (regressão GLPI, corrigida no #95); canário de alertas no script — #86
 - 6.1 + 6.3 Testes do frontend (vitest) e isolamento do SSE — #90
+- 6.2 + 6.4 Frescor/último sucesso/erro por fonte em `pipeline_health`, `ready` e exit code do monitor; UI sem hora falsa — #101
+- Reconciliação dos alertas de 26–27/10: 739 sem ticket, 215 sem cobertura — #102
 - 8.1 Contrato `AIRequestV1`, sanitização e métrica das chamadas ao Gemini — #99 (corrigiu vazamento de segredo para o Gemini em análise e triagem SOC)
 
 ### Em andamento
 _nenhuma_
 
 ### Pronto para começar
-- 6.2 + 6.4 Verdade operacional e matriz de entidades
-- 0.2 Limpeza da raiz (revisão do Ricardo no fim)
 - 1.2 ajustes para `apply`: UFW por host, chave antiga, sudoers existente
-- Reconciliar alertas que falharam em 26–27/10 (`glpi_backlog_classify.py`, leitura)
+- 2.5 T05 do plano GLPI
 
 ### Esperando o Ricardo
+0. Revisar o PR #100 (0.2 limpeza da raiz; revisor aprovou) e decidir: recriar os 215 tickets de 26–27/10? `cli/contabo` ou `app/cli/contabo`?
 1. OK para criar o bucket `ness-os-tfstate` (privado, versionado) e GO do `apply` do import (1.1)
 2. 9.1 BOM Wazuh (#88): volumetria real do Wazuh Hostinger (SSH leitura, usuário leitura ou 3 comandos)
 3. Issue #82: segredos antigos em refs do GitHub, agora com repositório público
