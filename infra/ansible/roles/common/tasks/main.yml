@@ -206,7 +206,7 @@
     - name: Afirmar que allowusers efetivo é exatamente ssh_allow_users
       ansible.builtin.assert:
         that:
-          - "(sshd_effective.stdout_lines | select('match', '^allowusers ') | map('regex_replace', '^allowusers ', '') | unique | sort) == (ssh_allow_users | unique | sort)"
+          - "(sshd_effective.stdout_lines | select('match', '^allowusers ') | map('regex_replace', '^allowusers ', '') | unique(case_sensitive=true) | sort(case_sensitive=true)) == (ssh_allow_users | unique(case_sensitive=true) | sort(case_sensitive=true))"
         fail_msg: "AllowUsers efetivo difere de ssh_allow_users; drop-in zz-ness-baseline revertido"
       when: not ansible_check_mode
 
