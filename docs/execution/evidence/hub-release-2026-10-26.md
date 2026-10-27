@@ -24,7 +24,11 @@ Verificação após 5 min: `/ready` 200, Hub 200, 3 containers `healthy`, 0 rest
 - Causa: o GLPI de produção responde busca vazia com `200`, `[]` e **sem** `Content-Range` (medido em 27/10, só leitura: busca sem resultado → 200 sem header; com resultado → 206 `0-99/284`). A paginação nova exigia o header. O fake do teste devolvia `*/0`, que o GLPI real não manda.
 - 27/10 ~08:05: rollback manual para `144317fd…` (comando do próprio script); `process_alert_v1` voltou a `succeeded`.
 - Correção: PR #95 (primeira página vazia sem `Content-Range` = coleção vazia; teste com a resposta real). Imagens republicadas da `main` e promovidas pelo mesmo script.
-- Alertas do período: os que falharam esgotaram retry ou ficaram registrados; reconciliar pelo `glpi_backlog_classify.py` (Task 2.4 Step 4).
+- Reconciliação (27/10, consulta só leitura em `n_infraops_incidents`, janela 26/10 23:10 – 27/10 08:10 BRT):
+  - 753 incidentes criados; 14 com ticket (busca não vazia) e **739 sem ticket**, todos `open`, última ação GLPI `ticket_failed error=RuntimeError`;
+  - 739 eventos Zabbix distintos, 88 hosts, 65 títulos; nenhum recebeu alerta depois de 08:10;
+  - 524 têm incidente posterior com o mesmo título e host que já ganhou ticket após a correção; **215 não têm ticket algum**.
+  - Não há retry pendente: o Celery registrou `raised unexpected`. Recriar os tickets é escrita no GLPI de cliente e espera decisão (Task 2.4 Step 4).
 
 ## Lição
 
