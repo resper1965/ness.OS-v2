@@ -45,3 +45,7 @@ Dos 215 incidentes sem ticket, 26 tinham o mesmo problema ainda ativo no Zabbix 
 - **Monitor sempre vermelho:** `hub-integration-monitor.sh` falhava toda execução (backlog histórico sem ticket e contador cumulativo de falhas), então ninguém olhava e 9 h passaram sem reação. Este PR limita o sinal a incidentes abertos sem ticket entre 5 e 60 min e a falhas dos últimos 15 min. A rota de notificação (canal) segue pendente: decisão do Ricardo.
 - **Sem replay para `ticket_failed`:** nada reenfileirava os incidentes sem ticket. Script versionado neste PR: `infra/scripts/glpi_ticket_replay.py` (dry-run por padrão, só incidente aberto sem ticket com fingerprint idêntico).
 - **Ruído Google Updater (12 alertas):** ajuste do trigger no Zabbix depende de GO (D5).
+
+## Promoção de `9c34eda` (27/10 ~19:10 BRT)
+
+Monitor acionável (#111): API e workers em `ghcr.io/resper1965/ninf-api@sha256:5ed418b4…` (`publish-hub-images` run 40590782395). Script `aiops-promote-hub-api.sh` → `promotion=PASS`, canário de alertas sem falha, `/api/assets` 401, 3 contêineres `healthy` e 0 restart. Backup prévio `20261027T190327-0300`. `pipeline_health` passou a dar `ok` (rc=0): `workers failures:0`, `delivery: sem ticket entre 5 e 60 min: 0`. Em 5 min, 0 execuções do monitor com falha, a primeira vez que fica verde. Rollback: release `412bdc0` (comando no journal de `ness-hub-promote-9c34eda`).
