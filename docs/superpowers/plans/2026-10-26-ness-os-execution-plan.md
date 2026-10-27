@@ -262,6 +262,7 @@ Detalhe de cada T no [plano GLPI](2026-10-12-glpi-ness-os-complete-delivery.md);
 ### Task 2.2: T03 — decisão no ADR `[A]` + aprovação `[R]`
 
 - [ ] **Step 1:** ADR 0020 de "proposta" para "aceita", com contrato final, arquivos e resultado da Task 2.1.
+  - Feito em `docs/adr/0020-glpi-maintenance-entity-boundary.md` (status "proposta — implementada e testada em lab; aguarda aprovação do Ricardo"; contrato, resultado 18/18 e pendências da 2.3).
 - [ ] **Step 2:** Comentar na issue #74; Ricardo aprova o ADR (D2 junto).
 
 ### Task 2.3: T03 — produção `[R: D2 janela]` → `[A]`
@@ -291,9 +292,10 @@ Executar o plano GLPI na ordem T05 → T06 → T07 → T08/T09 → T10–T14. Po
 
 ### Task 3.1: Release do Hub da `main` `[A]` → `[R: GO]`
 
-- [ ] **Step 1:** Publicar imagens por digest a partir do SHA da `main` (contrato [release Hub](2026-10-12-hub-immutable-release-contract.md)).
-- [ ] **Step 2:** Canário + rollback ensaiado só se a configuração afetada mudou; manifesto aponta digests exatos.
-- [ ] **Step 3:** G0 com evidência no registro de gates.
+- [x] **Step 1:** Publicar imagens por digest a partir do SHA da `main` (contrato [release Hub](2026-10-12-hub-immutable-release-contract.md)).
+- [x] **Step 2:** Canário + rollback ensaiado só se a configuração afetada mudou; manifesto aponta digests exatos.
+- [x] **Step 3:** G0 com evidência no registro de gates.
+- Concluída em 27/10: [evidência](../../execution/evidence/hub-release-2026-10-26.md) (API `412bdc0`; promoção de 26/10 revertida por regressão GLPI, corrigida no #95).
 
 ### Task 3.2: Continuidade observável `[A]`
 
