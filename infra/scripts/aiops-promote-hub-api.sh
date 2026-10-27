@@ -82,6 +82,12 @@ hub_status="$(curl -ksS -o /dev/null -w '%{http_code}' --resolve hub.ness.com.br
 for c in ninf-api ninf-worker-alerts ninf-worker-ml; do
   [[ "$(docker inspect -f '{{.Config.Image}}' "$c")" == "${api_ref}" ]]
 done
+# /ready does not exercise ticket delivery (26/10: PASS here, every alert failing after).
+# Watch real alert tasks; any unexpected failure rolls back.
+sleep "${ALERT_WATCH_SECONDS:-300}"
+alert_failures="$(docker logs --since "${ALERT_WATCH_SECONDS:-300}s" ninf-worker-alerts 2>&1 | grep -c 'process_alert_v1\[.*raised unexpected' || true)"
+echo "alert_failures=${alert_failures}"
+[[ "${alert_failures}" == 0 ]]
 trap - ERR
 
 docker ps --format '{{.Names}} {{.Image}}' | sort > "${evidence}/post-promotion-images.txt"
