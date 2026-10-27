@@ -134,6 +134,7 @@ def test_hashes_cover_installed_service_entrypoints_and_host_configuration(
         "infra/scripts/hub-clean-engine-restore.sh",
         "infra/scripts/hub-cmdb-sync.sh",
         "infra/scripts/hub-health-history.py",
+        "infra/scripts/hub-alert-mail.sh",
         "infra/scripts/hub-integration-monitor.sh",
         "infra/psono/scripts/backup.sh",
         "infra/psono/scripts/restore-verify.sh",
