@@ -15,6 +15,8 @@ def replay(rows, payload_cls, fingerprint, enqueue, go):
     out = []
     for r in rows:
         tags = r.tags or {}
+        if not tags.get("ninf_zabbix_event_id"):
+            continue
         payload = payload_cls(
             event_id=tags.get("ninf_zabbix_event_id"),
             host_id=r.host_id,
