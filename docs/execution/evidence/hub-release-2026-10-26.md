@@ -28,4 +28,4 @@ Verificação após 5 min: `/ready` 200, Hub 200, 3 containers `healthy`, 0 rest
 
 ## Lição
 
-O canário da promoção precisa exercitar a entrega de ticket, não só `/ready`: após promover, contar `process_alert_v1` por resultado por alguns minutos e reverter se houver falha nova. Pendente no script (PR #86).
+O canário da promoção precisa exercitar a entrega de ticket, não só `/ready`: após promover, contar `process_alert_v1` por resultado por alguns minutos e reverter se houver falha nova. O PR #86 acrescenta essa verificação ao script (falhas+retries acima dos sucessos desde o recreate → rollback) e passa a sondar a API pelo Caddy (`/api/assets` → 401), já que `/` é o frontend.

@@ -62,12 +62,14 @@ docker rm -f "${canary}" >/dev/null
 # 4. Promote; any failure from here restores the previous release.
 rollback() {
   code=$?
-  trap - ERR
+  trap - ERR INT TERM HUP
   echo 'promotion failed; restoring previous release' >&2
   "${compose_old[@]}" up -d --no-deps --force-recreate "${services[@]}" >/dev/null 2>&1 || true
   exit "${code}"
 }
 trap rollback ERR
+trap rollback INT TERM HUP  # a signal mid-promotion also rolls back
+promoted_at="$(date -u +%FT%TZ)"
 "${compose_new[@]}" up -d --no-deps --force-recreate "${services[@]}"
 
 for _ in $(seq 1 60); do
@@ -77,18 +79,23 @@ for _ in $(seq 1 60); do
 done
 [[ "${states}" == "healthy " ]]
 docker exec ninf-api curl -fsS http://localhost:8000/ready >/dev/null
-hub_status="$(curl -ksS -o /dev/null -w '%{http_code}' --resolve hub.ness.com.br:443:127.0.0.1 https://hub.ness.com.br/)"
-[[ "${hub_status}" =~ ^(200|301|302|303)$ ]]
+# / is served by the frontend; /api/assets reaches the API through Caddy (401 without a session).
+hub_status="$(curl -ksS -o /dev/null -w '%{http_code}' --resolve hub.ness.com.br:443:127.0.0.1 https://hub.ness.com.br/api/assets)"
+[[ "${hub_status}" == 401 ]]
 for c in ninf-api ninf-worker-alerts ninf-worker-ml; do
   [[ "$(docker inspect -f '{{.Config.Image}}' "$c")" == "${api_ref}" ]]
 done
 # /ready does not exercise ticket delivery (26/10: PASS here, every alert failing after).
-# Watch real alert tasks; any unexpected failure rolls back.
+# Watch real alert tasks since the recreate. Baseline noise exists (unmapped clients fail
+# ~1 per few minutes), so roll back only when failures+retries outnumber successes.
+# ponytail: depends on live alert traffic; upgrade path: inject a synthetic alert (Task 7.1).
 sleep "${ALERT_WATCH_SECONDS:-300}"
-alert_failures="$(docker logs --since "${ALERT_WATCH_SECONDS:-300}s" ninf-worker-alerts 2>&1 | grep -c 'process_alert_v1\[.*raised unexpected' || true)"
-echo "alert_failures=${alert_failures}"
-[[ "${alert_failures}" == 0 ]]
-trap - ERR
+alert_log="$(docker logs --since "${promoted_at}" ninf-worker-alerts 2>&1)"
+alert_ok="$(grep -c 'process_alert_v1\[[^]]*\] succeeded' <<<"${alert_log}" || true)"
+alert_bad="$(grep -cE 'process_alert_v1\[[^]]*\] (raised unexpected|retry)' <<<"${alert_log}" || true)"
+echo "alerts_succeeded=${alert_ok} alerts_failed_or_retry=${alert_bad}"
+(( alert_bad <= alert_ok ))
+trap - ERR INT TERM HUP
 
 docker ps --format '{{.Names}} {{.Image}}' | sort > "${evidence}/post-promotion-images.txt"
 printf 'release=%s\nprevious=%s\nbackup_set=%s\napi_image=%s\npromotion=PASS\nhub_http=%s\n' \
