@@ -20,6 +20,10 @@ from app.workers.telemetry import KEY
 PROBE_TIMEOUT_SECONDS = 20
 MAX_QUEUE_AGE_SECONDS = 300
 MAX_SOURCE_AGE_SECONDS = 900
+# Only recent delivery trouble is actionable; older entries are history, not alerts.
+WORKER_FAILURE_WINDOW_SECONDS = 900
+MISSING_TICKET_MIN_AGE = timedelta(minutes=5)
+MISSING_TICKET_MAX_AGE = timedelta(minutes=60)
 
 
 def _broker_read_url():
@@ -105,8 +109,11 @@ async def workers_health():
         missing = sorted(
             queue for queue, count in workers_by_queue.items() if not count
         )
-        failed = sum(r["state"] == "failed" for r in records)
-        retrying = sum(r["state"] == "retrying" for r in records)
+        # The ledger is cumulative (kept 30 days, capped at 1000), so count only recent entries.
+        since = checked.timestamp() - WORKER_FAILURE_WINDOW_SECONDS
+        recent = [r for r in records if r.get("at", 0) >= since]
+        failed = sum(r["state"] == "failed" for r in recent)
+        retrying = sum(r["state"] == "retrying" for r in recent)
         queue_health = []
         for queue, depth in queues.items():
             age = ages[queue]
@@ -175,7 +182,9 @@ async def workers_health():
 
 
 async def incident_health():
-    cutoff = datetime.now(timezone.utc) - timedelta(minutes=5)
+    now = datetime.now(timezone.utc)
+    cutoff = now - MISSING_TICKET_MIN_AGE
+    oldest = now - MISSING_TICKET_MAX_AGE
     try:
         async with SessionLocal() as session:
             missing = await session.scalar(
@@ -183,8 +192,10 @@ async def incident_health():
                 .select_from(Incident)
                 .where(
                     Incident.tags.has_key("ninf_zabbix_event_id"),
+                    Incident.status == "open",
                     Incident.deskmanager_ticket_id.is_(None),
                     Incident.created_at < cutoff,
+                    Incident.created_at >= oldest,
                 )
             )
             pending = await session.scalar(
@@ -199,7 +210,7 @@ async def incident_health():
             "status": "error" if missing or pending else "ok",
             "incidents_without_ticket": missing,
             "resolutions_pending": pending,
-            "detail": f"Sem ticket há mais de 5 min: {missing}; resoluções pendentes: {pending}",
+            "detail": f"Sem ticket entre 5 e 60 min: {missing}; resoluções pendentes: {pending}",
         }
     except Exception as exc:
         return {"status": "error", "detail": type(exc).__name__}

@@ -84,6 +84,7 @@ jobs:
         python -m pytest -q infra/tests/test-zabbix-quality-wave.py
         python -m pytest -q infra/tests/test_glpi_network_boundary_probe.py
         python -m pytest -q infra/tests/test_glpi_t03_prod_tooling.py
+        python -m pytest -q infra/tests/test_glpi_ticket_replay.py
         bash infra/tests/test-aiops-runtime-readiness.sh
 
     - name: Validate merged AIOps Compose without starting services

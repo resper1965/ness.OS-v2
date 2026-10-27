@@ -37,3 +37,11 @@ O canário da promoção precisa exercitar a entrega de ticket, não só `/ready
 ## Replay dos alertas ainda ativos (27/10, ~17:22 BRT, OK do Ricardo)
 
 Dos 215 incidentes sem ticket, 26 tinham o mesmo problema ainda ativo no Zabbix (mesmo `event_id`, fingerprint idêntico). Reenfileirados pelo pipeline normal (`process_alert_v1`, fila `alerts.primary`) só os 12 de FortiGate (latência ICMP e sem coleta SNMP). Resultado: 12/12 com ticket, 12 tickets distintos, nenhum ticket compartilhado entre incidentes. Os outros 14 ativos (Google Updater parado em servidores Windows e espaço de disco em `alpdb01`/`alpdb02`) ficaram sem replay, aguardando decisão. Os 189 restantes já se resolveram e ficam sem ticket.
+
+## Avaliação do processo
+
+- **Canário sem ticket:** a promoção só olhava `/ready` e Hub 200, não exercitava a entrega de ticket. Corrigido no PR #86 (falhas+retries acima dos sucessos desde o recreate → rollback).
+- **Fake divergente do GLPI real:** o fake devolvia `Content-Range: */0` em busca vazia; o GLPI real responde `200` sem o header. Corrigido no PR #95. Recomendação: teste de contrato contra `infra/tests/glpi-lab`, para o fake não divergir de novo.
+- **Monitor sempre vermelho:** `hub-integration-monitor.sh` falhava toda execução (backlog histórico sem ticket e contador cumulativo de falhas), então ninguém olhava e 9 h passaram sem reação. Este PR limita o sinal a incidentes abertos sem ticket entre 5 e 60 min e a falhas dos últimos 15 min. A rota de notificação (canal) segue pendente: decisão do Ricardo.
+- **Sem replay para `ticket_failed`:** nada reenfileirava os incidentes sem ticket. Script versionado neste PR: `infra/scripts/glpi_ticket_replay.py` (dry-run por padrão, só incidente aberto sem ticket com fingerprint idêntico).
+- **Ruído Google Updater (12 alertas):** ajuste do trigger no Zabbix depende de GO (D5).
