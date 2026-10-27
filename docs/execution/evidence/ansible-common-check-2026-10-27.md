@@ -18,7 +18,7 @@ Resultado: `rc=0`; `changed` aiops-01=15, zabbix-prod=5, zabbix-uat=15.
 | Bloqueio | Correção |
 |---|---|
 | UFW 80/443/10051 de qualquer origem | Lista `ufw_allow` por host em `hosts.yml` (padrão: só SSH). Modela só o que já existe: prod 80/443/10051; UAT 80/443 e 10051 de 144.91.72.202; AIOps 80/443. Faixas Cloudflare e allowlist de proxies da UAT ficam fora da role e não são tocadas |
-| `admin_ssh_key` antiga | Variável e task removidas (a chave do agente já está nos hosts) |
+| `admin_ssh_key` antiga (`cursor-agent-stackvps`) | Trocada pela chave atual do agente, já presente nos 3 hosts (`ok`, sem diff); garante acesso em VPS nova após `AllowUsers` |
 | `/etc/sudoers.d/ness_admin` duplicado | `sudoers_file` gerencia o arquivo existente (`90-ness_admin` por padrão e na UAT; `90-ness-admin` na AIOps; `ness_admin` no prod), com `validate: visudo -cf` |
 
 ## Re-check `--check --diff` (27/10/2026, nada aplicado)

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Role common vs. a Debian 12 container with an existing sshd drop-in and an
-# authorized_keys file without trailing newline (role must leave it untouched). Usage: bash infra/ansible/tests/test_common_role.sh
+# authorized_keys file without trailing newline (existing key kept, agent key appended). Usage: bash infra/ansible/tests/test_common_role.sh
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 ANSIBLE="$ROOT/infra/bin/ansible"
@@ -40,7 +40,9 @@ run() {
 }
 
 run || fail "first run"
-[ "$(dx 'cat /home/ness_admin/.ssh/authorized_keys')" = "$(cat "$TMP/key.pub")" ] || fail "authorized_keys must stay untouched"
+AK="$(dx 'cat /home/ness_admin/.ssh/authorized_keys')"
+grep -qF "$(cut -d' ' -f2 "$TMP/key.pub")" <<<"$AK" || fail "existing key removed"
+grep -qF "$(grep '^admin_ssh_key' "$ROOT/infra/ansible/inventory/group_vars/all.yml" | cut -d' ' -f3)" <<<"$AK" || fail "agent key missing"
 dx 'test -f /etc/sudoers.d/90-ness_admin && ! test -e /etc/sudoers.d/ness_admin' || fail "sudoers must be 90-ness_admin only"
 [ "$(dx 'cat /etc/sudoers.d/90-ness_admin')" = "ness_admin ALL=(ALL:ALL) NOPASSWD: ALL" ] || fail "pre-existing (ALL) sudoers not corrected to (ALL:ALL) in place"
 dx 'visudo -c >/dev/null' || fail "visudo -c"

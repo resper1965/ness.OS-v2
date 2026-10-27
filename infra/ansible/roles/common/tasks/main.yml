@@ -109,6 +109,19 @@
     - seguranca
 
 # --------------------------------------------------------------------------
+# 6. Garantir a chave do agente (VPS nova não fica sem acesso após AllowUsers)
+# --------------------------------------------------------------------------
+- name: Configurar chave SSH autorizada para {{ admin_user }}
+  ansible.posix.authorized_key:
+    user: "{{ admin_user }}"
+    key: "{{ admin_ssh_key }}"
+    state: present
+    exclusive: false
+  tags:
+    - ssh
+    - seguranca
+
+# --------------------------------------------------------------------------
 # 7. Instalar pacotes básicos de administração e utilitários
 # --------------------------------------------------------------------------
 - name: Instalar pacotes básicos do sistema

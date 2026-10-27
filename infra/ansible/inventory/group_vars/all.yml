@@ -23,6 +23,8 @@ ssh_port: 22
 
 # Usuário administrador do sistema
 admin_user: "ness_admin"
+# Chave pública do agente (stack); garante acesso em VPS nova, já presente nos hosts atuais
+admin_ssh_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIN3Yr5hM6WjgNx3qIQ8DDAT+xts1WfsPp2MDxDnFvtxn agente@stack-nessos-2026-10"
 # Arquivo em /etc/sudoers.d (hosts com nome próprio sobrescrevem no inventário)
 sudoers_file: "90-ness_admin"
 
