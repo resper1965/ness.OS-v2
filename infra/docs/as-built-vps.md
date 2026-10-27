@@ -1,5 +1,7 @@
 # Estado real das VPS (as built)
 
+> **Estado atual:** seção [Snapshot de 27/10/2026](#snapshot-de-27102026), gerada por `infra/scripts/as-built-collect.sh`. O texto abaixo dela é o levantamento manual de 20/08 e fica como histórico.
+>
 > Levantamento somente leitura realizado em 20/08/2026. Este documento descreve o estado observado nessa data; não substitui monitoramento contínuo. Valores secretos foram deliberadamente omitidos.
 
 ## Escopo e acesso administrativo
@@ -182,3 +184,308 @@ docker compose \
 systemctl --failed
 sudo ufw status verbose
 ```
+
+## Snapshot de 27/10/2026
+
+Gerado por `NESS_AGENT_KEY=~/.ssh/nessos_agent infra/scripts/as-built-collect.sh <host> [porta]` (só leitura). Para atualizar, rode de novo e substitua esta seção.
+
+
+
+
+### zabbix-srv01 (Debian GNU/Linux 12 (bookworm))
+
+Coletado em 2026-10-27 08:44 -03.
+
+#### Sistema
+
+```
+kernel 6.1.0-54-cloud-amd64
+cpu 8 vCPU
+Mem: 29Gi usado 21Gi
+Swap: 8.0Gi usado 0B
+America/Sao_Paulo yes
+```
+
+#### Disco
+
+```
+Filesystem     Type  Size  Used Avail Use% Mounted on
+/dev/sda1      ext4  1.2T  311G  823G  28% /
+/dev/sda15     vfat  124M   12M  112M  10% /boot/efi
+```
+
+#### Serviços (ativos e habilitados)
+
+```
+ssh                active    enabled
+sshd               active    alias
+ufw                active    enabled
+fail2ban           active    enabled
+systemd-timesyncd  active    enabled
+mariadb            active    enabled
+mysql              active    alias
+zabbix-server      active    enabled
+zabbix-agent2      active    enabled
+```
+
+#### Timers
+
+```
+apt-daily-upgrade.timer apt-daily-upgrade.service
+apt-daily.timer apt-daily.service
+dpkg-db-backup.timer dpkg-db-backup.service
+e2scrub_all.timer e2scrub_all.service
+exim4-base.timer exim4-base.service
+fstrim.timer fstrim.service
+man-db.timer man-db.service
+ness-zabbix-backup.timer ness-zabbix-backup.service
+ness-zabbix-object-storage-backup.timer ness-zabbix-object-storage-backup.service
+phpsessionclean.timer phpsessionclean.service
+systemd-tmpfiles-clean.timer systemd-tmpfiles-clean.service
+```
+
+#### Portas em escuta (fora de loopback)
+
+```
+80 * apache2
+443 * apache2
+2222 0.0.0.0 sshd
+5355 0.0.0.0 systemd-resolve
+10050 * zabbix_agent2
+10051 0.0.0.0 zabbix_server
+```
+
+#### UFW
+
+```
+Status: active
+Anywhere                   DENY        202.61.130.107             # Zabbix-IR-20260820
+Anywhere                   DENY        111.34.138.86              # Zabbix incident 2026-08-20
+Anywhere                   DENY        36.234.157.166             # Zabbix incident 2026-08-20
+Anywhere                   DENY        37.153.90.88               # Zabbix incident 2026-08-20
+Anywhere                   DENY        166.88.227.34              # Zabbix incident 2026-08-20
+Anywhere                   DENY        202.61.130.55              # Zabbix incident 2026-08-20
+Anywhere                   DENY        111.90.158.58              # Zabbix incident 2026-08-20
+2222/tcp                   ALLOW       Anywhere                   # SSH - porta customizada
+80/tcp                     ALLOW       Anywhere                   # HTTP
+443/tcp                    ALLOW       Anywhere                   # HTTPS
+10051/tcp                  ALLOW       Anywhere                   # Zabbix Trapper
+2222/tcp (v6)              ALLOW       Anywhere (v6)              # SSH - porta customizada
+80/tcp (v6)                ALLOW       Anywhere (v6)              # HTTP
+443/tcp (v6)               ALLOW       Anywhere (v6)              # HTTPS
+10051/tcp (v6)             ALLOW       Anywhere (v6)              # Zabbix Trapper
+151.245.90.135             DENY OUT    Anywhere                   # Zabbix-IR-20260820
+111.90.139.202             DENY OUT    Anywhere                   # Zabbix-IR-20260820
+111.90.158.58              DENY OUT    Anywhere                   # Zabbix-IR-20260820
+```
+
+### vmi3409271 (Debian GNU/Linux 12 (bookworm))
+
+Coletado em 2026-10-27 08:44 -03.
+
+#### Sistema
+
+```
+kernel 6.1.0-54-cloud-amd64
+cpu 8 vCPU
+Mem: 23Gi usado 3.8Gi
+Swap: 4.0Gi usado 2.0Mi
+America/Sao_Paulo yes
+```
+
+#### Disco
+
+```
+Filesystem     Type  Size  Used Avail Use% Mounted on
+/dev/sda1      ext4  394G  115G  263G  31% /
+/dev/sda15     vfat  124M   12M  112M  10% /boot/efi
+```
+
+#### Serviços (ativos e habilitados)
+
+```
+ssh                active    enabled
+sshd               active    alias
+ufw                active    enabled
+fail2ban           active    enabled
+docker             active    enabled
+containerd         active    enabled
+systemd-timesyncd  active    enabled
+```
+
+#### Timers
+
+```
+apt-daily-upgrade.timer apt-daily-upgrade.service
+apt-daily.timer apt-daily.service
+dpkg-db-backup.timer dpkg-db-backup.service
+e2scrub_all.timer e2scrub_all.service
+exim4-base.timer exim4-base.service
+fstrim.timer fstrim.service
+man-db.timer man-db.service
+ness-aiops-backup.timer ness-aiops-backup.service
+ness-aiops-object-storage-backup.timer ness-aiops-object-storage-backup.service
+ness-aiops-restore-verify.timer ness-aiops-restore-verify.service
+ness-hub-cmdb-sync.timer ness-hub-cmdb-sync.service
+ness-hub-integration-monitor.timer ness-hub-integration-monitor.service
+ness-psono-backup.timer ness-psono-backup.service
+ness-psono-restore-verify.timer ness-psono-restore-verify.service
+systemd-tmpfiles-clean.timer systemd-tmpfiles-clean.service
+```
+
+#### Portas em escuta (fora de loopback)
+
+```
+22 0.0.0.0 sshd
+80 0.0.0.0 docker-proxy
+443 0.0.0.0 docker-proxy
+5355 0.0.0.0 systemd-resolve
+```
+
+#### UFW
+
+```
+Status: active
+22/tcp                     ALLOW       Anywhere                  
+80/tcp                     ALLOW       Anywhere                  
+443/tcp                    ALLOW       Anywhere                  
+22/tcp (v6)                ALLOW       Anywhere (v6)             
+80/tcp (v6)                ALLOW       Anywhere (v6)             
+443/tcp (v6)               ALLOW       Anywhere (v6)             
+```
+
+#### Contêineres
+
+```
+ness-psono	psono/psono-combo:latest	Up 17 hours (healthy)
+ness-psono-db	postgres:17-alpine	Up 17 hours (healthy)
+ninf-api	31a99dc9460e	Up 15 minutes (healthy)
+ninf-authentik-server	ghcr.io/goauthentik/server:2026.5.6	Up 17 hours (healthy)
+ninf-authentik-worker	ghcr.io/goauthentik/server:2026.5.6	Up 17 hours (healthy)
+ninf-caddy	caddy:2-alpine	Up 17 hours
+ninf-evolution	evoapicloud/evolution-api:latest	Up 17 hours
+ninf-evolution-manager	evoapicloud/evolution-manager:latest	Up 17 hours
+ninf-frontend	604e9b9e764f	Up 17 hours
+ninf-glpi	elestio/glpi:latest	Up 19 minutes
+ninf-glpi-db	mariadb:10.11	Up 17 hours
+ninf-n8n	docker.n8n.io/n8nio/n8n:latest	Up 19 minutes
+ninf-postgres	timescale/timescaledb:latest-pg16	Up 17 hours (healthy)
+ninf-redis	redis:7-alpine	Up 17 hours (healthy)
+ninf-worker-alerts	31a99dc9460e	Up 15 minutes (healthy)
+ninf-worker-ml	31a99dc9460e	Up 15 minutes (healthy)
+```
+
+### zbx-prd-01 (Ubuntu 24.04.4 LTS)
+
+Coletado em 2026-10-27 08:45 -03.
+
+#### Sistema
+
+```
+kernel 6.8.0-147-generic
+cpu 12 vCPU
+Mem: 47Gi usado 17Gi
+Swap: 8.0Gi usado 0B
+America/Sao_Paulo yes
+```
+
+#### Disco
+
+```
+Filesystem     Type  Size  Used Avail Use% Mounted on
+/dev/sda1      ext4  387G  158G  229G  41% /
+/dev/sda16     ext4  881M  117M  703M  15% /boot
+/dev/sda15     vfat  105M  6.2M   99M   6% /boot/efi
+```
+
+#### Serviços (ativos e habilitados)
+
+```
+ssh                active    disabled
+ufw                active    enabled
+fail2ban           active    enabled
+systemd-timesyncd  active    enabled
+mariadb            active    enabled
+mysql              active    alias
+zabbix-server      inactive  masked
+zabbix-agent2      active    enabled
+```
+
+#### Timers
+
+```
+apport-autoreport.timer apport-autoreport.service
+apt-daily-upgrade.timer apt-daily-upgrade.service
+apt-daily.timer apt-daily.service
+certbot.timer certbot.service
+dpkg-db-backup.timer dpkg-db-backup.service
+e2scrub_all.timer e2scrub_all.service
+fstrim.timer fstrim.service
+fwupd-refresh.timer fwupd-refresh.service
+logrotate.timer logrotate.service
+man-db.timer man-db.service
+motd-news.timer motd-news.service
+ness-zabbix-backup.timer ness-zabbix-backup.service
+ness-zabbix-object-storage-backup.timer ness-zabbix-object-storage-backup.service
+phpsessionclean.timer phpsessionclean.service
+snapd.snap-repair.timer snapd.snap-repair.service
+sysstat-collect.timer sysstat-collect.service
+sysstat-summary.timer sysstat-summary.service
+systemd-tmpfiles-clean.timer systemd-tmpfiles-clean.service
+ua-timer.timer ua-timer.service
+update-notifier-download.timer update-notifier-download.service
+update-notifier-motd.timer update-notifier-motd.service
+```
+
+#### Portas em escuta (fora de loopback)
+
+```
+22 0.0.0.0 sshd
+10050 * zabbix_agent2
+```
+
+#### UFW
+
+```
+Status: active
+22/tcp                     ALLOW       Anywhere                   # SSH key-only bootstrap
+443/tcp                    ALLOW       173.245.48.0/20            # Cloudflare to Zabbix UAT
+443/tcp                    ALLOW       103.21.244.0/22            # Cloudflare to Zabbix UAT
+443/tcp                    ALLOW       103.22.200.0/22            # Cloudflare to Zabbix UAT
+443/tcp                    ALLOW       103.31.4.0/22              # Cloudflare to Zabbix UAT
+443/tcp                    ALLOW       141.101.64.0/18            # Cloudflare to Zabbix UAT
+443/tcp                    ALLOW       108.162.192.0/18           # Cloudflare to Zabbix UAT
+443/tcp                    ALLOW       190.93.240.0/20            # Cloudflare to Zabbix UAT
+443/tcp                    ALLOW       188.114.96.0/20            # Cloudflare to Zabbix UAT
+443/tcp                    ALLOW       197.234.240.0/22           # Cloudflare to Zabbix UAT
+443/tcp                    ALLOW       198.41.128.0/17            # Cloudflare to Zabbix UAT
+443/tcp                    ALLOW       162.158.0.0/15             # Cloudflare to Zabbix UAT
+443/tcp                    ALLOW       104.16.0.0/13              # Cloudflare to Zabbix UAT
+443/tcp                    ALLOW       104.24.0.0/14              # Cloudflare to Zabbix UAT
+443/tcp                    ALLOW       172.64.0.0/13              # Cloudflare to Zabbix UAT
+10051/tcp                  ALLOW       131.255.253.131            # Zabbix active proxy allowlist
+10051/tcp                  ALLOW       131.255.82.236             # Zabbix active proxy allowlist
+10051/tcp                  ALLOW       170.254.14.18              # Zabbix active proxy allowlist
+10051/tcp                  ALLOW       177.200.83.84              # Zabbix active proxy allowlist
+10051/tcp                  ALLOW       177.36.37.242              # Zabbix active proxy allowlist
+10051/tcp                  ALLOW       179.228.138.35             # Zabbix active proxy allowlist
+10051/tcp                  ALLOW       186.215.152.18             # Zabbix active proxy allowlist
+10051/tcp                  ALLOW       186.216.160.139            # Zabbix active proxy allowlist
+10051/tcp                  ALLOW       186.31.28.250              # Zabbix active proxy allowlist
+10051/tcp                  ALLOW       187.102.187.22             # Zabbix active proxy allowlist
+10051/tcp                  ALLOW       187.72.166.146             # Zabbix active proxy allowlist
+10051/tcp                  ALLOW       187.92.158.195             # Zabbix active proxy allowlist
+10051/tcp                  ALLOW       190.81.54.122              # Zabbix active proxy allowlist
+10051/tcp                  ALLOW       191.202.8.222              # Zabbix active proxy allowlist
+10051/tcp                  ALLOW       191.241.243.241            # Zabbix active proxy allowlist
+10051/tcp                  ALLOW       200.143.94.229             # Zabbix active proxy allowlist
+10051/tcp                  ALLOW       200.205.13.130             # Zabbix active proxy allowlist
+10051/tcp                  ALLOW       85.209.93.35               # Zabbix active proxy allowlist
+80/tcp                     ALLOW       Anywhere                   # Zabbix production ACME and HTTPS redirect
+443/tcp                    ALLOW       Anywhere                   # Zabbix production HTTPS
+10051/tcp                  ALLOW       144.91.72.202              # Zabbix cutover bridge temporary
+22/tcp (v6)                ALLOW       Anywhere (v6)              # SSH key-only bootstrap
+80/tcp (v6)                ALLOW       Anywhere (v6)              # Zabbix production ACME and HTTPS redirect
+443/tcp (v6)               ALLOW       Anywhere (v6)              # Zabbix production HTTPS
+```
+
