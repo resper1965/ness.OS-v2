@@ -111,6 +111,8 @@ def triage_wazuh_alert(alert_payload: dict[str, Any]) -> TriageResult:
             timeout=_TIMEOUT,
         )
         triage_data = json.loads(text_response)
+        if not set(schema["required"]) <= set(triage_data):  # model ignored schema
+            raise ValueError("incomplete triage")
         outcome = "ok"
         logger.info(
             "Triage SOC concluída via LLM | classificação=%s confiança=%s",

@@ -14,6 +14,10 @@ class LLMNotConfigured(httpx.HTTPError):
     """No API key: callers already fall back on httpx.HTTPError."""
 
 
+class LLMBadResponse(httpx.HTTPError):
+    """Unusable 200 body (non-JSON, no choices, null content)."""
+
+
 def _json_schema(node: Any) -> Any:
     """Gemini schema (OBJECT/STRING/...) -> strict JSON Schema."""
     if isinstance(node, list):
@@ -25,6 +29,7 @@ def _json_schema(node: Any) -> Any:
         out["type"] = out["type"].lower()
     if out.get("type") == "object":
         out["additionalProperties"] = False
+        out["required"] = list(out.get("properties", {}))  # strict: all required
     return out
 
 
@@ -42,6 +47,8 @@ def _request(system, user, json_schema, temperature, max_tokens):
         "provider": {"data_collection": "deny"},
     }
     if json_schema:
+        # else OpenRouter treats response_format as a soft hint
+        body["provider"]["require_parameters"] = True
         body["response_format"] = {
             "type": "json_schema",
             "json_schema": {
@@ -60,8 +67,13 @@ def _request(system, user, json_schema, temperature, max_tokens):
 
 def _parse(response: httpx.Response) -> tuple[str, dict[str, Any]]:
     response.raise_for_status()
-    result = response.json()
-    text = (result.get("choices") or [{}])[0].get("message", {}).get("content") or ""
+    try:
+        result = response.json()
+        text = ((result.get("choices") or [{}])[0].get("message") or {}).get("content")
+    except (ValueError, AttributeError) as exc:
+        raise LLMBadResponse("invalid LLM response body") from exc
+    if not text:  # 200 with {"error":...}, empty choices or null content
+        raise LLMBadResponse("empty LLM completion")
     return text, result.get("usage") or {}
 
 
