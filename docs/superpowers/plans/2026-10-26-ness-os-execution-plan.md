@@ -270,8 +270,8 @@ Detalhe de cada T no [plano GLPI](2026-10-12-glpi-ness-os-complete-delivery.md);
 
 - [x] **Step 1:** Antes: último backup GLPI `COMPLETED` dentro do RPO; estado do Compose salvo.
 - [x] **Step 2:** Implantar gateway por digest; filtro de cliente API do GLPI limitado ao IP do gateway.
-- [x] **Step 3:** (substituído pela sonda funcional, ver runbook) `test_glpi_network_boundary_probe.py` contra a topologia real (read-only) → Hub/worker não alcançam a API com a credencial 106.
-- [x] **Step 4:** Rodar a matriz da Task 2.1 contra produção apontando só para leitura.
+- [ ] **Step 3 (não atendido; risco aceito no ADR 0020):** Hub e worker **alcançam** a API com a credencial 106 usando o App-Token do Hub (`initSession with container-env -> 200`). Bloqueio só tirando o Hub da rede/IP do GLPI. Texto original: `test_glpi_network_boundary_probe.py` contra a topologia real (read-only) → Hub/worker não alcançam a API com a credencial 106.
+- [ ] **Step 4 (substituído):** a matriz da Task 2.1 é do lab (contêineres `ness-glpi-lab-*`); em produção rodou a sonda funcional `glpi_t03_functional_probe.py` (ID permitido, entidade filha, inexistente, query, sem bearer, POST, login sem/com App-Token do gateway). Texto original: Rodar a matriz da Task 2.1 contra produção apontando só para leitura.
 - [x] **Step 5:** Reativar 106 com direitos mínimos, readback, rotação, encerrar sessões antigas.
 - [ ] **Rollback (não usado):** desativar 106, remover a rota nova; Hub 94 segue operando.
 - [x] **Step 6:** Evidência + runbook `infra/docs/runbooks/glpi.md`; indicador F3.
