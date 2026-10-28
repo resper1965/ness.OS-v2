@@ -30,6 +30,10 @@ def test_authoritative_groups_select_child_entity():
     )
 
 
+def test_unimed_hostgroup_resolves_to_entity_12():
+    customer = customer_from_hostgroups([{"name": "[ Unimed ]"}, {"name": "[ Unimed ] [ Itu ]"}])
+    assert customer == "Unimed" and resolve_glpi_entity_id(customer) == 12
+
 def test_conflicting_customer_groups_are_rejected():
     with pytest.raises(ValueError, match="distintos"):
         customer_from_hostgroups([{"name": "[ Cavan ]"}, {"name": "[ TBE ]"}])

@@ -7,12 +7,14 @@ require '/var/www/glpi/vendor/autoload.php';
 $kernel = new \Glpi\Kernel\Kernel();
 $kernel->boot();
 global $DB;
-$name = $argv[1] ?? '';
+$name = trim($argv[1] ?? '');
 $apply = in_array('--apply', $argv, true);
-if ($name === '' || $name[0] === '-') {
-    fwrite(STDERR, "entity name required\n");
+if (!preg_match('/^[\p{L}\p{N}][\p{L}\p{N} ._-]{0,63}$/u', $name) || strcasecmp($name, 'Root entity') === 0) {
+    fwrite(STDERR, "invalid entity name\n");
     exit(1);
 }
+$DB->beginTransaction();
+try {
 Session::callAsSystem(function () use ($DB, $name, $apply) {
     $found = iterator_to_array($DB->request(['FROM' => 'glpi_entities', 'WHERE' => ['name' => $name, 'entities_id' => 0]]));
     $entity = $found ? (int) reset($found)['id'] : null;
@@ -43,3 +45,8 @@ Session::callAsSystem(function () use ($DB, $name, $apply) {
     echo json_encode(['mode' => $apply ? 'apply' : 'check', 'name' => $name,
         'entity' => $entity, 'binding_94' => $binding, 'noc_group' => $group]) . PHP_EOL;
 });
+$DB->commit();
+} catch (Throwable $error) {
+    $DB->rollBack();
+    throw $error;
+}
