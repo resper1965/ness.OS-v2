@@ -26,7 +26,7 @@ def main():
         "glpi_app_token",
         "glpi_user_token",
         "zabbix_api_token",
-        "gemini_api_key",
+        "llm_api_key",
         "webhook_api_key",
     )
     print(

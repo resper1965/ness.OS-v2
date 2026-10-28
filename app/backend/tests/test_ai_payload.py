@@ -5,7 +5,7 @@ import pytest
 from pydantic import ValidationError
 
 from app.core import ai_context
-from app.integrations import gemini, soc_agent
+from app.integrations import gemini, llm, soc_agent
 from app.ml import analyzer
 
 # Synthetic AWS key built at runtime so secret scanners do not flag the fixture.
@@ -27,8 +27,8 @@ PLANTED = (
     '{"api_key":"sk-live-abc"} ' + FAKE_AWS_KEY + " from 10.9.8.7"
 )
 OK_RESPONSE = {
-    "candidates": [{"content": {"parts": [{"text": "{}"}]}}],
-    "usageMetadata": {"promptTokenCount": 7, "candidatesTokenCount": 3},
+    "choices": [{"message": {"content": "{}"}}],
+    "usage": {"prompt_tokens": 7, "completion_tokens": 3},
 }
 
 
@@ -57,8 +57,7 @@ def _assert_clean(bodies):
 
 @pytest.mark.asyncio
 async def test_gemini_payload_has_no_secrets_or_other_tenant(monkeypatch):
-    for module in (analyzer.settings, soc_agent.settings, gemini.settings):
-        monkeypatch.setattr(module, "gemini_api_key", "synthetic-key")
+    monkeypatch.setattr(llm.settings, "llm_api_key", "synthetic-key")
 
     # Incident analysis (alert worker)
     bodies = _capture(monkeypatch, "AsyncClient")
@@ -116,15 +115,13 @@ async def test_gemini_payload_has_no_secrets_or_other_tenant(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_analyzer_payload_validates_against_schema(monkeypatch):
-    monkeypatch.setattr(analyzer.settings, "gemini_api_key", "synthetic-key")
+    monkeypatch.setattr(llm.settings, "llm_api_key", "synthetic-key")
     bodies = _capture(monkeypatch, "AsyncClient")
     await analyzer.analyze_incident(
         {"event_id": "77", "timestamp": "2026-10-26T10:00:00Z", "severity": 5},
         {"customer_name": "Cavan"},
     )
-    text = json.loads(bodies[0].split("\nhttps://")[0])["contents"][0]["parts"][0][
-        "text"
-    ]
+    text = json.loads(bodies[0].split("\nhttps://")[0])["messages"][1]["content"]
     raw = text.split("# Dados do Incidente:\n")[1].split("\n\n# Escopo")[0]
     request = ai_context.AIRequestV1.model_validate_json(raw)
     assert (request.tenant, request.source_event_id) == ("Cavan", "77")
@@ -149,7 +146,7 @@ def test_ai_request_schema_is_strict():
 
 @pytest.mark.asyncio
 async def test_ai_call_metrics_logged(monkeypatch, caplog):
-    monkeypatch.setattr(analyzer.settings, "gemini_api_key", "synthetic-key")
+    monkeypatch.setattr(llm.settings, "llm_api_key", "synthetic-key")
     _capture(monkeypatch, "AsyncClient")
     caplog.set_level("INFO")
     await analyzer.analyze_incident({"severity": 4})  # "{}" -> invalid analysis
@@ -160,7 +157,7 @@ async def test_ai_call_metrics_logged(monkeypatch, caplog):
 
 
 def test_invalid_wazuh_timestamp_falls_back_without_exception(monkeypatch, caplog):
-    monkeypatch.setattr(soc_agent.settings, "gemini_api_key", "synthetic-key")
+    monkeypatch.setattr(llm.settings, "llm_api_key", "synthetic-key")
     sent = []
 
     def handler(request):

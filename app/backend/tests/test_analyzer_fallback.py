@@ -1,6 +1,7 @@
 import httpx
 import pytest
 
+from app.integrations import llm
 from app.ml import analyzer
 
 
@@ -12,16 +13,16 @@ from app.ml import analyzer
 async def test_provider_failure_returns_manual_triage_without_isolation(
     monkeypatch, failure, severity, urgency
 ):
-    monkeypatch.setattr(analyzer.settings, "gemini_api_key", "synthetic-key")
+    monkeypatch.setattr(llm.settings, "llm_api_key", "synthetic-key")
 
     def handler(request):
-        assert request.headers["x-goog-api-key"] == "synthetic-key"
+        assert request.headers["authorization"] == "Bearer synthetic-key"
         assert "synthetic-key" not in str(request.url)
         if failure == "timeout":
             raise httpx.ReadTimeout("Synthetic timeout", request=request)
         if failure == "quota":
             return httpx.Response(429, json={"error": {"status": "RESOURCE_EXHAUSTED"}})
-        return httpx.Response(200, json={"candidates": []})
+        return httpx.Response(200, json={"choices": []})
 
     original = httpx.AsyncClient
     monkeypatch.setattr(
@@ -52,7 +53,7 @@ async def test_provider_failure_returns_manual_triage_without_isolation(
 async def test_missing_key_preserves_source_priority_without_http(
     monkeypatch, severity, urgency
 ):
-    monkeypatch.setattr(analyzer.settings, "gemini_api_key", "")
+    monkeypatch.setattr(llm.settings, "llm_api_key", "")
 
     def forbidden(**kwargs):
         raise AssertionError("No provider call without configured credentials")
@@ -78,7 +79,7 @@ async def test_model_cannot_downgrade_critical_event(
 ):
     import json
 
-    monkeypatch.setattr(analyzer.settings, "gemini_api_key", "synthetic-key")
+    monkeypatch.setattr(llm.settings, "llm_api_key", "synthetic-key")
     payload = {
         "executive_action_plan": "Review impact",
         "technical_action_plan": "Review logs",
@@ -91,9 +92,7 @@ async def test_model_cannot_downgrade_critical_event(
     transport = httpx.MockTransport(
         lambda request: httpx.Response(
             200,
-            json={
-                "candidates": [{"content": {"parts": [{"text": json.dumps(payload)}]}}]
-            },
+            json={"choices": [{"message": {"content": json.dumps(payload)}}]},
         )
     )
     monkeypatch.setattr(
