@@ -47,7 +47,7 @@ Antes de iniciar, garanta que o servidor possui os seguintes requisitos instalad
    **Configurações Importantes:**
    - `NINF_DB_PASSWORD`: Defina uma senha forte para o PostgreSQL.
    - `NINF_ZABBIX_API_TOKEN`: Token de API gerado no Zabbix 7.0 LTS.
-   - `NINF_GEMINI_API_KEY`: Sua chave de acesso para a API do Gemini.
+   - `NINF_LLM_API_KEY`: chave do OpenRouter (modelo em `NINF_LLM_MODEL`); `NINF_GEMINI_API_KEY` só para embeddings.
    - `NINF_N8N_PASSWORD`: Defina uma senha segura para o acesso ao n8n.
    - `NINF_DESKMANAGER_API_TOKEN` e `NINF_DESKMANAGER_OPERATOR_ID`: Credenciais de ticketing.
    - `NINF_EVOLUTION_API_KEY` e `NINF_WHATSAPP_NOC_GROUP_ID`: Credenciais do WhatsApp.

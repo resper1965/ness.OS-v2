@@ -42,5 +42,5 @@ docker run --rm --name "${runner}" --network "container:${pg}" \
   -e NINF_DATABASE_URL=postgresql+asyncpg://nessops:isolated-test-only@127.0.0.1:5432/nessops \
   -e NINF_REDIS_URL=redis://127.0.0.1:6379/0 \
   -e NINF_CELERY_BROKER_URL=redis://127.0.0.1:6379/1 \
-  -e NINF_GEMINI_API_KEY= "${api_image}" \
+  -e NINF_LLM_API_KEY= "${api_image}" \
   -m pytest -q -p no:cacheprovider --tb=short tests/test_hub_local_flow.py

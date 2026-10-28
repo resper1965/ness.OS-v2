@@ -21,6 +21,7 @@ import httpx
 from app.config import get_settings
 from app.core.ai_context import incident_prompt_data, log_ai_call
 from app.core.sanitizer import sanitize, sanitize_value
+from app.integrations.llm import chat_completion
 from app.models.schemas import PostMortemReport
 
 logger = logging.getLogger(__name__)
@@ -31,6 +32,8 @@ _TIMEOUT = httpx.Timeout(connect=10.0, read=120.0, write=10.0, pool=5.0)
 
 def generate_embedding(text: str) -> list[float]:
     """Gera embedding de 768 dimensões usando o modelo text-embedding-004 do Gemini."""
+    # ponytail: embedding stays on Gemini (low volume); upgrade path: move to an
+    # OpenAI-compatible /embeddings endpoint when the Gemini key is to be retired.
     if not settings.gemini_api_key:
         logger.warning("Gemini API key não configurada. Retornando embedding zerado.")
         return [0.0] * 768
@@ -171,58 +174,25 @@ def generate_postmortem(
     related_logs: list[str],
     similar_incidents: list[dict[str, Any]] | None = None,
 ) -> PostMortemReport:
-    """Chama o Gemini 2.5 Flash e retorna o relatório estruturado.
-
-    Usa a API REST do Google AI Studio (generateContent).
-    """
+    """Chama o LLM (chat completions) e retorna o relatório estruturado."""
     prompt = build_postmortem_prompt(incident, metrics, related_logs, similar_incidents)
-
-    api_url = (
-        f"https://generativelanguage.googleapis.com/v1beta/models/"
-        f"{settings.gemini_model}:generateContent"
-    )
-
-    request_body = {
-        "system_instruction": {"parts": [{"text": _POSTMORTEM_SYSTEM_PROMPT}]},
-        "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {
-            "temperature": 0.3,
-            "maxOutputTokens": 8192,
-            "responseMimeType": "text/plain",
-        },
-    }
 
     started = time.perf_counter()
     try:
-        with httpx.Client(timeout=_TIMEOUT) as client:
-            response = client.post(
-                api_url,
-                json=request_body,
-                headers={
-                    "Content-Type": "application/json",
-                    "x-goog-api-key": settings.gemini_api_key,
-                },
-            )
-            response.raise_for_status()
-            result = response.json()
-
-        # Extrair texto gerado
-        markdown = (
-            result.get("candidates", [{}])[0]
-            .get("content", {})
-            .get("parts", [{}])[0]
-            .get("text", "")
+        markdown, usage = chat_completion(
+            _POSTMORTEM_SYSTEM_PROMPT,
+            prompt,
+            temperature=0.3,
+            max_tokens=8192,
+            timeout=_TIMEOUT,
         )
-
-        # Extrair metadados de uso
-        usage = result.get("usageMetadata", {})
         log_ai_call("postmortem", "ok", started, usage)
 
         logger.info(
             "Post-mortem gerado | fingerprint=%s tokens_in=%d tokens_out=%d",
             incident.get("fingerprint", "?"),
-            usage.get("promptTokenCount", 0),
-            usage.get("candidatesTokenCount", 0),
+            usage.get("prompt_tokens", 0),
+            usage.get("completion_tokens", 0),
         )
 
         return PostMortemReport(
@@ -237,14 +207,14 @@ def generate_postmortem(
             corrective_actions=_extract_list_section(markdown, "Ações Corretivas"),
             timeline=_extract_timeline(markdown),
             embedding=generate_embedding(markdown),
-            gemini_model_used=settings.gemini_model,
-            prompt_tokens=usage.get("promptTokenCount", 0),
-            completion_tokens=usage.get("candidatesTokenCount", 0),
+            gemini_model_used=settings.llm_model,
+            prompt_tokens=usage.get("prompt_tokens", 0),
+            completion_tokens=usage.get("completion_tokens", 0),
         )
 
     except httpx.HTTPError as exc:
         log_ai_call("postmortem", "error", started)
-        logger.error("Falha na chamada ao Gemini: %s", type(exc).__name__)
+        logger.error("Falha na chamada ao LLM: %s", type(exc).__name__)
         # Fallback: relatório mínimo sem IA
         return PostMortemReport(
             incident_fingerprint=incident.get("fingerprint", ""),
@@ -256,11 +226,11 @@ def generate_postmortem(
                 "> ⚠️ Geração automática falhou. Análise manual necessária.\n\n"
                 f"**Incidente:** {incident.get('title', '?')}\n"
                 f"**Host:** {incident.get('host_name', '?')}\n"
-                f"**Erro Gemini:** {type(exc).__name__}\n"
+                f"**Erro LLM:** {type(exc).__name__}\n"
             ),
             summary="Geração automática falhou",
             root_cause="Análise manual necessária",
-            gemini_model_used=settings.gemini_model,
+            gemini_model_used=settings.llm_model,
         )
 
 

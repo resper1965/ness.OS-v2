@@ -11,7 +11,7 @@ checks = {
     "glpi_url": "NINF_GLPI_URL",
     "glpi_app_token": "NINF_GLPI_APP_TOKEN",
     "glpi_user_token": "NINF_GLPI_USER_TOKEN",
-    "gemini_key": "NINF_GEMINI_API_KEY",
+    "llm_key": "NINF_LLM_API_KEY",
     "whatsapp_recipient": "NINF_WHATSAPP_NOC_GROUP_ID",
     "loki_url": "NINF_LOKI_URL",
 }

@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 from app.config import get_settings
 from app.core.ai_context import incident_ai_request, log_ai_call
 from app.core.sanitizer import sanitize_value
+from app.integrations.llm import achat_completion
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -87,12 +88,12 @@ async def analyze_incident(
     customer_metadata: Optional[Dict[str, Any]] = None,
     playbooks: Optional[List[str]] = None,
 ) -> AIAnalysisResult:
-    """Realiza análise estruturada do incidente usando Gemini AI.
+    """Realiza análise estruturada do incidente usando LLM.
 
     Retorna um objeto Pydantic com a triagem estruturada do incidente.
     """
-    if not settings.gemini_api_key:
-        logger.warning("Gemini indisponível: triagem manual com severidade de origem.")
+    if not settings.llm_api_key:
+        logger.warning("LLM indisponível: triagem manual com severidade de origem.")
         return manual_triage(incident_data)
 
     # Lista de playbooks padrão/disponíveis
@@ -120,8 +121,6 @@ async def analyze_incident(
 Gere a análise estruturada em JSON correspondente ao incidente acima.
 """
 
-    api_url = f"https://generativelanguage.googleapis.com/v1beta/models/{settings.gemini_model}:generateContent"
-
     response_schema = {
         "type": "OBJECT",
         "properties": {
@@ -145,39 +144,17 @@ Gere a análise estruturada em JSON correspondente ao incidente acima.
         ],
     }
 
-    request_body = {
-        "system_instruction": {"parts": [{"text": _ANALYZER_SYSTEM_PROMPT}]},
-        "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {
-            "temperature": 0.2,
-            "maxOutputTokens": 2048,
-            "responseMimeType": "application/json",
-            "responseSchema": response_schema,
-        },
-    }
-
     started = time.perf_counter()
     usage: Dict[str, Any] = {}
     outcome = "error"
     try:
-        async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
-            res = await client.post(
-                api_url,
-                json=request_body,
-                headers={
-                    "Content-Type": "application/json",
-                    "x-goog-api-key": settings.gemini_api_key,
-                },
-            )
-            res.raise_for_status()
-            result = res.json()
-        usage = result.get("usageMetadata", {})
-
-        raw_text = (
-            result.get("candidates", [{}])[0]
-            .get("content", {})
-            .get("parts", [{}])[0]
-            .get("text", "")
+        raw_text, usage = await achat_completion(
+            _ANALYZER_SYSTEM_PROMPT,
+            prompt,
+            json_schema=response_schema,
+            temperature=0.2,
+            max_tokens=2048,
+            timeout=_TIMEOUT,
         )
 
         data = json.loads(raw_text)
