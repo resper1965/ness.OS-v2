@@ -88,8 +88,8 @@ def log_ai_call(kind, outcome, started, usage=None):
                 "kind": kind,
                 "outcome": outcome,
                 "latency_ms": round((time.perf_counter() - started) * 1000),
-                "prompt_tokens": usage.get("promptTokenCount", 0),
-                "completion_tokens": usage.get("candidatesTokenCount", 0),
+                "prompt_tokens": usage.get("prompt_tokens", 0),
+                "completion_tokens": usage.get("completion_tokens", 0),
             }
         ),
     )

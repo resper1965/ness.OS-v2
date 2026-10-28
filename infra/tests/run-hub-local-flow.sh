@@ -39,5 +39,5 @@ NINF_LOCAL_FLOW_TEST=1 \
 NINF_DATABASE_URL='postgresql+asyncpg://nessops:local-flow-only@127.0.0.1:42561/nessops' \
 NINF_REDIS_URL='redis://127.0.0.1:42562/0' \
 NINF_CELERY_BROKER_URL='redis://127.0.0.1:42562/1' \
-NINF_GEMINI_API_KEY= NINF_ALERT_NOTIFICATIONS_ENABLED=false \
+NINF_LLM_API_KEY= NINF_ALERT_NOTIFICATIONS_ENABLED=false \
 python -m pytest tests/test_hub_local_flow.py -q

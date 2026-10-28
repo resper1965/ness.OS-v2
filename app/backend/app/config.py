@@ -31,9 +31,13 @@ class Settings(BaseSettings):
     zabbix_api_token: str = ""
     zabbix_verify_cert: bool = True
 
-    # --- Gemini API ---
+    # --- LLM (OpenAI-compatible; OpenRouter) ---
+    llm_api_key: str = ""
+    llm_model: str = "google/gemini-2.5-flash"
+    llm_base_url: str = "https://openrouter.ai/api/v1"
+
+    # --- Gemini API (embeddings only) ---
     gemini_api_key: str = ""
-    gemini_model: str = "gemini-2.5-flash"
 
     # --- n8n (Orquestração de borda) ---
     n8n_base_url: str = "http://localhost:5678"

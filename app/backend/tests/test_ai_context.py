@@ -7,7 +7,7 @@ import pytest
 
 from app.core import ai_context
 from app.core.sanitizer import sanitize_dict
-from app.integrations import gemini
+from app.integrations import gemini, llm
 from app.ml import analyzer
 from app.workers import postmortem
 
@@ -50,7 +50,7 @@ def test_prompt_drops_metadata_and_other_tenant_reports():
 
 @pytest.mark.asyncio
 async def test_analyzer_uses_allowlisted_context(monkeypatch):
-    monkeypatch.setattr(analyzer.settings, "gemini_api_key", "synthetic-key")
+    monkeypatch.setattr(llm.settings, "llm_api_key", "synthetic-key")
 
     def handler(request):
         content = request.content.decode()

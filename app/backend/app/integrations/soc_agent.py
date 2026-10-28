@@ -7,6 +7,7 @@ import httpx
 
 from app.config import get_settings
 from app.core.ai_context import AIRequestV1, _observed_at, log_ai_call
+from app.integrations.llm import chat_completion
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -69,12 +70,10 @@ def wazuh_ai_request(alert: dict[str, Any]) -> AIRequestV1:
 
 
 def triage_wazuh_alert(alert_payload: dict[str, Any]) -> TriageResult:
-    """Realiza a triagem inteligente de um alerta do Wazuh usando o Gemini 2.5 Flash."""
-    # Obter chave de API a partir de gemini_api_key
-    gemini_key = getattr(settings, "gemini_api_key", None)
-    if not gemini_key:
+    """Realiza a triagem inteligente de um alerta do Wazuh via LLM."""
+    if not settings.llm_api_key:
         logger.warning(
-            "Gemini API key não configurada para triagem SOC. Usando fallback padrão."
+            "LLM API key não configurada para triagem SOC. Usando fallback padrão."
         )
         return {
             "classification": "HIGH",
@@ -83,67 +82,46 @@ def triage_wazuh_alert(alert_payload: dict[str, Any]) -> TriageResult:
             "action_taken": "Criar ticket de triagem manual",
         }
 
-    api_url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
-    headers = {"Content-Type": "application/json", "x-goog-api-key": gemini_key}
     ai_request = wazuh_ai_request(alert_payload)
-
-    body = {
-        "contents": [
-            {
-                "parts": [
-                    {
-                        "text": f"Alerta Wazuh a ser analisado:\n{json.dumps(ai_request.model_dump(mode='json'), indent=2, ensure_ascii=False)}"
-                    }
-                ]
-            }
-        ],
-        "systemInstruction": {"parts": [{"text": _SOC_SYSTEM_PROMPT}]},
-        "generationConfig": {
-            "responseMimeType": "application/json",
-            "responseSchema": {
-                "type": "OBJECT",
-                "properties": {
-                    "classification": {
-                        "type": "STRING",
-                        "enum": ["FP", "LOW", "MED", "HIGH", "CRIT"],
-                    },
-                    "confidence": {"type": "NUMBER"},
-                    "summary": {"type": "STRING"},
-                    "action_taken": {"type": "STRING"},
-                },
-                "required": ["classification", "confidence", "summary", "action_taken"],
+    user = f"Alerta Wazuh a ser analisado:\n{json.dumps(ai_request.model_dump(mode='json'), indent=2, ensure_ascii=False)}"
+    schema = {
+        "type": "OBJECT",
+        "properties": {
+            "classification": {
+                "type": "STRING",
+                "enum": ["FP", "LOW", "MED", "HIGH", "CRIT"],
             },
+            "confidence": {"type": "NUMBER"},
+            "summary": {"type": "STRING"},
+            "action_taken": {"type": "STRING"},
         },
+        "required": ["classification", "confidence", "summary", "action_taken"],
     }
 
     started = time.perf_counter()
     usage: dict[str, Any] = {}
     outcome = "error"
     try:
-        with httpx.Client(timeout=_TIMEOUT) as client:
-            response = client.post(api_url, json=body, headers=headers)
-            response.raise_for_status()
-            result = response.json()
-            usage = result.get("usageMetadata", {})
-
-            text_response = (
-                result.get("candidates", [{}])[0]
-                .get("content", {})
-                .get("parts", [{}])[0]
-                .get("text", "{}")
-            )
-
-            triage_data = json.loads(text_response)
-            outcome = "ok"
-            logger.info(
-                "Triage SOC concluída via Gemini | classificação=%s confiança=%s",
-                triage_data.get("classification"),
-                triage_data.get("confidence"),
-            )
-            return triage_data
-
+        text_response, usage = chat_completion(
+            _SOC_SYSTEM_PROMPT,
+            user,
+            json_schema=schema,
+            temperature=0.2,
+            max_tokens=2048,
+            timeout=_TIMEOUT,
+        )
+        triage_data = json.loads(text_response)
+        if not set(schema["required"]) <= set(triage_data):  # model ignored schema
+            raise ValueError("incomplete triage")
+        outcome = "ok"
+        logger.info(
+            "Triage SOC concluída via LLM | classificação=%s confiança=%s",
+            triage_data.get("classification"),
+            triage_data.get("confidence"),
+        )
+        return triage_data
     except Exception as exc:
-        logger.error("Falha ao realizar triagem via Gemini: %s", type(exc).__name__)
+        logger.error("Falha ao realizar triagem via LLM: %s", type(exc).__name__)
         return {
             "classification": "HIGH",
             "confidence": 0.5,
