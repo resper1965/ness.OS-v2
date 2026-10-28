@@ -8,7 +8,8 @@ from app.workers.alerts import customer_from_hostgroups, resolve_glpi_entity_id
 
 
 @pytest.mark.parametrize(
-    "name,entity", [("Cavan", 8), ("Alupar PE", 5), ("Alupar CO", 6), ("Ness", 0)]
+    "name,entity",
+    [("Cavan", 8), ("Alupar PE", 5), ("Alupar CO", 6), ("Ness", 0), ("Unimed", 12)],
 )
 def test_explicit_entity_mapping(name, entity):
     assert resolve_glpi_entity_id(name) == entity
@@ -27,6 +28,13 @@ def test_authoritative_groups_select_child_entity():
         )
         == "Alupar PE"
     )
+
+
+def test_unimed_hostgroup_resolves_to_entity_12():
+    customer = customer_from_hostgroups(
+        [{"name": "[ Unimed ]"}, {"name": "[ Unimed ] [ Itu ]"}]
+    )
+    assert customer == "Unimed" and resolve_glpi_entity_id(customer) == 12
 
 
 def test_conflicting_customer_groups_are_rejected():

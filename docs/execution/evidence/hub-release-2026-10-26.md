@@ -49,3 +49,7 @@ Dos 215 incidentes sem ticket, 26 tinham o mesmo problema ainda ativo no Zabbix 
 ## Promoção de `9c34eda` (27/10 ~19:10 BRT)
 
 Monitor acionável (#111): API e workers em `ghcr.io/resper1965/ninf-api@sha256:5ed418b49ab2d4958f73193d5ed2b4109bed0739530333b16549421c89df9124` (`publish-hub-images` run 40590782395). Script `aiops-promote-hub-api.sh` → `promotion=PASS`, canário de alertas sem falha, `/api/assets` 401, 3 contêineres `healthy` e 0 restart. Backup prévio `20261027T190327-0300`. `pipeline_health` passou a dar `ok` (rc=0): `workers failures:0`, `delivery: sem ticket entre 5 e 60 min: 0`. Em 5 min, 0 execuções do monitor com falha, a primeira vez que fica verde. Rollback: release `412bdc0` (comando no journal de `ness-hub-promote-9c34eda`).
+
+## Entidade Unimed no GLPI (28/10, OK do Ricardo)
+
+O monitor novo acusou alertas recusados com "Cliente sem entidade GLPI mapeada": hosts dos grupos `[ Unimed ]` (Itu e Salto) no Zabbix, sem entidade no GLPI. Criada com `infra/scripts/glpi-entity-create.php` (dry-run, `--apply`, reexecução idempotente): entidade 12 "Unimed" sob a raiz, vínculo da 94 (perfil 12, não recursivo) id 126 e grupo técnico `infraops/NOC` id 28, no padrão das demais. Hub mapeia `Unimed` → 12. Rollback: remover o mapeamento e a entidade 12 (sem tickets nela antes deste PR).

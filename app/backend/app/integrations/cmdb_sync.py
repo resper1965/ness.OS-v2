@@ -82,7 +82,7 @@ async def reconcile(apply=False, hostids=None):
     glpi = GLPIClient()
     indexed = {}
     try:
-        for entity in range(12):
+        for entity in range(13):
             await glpi.change_active_entity(entity)
             groups = {int(g["id"]): g["name"] for g in await glpi.list_items("Group")}
             technical_groups = {
