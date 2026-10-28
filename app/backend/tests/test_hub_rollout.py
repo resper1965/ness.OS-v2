@@ -8,7 +8,8 @@ from app.workers.alerts import customer_from_hostgroups, resolve_glpi_entity_id
 
 
 @pytest.mark.parametrize(
-    "name,entity", [("Cavan", 8), ("Alupar PE", 5), ("Alupar CO", 6), ("Ness", 0)]
+    "name,entity",
+    [("Cavan", 8), ("Alupar PE", 5), ("Alupar CO", 6), ("Ness", 0), ("Unimed", 12)],
 )
 def test_explicit_entity_mapping(name, entity):
     assert resolve_glpi_entity_id(name) == entity

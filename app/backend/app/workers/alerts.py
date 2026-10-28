@@ -90,6 +90,8 @@ def resolve_glpi_entity_id(customer_name: str) -> int:
         return 10
     if name_lower == "tne":
         return 11
+    if name_lower == "unimed":
+        return 12
     if name_lower in ("ness", "ness processos e tecnologia ltda."):
         return 0
     raise ValueError("Cliente sem entidade GLPI mapeada; ticket recusado")
