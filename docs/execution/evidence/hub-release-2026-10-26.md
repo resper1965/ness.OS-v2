@@ -53,3 +53,7 @@ Monitor acionável (#111): API e workers em `ghcr.io/resper1965/ninf-api@sha256:
 ## Entidade Unimed no GLPI (28/10, OK do Ricardo)
 
 O monitor novo acusou alertas recusados com "Cliente sem entidade GLPI mapeada": hosts dos grupos `[ Unimed ]` (Itu e Salto) no Zabbix, sem entidade no GLPI. Criada com `infra/scripts/glpi-entity-create.php` (dry-run, `--apply`, reexecução idempotente): entidade 12 "Unimed" sob a raiz, vínculo da 94 (perfil 12, não recursivo) id 126 e grupo técnico `infraops/NOC` id 28, no padrão das demais. Hub mapeia `Unimed` → 12. Rollback: remover o mapeamento e a entidade 12 (sem tickets nela antes deste PR).
+
+## Promoção de `3651780` (28/10 ~08:40 BRT)
+
+Mapeamento Unimed → 12 e CMDB cobrindo a entidade 12 (#115). API e workers em `ghcr.io/resper1965/ninf-api@sha256:fdc3470bf1d8fb180f5fc34c59dada83f8fa21d35bac2af93df2bd8c5005452d` (`publish-hub-images` run 40678184116). `promotion=PASS`, `/api/assets` 401, 3 contêineres `healthy`, 0 restart; backup prévio `20261028T082159-0300`. Primeiro alerta Unimed pós-promoção virou ticket na entidade 12; 0 recusas "Cliente sem entidade" em 15 min. As recusas anteriores não criaram incidente (falham antes), então não há replay: o próximo evento de cada problema ativo abre o ticket. Rollback: release `9c34eda` (comando no journal de `ness-hub-promote-3651780`).
