@@ -4,7 +4,7 @@
 
 **Estágio:** em andamento
 
-**Próximo passo:** Task 2.3 (gateway T03 em produção) e 2.5 (T05) em laboratório.
+**Próximo passo:** 2.5 (T05 do plano GLPI) em laboratório.
 
 ## Quadro (atualizado a cada task fechada)
 
@@ -20,12 +20,13 @@ Tasks do [plano de execução](docs/superpowers/plans/2026-10-26-ness-os-executi
 - 1.3 As-built gerado dos 3 hosts — #98
 - 2.1 Matriz negativa GLPI T03 em lab, correção do gateway — #91
 - 2.2 ADR 0020 aceito em 27/10 — #96, #110
+- 2.3 GLPI T03 em produção em 28/10: gateway por digest, cliente API 1 desativado, 106 ativa com `[13, 1, 0]`, caminho direto Hub+106 **não** bloqueado — risco aceito no ADR 0020; plano: steps 3 e 4 ficam abertos — [evidência](docs/execution/evidence/glpi-t03-prod-2026-10-28.md)
 - 2.4 GLPI T04: um ticket por alerta; 403 libera a reserva — #93
 - 3.1 Hub API + workers em `7e7dfc6` desde 28/10 16:45 (monitor #111, alerta por e-mail #114, Unimed #115, LLM via OpenRouter #117) — [evidência](docs/execution/evidence/hub-release-2026-10-26.md); promoção de 26/10 revertida (regressão GLPI, corrigida no #95); canário de alertas no script — #86
 - 6.1 + 6.3 Testes do frontend (vitest) e isolamento do SSE — #90
 - 6.2 Frescor/último sucesso/erro por fonte em `pipeline_health`, `ready` e exit code do monitor; UI sem hora falsa — #101
 - Reconciliação dos alertas de 26–27/10: 739 sem ticket, 215 sem cobertura — #102
-- 8.1 Contrato `AIRequestV1`, sanitização e métrica das chamadas ao Gemini — #99 (corrigiu vazamento de segredo para o Gemini em análise e triagem SOC)
+- 8.1 Contrato `AIRequestV1`, sanitização e métrica das chamadas ao Gemini — #99 (corrigiu vazamento de segredo para o Gemini em análise e triagem SOC); LLM via OpenRouter com limite de US$ 50/mês na chave — #117
 
 ### Em andamento
 _nenhuma_

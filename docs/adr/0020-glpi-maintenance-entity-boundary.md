@@ -1,6 +1,6 @@
 # ADR 0020 — fronteira de entidade para manutenção GLPI
 
-- Status: aceita — aprovada pelo Ricardo em 27/10/2026; contrato testado em laboratório (18/18); produção na Task 2.3 (regra de janela dispensada)
+- Status: aceita e implantada — aprovada pelo Ricardo em 27/10/2026; laboratório 18/18; produção em 28/10/2026 (Task 2.3), com o risco aceito abaixo
 - Data: 13/10/2026
 - Escopo: identidade `svc_ness_maintenance` (106), perfil 13, entidade Alupar (1)
 
@@ -36,7 +36,15 @@ gateway, não o perfil. Que o perfil não é fronteira vem da evidência de
 produção abaixo: a 106 em entidade 1 não recursiva não impediu a seleção da
 descendente.
 
-## Pendências para a Task 2.3 (produção, janela D2)
+## Risco aceito (Ricardo, 28/10/2026)
+
+O GLPI valida só App-Token + `user_token`. O App-Token do Hub (cliente API 2, faixa 172.18.0.0/16) combinado com o `user_token` da 106 abre sessão a partir de `ninf-api` e `ninf-worker-alerts` (sonda: `initSession with container-env -> 200`). Aceito porque a fronteira real é: `user_token` da 106 em `/etc/ness-os/glpi-maintenance/user_token` (root 0600, só montado no gateway, nunca no Hub) + checagem de entidade/IDs do gateway + perfil 13 só com `computer=1` + 106 com um único vínculo `[13, 1, 0]`. Quem lê o arquivo já é root no host. Por isso a sonda de produção roda com `--skip-env-token`. Fecha de vez quando o Hub sair da rede do GLPI ou o GLPI ganhar vínculo App-Token↔usuário. Revisar a cada rotação do token.
+
+## Implantação em produção (28/10/2026, Task 2.3)
+
+Ver [evidência](../execution/evidence/glpi-t03-prod-2026-10-28.md). Cliente API 1 (sem filtro de IP, token legado) desativado; cliente 3 `ness-os-maintenance-gateway` só `172.30.250.3`; 106 ativa.
+
+## Pendências para a Task 2.3 (produção, janela D2) — resolvidas em 28/10
 
 - Rota pública/Caddy não coberta pela matriz do lab.
 - Checagem de colisão de `172.30.250.0/28` no host de produção (Docker rootful).
