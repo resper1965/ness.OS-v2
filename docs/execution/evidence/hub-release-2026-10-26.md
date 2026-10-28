@@ -53,3 +53,7 @@ Monitor acionável (#111): API e workers em `ghcr.io/resper1965/ninf-api@sha256:
 ## Entidade Unimed no GLPI (28/10, OK do Ricardo)
 
 O monitor novo acusou alertas recusados com "Cliente sem entidade GLPI mapeada": hosts dos grupos `[ Unimed ]` (Itu e Salto) no Zabbix, sem entidade no GLPI. Criada com `infra/scripts/glpi-entity-create.php` (dry-run, `--apply`, reexecução idempotente): entidade 12 "Unimed" sob a raiz, vínculo da 94 (perfil 12, não recursivo) id 126 e grupo técnico `infraops/NOC` id 28, no padrão das demais. Hub mapeia `Unimed` → 12. Rollback: remover o mapeamento e a entidade 12 (sem tickets nela antes deste PR).
+
+## Promoção de `7e7dfc6` (28/10 ~16:45 BRT) — LLM via OpenRouter
+
+Gemini direto dava 429 (cota gratuita) em 134/135 análises. #117 troca os três pontos (análise de incidente, triagem Wazuh, pós-incidente) por `app/integrations/llm.py` no OpenRouter (`google/gemini-2.5-flash`, `data_collection: deny`, `require_parameters` com schema). Chave própria do Hub, limite US$ 50/mês com reset mensal, em `NINF_LLM_API_KEY` no `.env` da release (root 0600; cópia anterior em `/root/rollback-mail/env-before-llm`). Imagem `ghcr.io/resper1965/ninf-api@sha256:3633686e18b52d68cf0fbc6830c1c5a4c79b25f9f309134cdfcff2c577e7f5c7` (run 40725803751), `promotion=PASS`, `/api/assets` 401, 3 contêineres `healthy`, 0 restart, backup `20261028T133502-0300`. Pós-promoção: `ai_call incident_analysis outcome=ok`, ~2,6 s, ~560 tokens de entrada e ~320 de saída por análise. Embedding segue no Gemini (`ponytail:`). Rollback: release `3651780`.
