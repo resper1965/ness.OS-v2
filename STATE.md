@@ -21,7 +21,7 @@ Tasks do [plano de execução](docs/superpowers/plans/2026-10-26-ness-os-executi
 - 2.1 Matriz negativa GLPI T03 em lab, correção do gateway — #91
 - 2.2 ADR 0020 aceito em 27/10 — #96, #110
 - 2.4 GLPI T04: um ticket por alerta; 403 libera a reserva — #93
-- 3.1 Hub API + workers em `3651780` desde 28/10 08:40 (monitor acionável #111, alerta por e-mail #114, Unimed #115) — [evidência](docs/execution/evidence/hub-release-2026-10-26.md); promoção de 26/10 revertida (regressão GLPI, corrigida no #95); canário de alertas no script — #86
+- 3.1 Hub API + workers em `7e7dfc6` desde 28/10 16:45 (monitor #111, alerta por e-mail #114, Unimed #115, LLM via OpenRouter #117) — [evidência](docs/execution/evidence/hub-release-2026-10-26.md); promoção de 26/10 revertida (regressão GLPI, corrigida no #95); canário de alertas no script — #86
 - 6.1 + 6.3 Testes do frontend (vitest) e isolamento do SSE — #90
 - 6.2 Frescor/último sucesso/erro por fonte em `pipeline_health`, `ready` e exit code do monitor; UI sem hora falsa — #101
 - Reconciliação dos alertas de 26–27/10: 739 sem ticket, 215 sem cobertura — #102

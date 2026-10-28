@@ -2,7 +2,7 @@
 
 ## Resultado
 
-API e workers em `9c34eda` desde 27/10 19:10 BRT (antes, `412bdc0` desde 08:2x; tabela abaixo é dessa release, a de `9c34eda` está no fim). Frontend e demais serviços inalterados (release de 12/10).
+API e workers em `7e7dfc6` desde 28/10 16:45 BRT (antes: `3651780` 28/10 08:40, `9c34eda` 27/10 19:10, `412bdc0` 27/10 08:2x; a tabela abaixo é da `412bdc0`, as demais estão no fim). Frontend e demais serviços inalterados (release de 12/10).
 
 | Item | Valor |
 |---|---|
@@ -57,3 +57,7 @@ O monitor novo acusou alertas recusados com "Cliente sem entidade GLPI mapeada":
 ## Promoção de `3651780` (28/10 ~08:40 BRT)
 
 Mapeamento Unimed → 12 e CMDB cobrindo a entidade 12 (#115). API e workers em `ghcr.io/resper1965/ninf-api@sha256:fdc3470bf1d8fb180f5fc34c59dada83f8fa21d35bac2af93df2bd8c5005452d` (`publish-hub-images` run 40678184116). `promotion=PASS`, `/api/assets` 401, 3 contêineres `healthy`, 0 restart; backup prévio `20261028T082159-0300`. Primeiro alerta Unimed pós-promoção virou ticket na entidade 12; 0 recusas "Cliente sem entidade" em 15 min. As recusas anteriores não criaram incidente (falham antes), então não há replay: o próximo evento de cada problema ativo abre o ticket. Rollback: release `9c34eda` (comando no journal de `ness-hub-promote-3651780`).
+
+## Promoção de `7e7dfc6` (28/10 ~16:45 BRT) — LLM via OpenRouter
+
+Gemini direto dava 429 (cota gratuita) em 134/135 análises. #117 troca os três pontos (análise de incidente, triagem Wazuh, pós-incidente) por `app/integrations/llm.py` no OpenRouter (`google/gemini-2.5-flash`, `data_collection: deny`, `require_parameters` com schema). Chave própria do Hub, limite US$ 50/mês com reset mensal, em `NINF_LLM_API_KEY` no `.env` da release (root 0600; cópia anterior em `/root/rollback-mail/env-before-llm`). Imagem `ghcr.io/resper1965/ninf-api@sha256:3633686e18b52d68cf0fbc6830c1c5a4c79b25f9f309134cdfcff2c577e7f5c7` (run 40725803751), `promotion=PASS`, `/api/assets` 401, 3 contêineres `healthy`, 0 restart, backup `20261028T133502-0300`. Pós-promoção: `ai_call incident_analysis outcome=ok`, ~2,6 s, ~560 tokens de entrada e ~320 de saída por análise. Embedding segue no Gemini (`ponytail:`). Rollback: release `3651780`.
