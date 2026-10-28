@@ -13,6 +13,10 @@ if (!preg_match('/^[\p{L}\p{N}][\p{L}\p{N} ._-]{0,63}$/u', $name) || strcasecmp(
     fwrite(STDERR, "invalid entity name\n");
     exit(1);
 }
+$svc = iterator_to_array($DB->request(['SELECT' => ['id', 'name', 'is_active'], 'FROM' => 'glpi_users', 'WHERE' => ['id' => 94]]));
+if (count($svc) !== 1 || reset($svc)['name'] !== 'svc_ness_os' || !(int) reset($svc)['is_active']) {
+    throw new RuntimeException('Unexpected service identity');
+}
 $DB->beginTransaction();
 try {
 Session::callAsSystem(function () use ($DB, $name, $apply) {
