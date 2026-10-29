@@ -429,8 +429,8 @@ Entrada: G0–G3 e T03/T04 `RELEASED`. Testes reaproveitam o [plano MVP](2026-09
 
 **Files:** Create `docs/procurement/wazuh-bom-2026-10.md`.
 
-- [ ] Comparar duas topologias com a carga observada (624 endpoints, 4 vCPU, 21% médio / 41% pico): **single-node** (R3a) e **onda 1** (R3b). Critérios: endpoints, retenção 90 dias, disco por EPS, HA exigida, custo do painel, rollback.
-- [ ] Recomendação de partida: R3a, migrando para R3b quando métrica de R3a ou exigência de HA justificar — sem refazer instalação (mesma role, mais nós).
+- [x] Comparar duas topologias com a carga observada (624 endpoints, 4 vCPU, 21% médio / 41% pico): **single-node** (R3a) e **onda 1** (R3b). Critérios: endpoints, retenção 90 dias, disco por EPS, HA exigida, custo do painel, rollback. → [`docs/procurement/wazuh-bom-2026-10.md`](../../procurement/wazuh-bom-2026-10.md)
+- [x] Recomendação de partida: R3a, migrando para R3b quando métrica de R3a ou exigência de HA justificar — sem refazer instalação (mesma role, mais nós).
 
 ### Task 9.2: IaC Wazuh testada em lab `[A]`
 
