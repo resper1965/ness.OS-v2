@@ -35,6 +35,27 @@ Sysmon, criação de processo (4688), PowerShell script block (4104), limpeza de
 
 **Decisão:** não instalar nada na `homol`. No Wazuh novo, ligar Sysmon e auditoria de linha de comando (GPO) e só então trazer `Windows Powershell` (69) e `Windows_Sysmon`, revisados um a um, com licença resolvida. `Exclusion Rules` (ids 900000+) serve de modelo, medindo cada exclusão aqui.
 
+## SigmaHQ/sigma (avaliado, uso restrito)
+
+Último commit 21/10/2026. Licença das regras: Detection Rule License (DRL) 1.1, que permite uso e modificação com atribuição ao autor; confirmar o texto com o jurídico antes de redistribuir a cliente.
+
+Dos 2.425 arquivos de Windows (3.161 em `rules/` ao todo; 474 em `rules-emerging-threats`):
+
+| Exige | Regras | Funciona hoje? |
+|---|---|---|
+| `process_creation` | 1.193 | Não: precisa de Sysmon (evento 1) ou do 4688 com linha de comando (hoje 0) |
+| Sysmon (registro, arquivo, DLL, rede, pipe, DNS…) | 681 | Não: 0 eventos de Sysmon |
+| PowerShell (4103/4104) | 211 | Não: 4104 em 0 |
+| Canal nativo (Security 146, System 63, Application 23, Defender 16…) | 309 | Em parte; é a única fatia sem nova coleta |
+
+Só ~13% das regras de Windows rodam com a coleta de hoje. Nível: 1.176 high e 58 critical em 2.425; status: 2.192 `test`, só 54 `stable`.
+
+**Não são regras do Wazuh.** O Sigma é formato de consulta. Não existe backend oficial do pySigma para o Wazuh. O motor do Wazuh é um grafo de `if_sid` com condições AND; o OR do Sigma não converte direto. Conversores existentes (`theflakes/sigma_to_wazuh`, MIT) convertem ~88% e precisam de ajuste manual. Os ids gerados seriam um problema novo de colisão.
+
+**Decisão:** o Sigma não é o caminho para o Wazuh. Serve como catálogo de detecções para escolher quais eventos coletar e como referência para escrever poucas regras próprias, com id `110000+` e cada uma testada com evento sintético. Para usá-lo em escala, o caminho é o Chainsaw (Sigma sobre os logs) em análise forense, fora do Wazuh. Revisitar na versão 5.0 do Wazuh, que muda o motor de regras.
+
+**Ordem para cobertura:** (1) ligar Sysmon e 4688/4104 no Wazuh novo; (2) escolher ~30 detecções do Sigma por técnica MITRE (persistência, credenciais, ransomware, limpeza de log); (3) escrevê-las como regras locais com teste.
+
 ## Para o Wazuh novo
 
 1. Renumerar as nossas regras locais para `110000+` (livre no repositório acima) antes de importar qualquer conjunto externo.
