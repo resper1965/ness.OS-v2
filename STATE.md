@@ -36,7 +36,7 @@ _nenhuma_
 
 ### Esperando o Ricardo
 1. Replay dos 14 alertas ainda ativos sem ticket (Google Updater parado e disco em `alpdb01`/`alpdb02`)? Os 12 FortiGate já ganharam ticket; os 189 resolvidos ficam sem
-2. Wazuh: limpar agentes desconectados (146 há mais de 30 dias e 10 que nunca conectaram) e apagar os scripts temporários da `homol`; regras 100100/100101 já aplicadas (`docs/execution/evidence/wazuh-rules-review-2026-10-29.md`)
+2. Wazuh: limpar agentes desconectados (485, dos quais 146 há mais de 30 dias) e os 10 que nunca conectaram e apagar os scripts temporários da `homol`; regras 100100/100101 já aplicadas (`docs/execution/evidence/wazuh-rules-review-2026-10-29.md`)
 3. Issue #82: rotacionar senhas admin/SSO do GLPI, root MariaDB e chave S3 de backup (sem reescrever histórico)
 4. Restringir a chave do agente à `stack` (`from=`)
 5. Depois: D4 MFA, D3/D6 compras Psono/Wazuh
