@@ -28,12 +28,12 @@ GitHub ainda expõe e se cada valor ainda funciona.
 ## GLPI (produção)
 - Senhas de fábrica de `glpi`, `post-only`, `tech`, `normal`: **não valem**.
 - Contas ativas por tipo de autenticação (contagem completa, sem `LIMIT`):
-  - 38 locais com senha (17 `authtype` 0, 21 `authtype` 1). Dessas, só 3 já logaram:
-    `svc_ness_os` (94, Hub, hoje), `glpi` (2, 27/07) e nenhuma de pessoa.
+  - 38 locais com senha (17 `authtype` 0, 21 `authtype` 1). Dessas, só 2 já logaram:
+    `svc_ness_os` (94, Hub, hoje) e `glpi` (2, 27/07). Nenhuma conta de pessoa.
   - 35 SSO (`authtype` 3) sem senha local, nenhuma com login ainda.
   - 3 sem senha local: `svc_ness_maintenance` (106, 28/10), `glpi-system` e `akadmin` (SSO, 13/10).
-- As 36 contas locais de pessoas (e as 3 de demonstração) nunca logaram e duplicam as
-  contas SSO. Candidatas a desativação; **não alterei nada**. A política de senha delas
+- As outras 36 contas locais (33 de pessoas e `post-only`, `tech`, `normal`) nunca logaram;
+  as de pessoas duplicam as contas SSO. Candidatas a desativação; **não alterei nada**. A política de senha delas
   não foi verificada.
 
 ## Não verificado

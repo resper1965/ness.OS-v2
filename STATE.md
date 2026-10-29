@@ -37,7 +37,7 @@ Tasks do [plano de execução](docs/superpowers/plans/2026-10-26-ness-os-executi
 ### Esperando o Ricardo
 1. Replay dos 14 alertas ainda ativos sem ticket (Google Updater parado e disco em `alpdb01`/`alpdb02`)? Os 12 FortiGate já ganharam ticket; os 189 resolvidos ficam sem
 2. Wazuh: limpar agentes desconectados (485, dos quais 146 há mais de 30 dias) e os 10 que nunca conectaram e apagar os scripts temporários da `homol`; regras 100100/100101 já aplicadas (`docs/execution/evidence/wazuh-rules-review-2026-10-29.md`)
-3. Issue #82: valores históricos todos mortos ([evidência](docs/execution/evidence/credenciais-82-2026-10-29.md)); decidir (a) desativar as ~36 contas locais de pessoas do GLPI que nunca logaram e duplicam o SSO e (b) fechar o pedido ao GitHub Support dos refs de PR
+3. Issue #82: valores históricos todos mortos ([evidência](docs/execution/evidence/credenciais-82-2026-10-29.md)); decidir (a) desativar as 36 contas locais do GLPI que nunca logaram (33 de pessoas duplicam o SSO) e (b) fechar o pedido ao GitHub Support dos refs de PR
 4. Restringir a chave do agente à `stack` (`from=`)
 5. Depois: D4 MFA, D3/D6 compras Psono/Wazuh
 
