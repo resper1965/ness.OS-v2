@@ -9,6 +9,8 @@ GitHub ainda expõe e se cada valor ainda funciona.
 - Cada valor achado foi testado só por leitura, a partir do arquivo temporário (apagado
   com `shred`): `rclone lsd`, `crypt` contra `/etc/shadow`, `mariadb -e "select 1"` e
   `host.get` na API do Zabbix. Nada foi alterado nos servidores.
+- "Recusada" vale só para os valores achados no histórico e só no teste de 29/10; não prova que o
+  segredo atual seja outro nem que esteja revogado em outros hosts.
 
 ## Estado do remoto
 - Repositório **público** hoje (janela do Actions; zero forks). 75 heads, 1 tag, 110 refs de PR.
@@ -22,11 +24,11 @@ GitHub ainda expõe e se cada valor ainda funciona.
 | `mariadb_root_password` (inventário Ansible) | 25 refs de PR | Recusada no MariaDB do Zabbix prod. |
 | `backup_s3_secret_key` (idem) | 25 refs de PR | Recusada pelo Contabo (`SignatureDoesNotMatch`). Access ID difere do atual. |
 | Token da API do Zabbix (`get_zabbix_users.py`, `secops.py`, `reconnect-proxies.yml`; 1 valor, 3 commits) | refs de PR | **Achado novo**, não estava na #82. Recusado (`Not authorized`) em `zabbix.ness.com.br`. |
-| Senha de SSH da aiops (`run_provision_sso.py`; 2 valores) | 7 commits em heads e PR 41 | **Achado novo**, o gitleaks não pega. Não vale para `root` na aiops nem no Zabbix prod, nem para o `root` do MariaDB do GLPI. SSH por senha desligado nos dois hosts. |
+| Senha de SSH da aiops (`run_provision_sso.py`; 2 valores) | 7 commits em heads e PR 41 | **Achado novo**, o gitleaks não pega. Recusada para `root` na aiops e no Zabbix prod e para o `root` do MariaDB do GLPI (só os 2 valores achados). SSH por senha desligado nos dois hosts. |
 | `escalate-incident.yml` (2 achados) | refs de PR | Falso positivo: URL interna sem segredo. |
 
 ## GLPI (produção)
-- Senhas de fábrica de `glpi`, `post-only`, `tech`, `normal`: **não valem**.
+- Senhas de fábrica de `glpi`, `post-only`, `tech`, `normal`: recusadas no login de teste (só essas; sem varredura de outras senhas).
 - Contas ativas por tipo de autenticação (contagem completa, sem `LIMIT`):
   - 38 locais com senha (17 `authtype` 0, 21 `authtype` 1). Dessas, só 2 já logaram:
     `svc_ness_os` (94, Hub, hoje) e `glpi` (2, 27/07). Nenhuma conta de pessoa.
