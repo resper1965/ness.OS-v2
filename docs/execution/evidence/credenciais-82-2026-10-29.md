@@ -39,6 +39,6 @@ GitHub ainda expõe e se cada valor ainda funciona.
   não foi verificada.
 
 ## Não verificado
-- UAT (`169.58.234.9`) e a `homol` do Wazuh contra as senhas de SSH antigas.
+- UAT e a `homol` do Wazuh contra as senhas de SSH antigas.
 - Outros segredos que não tenham formato que o gitleaks reconheça.
 - Se o pedido ao GitHub Support foi aberto e atendido (a #82 não registra o número).
