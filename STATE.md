@@ -29,7 +29,7 @@ Tasks do [plano de execução](docs/superpowers/plans/2026-10-26-ness-os-executi
 - 8.1 Contrato `AIRequestV1`, sanitização e métrica das chamadas ao Gemini — #99 (corrigiu vazamento de segredo para o Gemini em análise e triagem SOC); LLM via OpenRouter com limite de US$ 50/mês na chave — #117
 
 ### Em andamento
-_nenhuma_
+- Fundação SOC (A1/A2/A5/A6 + [contrato de sinal v0](docs/specs/signal-contract-v0.md)) — PR aberto; não ativa Wazuh em produção. `n_infraops_tenant_mappings` tem 0 linhas: cadastrar os vínculos `wazuh` antes de usar `/secops/triage`
 
 ### Pronto para começar
 - 2.5 T05 do plano GLPI

@@ -76,8 +76,8 @@ async def test_gemini_payload_has_no_secrets_or_other_tenant(monkeypatch):
     _assert_clean(bodies)
 
     # SOC triage (Wazuh)
-    bodies = _capture(monkeypatch, "Client")
-    soc_agent.triage_wazuh_alert(
+    bodies = _capture(monkeypatch, "AsyncClient")
+    await soc_agent.triage_wazuh_alert(
         {
             "id": "1700.1",
             "timestamp": "2026-10-26T10:00:00.000+0000",
@@ -92,7 +92,8 @@ async def test_gemini_payload_has_no_secrets_or_other_tenant(monkeypatch):
             "data": {"password": "S3cr3tPw", "note": PLANTED},
             "manager": {"name": OTHER_TENANT},
             "cluster": {"node": OTHER_TENANT},
-        }
+        },
+        "cavan",
     )
     _assert_clean(bodies)
 
@@ -156,7 +157,10 @@ async def test_ai_call_metrics_logged(monkeypatch, caplog):
     assert data["latency_ms"] >= 0 and data["prompt_tokens"] == 7
 
 
-def test_invalid_wazuh_timestamp_falls_back_without_exception(monkeypatch, caplog):
+@pytest.mark.asyncio
+async def test_invalid_wazuh_timestamp_falls_back_without_exception(
+    monkeypatch, caplog
+):
     monkeypatch.setattr(llm.settings, "llm_api_key", "synthetic-key")
     sent = []
 
@@ -166,11 +170,11 @@ def test_invalid_wazuh_timestamp_falls_back_without_exception(monkeypatch, caplo
 
     monkeypatch.setattr(
         httpx,
-        "Client",
-        lambda **kw: _REAL["Client"](transport=httpx.MockTransport(handler), **kw),
+        "AsyncClient",
+        lambda **kw: _REAL["AsyncClient"](transport=httpx.MockTransport(handler), **kw),
     )
-    result = soc_agent.triage_wazuh_alert(
-        {"rule": {"id": "1", "level": 12}, "timestamp": "not-a-date"}
+    result = await soc_agent.triage_wazuh_alert(
+        {"rule": {"id": "1", "level": 12}, "timestamp": "not-a-date"}, "t"
     )
     assert sent  # request was built from the invalid timestamp and sent
     assert result["classification"] == "HIGH"  # provider failure -> fallback

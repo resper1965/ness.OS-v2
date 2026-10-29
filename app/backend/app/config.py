@@ -36,6 +36,11 @@ class Settings(BaseSettings):
     llm_model: str = "google/gemini-2.5-flash"
     llm_base_url: str = "https://openrouter.ai/api/v1"
 
+    # --- SOC ---
+    # ponytail: provisional floor until the SOC attendance policy is approved;
+    # upgrade path: per-tenant/per-rule policy table.
+    soc_attendance_min_level: int = 12
+
     # --- Gemini API (embeddings only) ---
     gemini_api_key: str = ""
 
