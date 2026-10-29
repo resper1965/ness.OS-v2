@@ -5,7 +5,21 @@
 
 ## Carga observada (origem Hostinger, transitória)
 
-624 endpoints, 4 vCPU, CPU média 21% / pico 41%. Sem HA. Fonte: `docs/vps-capacity-and-sequencing-plan.md`, fotografia de 21/08/2026.
+Medido em 29/10/2026 por leitura (`ness_ro`), manager no ar há 9 dias e 18 h. Antes, a fotografia de 21/08 (`docs/vps-capacity-and-sequencing-plan.md`) dizia 624 endpoints e 4 vCPU.
+
+| Medida | Valor |
+|---|---|
+| Máquina | 8 vCPU, 32 GB, disco 387 GB (197 GB usados), Ubuntu 25.04, Wazuh 4.14.1 (manager, indexer, dashboard) |
+| Agentes | 886 chaves em `client.keys`; 366 sessões TCP abertas agora (o número de agentes ativos **não** foi medido: `agent_control` exige acesso que o usuário de leitura não tem) |
+| Eventos recebidos | 153,7 M em 9,8 dias ≈ **182 EPS** médio (o BOM de 26/10 estimava 95) |
+| Eventos descartados | 1,77 M no analysisd (1,15%) e 0,71 M no remoted |
+| Alertas gravados | 60,6 M ≈ **6,2 M/dia** (≈ 72/s) |
+| Alertas em disco | `alerts.json` de hoje com 5 GB e `.log` com 7 GB sem compactar (13:45 UTC); compactado 0,7–0,8 GB/dia o JSON e ~1 GB/dia o `.log` |
+| Indexer | 67 GB; ≤ 1,1 KB por alerta, tomando os 60,6 M como base (limite superior: o índice pode ter mais de 9 dias) |
+| CPU/memória | `analysisd` 41% de um núcleo; Java do indexer com 7,9 GB; ociosa 18–40% |
+| Steal de CPU | **31–60%** no `vmstat`: o hospedeiro da Hostinger está disputando CPU |
+
+Leitura: o volume de alertas (≈ 7.000 por agente por dia) é de regras ruidosas. Ajustar regras antes de dimensionar disco pode cortar o custo bem mais que comprar espaço.
 
 ## Premissas de dimensionamento
 
@@ -22,15 +36,15 @@
 | Classe | Cloud VPS 40 — 12 vCPU, 48 GB, 500 GB SSD |
 | Papéis | Indexer + Server + Dashboard (all-in-one) |
 | Endpoints suportados | até ~1.000 (quickstart AIO); 624 atuais com folga |
-| EPS estimado (624) | ~95 EPS (mix 0,15 APS médio) |
-| Disco 90 d (624) | 624 × (0,70×1,5 + 0,25×3,7 + 0,05×7,4) = 624 × 2,12 ≈ **1.323 GB** + 30% ≈ **1,72 TB** |
+| EPS | **~182 EPS medidos** hoje na Hostinger (a estimativa de 95 não vale) |
+| Disco 90 d | Medido: 6,2 M alertas/dia × 90 × 1,1 KB ≈ 615 GB + 30% ≈ **0,8 TB** (limite superior). A tabela do Wazuh daria 1,72 TB para 624 endpoints; a medição manda |
 | Disco da VPS | 500 GB — **insuficiente** p/ 90 d dos 624; usar add-on de disco (+1 TB) ou Storage VPS 40 |
 | HA | Nenhum (SPOF); rollback = origem Hostinger preservada |
 | Custo/mês | VPS 40 €25 + add-on disco *A CONFIRMAR*; estimado €35–45 |
 | Rollback | Agentes voltam para o Hostinger; janela de 7–14 d preservada |
 | Operação | Baixa: 1 nó, 1 runbook, snapshot diário |
 
-**Disco é o gargalo de R3a.** Resolução mais barata: add-on de armazenamento na própria VPS 40 (preço e tamanho máx. *A CONFIRMAR* no painel Contabo); alternativa Storage VPS 40 (8 vCPU/30 GB/1,2 TB SSD, €20) — perde vCPU/RAM, ganha disco, mas 1,2 TB ainda cobre só ~70% da retenção projetada. Confirmar no piloto (Task 9.3) o APS real por perfil antes de fechar disco.
+**Disco é o gargalo de R3a.** Resolução mais barata: add-on de armazenamento na própria VPS 40 (preço e tamanho máx. *A CONFIRMAR* no painel Contabo); alternativa Storage VPS 40 (8 vCPU/30 GB/1,2 TB SSD, €20) — perde vCPU/RAM, ganha disco, mas 1,2 TB cobre os ~0,8 TB medidos, mas não os 1,72 TB da tabela. Confirmar no piloto (Task 9.3) o APS real por perfil antes de fechar disco.
 
 ## Topologia R3b — onda 1 (cluster, rede privada R4)
 
@@ -71,6 +85,10 @@
 A migração R3a → R3b não reinstala: a role Wazuh (Task 9.2) adiciona nós ao cluster existente, reindexa e descomissiona R3a; mesmos agentes, mesmos certificados de CA, sem toque nos endpoints.
 
 ## A CONFIRMAR (pré-compra)
+
+- **Agentes ativos** e perfil por endpoint: precisa de `agent_control -l` ou da API do manager (credencial de leitura, a pedir ao Ricardo).
+- **Retenção e tamanho reais do índice**: `GET _cat/indices` no indexer; sem isso o 1,1 KB/alerta é só limite superior.
+- **Steal de 31–60%** na Hostinger: confirmar se persiste ou se é pico; pesa na escolha de classe de CPU.
 
 - Preço e tamanho máx. do **add-on de disco** na Contabo (R3a e por-indexer em R3b).
 - Preço da **rede privada R4** (Contabo Private Networking).
