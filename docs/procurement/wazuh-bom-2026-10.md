@@ -88,6 +88,8 @@ A migração R3a → R3b não reinstala: a role Wazuh (Task 9.2) adiciona nós a
 
 ## A CONFIRMAR (pré-compra)
 
+- **Regras e cobertura:** `docs/execution/evidence/wazuh-rules-review-2026-10-29.md`. Cortes aplicados (5038 e Brother) reduzem o volume de alertas, então o disco de 90 dias medido acima é teto e deve cair; remedir em ~1 semana antes de fechar o add-on.
+
 - **Dimensionar para ~400 ativos, não 886 nem 624**: limpar os 485 desconectados e os 10 que nunca conectaram antes da migração (decisão do Ricardo; o Wazuh só removeria o cadastro, não os dados).
 - **Retenção e tamanho reais do índice**: `_cat/indices` exige usuário do indexer (a API do manager não cobre); sem isso o 1,1 KB/alerta é só limite superior.
 - **Steal de 31–60%** na Hostinger: confirmar se persiste ou se é pico; pesa na escolha de classe de CPU.
