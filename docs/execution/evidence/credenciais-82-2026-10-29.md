@@ -33,7 +33,8 @@ GitHub ainda expõe e se cada valor ainda funciona.
   - 38 locais com senha (17 `authtype` 0, 21 `authtype` 1). Dessas, só 2 já logaram:
     `svc_ness_os` (94, Hub, hoje) e `glpi` (2, 27/07). Nenhuma conta de pessoa.
   - 35 SSO (`authtype` 3) sem senha local, nenhuma com login ainda.
-  - 3 sem senha local: `svc_ness_maintenance` (106, 28/10), `glpi-system` e `akadmin` (SSO, 13/10).
+  - 3 sem senha local, fora dos 35 SSO: `svc_ness_maintenance` (106, `authtype` 1, login em 28/10),
+    `glpi-system` (`authtype` 1, nunca logou) e `akadmin` (`authtype` 4, login em 13/10).
 - As outras 36 contas locais (33 de pessoas e `post-only`, `tech`, `normal`) nunca logaram;
   as de pessoas duplicam as contas SSO. Candidatas a desativação; **não alterei nada**. A política de senha delas
   não foi verificada.
