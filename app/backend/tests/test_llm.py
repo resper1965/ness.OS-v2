@@ -70,7 +70,8 @@ def test_no_schema_means_no_response_format(monkeypatch):
     assert "response_format" not in json.loads(sent[0].content)
 
 
-def test_missing_key_makes_no_call(monkeypatch):
+@pytest.mark.asyncio
+async def test_missing_key_makes_no_call(monkeypatch):
     monkeypatch.setattr(llm.settings, "llm_api_key", "")
 
     def forbidden(**kw):
@@ -79,7 +80,9 @@ def test_missing_key_makes_no_call(monkeypatch):
     monkeypatch.setattr(httpx, "Client", forbidden)
     with pytest.raises(httpx.HTTPError):
         llm.chat_completion("s", "u")
-    assert soc_agent.triage_wazuh_alert({"rule": {"id": "1"}})["action_taken"]
+    assert (await soc_agent.triage_wazuh_alert({"rule": {"id": "1"}}, "t"))[
+        "action_taken"
+    ]
     report = gemini.generate_postmortem({"fingerprint": "fp"}, [], [])
     assert "falhou" in report.summary
 
@@ -110,7 +113,8 @@ async def test_analyzer_uses_llm(monkeypatch):
     assert result.probable_cause == "c"
 
 
-def test_soc_uses_llm(monkeypatch):
+@pytest.mark.asyncio
+async def test_soc_uses_llm(monkeypatch):
     triage = {
         "classification": "LOW",
         "confidence": 0.9,
@@ -119,10 +123,11 @@ def test_soc_uses_llm(monkeypatch):
     }
     _mock(
         monkeypatch,
-        "Client",
+        "AsyncClient",
         {"choices": [{"message": {"content": json.dumps(triage)}}]},
     )
-    assert soc_agent.triage_wazuh_alert({"rule": {"id": "1", "level": 3}}) == triage
+    alert = {"rule": {"id": "1", "level": 3}}
+    assert await soc_agent.triage_wazuh_alert(alert, "t") == triage
 
 
 def test_postmortem_uses_llm(monkeypatch):
@@ -150,14 +155,34 @@ def test_postmortem_uses_llm(monkeypatch):
         {"error": {"message": "x"}},
     ],
 )
-def test_unusable_body_falls_back(monkeypatch, reply):
+async def test_unusable_body_falls_back(monkeypatch, reply):
     _mock(monkeypatch, "Client", reply)
     with pytest.raises(llm.LLMBadResponse):
         llm.chat_completion("s", "u")
-    assert soc_agent.triage_wazuh_alert({"rule": {"id": "1"}})["confidence"] == 0.5
+    _mock(monkeypatch, "AsyncClient", reply)
+    got = await soc_agent.triage_wazuh_alert({"rule": {"id": "1"}}, "t")
+    assert got["confidence"] == 0.5
+    _mock(monkeypatch, "Client", reply)
     assert "falhou" in gemini.generate_postmortem({"fingerprint": "f"}, [], []).summary
 
 
-def test_soc_incomplete_json_falls_back(monkeypatch):
-    _mock(monkeypatch, "Client", {"choices": [{"message": {"content": "{}"}}]})
-    assert soc_agent.triage_wazuh_alert({"rule": {"id": "1"}})["confidence"] == 0.5
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "content",
+    [
+        "{}",
+        "[]",
+        '{"classification":"BOGUS","confidence":0.9,"summary":"s","action_taken":"a"}',
+        '{"classification":"LOW","confidence":NaN,"summary":"s","action_taken":"a"}',
+        '{"classification":"LOW","confidence":Infinity,"summary":"s","action_taken":"a"}',
+        '{"classification":"LOW","confidence":1.5,"summary":"s","action_taken":"a"}',
+        '{"classification":"LOW","confidence":-0.1,"summary":"s","action_taken":"a"}',
+        '{"classification":"LOW","confidence":true,"summary":"s","action_taken":"a"}',
+        '{"classification":"LOW","confidence":"0.9","summary":"s","action_taken":"a"}',
+        '{"classification":"LOW","confidence":0.9,"summary":"","action_taken":"a"}',
+    ],
+)
+async def test_soc_invalid_reply_falls_back(monkeypatch, content):
+    _mock(monkeypatch, "AsyncClient", {"choices": [{"message": {"content": content}}]})
+    got = await soc_agent.triage_wazuh_alert({"rule": {"id": "1"}}, "t")
+    assert got["classification"] == "HIGH" and got["confidence"] == 0.5

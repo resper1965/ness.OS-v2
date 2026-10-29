@@ -24,22 +24,26 @@ def test_disabled_notifications_do_not_start_any_n8n_workflow(monkeypatch):
 async def test_soc_decision_must_be_persisted_before_dispatch(
     monkeypatch, commit_fails
 ):
+    async def resolved(db, payload):
+        return "cavan"
+
+    monkeypatch.setattr(secops, "_resolve_tenant", resolved)
     monkeypatch.setattr(secops, "_extract_ips_and_hashes", lambda payload: ([], []))
     monkeypatch.setattr(
         secops._triage_engine,
         "evaluate_alert",
         lambda **kw: SimpleNamespace(action=TriageAction.TRIAGE_L2, risk_score=90),
     )
-    monkeypatch.setattr(
-        soc_agent,
-        "triage_wazuh_alert",
-        lambda payload: {
+
+    async def triage(payload, tenant):
+        return {
             "classification": "HIGH",
             "confidence": 0.8,
             "summary": "Synthetic review",
             "action_taken": "Review required",
-        },
-    )
+        }
+
+    monkeypatch.setattr(soc_agent, "triage_wazuh_alert", triage)
     db = AsyncMock()
     db.add = MagicMock(side_effect=lambda decision: setattr(decision, "id", 19))
     if commit_fails:

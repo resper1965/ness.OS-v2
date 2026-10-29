@@ -22,7 +22,7 @@ from app.core.dependencies import (
 )
 from app.core.triage_engine import TriageAction, TriageEngine
 from app.database import get_db
-from app.models.models import SocDecision
+from app.models.models import SocDecision, TenantMapping
 from app.models.users import User
 
 logger = logging.getLogger(__name__)
@@ -545,12 +545,42 @@ def _triage_input(
     }
 
 
+async def _resolve_tenant(db: AsyncSession, payload: dict[str, Any]) -> str | None:
+    """Cliente pelo vínculo administrativo (grupo Wazuh -> tenant_mappings).
+
+    O grupo recebido é só chave de busca, nunca autorização. Sem vínculo ou com
+    vínculos para clientes diferentes devolve None: fica pendente de revisão.
+    """
+    agent = payload.get("agent")
+    groups = agent.get("group") if isinstance(agent, dict) else None
+    names = {g for g in groups or [] if isinstance(g, str) and g}
+    if not names:
+        return None
+    rows = (
+        (
+            await db.execute(
+                select(TenantMapping.internal_customer_id)
+                .where(
+                    TenantMapping.external_platform == "wazuh",
+                    TenantMapping.external_customer_id.in_(names),
+                )
+                .distinct()
+            )
+        )
+        .scalars()
+        .all()
+    )
+    return rows[0] if len(rows) == 1 else None
+
+
 @router.get("/triage-stats", dependencies=[Depends(require_noc)])
 async def get_triage_stats(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
     """Retorna estatísticas persistidas de triagem e bypass de LLM."""
     actions = (await db.execute(select(SocDecision.action_taken))).scalars().all()
     total = len(actions)
-    bypassed = sum(action == "ARCHIVE_NO_LLM" for action in actions)
+    bypassed = sum(
+        action in ("ARCHIVE_NO_LLM", "PENDING_TENANT_REVIEW") for action in actions
+    )
     llm_called = total - bypassed
     pct_bypassed = round(bypassed / total * 100.0, 2) if total else None
     if pct_bypassed is None:
@@ -578,31 +608,33 @@ async def triage_alert(
     user: User = Depends(require_noc),
 ) -> dict[str, Any]:
     """
-    Recebe alerta do Wazuh, executa triagem determinística (Camada 4 - Risk Engine),
-    enriquecimento de Threat Intel e envia para o LLM apenas se risco >= 75.
+    Recebe alerta do Wazuh, resolve o cliente por vínculo, executa a triagem determinística
+    (Risk Engine) e Threat Intel. Atendimento é independente do score e do modelo.
     """
     logger.info("Recebido alerta Wazuh para triagem.")
     from app.integrations.n8n import notify_soc_triage_decision
     from app.integrations.soc_agent import triage_wazuh_alert
     from app.integrations.threat_intel import enrich_hash, enrich_ip
 
-    # 1. Enriquecimento de Ameaças (Threat Intel)
-    ips, hashes = _extract_ips_and_hashes(payload)
+    # 1. Cliente pelo vínculo administrativo, antes de qualquer saída de dados
+    tenant = await _resolve_tenant(db, payload)
+    pending = tenant is None
+
+    # 2. Enriquecimento de Ameaças (Threat Intel); sem cliente, nada sai
     enriched_data: dict[str, list[dict[str, Any]]] = {"ips": [], "hashes": []}
-
-    for ip in ips[:3]:  # Limita a 3 IPs para evitar gargalo
-        intel = await enrich_ip(ip)
-        if intel["abuseipdb"] or intel["virustotal"]:
-            enriched_data["ips"].append(intel)
-
-    for h in hashes[:3]:
-        intel = await enrich_hash(h)
-        if intel["virustotal"]:
-            enriched_data["hashes"].append(intel)
-
+    if not pending:
+        ips, hashes = _extract_ips_and_hashes(payload)
+        for ip in ips[:3]:  # Limita a 3 IPs para evitar gargalo
+            intel = await enrich_ip(ip)
+            if intel["abuseipdb"] or intel["virustotal"]:
+                enriched_data["ips"].append(intel)
+        for h in hashes[:3]:
+            intel = await enrich_hash(h)
+            if intel["virustotal"]:
+                enriched_data["hashes"].append(intel)
     payload["threat_intel_enrichment"] = enriched_data
 
-    # 2. Avaliação de Risco Determinística (Camada 4 - Triage Worker sem LLM)
+    # 3. Avaliação de Risco Determinística (Camada 4 - Triage Worker sem LLM)
     rule_id = str(payload.get("rule", {}).get("id", "unknown"))
     agent_id = str(payload.get("agent", {}).get("id", "unknown"))
     agent_name = payload.get("agent", {}).get("name", "unknown")
@@ -615,13 +647,33 @@ async def triage_alert(
         fingerprint=fingerprint,
     )
 
-    # 3. Se Risco < 75 -> Arquiva e Agrega (Bypass de LLM)
-    if eval_result.action == TriageAction.ARCHIVE:
+    # 4. Atendimento é decidido aqui, independente do score e do modelo.
+    # ponytail: piso provisório (NINF_SOC_ATTENDANCE_MIN_LEVEL) até a política
+    # do SOC ser aprovada; abaixo dele o score segue valendo como antes.
+    must_attend = (
+        pending
+        or eval_result.action != TriageAction.ARCHIVE
+        or int(alert_data["level"]) >= settings.soc_attendance_min_level
+    )
+
+    if tenant is None:
+        triage_result: dict[str, Any] = {
+            "classification": "PENDING_REVIEW",
+            "confidence": 0.0,
+            "summary": (
+                "Cliente não resolvido por vínculo administrativo (wazuh): "
+                "ausente ou ambíguo. Revisão técnica; sem enriquecimento nem IA."
+            ),
+            "action_taken": "PENDING_TENANT_REVIEW",
+            "risk_score": eval_result.risk_score,
+            "llm_bypassed": True,
+        }
+    elif not must_attend:
         summary = (
             f"Arquivado por Triage Worker (Risk Score: {eval_result.risk_score}/100 < 75). "
             f"Motivos: {', '.join(eval_result.reasons)}."
         )
-        triage_result: dict[str, Any] = {
+        triage_result = {
             "classification": "LOW_PRIORITY",
             "confidence": 0.5,
             "summary": summary,
@@ -635,16 +687,13 @@ async def triage_alert(
             eval_result.risk_score,
         )
     else:
-        # 4. Se Risco >= 75 -> Encaminha para o LLM (Gemini)
-        triage_result = dict(triage_wazuh_alert(payload))
+        # Falha do modelo devolve fallback manual; o despacho não depende dele
+        triage_result = dict(await triage_wazuh_alert(payload, tenant))
         triage_result["risk_score"] = eval_result.risk_score
         triage_result["llm_bypassed"] = False
+    triage_result["attendance_required"] = must_attend
 
-    # 5. Extração de customer_id
-    customer_id = "default"
-    group = payload.get("agent", {}).get("group")
-    if group and isinstance(group, list) and len(group) > 0:
-        customer_id = str(group[0])
+    customer_id = tenant
 
     # 6. Persiste a decisão no banco de dados
     payload = {
@@ -677,12 +726,13 @@ async def triage_alert(
         ) from e
 
     # 7. Despacha para n8n apenas se não for arquivado silenciosamente
-    if eval_result.action != TriageAction.ARCHIVE:
+    if must_attend:
         n8n_payload = {
             "wazuh_rule_id": rule_id,
             "agent_id": agent_id,
             "agent_name": agent_name,
             "customer_id": customer_id,
+            "tenant_pending": pending,
             "classification": triage_result["classification"],
             "confidence": triage_result["confidence"],
             "summary": triage_result["summary"],

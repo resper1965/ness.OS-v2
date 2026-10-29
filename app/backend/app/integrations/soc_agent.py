@@ -1,5 +1,6 @@
 import json
 import logging
+import math
 import time
 from typing import Any, TypedDict
 
@@ -7,7 +8,7 @@ import httpx
 
 from app.config import get_settings
 from app.core.ai_context import AIRequestV1, _observed_at, log_ai_call
-from app.integrations.llm import chat_completion
+from app.integrations.llm import achat_completion
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -52,16 +53,35 @@ _WAZUH_FIELDS = (
 )
 
 
-def wazuh_ai_request(alert: dict[str, Any]) -> AIRequestV1:
+_CLASSES = ("FP", "LOW", "MED", "HIGH", "CRIT")
+
+
+def _validated(data: Any) -> TriageResult:
+    """Reject anything the schema should have guaranteed; caller falls back."""
+    if not isinstance(data, dict):
+        raise ValueError("triage is not an object")
+    conf = data.get("confidence")
+    if data.get("classification") not in _CLASSES:
+        raise ValueError("invalid classification")
+    if isinstance(conf, bool) or not isinstance(conf, int | float):
+        raise ValueError("invalid confidence")
+    if not math.isfinite(conf) or not 0.0 <= conf <= 1.0:  # json.loads accepts NaN
+        raise ValueError("confidence out of range")
+    for key in ("summary", "action_taken"):
+        if not isinstance(data.get(key), str) or not data[key].strip():
+            raise ValueError(f"invalid {key}")
+    return data  # type: ignore[return-value]
+
+
+def wazuh_ai_request(alert: dict[str, Any], tenant: str) -> AIRequestV1:
     """Allowlist Wazuh fields; manager/cluster and unknown keys never leave."""
     raw_agent, raw_rule = alert.get("agent"), alert.get("rule")
     agent: dict[str, Any] = raw_agent if isinstance(raw_agent, dict) else {}
     rule: dict[str, Any] = raw_rule if isinstance(raw_rule, dict) else {}
-    group = agent.get("group")
     evidence = {k: alert[k] for k in _WAZUH_FIELDS if k in alert}
     evidence["agent"] = {k: agent[k] for k in ("id", "name") if k in agent}
     return AIRequestV1(
-        tenant=str(group[0]) if isinstance(group, list) and group else "default",
+        tenant=tenant,
         source_event_id=str(alert.get("id") or f"{agent.get('id')}:{rule.get('id')}"),
         severity=str(rule.get("level", "unknown")),
         observed_at=_observed_at(alert.get("timestamp")),
@@ -69,8 +89,11 @@ def wazuh_ai_request(alert: dict[str, Any]) -> AIRequestV1:
     )
 
 
-def triage_wazuh_alert(alert_payload: dict[str, Any]) -> TriageResult:
-    """Realiza a triagem inteligente de um alerta do Wazuh via LLM."""
+async def triage_wazuh_alert(
+    alert_payload: dict[str, Any], tenant: str
+) -> TriageResult:
+    """Triagem de um alerta Wazuh via LLM. `tenant` vem do vínculo administrativo,
+    nunca do payload. Nunca levanta: falha do modelo devolve fallback manual."""
     if not settings.llm_api_key:
         logger.warning(
             "LLM API key não configurada para triagem SOC. Usando fallback padrão."
@@ -82,7 +105,7 @@ def triage_wazuh_alert(alert_payload: dict[str, Any]) -> TriageResult:
             "action_taken": "Criar ticket de triagem manual",
         }
 
-    ai_request = wazuh_ai_request(alert_payload)
+    ai_request = wazuh_ai_request(alert_payload, tenant)
     user = f"Alerta Wazuh a ser analisado:\n{json.dumps(ai_request.model_dump(mode='json'), indent=2, ensure_ascii=False)}"
     schema = {
         "type": "OBJECT",
@@ -102,7 +125,7 @@ def triage_wazuh_alert(alert_payload: dict[str, Any]) -> TriageResult:
     usage: dict[str, Any] = {}
     outcome = "error"
     try:
-        text_response, usage = chat_completion(
+        text_response, usage = await achat_completion(
             _SOC_SYSTEM_PROMPT,
             user,
             json_schema=schema,
@@ -110,9 +133,7 @@ def triage_wazuh_alert(alert_payload: dict[str, Any]) -> TriageResult:
             max_tokens=2048,
             timeout=_TIMEOUT,
         )
-        triage_data = json.loads(text_response)
-        if not set(schema["required"]) <= set(triage_data):  # model ignored schema
-            raise ValueError("incomplete triage")
+        triage_data = _validated(json.loads(text_response))
         outcome = "ok"
         logger.info(
             "Triage SOC concluída via LLM | classificação=%s confiança=%s",
