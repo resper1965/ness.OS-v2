@@ -39,7 +39,10 @@ GitHub ainda expõe e se cada valor ainda funciona.
   as de pessoas duplicam as contas SSO. Candidatas a desativação; **não alterei nada**. A política de senha delas
   não foi verificada.
 
-## Não verificado
-- UAT e a `homol` do Wazuh contra as senhas de SSH antigas.
+## UAT
+As duas senhas de SSH achadas foram recusadas para `root` na UAT; `ness_admin` está travada e o SSH por senha está desligado.
+
+## Não verificado (continua aberto)
+- A `homol` do Wazuh contra as senhas de SSH antigas: o acesso é só de leitura, sem `sudo`; precisa do Ricardo.
 - Outros segredos que não tenham formato que o gitleaks reconheça.
 - Se o pedido ao GitHub Support foi aberto e atendido (a #82 não registra o número).
