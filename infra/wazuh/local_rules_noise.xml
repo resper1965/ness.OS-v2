@@ -1,4 +1,4 @@
-<!-- Silencia o evento 5038 (integridade de código) do Windows Security.
+<!-- Silencia ruido do Windows. 100100: evento 5038 (integridade de codigo) do Windows Security.
      Medido em 29/10/2026: 66% de todos os alertas, 509 agentes, nenhum acima de 2%.
      Filha da 60104, que continua valendo para os demais eventos de falha de auditoria.
      Para reverter, remova este bloco de /var/ossec/etc/rules/local_rules.xml e reinicie o manager. -->
@@ -7,5 +7,13 @@
     <if_sid>60104</if_sid>
     <field name="win.system.eventID">^5038$</field>
     <description>Windows code integrity image hash event (5038), silenced as noise.</description>
+  </rule>
+
+  <!-- Driver da impressora Brother (provedor "Brother BrLog", evento 1001): 36% dos alertas restantes
+       em 29/10/2026 e quase toda a 61061 (nivel 10, que soma a 60602). Os demais erros de aplicacao seguem na 60602. -->
+  <rule id="100101" level="0">
+    <if_sid>60602</if_sid>
+    <field name="win.system.providerName">^Brother BrLog$</field>
+    <description>Brother printer driver log (BrLog), silenced as noise.</description>
   </rule>
 </group>
