@@ -275,6 +275,7 @@ class _Rows:
         ({"group": ["cavan"]}, ["c1"], "c1"),
         ({"group": ["a", "b"]}, ["c1", "c2"], None),  # ambiguous
         ({"group": ["x"]}, [], None),  # unmapped
+        ({"groups": ["cavan"]}, ["c1"], "c1"),  # Wazuh v4 plural field
         ({"group": []}, ["c1"], None),  # no group: no lookup
         ({}, ["c1"], None),
         ({"group": [None, 3]}, ["c1"], None),

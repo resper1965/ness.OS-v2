@@ -558,8 +558,11 @@ async def _resolve_tenant(db: AsyncSession, payload: dict[str, Any]) -> str | No
     vínculos para clientes diferentes devolve None: fica pendente de revisão.
     """
     agent = payload.get("agent")
-    groups = agent.get("group") if isinstance(agent, dict) else None
-    names = {g for g in groups or [] if isinstance(g, str) and g}
+    names: set[str] = set()
+    for key in ("group", "groups"):  # plan 2026-09-18 documents the plural form
+        found = agent.get(key) if isinstance(agent, dict) else None
+        if isinstance(found, list):
+            names |= {g for g in found if isinstance(g, str) and g}
     if not names:
         return None
     rows = (
