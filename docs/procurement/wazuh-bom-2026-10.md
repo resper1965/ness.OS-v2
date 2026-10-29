@@ -10,7 +10,7 @@ Medido em 29/10/2026 por leitura (`ness_ro` no SSH e `ness_ro_api` com papel `re
 | Medida | Valor |
 |---|---|
 | Máquina | 8 vCPU, 32 GB, disco 387 GB (197 GB usados), Ubuntu 25.04, Wazuh 4.14.1 (manager, indexer, dashboard) |
-| Agentes | 886 cadastrados: **391 ativos**, 485 desconectados (146 há mais de 30 dias), 10 nunca conectaram. Dos ativos, 389 são Windows e 3 Ubuntu; 48 estão com versão desatualizada. Grupos: RZK-AGRO 644, RZK-HOLDING 147, TARGET 82, RZK-SOL 2 |
+| Agentes | 886 cadastrados: **391 ativos**, 485 desconectados (146 há mais de 30 dias), 10 nunca conectaram. Dos ativos, 389 são Windows e o resto Linux; 48 estão com versão desatualizada. Grupos: RZK-AGRO 644, RZK-HOLDING 147, TARGET 82, RZK-SOL 2 |
 | Eventos recebidos | 153,9 M em 9,8 dias ≈ **182 EPS** médio (o BOM de 26/10 estimava 95). Por hora: ~0,23 M à noite e ~1,0 M em horário comercial, pico ≈ **290 EPS**. Por ativo: ≈ 0,46 EPS, acima dos 0,1 da tabela de workstation |
 | Origem dos eventos | `winevt` 99,4 M (**65%**), `syscollector` 20,5 M (13%), `syscheck` 2,5 M, `sca` 1,3 M |
 | Eventos descartados | 1,77 M no analysisd (1,15%) e 0,71 M no remoted |
@@ -28,7 +28,8 @@ Leitura: ≈ 16.000 alertas por agente ativo por dia é volume de regras ruidosa
 - Bytes/evento e APS por endpoint conforme tabela oficial do Wazuh indexer 4.14 (ver fontes): servers 0,25 APS → 3,7 GB/90d por agente; workstations 0,1 APS → 1,5 GB/90d; network devices 0,5 APS → 7,4 GB/90d.
 - Mix adotado para a conta (sem perfil real por endpoint, *A CONFIRMAR* no piloto Task 9.3): 70% workstations, 25% servers, 5% network devices.
 - Disco indexer = soma(per-endpoint × nº), +30% reservas (shards, OS, heap, snapshots quentes), arredondado.
-- EPS estimado = APS × endpoints; channels xchannels mostra processo real.
+- EPS: a tabela do Wazuh (APS × endpoints, ≈ 0,16 APS no mix) subestima a origem, que mede ≈ 0,46 EPS por ativo; para extrapolar use o medido.
+- **Medido** = seção de carga observada. **Teto** = 1,1 KB/alerta. **Estimativa** = tabela do Wazuh e mix 70/25/5. Pela tabela: 2,345 GB/endpoint/90 d → 624 = 1,46 TB (+30% = **1,90 TB**); ~400 ativos = 0,94 TB (+30% = ~1,2 TB).
 
 ## Topologia R3a — single-node (Contabo Cloud VPS 40)
 
@@ -36,16 +37,16 @@ Leitura: ≈ 16.000 alertas por agente ativo por dia é volume de regras ruidosa
 |---|---|
 | Classe | Cloud VPS 40 — 12 vCPU, 48 GB, 500 GB SSD |
 | Papéis | Indexer + Server + Dashboard (all-in-one) |
-| Endpoints suportados | até ~1.000 (quickstart AIO); 624 atuais com folga |
+| Endpoints suportados | ~400 ativos (**medido** na origem, que roda all-in-one com 8 vCPU/32 GB e 182 EPS). O quickstart oficial só recomenda all-in-one até ~100 endpoints; acima disso é validar no piloto (Task 9.3) e o gatilho de R3b cobre o risco |
 | EPS | **~182 EPS medidos** hoje na Hostinger (a estimativa de 95 não vale) |
-| Disco 90 d | Medido: 6,2 M alertas/dia × 90 × 1,1 KB ≈ 615 GB + 30% ≈ **0,8 TB** (limite superior). A tabela do Wazuh daria 1,72 TB para 624 endpoints; a medição manda |
-| Disco da VPS | 500 GB — **insuficiente** p/ 90 d dos 624; usar add-on de disco (+1 TB) ou Storage VPS 40 |
+| Disco 90 d | Medido (teto): 6,2 M alertas/dia × 90 × 1,1 KB ≈ 615 GB + 30% ≈ **0,8 TB** para os ~400 ativos. Pela tabela do Wazuh: ~1,2 TB (~400 ativos) ou 1,90 TB (624). Não inclui `alerts.json`/`.log` em disco (~1,7 GB/dia compactado ≈ +160 GB se guardados 90 d) |
+| Disco da VPS | 500 GB — **insuficiente** p/ 90 d dos ~400 ativos (0,8–1,2 TB); usar add-on de disco (+1 TB, total ~1,5 TB) ou Storage VPS 40 |
 | HA | Nenhum (SPOF); rollback = origem Hostinger preservada |
 | Custo/mês | VPS 40 €25 + add-on disco *A CONFIRMAR*; estimado €35–45 |
 | Rollback | Agentes voltam para o Hostinger; janela de 7–14 d preservada |
 | Operação | Baixa: 1 nó, 1 runbook, snapshot diário |
 
-**Disco é o gargalo de R3a.** Resolução mais barata: add-on de armazenamento na própria VPS 40 (preço e tamanho máx. *A CONFIRMAR* no painel Contabo); alternativa Storage VPS 40 (8 vCPU/30 GB/1,2 TB SSD, €20) — perde vCPU/RAM, ganha disco, mas 1,2 TB cobre os ~0,8 TB medidos, mas não os 1,72 TB da tabela. Confirmar no piloto (Task 9.3) o APS real por perfil antes de fechar disco.
+**Disco é o gargalo de R3a.** Resolução mais barata: add-on de armazenamento na própria VPS 40 (preço e tamanho máx. *A CONFIRMAR* no painel Contabo); alternativa Storage VPS 40 (8 vCPU/30 GB/1,2 TB SSD, €20) — perde vCPU/RAM, ganha disco, mas 1,2 TB cobre os ~0,8 TB medidos e os ~1,2 TB da tabela (justo), mas não os 1,90 TB de 624 endpoints. Confirmar no piloto (Task 9.3) o APS real por perfil antes de fechar disco.
 
 ## Topologia R3b — onda 1 (cluster, rede privada R4)
 
@@ -59,10 +60,10 @@ Leitura: ≈ 16.000 alertas por agente ativo por dia é volume de regras ruidosa
 | **Total** | | | | | **€81,50 + R4** |
 
 - **Endpoints:** até ~1.000 (limite da onda 1 do plano de capacidade).
-- **EPS estimado (1.000):** ~150 EPS (mix 0,15 APS).
-- **Disco 90 d (1.000):** 1.000 × 2,12 ≈ 2.120 GB + 30% ≈ **2,75 TB**; distribuído em 3 indexers ≈ 920 GB/nó — cobre os 400 GB/nó só com replicação 1 (sem réplica); para réplica=1 (HA real) precisa de ~1,84 TB/nó → add-on de disco em cada indexer. *A CONFIRMAR* no piloto.
+- **EPS estimado (1.000):** ~460 EPS (extrapolado dos 0,46 EPS/ativo medidos; a tabela daria ~160, abaixo do observado).
+- **Disco 90 d (1.000):** 1.000 × 2,345 ≈ 2.345 GB + 30% ≈ **3,05 TB**; em 3 indexers sem réplica ≈ 1,0 TB/nó, com réplica 1 (HA real dos dados) ≈ 2,0 TB/nó. Os 400 GB/nó **não bastam**: exige add-on em cada indexer. Para ~400 ativos (0,8–1,2 TB) são 0,3–0,4 TB/nó sem réplica e 0,5–0,8 TB com réplica. *A CONFIRMAR* no piloto.
 - **HA:** quórum de 3 indexers tolera 1 falha; cluster de managers (1 master + 2 workers) mantém ingest com 1 nó fora; dashboard é SPOF aceitável na onda 1.
-- **Rollback:**Remover nó novo do cluster (rolling); estado íntegro nos demais; sem reinstalação.
+- **Rollback:** Remover nó novo do cluster (rolling); estado íntegro nos demais; sem reinstalação.
 - **Operação:** Alta: 7 nós, certificados TLS entre nós, IPSec/WireGuard da rede privada, monitoração por nó. Custo de humano significativo.
 
 ## Comparação e recomendação
@@ -71,7 +72,7 @@ Leitura: ≈ 16.000 alertas por agente ativo por dia é volume de regras ruidosa
 |---|---|---|
 | Custo/mês | €25–45 | €81,50 + R4 |
 | HA | Não | Sim (indexer + server) |
-| Disco 90 d (624) | **Cobrir com add-on** | Folga (com add-on nos indexers) |
+| Disco 90 d (~400 ativos) | **Cobrir com add-on** | Add-on em cada indexer (400 GB/nó não basta com réplica) |
 | Esforço op. | Baixo | Alto (7 nós) |
 | Path para 5.000 | Migrar tudo | Adicionar nós (onda 2+) |
 | Rollback | Origem Hostinger | Rolling do nó |
@@ -80,7 +81,7 @@ Leitura: ≈ 16.000 alertas por agente ativo por dia é volume de regras ruidosa
 
 1. EPS sustentado > 70% da capacidade do nó por 14 d, **ou** pico de CPU > 70% por 14 d.
 2. Disco projetado a < 20% livre antes de 90 d (retenção ameaçada).
-3. Exigência contratual/SLA de HA (D7 / cliente), **ou**Endpoints > 900 com projeção de ultrapassar 1.000 em 90 d.
+3. Exigência contratual/SLA de HA (D7 / cliente), **ou** endpoints > 900 com projeção de ultrapassar 1.000 em 90 d.
 4. Fila/backpressure persistente no server (events_dropped > 0 em `wazuh-analysisd.state`).
 
 A migração R3a → R3b não reinstala: a role Wazuh (Task 9.2) adiciona nós ao cluster existente, reindexa e descomissiona R3a; mesmos agentes, mesmos certificados de CA, sem toque nos endpoints.
