@@ -284,3 +284,26 @@ async def test_resolve_tenant(agent, rows, expected):
     db = AsyncMock()
     db.execute.return_value = _Rows(rows)
     assert await _real_resolve_tenant(db, {"agent": agent}) == expected
+
+
+@pytest.mark.parametrize("level", [None, "abc", "NaN", [], {}])
+def test_invalid_level_never_500_and_is_attended(decision_database, monkeypatch, level):
+    calls = _spy_triage(monkeypatch)
+    payload = {
+        "rule": {"id": "1", "level": level},
+        "agent": {"id": "1", "group": ["g"]},
+    }
+    response = client.post("/api/secops/triage", json=payload)
+    assert response.status_code == 200
+    assert response.json()["attendance_required"] is True
+    assert ("n8n", "cavan") in calls
+
+
+def test_triage_stats_pending_is_outside_bypass_meta(persisted_triage_stats_database):
+    persisted_triage_stats_database.execute.return_value = _StatsResult(
+        ["ARCHIVE_NO_LLM", "PENDING_TENANT_REVIEW", "PENDING_TENANT_REVIEW", "x"]
+    )
+    data = client.get("/api/secops/triage-stats").json()
+    assert data["pending_tenant_review_count"] == 2
+    assert data["llm_bypassed_count"] == 1 and data["llm_called_count"] == 1
+    assert data["bypassed_percentage"] == 50.0

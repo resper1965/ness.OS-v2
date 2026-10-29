@@ -70,7 +70,13 @@ def _validated(data: Any) -> TriageResult:
     for key in ("summary", "action_taken"):
         if not isinstance(data.get(key), str) or not data[key].strip():
             raise ValueError(f"invalid {key}")
-    return data  # type: ignore[return-value]
+    # Só os quatro campos; action_taken cabe na coluna (String(255)).
+    return {
+        "classification": data["classification"],
+        "confidence": float(conf),
+        "summary": data["summary"],
+        "action_taken": data["action_taken"].strip()[:255],
+    }
 
 
 def wazuh_ai_request(alert: dict[str, Any], tenant: str) -> AIRequestV1:

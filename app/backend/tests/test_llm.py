@@ -146,6 +146,7 @@ def test_postmortem_uses_llm(monkeypatch):
     assert report.gemini_model_used == "google/gemini-2.5-flash"
 
 
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "reply",
     [

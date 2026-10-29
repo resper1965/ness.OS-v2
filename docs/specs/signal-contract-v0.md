@@ -33,7 +33,8 @@ Lote (OT): acrescenta `batch_id` estável, `rules_version`, intervalo coberto e 
 3. **Atendimento independe do score e do modelo.** A política SOC decide quais sinais
    exigem atendimento. Provisório: severidade de origem ≥ 12
    (`NINF_SOC_ATTENDANCE_MIN_LEVEL`), a substituir pela política aprovada. Abaixo do piso,
-   o score continua decidindo, como antes. Falha da IA não bloqueia o despacho.
+   o score continua decidindo, como antes. Severidade ausente ou não numérica não é
+   rebaixada: o sinal é atendido. Falha da IA não bloqueia o despacho.
 4. **Idempotência:** chave inclui `tenant_id`, `source_id` e identificador do evento.
    Replay não repete ticket, notificação nem ação concluída. (Ainda não implementada
    para `/secops/triage`.)

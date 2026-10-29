@@ -510,9 +510,15 @@ def _triage_input(
     raw_agent = payload.get("agent")
     rule: dict[str, Any] = raw_rule if isinstance(raw_rule, dict) else {}
     agent: dict[str, Any] = raw_agent if isinstance(raw_agent, dict) else {}
+    level = rule.get("level", payload.get("level", payload.get("rule_level", 0)))
+    try:
+        level, level_invalid = int(level), False
+    except (TypeError, ValueError, OverflowError):  # None, "abc", NaN, Infinity
+        level, level_invalid = 0, True  # nunca 500 nem descarte: segue para atendimento
     alert = {
         **payload,
-        "level": rule.get("level", payload.get("level", payload.get("rule_level", 0))),
+        "level": level,
+        "level_invalid": level_invalid,
         "host": agent.get("name", payload.get("host", payload.get("hostname", ""))),
     }
 
@@ -578,11 +584,12 @@ async def get_triage_stats(db: AsyncSession = Depends(get_db)) -> dict[str, Any]
     """Retorna estatísticas persistidas de triagem e bypass de LLM."""
     actions = (await db.execute(select(SocDecision.action_taken))).scalars().all()
     total = len(actions)
-    bypassed = sum(
-        action in ("ARCHIVE_NO_LLM", "PENDING_TENANT_REVIEW") for action in actions
-    )
-    llm_called = total - bypassed
-    pct_bypassed = round(bypassed / total * 100.0, 2) if total else None
+    # Pendente de cliente não é decisão de score: fora da meta de bypass.
+    pending = sum(action == "PENDING_TENANT_REVIEW" for action in actions)
+    bypassed = sum(action == "ARCHIVE_NO_LLM" for action in actions)
+    evaluated = total - pending
+    llm_called = evaluated - bypassed
+    pct_bypassed = round(bypassed / evaluated * 100.0, 2) if evaluated else None
     if pct_bypassed is None:
         status = "unavailable"
     elif pct_bypassed >= 95.0:
@@ -595,6 +602,7 @@ async def get_triage_stats(db: AsyncSession = Depends(get_db)) -> dict[str, Any]
         "total_processed": total,
         "llm_bypassed_count": bypassed,
         "llm_called_count": llm_called,
+        "pending_tenant_review_count": pending,
         "bypassed_percentage": pct_bypassed,
         "target_meta_percentage": 95.0,
         "status": status,
@@ -638,7 +646,8 @@ async def triage_alert(
     rule_id = str(payload.get("rule", {}).get("id", "unknown"))
     agent_id = str(payload.get("agent", {}).get("id", "unknown"))
     agent_name = payload.get("agent", {}).get("name", "unknown")
-    fingerprint = f"{agent_id}:{rule_id}"
+    # tenant no fingerprint: agent_id é local ao Wazuh de cada cliente (ex.: "001")
+    fingerprint = f"{tenant}:{agent_id}:{rule_id}"
 
     alert_data, threat_intel = _triage_input(payload, enriched_data)
     eval_result = _triage_engine.evaluate_alert(
@@ -653,7 +662,8 @@ async def triage_alert(
     must_attend = (
         pending
         or eval_result.action != TriageAction.ARCHIVE
-        or int(alert_data["level"]) >= settings.soc_attendance_min_level
+        or alert_data["level_invalid"]
+        or alert_data["level"] >= settings.soc_attendance_min_level
     )
 
     if tenant is None:
