@@ -5,13 +5,14 @@
 
 ## Carga observada (origem Hostinger, transitória)
 
-Medido em 29/10/2026 por leitura (`ness_ro`), manager no ar há 9 dias e 18 h. Antes, a fotografia de 21/08 (`docs/vps-capacity-and-sequencing-plan.md`) dizia 624 endpoints e 4 vCPU.
+Medido em 29/10/2026 por leitura (`ness_ro` no SSH e `ness_ro_api` com papel `readonly` na API do manager), manager no ar há 9 dias e 18 h. Antes, a fotografia de 21/08 (`docs/vps-capacity-and-sequencing-plan.md`) dizia 624 endpoints e 4 vCPU.
 
 | Medida | Valor |
 |---|---|
 | Máquina | 8 vCPU, 32 GB, disco 387 GB (197 GB usados), Ubuntu 25.04, Wazuh 4.14.1 (manager, indexer, dashboard) |
-| Agentes | 886 chaves em `client.keys`; 366 sessões TCP abertas agora (o número de agentes ativos **não** foi medido: `agent_control` exige acesso que o usuário de leitura não tem) |
-| Eventos recebidos | 153,7 M em 9,8 dias ≈ **182 EPS** médio (o BOM de 26/10 estimava 95) |
+| Agentes | 886 cadastrados: **391 ativos**, 485 desconectados (146 há mais de 30 dias), 10 nunca conectaram. Dos ativos, 389 são Windows e 3 Ubuntu; 48 estão com versão desatualizada. Grupos: RZK-AGRO 644, RZK-HOLDING 147, TARGET 82, RZK-SOL 2 |
+| Eventos recebidos | 153,9 M em 9,8 dias ≈ **182 EPS** médio (o BOM de 26/10 estimava 95). Por hora: ~0,23 M à noite e ~1,0 M em horário comercial, pico ≈ **290 EPS**. Por ativo: ≈ 0,46 EPS, acima dos 0,1 da tabela de workstation |
+| Origem dos eventos | `winevt` 99,4 M (**65%**), `syscollector` 20,5 M (13%), `syscheck` 2,5 M, `sca` 1,3 M |
 | Eventos descartados | 1,77 M no analysisd (1,15%) e 0,71 M no remoted |
 | Alertas gravados | 60,6 M ≈ **6,2 M/dia** (≈ 72/s) |
 | Alertas em disco | `alerts.json` de hoje com 5 GB e `.log` com 7 GB sem compactar (13:45 UTC); compactado 0,7–0,8 GB/dia o JSON e ~1 GB/dia o `.log` |
@@ -19,7 +20,7 @@ Medido em 29/10/2026 por leitura (`ness_ro`), manager no ar há 9 dias e 18 h. A
 | CPU/memória | `analysisd` 41% de um núcleo; Java do indexer com 7,9 GB; ociosa 18–40% |
 | Steal de CPU | **31–60%** no `vmstat`: o hospedeiro da Hostinger está disputando CPU |
 
-Leitura: o volume de alertas (≈ 7.000 por agente por dia) é de regras ruidosas. Ajustar regras antes de dimensionar disco pode cortar o custo bem mais que comprar espaço.
+Leitura: ≈ 16.000 alertas por agente ativo por dia é volume de regras ruidosas, e dois terços vêm de eventos do Windows. Ajustar regras antes de dimensionar disco pode cortar o custo bem mais que comprar espaço.
 
 ## Premissas de dimensionamento
 
@@ -86,8 +87,8 @@ A migração R3a → R3b não reinstala: a role Wazuh (Task 9.2) adiciona nós a
 
 ## A CONFIRMAR (pré-compra)
 
-- **Agentes ativos** e perfil por endpoint: precisa de `agent_control -l` ou da API do manager (credencial de leitura, a pedir ao Ricardo).
-- **Retenção e tamanho reais do índice**: `GET _cat/indices` no indexer; sem isso o 1,1 KB/alerta é só limite superior.
+- **Dimensionar para ~400 ativos, não 886 nem 624**: limpar os 485 desconectados e os 10 que nunca conectaram antes da migração (decisão do Ricardo; o Wazuh só removeria o cadastro, não os dados).
+- **Retenção e tamanho reais do índice**: `_cat/indices` exige usuário do indexer (a API do manager não cobre); sem isso o 1,1 KB/alerta é só limite superior.
 - **Steal de 31–60%** na Hostinger: confirmar se persiste ou se é pico; pesa na escolha de classe de CPU.
 
 - Preço e tamanho máx. do **add-on de disco** na Contabo (R3a e por-indexer em R3b).
