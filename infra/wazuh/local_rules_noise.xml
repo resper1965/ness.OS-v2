@@ -1,0 +1,11 @@
+<!-- Silencia o evento 5038 (integridade de código) do Windows Security.
+     Medido em 29/10/2026: 66% de todos os alertas, 509 agentes, nenhum acima de 2%.
+     Filha da 60104, que continua valendo para os demais eventos de falha de auditoria.
+     Para reverter, remova este bloco de /var/ossec/etc/rules/local_rules.xml e reinicie o manager. -->
+<group name="local,windows,noise,">
+  <rule id="100100" level="0">
+    <if_sid>60104</if_sid>
+    <field name="win.system.eventID">^5038$</field>
+    <description>Windows code integrity image hash event (5038), silenced as noise.</description>
+  </rule>
+</group>
