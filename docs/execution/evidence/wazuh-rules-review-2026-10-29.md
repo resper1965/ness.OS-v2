@@ -30,16 +30,16 @@ Sysmon, criação de processo (4688), PowerShell script block (4104), limpeza de
 2.212 regras em 53 pastas com XML; último commit 11/03/2026. Medi só nomes, ids e níveis (contagem por `<rule`); não li o conteúdo regra a regra.
 
 - **Colisão de ids (medida):** `Windows_Sysmon` (1.135 regras, ids 100100–200070) usa o `100100` e o `100101`, os dois nossos. `Suricata/100002` colide com o exemplo `100002` do `local_rules.xml` padrão. Os ids 100000–109999 têm 1.223 regras do conjunto, 110000–119999 têm 188. Id duplicado impede o analysisd de carregar as regras (comportamento do Wazuh; confirmar na documentação antes de citar a terceiros).
-- **Sem arquivo de licença** no repositório (a API do GitHub não detecta nenhuma). O README mostra um selo "MIT License", mas o link do selo aponta para o suporte da SOCFortress, não para um texto de licença. Tratar como sem licença; confirmar com a SOCFortress antes de copiar regra para ambiente de cliente.
+- **Sem arquivo de licença** no repositório (a API do GitHub não detecta nenhuma). O README mostra um selo "MIT License", mas o link do selo aponta para o suporte da SOCFortress, não para um texto de licença. Tecnicamente sem licença; **uso liberado pelo Ricardo (jurídico) em 29/10/2026**, sem consulta à SOCFortress. Registro da decisão, não texto de licença.
 - **Sem fonte aqui:** 1.135 regras de Sysmon (temos 0 eventos), Tetragon 297, Auditd 64, Osquery 53, Office 365 153 e conectores de terceiros.
 - `Windows Sigma Rules` (7 regras): todas em nível 15, sem tuning (risco de repetir o ruído). Em `Windows_Sysmon` e `Windows Powershell` a maioria está em nível 10 (793 de ~1.200) e 3 (378).
 - `wazuh_socfortress_rules.sh` mexe no manager; não rodar em produção.
 
-**Decisão:** não instalar nada na `homol`. No Wazuh novo, ligar Sysmon e auditoria de linha de comando (GPO) e só então trazer `Windows Powershell` (69) e `Windows_Sysmon`, revisados um a um, com licença resolvida. `Exclusion Rules` (ids 900000+) serve de modelo, medindo cada exclusão aqui.
+**Decisão:** não instalar nada na `homol`. No Wazuh novo, ligar Sysmon e auditoria de linha de comando (GPO) e só então trazer `Windows Powershell` (69) e `Windows_Sysmon`, revisados um a um (licença liberada). `Exclusion Rules` (ids 900000+) serve de modelo, medindo cada exclusão aqui.
 
 ## SigmaHQ/sigma (avaliado, uso restrito)
 
-Último commit 21/10/2026. Licença das regras: Detection Rule License (DRL) 1.1, que permite uso e modificação com atribuição ao autor; confirmar o texto com o jurídico antes de redistribuir a cliente.
+Último commit 21/10/2026. Licença das regras: Detection Rule License (DRL) 1.1, que permite uso e modificação com atribuição ao autor; uso **liberado pelo Ricardo (jurídico) em 29/10/2026**.
 
 Medido nos arquivos do repositório: 2.425 regras de Windows em `rules/windows` (3.161 em `rules/` ao todo). `rules-emerging-threats` é à parte: 474 regras, 324 de Windows, não contadas abaixo. A classificação por exigência é minha (pelo `logsource`); fronteiras como Sysmon×canal nativo mudam alguns dezenas de casos, o total não.
 
