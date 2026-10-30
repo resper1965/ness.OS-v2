@@ -2,7 +2,7 @@
 
 ## Resultado
 
-API e workers em `7e7dfc6` desde 28/10 16:45 BRT (antes: `3651780` 28/10 08:40, `9c34eda` 27/10 19:10, `412bdc0` 27/10 08:2x; a tabela abaixo é da `412bdc0`, as demais estão no fim). Frontend e demais serviços inalterados (release de 12/10).
+API e workers em `521247b` desde 30/10/2026 (antes: `7e7dfc6` 28/10 16:45 BRT, `3651780` 28/10 08:40, `9c34eda` 27/10 19:10, `412bdc0` 27/10 08:2x; a tabela abaixo é da `412bdc0`, as demais estão no fim). Frontend e demais serviços inalterados (release de 12/10).
 
 | Item | Valor |
 |---|---|
