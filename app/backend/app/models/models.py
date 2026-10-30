@@ -396,6 +396,8 @@ class SocDecision(Base):
     agent_id: Mapped[str | None] = mapped_column(String(64), index=True)
     agent_name: Mapped[str | None] = mapped_column(String(255))
     customer_id: Mapped[str | None] = mapped_column(String(128), index=True)
+    # Idempotência: hash de tenant + id do alerta (índice único parcial, ver migrate.py)
+    dedup_key: Mapped[str | None] = mapped_column(String(64))
 
     classification: Mapped[str] = mapped_column(
         String(32), index=True

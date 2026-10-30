@@ -308,3 +308,68 @@ def test_triage_stats_pending_is_outside_bypass_meta(persisted_triage_stats_data
     assert data["pending_tenant_review_count"] == 2
     assert data["llm_bypassed_count"] == 1 and data["llm_called_count"] == 1
     assert data["bypassed_percentage"] == 50.0
+
+
+def _alert(**extra):
+    return {
+        "id": "1730000000.123",
+        "rule": {"id": "1", "level": 15},
+        "agent": {"id": "1", "name": "x", "group": ["g"]},
+        **extra,
+    }
+
+
+def _prior(decision_database, row):
+    result = MagicMock()
+    result.scalars.return_value.first.return_value = row
+    decision_database.execute.return_value = result
+
+
+def test_replay_returns_saved_decision_without_model_or_dispatch(
+    decision_database, monkeypatch
+):
+    calls = _spy_triage(monkeypatch)
+    _prior(
+        decision_database,
+        SimpleNamespace(
+            id=5, classification="HIGH", confidence=0.9, summary="s", action_taken="a"
+        ),
+    )
+    data = client.post("/api/secops/triage", json=_alert()).json()
+    assert data["duplicate"] is True and data["decision_id"] == 5
+    assert data["dispatch_status"] == "duplicate"
+    assert calls == []
+    decision_database.add.assert_not_called()
+
+
+def test_first_delivery_stores_dedup_key(decision_database, monkeypatch):
+    _spy_triage(monkeypatch)
+    _prior(decision_database, None)
+    added = []
+    decision_database.add = MagicMock(side_effect=added.append)
+    client.post("/api/secops/triage", json=_alert())
+    assert len(added[0].dedup_key) == 64
+
+
+def test_race_on_unique_key_returns_winner(decision_database, monkeypatch):
+    from sqlalchemy.exc import IntegrityError
+
+    calls = _spy_triage(monkeypatch)
+    winner = SimpleNamespace(
+        id=8, classification="HIGH", confidence=0.9, summary="s", action_taken="a"
+    )
+    result = MagicMock()
+    result.scalars.return_value.first.side_effect = [None, winner]
+    decision_database.execute.return_value = result
+    decision_database.commit.side_effect = IntegrityError("x", {}, Exception())
+    data = client.post("/api/secops/triage", json=_alert()).json()
+    assert data["duplicate"] is True and data["decision_id"] == 8
+    assert ("n8n", "cavan") not in calls
+
+
+def test_dedup_key_is_per_tenant_and_absent_without_identity():
+    k = _secops._dedup_key
+    assert k("a", _alert()) != k("b", _alert())
+    assert k("a", _alert()) == k("a", _alert())
+    assert k("a", {"rule": {"id": "1"}, "agent": {"id": "1"}}) is None
+    assert k("a", {"rule": {"id": "1"}, "agent": {"id": "1"}, "timestamp": "t"})
