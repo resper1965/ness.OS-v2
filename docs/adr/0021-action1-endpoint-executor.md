@@ -31,6 +31,16 @@ Nada abaixo foi verificado ainda; só é fato que o plano gratuito cobre até 20
 5. Cobertura de patching de terceiros e o que o Atera fazia que o Action1 não faz.
 6. Plano de migração por máquina e inventário dos ativos que ainda dependem de Atera e Datto.
 
+## Achados da documentação pública (30/10)
+
+Fonte: documentação do fornecedor, sem teste em tenant. Nada abaixo foi exercitado.
+
+- **Multi-tenant (item 2):** várias organizações numa conta, com dados separados entre elas. A cota de licença vale para a **conta inteira**, somando todas as organizações. A cotação é no nível da conta (enterprise).
+- **Licença (item 3):** gratuito até 200 endpoints, sem limite de funções e sem suporte do fornecedor. Acima disso, assinatura. Endpoints acima da cota ficam `Inactive`. Avaliação de 15 dias; cotação por formulário ou API. Preço acima de 200 não está na documentação: precisa de cotação.
+- **Dados do agente (item 4):** coleta inventário de hardware e software, usuários locais e logons, conexões de rede, logs de eventos do Windows e **chave do BitLocker**. O resultado das consultas fica em cache temporário na nuvem do fornecedor e depois é apagado. Permanecem nomes de máquina, IPs e estatísticas de conexão; logs de diagnóstico ficam 7 dias. Região de dados (América do Norte, Europa etc.) é escolha do cliente e vai para o contrato/LGPD.
+- **API (item 1):** existe API REST (licença, uso por organização, cotação), mas a especificação em `app.action1.com/apidocs` é renderizada por script e não foi lida. Autenticação, escopo mínimo e endpoints de inventário e atualizações **seguem sem verificação**.
+- **Integração pronta:** só Jira. Não há conector para GLPI; a integração com o Hub seria nossa.
+
 ## Consequências
 
 - Nenhuma mudança de código agora. O cliente, o router e o remediador do Atera (`app/backend/app/{integrations,api/routers,remediators}/atera.py`), o painel e o texto de preços continuam como estão até a homologação.
