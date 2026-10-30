@@ -27,10 +27,11 @@ Tasks do [plano de execução](docs/superpowers/plans/2026-10-26-ness-os-executi
 - 6.2 Frescor/último sucesso/erro por fonte em `pipeline_health`, `ready` e exit code do monitor; UI sem hora falsa — #101
 - Reconciliação dos alertas de 26–27/10: 739 sem ticket, 215 sem cobertura — #102
 - 8.1 Contrato `AIRequestV1`, sanitização e métrica das chamadas ao Gemini — #99 (corrigiu vazamento de segredo para o Gemini em análise e triagem SOC); LLM via OpenRouter com limite de US$ 50/mês na chave — #117
-
 - Fundação SOC (A1/A2/A5/A6 + [contrato de sinal v0](docs/specs/signal-contract-v0.md)) e idempotência de `/secops/triage` — #122, #125; em produção na release `521247b` (30/10, `promotion=PASS`, migração aplicada: `dedup_key`, índice único parcial, `customer_id` anulável). Não ativa Wazuh em produção; `n_infraops_tenant_mappings` tem 0 linhas (cadastrar os vínculos `wazuh` antes de usar `/secops/triage`). Também: playbook do override do GLPI T03 — #124
 
 ### Em andamento
+- (nada em andamento)
+
 ### Pronto para começar
 - 2.5 T05 do plano GLPI
 
