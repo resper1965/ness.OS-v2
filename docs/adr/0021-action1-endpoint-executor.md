@@ -39,7 +39,7 @@ Fonte: documentação do fornecedor, sem teste em tenant. Nada abaixo foi exerci
 - **Licença (item 3):** gratuito até 200 endpoints, sem limite de funções e sem suporte do fornecedor. Acima disso, assinatura. Endpoints acima da cota ficam `Inactive`. Avaliação de 15 dias; cotação por formulário ou API. Preço acima de 200 não está na documentação: precisa de cotação.
 - **Dados do agente (item 4):** coleta inventário de hardware e software, usuários locais e logons, conexões de rede, logs de eventos do Windows e **chave do BitLocker**. O resultado das consultas fica em cache temporário na nuvem do fornecedor e depois é apagado. Permanecem nomes de máquina, IPs e estatísticas de conexão; logs de diagnóstico ficam 7 dias. Região de dados (América do Norte, Europa etc.) é escolha do cliente e vai para o contrato/LGPD.
 - **API (item 1):** existe API REST (licença, uso por organização, cotação), mas a especificação em `app.action1.com/apidocs` é renderizada por script e não foi lida. Autenticação, escopo mínimo e endpoints de inventário e atualizações **seguem sem verificação**.
-- **Integração pronta:** só Jira. Não há conector para GLPI; a integração com o Hub seria nossa.
+- **Integrações prontas:** a documentação lista o conector de Jira; o fornecedor anuncia outros (ServiceNow, entre eles), não verificados aqui. Nenhum conector para GLPI foi encontrado; a integração com o Hub seria nossa.
 
 ## Consequências
 
