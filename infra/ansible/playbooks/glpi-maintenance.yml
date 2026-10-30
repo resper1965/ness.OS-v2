@@ -39,6 +39,9 @@
     - name: Segredos do gateway presentes (só existência)
       ansible.builtin.stat:
         path: "{{ secrets_dir }}/{{ item }}"
+        get_checksum: false
+        get_mime: false
+        get_attributes: false
       loop: [app_token, user_token, bearer]
       register: secret_files
       check_mode: false
