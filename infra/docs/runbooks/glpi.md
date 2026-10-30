@@ -95,6 +95,16 @@ Rollback: `$P client --id=<novo> --deactivate`; perfil 13: `UPDATE glpi_profiler
 
 ### 5. Subir gateway e ligar o GLPI à rede privada
 
+**Recriar depois do T03 (ex.: atualizar imagem do GLPI):** `infra/ansible/playbooks/glpi-maintenance.yml` instala o override e `glpi-maintenance.env` em `/opt/n-infraops/app` (sem segredo, sem recriar contêiner). Depois:
+
+```bash
+cd /opt/n-infraops/app; IMG=$(sudo -n docker inspect ninf-api --format '{{.Config.Image}}')
+sudo -n env NINF_API_IMAGE=$IMG docker compose -p app --env-file .env --env-file glpi-maintenance.env \
+  -f docker-compose.tickets.yml -f docker-compose.glpi-maintenance.yml up -d --no-deps glpi glpi-maintenance-gateway
+```
+
+Conferido em 29/10: `config --hash` desse comando = `com.docker.compose.config-hash` dos dois contêineres em produção. Sem o override, o `ninf-glpi` sai da rede privada e o gateway nega tudo.
+
 ```bash
 cd $A
 export NINF_API_IMAGE=$IMG NESS_GLPI_MAINTENANCE_SUBNET=172.30.250.0/28 NESS_GLPI_MAINTENANCE_GATEWAY_IP=172.30.250.3 \
