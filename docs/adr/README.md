@@ -16,5 +16,6 @@
 | [0012](0012-ness-os-official-architecture.md) | Arquitetura oficial: Zabbix, Wazuh, GLPI e ness.OS | Aceita |
 | [0013](0013-platform-administration-boundary.md) | Administração global restrita ao `platform_admin` | Aceita |
 | [0014](0014-staged-ness-os-delivery.md) | Entrega integrada em 13 pacotes e capacidade Wazuh por gates | Aceita |
+| [0021](0021-action1-endpoint-executor.md) | Action1 como executor de endpoint | Aceita; homologação pendente |
 
 Novas decisões devem ser registradas antes da implementação quando alterarem arquitetura, segurança, operação ou custo recorrente.
