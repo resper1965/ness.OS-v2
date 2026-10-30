@@ -373,3 +373,8 @@ def test_dedup_key_is_per_tenant_and_absent_without_identity():
     assert k("a", _alert()) == k("a", _alert())
     assert k("a", {"rule": {"id": "1"}, "agent": {"id": "1"}}) is None
     assert k("a", {"rule": {"id": "1"}, "agent": {"id": "1"}, "timestamp": "t"})
+
+    # pendentes de clientes diferentes com o mesmo id de alerta não se suprimem
+    other = _alert(agent={"id": "1", "name": "y", "group": ["h"]})
+    assert k(None, _alert()) != k(None, other)
+    assert k(None, _alert()) == k(None, _alert())

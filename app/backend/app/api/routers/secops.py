@@ -799,7 +799,14 @@ def _dedup_key(tenant: str | None, payload: dict[str, Any]) -> str | None:
     )
     if not ident:
         return None
-    return hashlib.sha256(f"{tenant or '-'}|{ident}".encode()).hexdigest()
+    # Id do Wazuh é epoch.contador por manager: sem tenant, o escopo evita que
+    # pendentes de clientes diferentes se suprimam entre si.
+    scope = tenant or "-|{}|{}|{}".format(
+        (payload.get("manager") or {}).get("name"),
+        agent.get("name"),
+        sorted(str(g) for k in ("group", "groups") for g in agent.get(k) or []),
+    )
+    return hashlib.sha256(f"{scope}|{ident}".encode()).hexdigest()
 
 
 async def _decision_by_key(db: AsyncSession, key: str) -> SocDecision | None:
