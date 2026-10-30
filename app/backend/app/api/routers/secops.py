@@ -12,7 +12,7 @@ from typing import Any
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -635,8 +635,15 @@ async def triage_alert(
 
     # 1b. Idempotência: replay do mesmo alerta devolve a decisão salva, sem IA nem despacho
     dedup_key = _dedup_key(tenant, payload)
-    if dedup_key and (prior := await _decision_by_key(db, dedup_key)):
-        return _duplicate_response(prior)
+    if dedup_key:
+        # Lock até o commit: entrega concorrente espera e então cai no replay, sem
+        # repetir enriquecimento, IA nem contador de recorrência. Crash libera o lock.
+        await db.execute(
+            text("SELECT pg_advisory_xact_lock(:k)"),
+            {"k": int.from_bytes(bytes.fromhex(dedup_key)[:8], "big", signed=True)},
+        )
+        if prior := await _decision_by_key(db, dedup_key):
+            return _duplicate_response(prior)
 
     # 2. Enriquecimento de Ameaças (Threat Intel); sem cliente, nada sai
     enriched_data: dict[str, list[dict[str, Any]]] = {"ips": [], "hashes": []}
@@ -723,6 +730,11 @@ async def triage_alert(
             "requested_at": datetime.now(UTC).isoformat(),
             "corrective_action_approved": False,
         },
+        "_ness_triage_result": {
+            "risk_score": triage_result["risk_score"],
+            "llm_bypassed": triage_result["llm_bypassed"],
+            "attendance_required": must_attend,
+        },
     }
     try:
         decision = SocDecision(
@@ -784,7 +796,7 @@ async def triage_alert(
 
 
 def _dedup_key(tenant: str | None, payload: dict[str, Any]) -> str | None:
-    """Chave estável do alerta: tenant + id do Wazuh (ou agente+regra+timestamp).
+    """Chave estável do alerta: tenant + manager + id do Wazuh (ou agente+regra+timestamp).
 
     Sem id nem timestamp não há como distinguir replay de novo evento: sem chave.
     ponytail: replay após falha de despacho não reenvia ao n8n; reenvio exigiria
@@ -801,10 +813,15 @@ def _dedup_key(tenant: str | None, payload: dict[str, Any]) -> str | None:
         return None
     # Id do Wazuh é epoch.contador por manager: sem tenant, o escopo evita que
     # pendentes de clientes diferentes se suprimam entre si.
-    scope = tenant or "-|{}|{}|{}".format(
-        (payload.get("manager") or {}).get("name"),
-        agent.get("name"),
-        sorted(str(g) for k in ("group", "groups") for g in agent.get(k) or []),
+    manager = (payload.get("manager") or {}).get("name")
+    scope = (
+        f"{tenant}|{manager}"
+        if tenant
+        else "-|{}|{}|{}".format(
+            manager,
+            agent.get("name"),
+            sorted(str(g) for k in ("group", "groups") for g in agent.get(k) or []),
+        )
     )
     return hashlib.sha256(f"{scope}|{ident}".encode()).hexdigest()
 
@@ -815,7 +832,9 @@ async def _decision_by_key(db: AsyncSession, key: str) -> SocDecision | None:
 
 
 def _duplicate_response(d: SocDecision) -> dict[str, Any]:
+    saved = (d.raw_alert or {}).get("_ness_triage_result") or {}
     return {
+        **saved,
         "classification": d.classification,
         "confidence": d.confidence,
         "summary": d.summary,

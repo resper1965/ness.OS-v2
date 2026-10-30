@@ -332,11 +332,27 @@ def test_replay_returns_saved_decision_without_model_or_dispatch(
     _prior(
         decision_database,
         SimpleNamespace(
-            id=5, classification="HIGH", confidence=0.9, summary="s", action_taken="a"
+            id=5,
+            classification="HIGH",
+            confidence=0.9,
+            summary="s",
+            action_taken="a",
+            raw_alert={
+                "_ness_triage_result": {
+                    "risk_score": 80,
+                    "llm_bypassed": False,
+                    "attendance_required": True,
+                }
+            },
         ),
     )
     data = client.post("/api/secops/triage", json=_alert()).json()
     assert data["duplicate"] is True and data["decision_id"] == 5
+    assert (data["risk_score"], data["llm_bypassed"], data["attendance_required"]) == (
+        80,
+        False,
+        True,
+    )
     assert data["dispatch_status"] == "duplicate"
     assert calls == []
     decision_database.add.assert_not_called()
@@ -349,6 +365,11 @@ def test_first_delivery_stores_dedup_key(decision_database, monkeypatch):
     decision_database.add = MagicMock(side_effect=added.append)
     client.post("/api/secops/triage", json=_alert())
     assert len(added[0].dedup_key) == 64
+    saved = added[0].raw_alert["_ness_triage_result"]
+    assert set(saved) == {"risk_score", "llm_bypassed", "attendance_required"}
+    assert "pg_advisory_xact_lock" in str(
+        decision_database.execute.await_args_list[0].args[0]
+    )
 
 
 def test_race_on_unique_key_returns_winner(decision_database, monkeypatch):
@@ -356,7 +377,12 @@ def test_race_on_unique_key_returns_winner(decision_database, monkeypatch):
 
     calls = _spy_triage(monkeypatch)
     winner = SimpleNamespace(
-        id=8, classification="HIGH", confidence=0.9, summary="s", action_taken="a"
+        id=8,
+        classification="HIGH",
+        confidence=0.9,
+        summary="s",
+        action_taken="a",
+        raw_alert={},
     )
     result = MagicMock()
     result.scalars.return_value.first.side_effect = [None, winner]
@@ -371,6 +397,10 @@ def test_dedup_key_is_per_tenant_and_absent_without_identity():
     k = _secops._dedup_key
     assert k("a", _alert()) != k("b", _alert())
     assert k("a", _alert()) == k("a", _alert())
+    # mesmo id em managers diferentes do mesmo tenant não colide
+    assert k("a", _alert(manager={"name": "m1"})) != k(
+        "a", _alert(manager={"name": "m2"})
+    )
     assert k("a", {"rule": {"id": "1"}, "agent": {"id": "1"}}) is None
     assert k("a", {"rule": {"id": "1"}, "agent": {"id": "1"}, "timestamp": "t"})
 
