@@ -1,0 +1,49 @@
+---
+# Override do gateway de manutenção do GLPI (T03, ADR 0020) no host aiops.
+# Instala só dois arquivos; não recria contêiner nem gera segredo. Os tokens ficam em
+# /etc/ness-os/glpi-maintenance (root-only, criados por infra/scripts/glpi-maintenance-admin.php).
+# Sem este override, recriar o ninf-glpi o tira da rede privada e o gateway nega tudo.
+- name: "Override GLPI T03 (arquivos apenas)"
+  hosts: aiops
+  become: true
+  vars:
+    app_dir: /opt/n-infraops/app
+    secrets_dir: /etc/ness-os/glpi-maintenance
+    # Entidade/Computer permitido no gateway (produção hoje: 14).
+    glpi_maintenance_approved_ids: "14"
+    glpi_maintenance_subnet: 172.30.250.0/28
+    glpi_maintenance_gateway_ip: 172.30.250.3
+  tasks:
+    - name: Override do compose
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../../../app/docker-compose.glpi-maintenance.yml"
+        dest: "{{ app_dir }}/docker-compose.glpi-maintenance.yml"
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Variáveis do override (sem segredo; NINF_API_IMAGE vem do ninf-api em execução)
+      ansible.builtin.copy:
+        dest: "{{ app_dir }}/glpi-maintenance.env"
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          NESS_GLPI_MAINTENANCE_SUBNET={{ glpi_maintenance_subnet }}
+          NESS_GLPI_MAINTENANCE_GATEWAY_IP={{ glpi_maintenance_gateway_ip }}
+          NESS_GLPI_MAINTENANCE_APPROVED_IDS={{ glpi_maintenance_approved_ids }}
+          NESS_GLPI_MAINTENANCE_APP_TOKEN_FILE={{ secrets_dir }}/app_token
+          NESS_GLPI_MAINTENANCE_USER_TOKEN_FILE={{ secrets_dir }}/user_token
+          NESS_GLPI_MAINTENANCE_BEARER_FILE={{ secrets_dir }}/bearer
+
+    - name: Segredos do gateway presentes (só existência)
+      ansible.builtin.stat:
+        path: "{{ secrets_dir }}/{{ item }}"
+      loop: [app_token, user_token, bearer]
+      register: secret_files
+      check_mode: false
+
+    - name: Falhar se faltar segredo
+      ansible.builtin.assert:
+        that: secret_files.results | map(attribute='stat.exists') | min
+        fail_msg: "Faltam segredos em {{ secrets_dir }}; gere com glpi-maintenance-admin.php"
