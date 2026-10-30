@@ -2,7 +2,7 @@
 
 ## Resultado
 
-API e workers em `7e7dfc6` desde 28/10 16:45 BRT (antes: `3651780` 28/10 08:40, `9c34eda` 27/10 19:10, `412bdc0` 27/10 08:2x; a tabela abaixo é da `412bdc0`, as demais estão no fim). Frontend e demais serviços inalterados (release de 12/10).
+API e workers em `521247b` desde 30/10/2026 (antes: `7e7dfc6` 28/10 16:45 BRT, `3651780` 28/10 08:40, `9c34eda` 27/10 19:10, `412bdc0` 27/10 08:2x; a tabela abaixo é da `412bdc0`, as demais estão no fim). Frontend e demais serviços inalterados (release de 12/10).
 
 | Item | Valor |
 |---|---|
@@ -61,3 +61,7 @@ Mapeamento Unimed → 12 e CMDB cobrindo a entidade 12 (#115). API e workers em 
 ## Promoção de `7e7dfc6` (28/10 ~16:45 BRT) — LLM via OpenRouter
 
 Gemini direto dava 429 (cota gratuita) em 134/135 análises. #117 troca os três pontos (análise de incidente, triagem Wazuh, pós-incidente) por `app/integrations/llm.py` no OpenRouter (`google/gemini-2.5-flash`, `data_collection: deny`, `require_parameters` com schema). Chave própria do Hub, limite US$ 50/mês com reset mensal, em `NINF_LLM_API_KEY` no `.env` da release (root 0600; cópia anterior em `/root/rollback-mail/env-before-llm`). Imagem `ghcr.io/resper1965/ninf-api@sha256:3633686e18b52d68cf0fbc6830c1c5a4c79b25f9f309134cdfcff2c577e7f5c7` (run 40725803751), `promotion=PASS`, `/api/assets` 401, 3 contêineres `healthy`, 0 restart, backup `20261028T133502-0300`. Pós-promoção: `ai_call incident_analysis outcome=ok`, ~2,6 s, ~560 tokens de entrada e ~320 de saída por análise. Embedding segue no Gemini (`ponytail:`). Rollback: release `3651780`.
+
+## Promoção de `521247b` (30/10) — fundação SOC e idempotência do triage
+
+#122 (cliente por vínculo, atendimento independente do score, `PENDING_REVIEW`) e #125 (idempotência de `/secops/triage`). API e workers em `ghcr.io/resper1965/ninf-api@sha256:d5120e8999887be0410b36a676c72228586a2d6f90db853a70b198a06615d168` (`publish-hub-images` run 41087515162). `promotion=PASS`, 3 contêineres `healthy`, `/api/assets` 401. Migração em produção conferida só leitura: `customer_id` anulável, `dedup_key` criada, `uq_soc_decisions_dedup` único parcial, 0 linhas na tabela. Rollback: release `7e7dfc6`. Nenhuma integração Wazuh → Hub ativada.

@@ -4,7 +4,7 @@ Para retomar em outro checkout ou por outro desenvolvedor, ler o
 [handoff de 22/10/2026](developer-handoff-2026-10-22.md) após este indicador.
 Este link de navegação não altera a data factual abaixo nem aprova gate.
 
-Última atualização factual: **28/10/2026** — T03 (Task 2.3) em produção, linha F3. Antes, **26/10/2026** — heads dos PRs, Actions
+Última atualização factual: **30/10/2026** — Hub na release `521247b` (fundação SOC e idempotência do triage), linha F4; nenhuma integração Wazuh → Hub ativa. Antes, **28/10/2026** — T03 (Task 2.3) em produção, linha F3. Antes, **26/10/2026** — heads dos PRs, Actions
 desativado, PR #84 (CI local) e runtime AIOps na release `144317f` de 12/10
 conferidos; ver [reconciliação](evidence/state-reconciliation-2026-10-26.md).
 Execução segue o [plano de 26/10](../superpowers/plans/2026-10-26-ness-os-execution-plan.md).
@@ -27,7 +27,7 @@ preparação UAT ou documentação isolada.
 | F1 — Authentik/tenant/Psono | 🟡 Parcial | Marca e login público Authentik verificados; MFA nominal, recuperação, jornadas autenticadas/tenant e Psono dedicado ainda sem aceite. G2 aberto. |
 | F2 — Zabbix definitivo | 🟡 UAT preparada; janela encerrada | Último estado registrado: destino restaurado e isolado; origem única coletora. Referência: 262 hosts reais + 63 protótipos; 2,086% unsupported na última amostra. SSO nominal, qualidade da frota, gates, freeze e GO faltam antes do corte. Janela encerrada em 15/10 11:47:35 BRT; token anterior expirado. Sem mutações Zabbix sem nova autorização. |
 | F3 — GLPI | 🟡 Em execução | Volume persistente e borda pública corrigidos; busca idempotente, paginação, alias privado fixo e importação isolada do gateway endurecidos na branch, sem deploy. API real confirmou o contrato de paginação; imagem local sem rede importou o gateway sem inicializar VAPID. T03 em produção desde 28/10 ([evidência](evidence/glpi-t03-prod-2026-10-28.md)): gateway por digest, cliente API 1 desativado, conta 106 ativa só com `[13, 1, 0]`; o caminho direto Hub+`user_token` da 106 **não** está bloqueado (risco aceito no ADR 0020; fronteira = sigilo do token + gateway). Ações automáticas: 18 internas atrasadas, sem conversão; `graph` elimina arquivos antigos e não serve como canário sem efeito. Os sete agentes têm último contato em julho; piloto autenticado/isolamento registrados na issue #79, não executados. Deduplicação restante e tema ness. aguardam decisão/teste nominal. |
-| F4 — Hub/PWA | 🟡 Parcial | Runtime anterior promovido e rollback ensaiado; mudanças recentes estão só na branch. G3 e jornada produtiva por tenant/perfil não aceitos. |
+| F4 — Hub/PWA | 🟡 Parcial | Hub promovido até a release `521247b` (30/10) com rollback automático e `promotion=PASS`; a fundação SOC não ativa Wazuh em produção. G3 e jornada produtiva por tenant/perfil não aceitos. |
 | F5 — operação integrada | 🔴 Pendente | Sem prova produtiva completa evento → incidente → ticket, replay/timeout, papéis e todas as entidades. G4 não aprovado. |
 | F6 — AIOps/automação | 🟡 Parcial | Componentes existentes, mas RCA/Node-RED e jornadas assistidas ampliadas sem aceite produtivo global. |
 | F7 — Wazuh/Workspace | ⚪ Sem aceite | Capacidade/custo, isolamento, ingestão e rollout por faixa ainda pendentes. G5 não aprovado. |
