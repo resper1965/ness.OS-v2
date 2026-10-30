@@ -36,8 +36,12 @@ Lote (OT): acrescenta `batch_id` estável, `rules_version`, intervalo coberto e 
    o score continua decidindo, como antes. Severidade ausente ou não numérica não é
    rebaixada: o sinal é atendido. Falha da IA não bloqueia o despacho.
 4. **Idempotência:** chave inclui `tenant_id`, `source_id` e identificador do evento.
-   Replay não repete ticket, notificação nem ação concluída. (Ainda não implementada
-   para `/secops/triage`.)
+   Replay não repete ticket, notificação nem ação concluída. Em `/secops/triage`: chave =
+   sha256(tenant + `manager.name` + `id` do alerta, ou agente+regra+`timestamp`), índice único parcial em
+   `n_secops_soc_decisions.dedup_key`; replay devolve a decisão salva com `duplicate: true` e o mesmo `risk_score`, `llm_bypassed` e `attendance_required` da primeira
+   entrega. Entrega concorrente espera um `pg_advisory_xact_lock` e cai no replay.
+   Alerta sem `id` nem `timestamp` não tem chave e não é deduplicado. Replay depois de
+   falha de despacho ao n8n não reenvia (limite conhecido).
 
 ## Aberto
 

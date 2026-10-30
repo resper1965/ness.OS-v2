@@ -5,13 +5,15 @@ Expoe achados de seguranca, CVEs criticos dos clientes e saude do Zabbix.
 
 from __future__ import annotations
 
+import hashlib
 import logging
 from datetime import UTC, datetime
 from typing import Any
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select
+from sqlalchemy import select, text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
@@ -631,6 +633,18 @@ async def triage_alert(
     tenant = await _resolve_tenant(db, payload)
     pending = tenant is None
 
+    # 1b. Idempotência: replay do mesmo alerta devolve a decisão salva, sem IA nem despacho
+    dedup_key = _dedup_key(tenant, payload)
+    if dedup_key:
+        # Lock até o commit: entrega concorrente espera e então cai no replay, sem
+        # repetir enriquecimento, IA nem contador de recorrência. Crash libera o lock.
+        await db.execute(
+            text("SELECT pg_advisory_xact_lock(:k)"),
+            {"k": int.from_bytes(bytes.fromhex(dedup_key)[:8], "big", signed=True)},
+        )
+        if prior := await _decision_by_key(db, dedup_key):
+            return _duplicate_response(prior)
+
     # 2. Enriquecimento de Ameaças (Threat Intel); sem cliente, nada sai
     enriched_data: dict[str, list[dict[str, Any]]] = {"ips": [], "hashes": []}
     if not pending:
@@ -716,6 +730,11 @@ async def triage_alert(
             "requested_at": datetime.now(UTC).isoformat(),
             "corrective_action_approved": False,
         },
+        "_ness_triage_result": {
+            "risk_score": triage_result["risk_score"],
+            "llm_bypassed": triage_result["llm_bypassed"],
+            "attendance_required": must_attend,
+        },
     }
     try:
         decision = SocDecision(
@@ -729,8 +748,17 @@ async def triage_alert(
             action_taken=triage_result["action_taken"],
             raw_alert=payload,
         )
+        decision.dedup_key = dedup_key
         db.add(decision)
         await db.commit()
+    except IntegrityError:
+        # Corrida: outro pedido gravou a mesma chave entre a consulta e o commit
+        await db.rollback()
+        if dedup_key and (prior := await _decision_by_key(db, dedup_key)):
+            return _duplicate_response(prior)
+        raise HTTPException(
+            503, "Decisão não registrada; despacho não realizado"
+        ) from None
     except Exception as e:
         logger.error("Falha ao persistir SocDecision: %s", type(e).__name__)
         await db.rollback()
@@ -765,6 +793,57 @@ async def triage_alert(
     triage_result["corrective_action_approved"] = False
 
     return triage_result
+
+
+def _dedup_key(tenant: str | None, payload: dict[str, Any]) -> str | None:
+    """Chave estável do alerta: tenant + manager + id do Wazuh (ou agente+regra+timestamp).
+
+    Sem id nem timestamp não há como distinguir replay de novo evento: sem chave.
+    ponytail: replay após falha de despacho não reenvia ao n8n; reenvio exigiria
+    gravar dispatch_status na decisão.
+    """
+    agent = payload.get("agent") or {}
+    rule = payload.get("rule") or {}
+    ident = payload.get("id") or (
+        f"{agent.get('id')}:{rule.get('id')}:{payload.get('timestamp')}"
+        if payload.get("timestamp")
+        else None
+    )
+    if not ident:
+        return None
+    # Id do Wazuh é epoch.contador por manager: sem tenant, o escopo evita que
+    # pendentes de clientes diferentes se suprimam entre si.
+    manager = (payload.get("manager") or {}).get("name")
+    scope = (
+        f"{tenant}|{manager}"
+        if tenant
+        else "-|{}|{}|{}".format(
+            manager,
+            agent.get("name"),
+            sorted(str(g) for k in ("group", "groups") for g in agent.get(k) or []),
+        )
+    )
+    return hashlib.sha256(f"{scope}|{ident}".encode()).hexdigest()
+
+
+async def _decision_by_key(db: AsyncSession, key: str) -> SocDecision | None:
+    result = await db.execute(select(SocDecision).where(SocDecision.dedup_key == key))
+    return result.scalars().first()
+
+
+def _duplicate_response(d: SocDecision) -> dict[str, Any]:
+    saved = (d.raw_alert or {}).get("_ness_triage_result") or {}
+    return {
+        **saved,
+        "classification": d.classification,
+        "confidence": d.confidence,
+        "summary": d.summary,
+        "action_taken": d.action_taken,
+        "decision_id": d.id,
+        "duplicate": True,
+        "dispatch_status": "duplicate",
+        "corrective_action_approved": False,
+    }
 
 
 @router.get("/decisions")

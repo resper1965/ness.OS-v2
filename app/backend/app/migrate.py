@@ -75,6 +75,14 @@ async def run_migrations():
                 "ADD COLUMN IF NOT EXISTS assigned_user_id BIGINT;"
             )
         )
+        # Cliente pendente de revisão grava customer_id nulo; dedup_key torna o replay idempotente.
+        for ddl in (
+            "ALTER TABLE n_secops_soc_decisions ALTER COLUMN customer_id DROP NOT NULL;",
+            "ALTER TABLE n_secops_soc_decisions ADD COLUMN IF NOT EXISTS dedup_key VARCHAR(64);",
+            "CREATE UNIQUE INDEX IF NOT EXISTS uq_soc_decisions_dedup "
+            "ON n_secops_soc_decisions (dedup_key) WHERE dedup_key IS NOT NULL;",
+        ):
+            await conn.execute(text(ddl))
         actions_ddl = """
                 CREATE TABLE IF NOT EXISTS n_infraops_incident_actions (
                     id BIGSERIAL PRIMARY KEY,

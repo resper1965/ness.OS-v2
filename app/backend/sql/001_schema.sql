@@ -275,7 +275,8 @@ CREATE TABLE n_secops_soc_decisions (
     wazuh_rule_id   VARCHAR(64)     NOT NULL,
     agent_id        VARCHAR(64),
     agent_name      VARCHAR(255),
-    customer_id     VARCHAR(128)    NOT NULL,
+    customer_id     VARCHAR(128),
+    dedup_key       VARCHAR(64),
     classification  VARCHAR(32)     NOT NULL,
     confidence      DOUBLE PRECISION NOT NULL DEFAULT 1.0,
     summary         TEXT            NOT NULL,
@@ -288,6 +289,7 @@ CREATE INDEX idx_soc_decisions_rule ON n_secops_soc_decisions (wazuh_rule_id);
 CREATE INDEX idx_soc_decisions_agent ON n_secops_soc_decisions (agent_id);
 CREATE INDEX idx_soc_decisions_customer ON n_secops_soc_decisions (customer_id);
 CREATE INDEX idx_soc_decisions_classification ON n_secops_soc_decisions (classification);
+CREATE UNIQUE INDEX uq_soc_decisions_dedup ON n_secops_soc_decisions (dedup_key) WHERE dedup_key IS NOT NULL;
 
 -- A tabela de usuários precisa existir antes de 002_push_subscriptions.sql.
 CREATE TYPE userrole AS ENUM (
