@@ -38,7 +38,7 @@ Só GET, contra um PC do Ricardo (sem dado de cliente). A credencial foi criada 
 - Autenticação OAuth 2.0 (`POST /oauth2/token`, form) funciona na região do Ricardo: `https://app.na-2.action1.com/api/3.0`. Token vale 3600 s.
 - `GET /organizations` devolve as organizações da conta (2 na avaliação): confirma o modelo multi-tenant por organização (item 2, parcial: falta provar o isolamento entre organizações).
 - `GET /endpoints/managed/{org}` devolve inventário rico (SO, CPU, RAM, disco, MAC, fabricante, série, usuário, `last_seen`, `reboot_required`, `update_status`, `vulnerability_status`, versão do agente). Cobre o item 1 para inventário.
-- `GET /updates/{org}` lista pacotes do repositório de software (nome, fornecedor, KB, reboot). Ainda não testado: atualizações pendentes por endpoint e resultado de execução.
+- `GET /updates/{org}` ("missing updates" na especificação) lista, no nível da organização, as atualizações ausentes (nome, fornecedor, KB, reboot). Ainda não testado: quais faltam em cada endpoint e o resultado de execução.
 - Fica para depois: licença acima de 200, LGPD/região, cobertura de terceiros vs. Atera, migração (itens 3 a 6).
 
 ## Achados da documentação pública (30/10)
