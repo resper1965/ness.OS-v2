@@ -22,7 +22,7 @@ O **Action1** passa a ser a ferramenta-alvo para execução em endpoint (invent�
 
 ## Homologação antes de qualquer integração
 
-Nada abaixo foi verificado ainda; só é fato que o plano gratuito cobre até 200 endpoints (documentação do fornecedor).
+Itens 1 e 2 têm teste parcial (seção abaixo); o resto não foi verificado. Fato adicional: que o plano gratuito cobre até 200 endpoints (documentação do fornecedor).
 
 1. API: autenticação, escopo mínimo, leitura de inventário, atualizações pendentes e resultado de execução.
 2. Multi-tenant: como separar os clientes (organizações) e se isso cabe no isolamento por tenant do Hub.
@@ -30,6 +30,16 @@ Nada abaixo foi verificado ainda; só é fato que o plano gratuito cobre até 20
 4. Dados que o agente envia e onde ficam (LGPD, contrato com os clientes).
 5. Cobertura de patching de terceiros e o que o Atera fazia que o Action1 não faz.
 6. Plano de migração por máquina e inventário dos ativos que ainda dependem de Atera e Datto.
+
+## Teste de leitura da API (01/11)
+
+Só GET, contra um PC do Ricardo (sem dado de cliente). A credencial foi criada com o papel Enterprise Admin, por escolha do Ricardo; a leitura foi disciplina do agente, não do papel. É conta de avaliação: antes de qualquer integração real, apagar e criar outra com papel de leitura. Nunca vai para produção.
+
+- Autenticação OAuth 2.0 (`POST /oauth2/token`, form) funciona na região do Ricardo: `https://app.na-2.action1.com/api/3.0`. Token vale 3600 s.
+- `GET /organizations` devolve as organizações da conta (2 na avaliação): confirma o modelo multi-tenant por organização (item 2, parcial: falta provar o isolamento entre organizações).
+- `GET /endpoints/managed/{org}` devolve inventário rico (SO, CPU, RAM, disco, MAC, fabricante, série, usuário, `last_seen`, `reboot_required`, `update_status`, `vulnerability_status`, versão do agente). Cobre o item 1 para inventário.
+- `GET /updates/{org}` lista pacotes do repositório de software (nome, fornecedor, KB, reboot). Ainda não testado: atualizações pendentes por endpoint e resultado de execução.
+- Fica para depois: licença acima de 200, LGPD/região, cobertura de terceiros vs. Atera, migração (itens 3 a 6).
 
 ## Achados da documentação pública (30/10)
 
