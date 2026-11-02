@@ -1,4 +1,6 @@
-# Candidate only. Do not include this override until the T03 route matrix passes.
+# Em produção desde 28/10/2026 (T03, ADR 0020). Recriar o ninf-glpi sem este override
+# tira o GLPI da rede privada e o gateway nega tudo (falha fechada).
+# Aplicar por infra/ansible/playbooks/glpi-maintenance.yml.
 services:
   glpi:
     networks:

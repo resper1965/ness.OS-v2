@@ -164,7 +164,7 @@ Salvar em `docs/execution/evidence/` (sem token): digest, hashes do override, sa
 
 ## Pendências e riscos
 
-- Confirmar ID da entidade 1 permitido (1–5) e um ID de entidade filha só para o teste negativo.
+- ~~Confirmar ID permitido e um ID de entidade filha~~ Feito em 28/10: permitido = Computer 14 (entidade 1); negativos = 2 (entidade filha 5) e 999999 ([evidência](../../../docs/execution/evidence/glpi-t03-prod-2026-10-28.md)).
 - Consumidor do bearer do gateway ainda não definido (P3).
 - Sem filtro de rede: a fronteira é IP do cliente + sigilo do `user_token` + checagem de entidade do gateway.
 - **Risco principal:** o cliente 2 (App-Token do Hub, 172.18/16) aceita o `user_token` da 106 a partir do Hub. O filtro de IP do cliente 3 só impede o App-Token do gateway de ser usado de fora; não impede o do Hub. Mitigação possível (decisão): conta 94/Hub com App-Token distinto não resolve; só tirar o Hub do IP/rede do GLPI ou aceitar o risco com o `user_token` confinado.
