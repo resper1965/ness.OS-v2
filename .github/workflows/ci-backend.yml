@@ -37,6 +37,18 @@ jobs:
   test-and-lint:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    services:
+      postgres:  # só para tests/test_secops_postgres.py (porta 5439: não colide com run-hub-local-flow)
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: dev
+          POSTGRES_PASSWORD: dev
+          POSTGRES_DB: app
+        ports:
+          - 127.0.0.1:5439:5432
+        options: >-
+          --health-cmd "pg_isready -U dev -d app" --health-interval 2s
+          --health-timeout 3s --health-retries 15
     defaults:
       run:
         working-directory: ./app/backend
@@ -71,6 +83,8 @@ jobs:
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=120 --statistics
         
     - name: Test with pytest
+      env:
+        NINF_TEST_PG_URL: postgresql+asyncpg://dev:dev@127.0.0.1:5439/app
       run: |
         pytest
 
