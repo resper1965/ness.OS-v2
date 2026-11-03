@@ -64,7 +64,11 @@ def mapped_tenant(monkeypatch):
     async def resolved(db, payload):
         return "cavan"
 
+    async def no_recent(db, key):
+        return 0
+
     monkeypatch.setattr(secops, "_resolve_tenant", resolved)
+    monkeypatch.setattr(secops, "_recent_count", no_recent)
 
 
 @pytest.fixture
@@ -251,6 +255,7 @@ def test_unmapped_tenant_is_pending_without_enrichment_or_llm(
     data = client.post("/api/secops/triage", json=payload).json()
     assert data["action_taken"] == "PENDING_TENANT_REVIEW"
     assert data["classification"] == "PENDING_REVIEW"
+    assert data["state"] == "pendente_de_cliente"
     assert data["attendance_required"] is True
     assert [c for c in calls if c != ("n8n", None)] == []  # no LLM, no tenant
     decision = decision_database.add.call_args.args[0]

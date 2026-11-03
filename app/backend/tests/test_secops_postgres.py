@@ -185,3 +185,26 @@ async def test_archived_sample_real_db(sessions):
 
     assert sorted(i["wazuh_rule_id"] for i in allr["items"]) == ["a1", "a2"]
     assert [i["wazuh_rule_id"] for i in one["items"]] == ["a1"]
+
+
+async def test_frequency_is_persisted_and_scoped_per_tenant(sessions):
+    async with sessions() as s:
+        s.add(
+            SocDecision(
+                wazuh_rule_id="100",
+                customer_id="cavan",
+                classification="LOW_PRIORITY",
+                confidence=0.5,
+                summary="x",
+                action_taken="ARCHIVE_NO_LLM",
+                freq_key=secops._freq_key("cavan", {}, "001", "100"),
+            )
+        )
+        await s.commit()
+    async with sessions() as s:
+        same = secops._freq_key("cavan", {}, "001", "100")
+        other = secops._freq_key("unimed", {}, "001", "100")  # mesmo agente e regra
+        assert (
+            await secops._recent_count(s, same) == 1
+        )  # sobrevive a novo processo/sessão
+        assert await secops._recent_count(s, other) == 0  # não soma entre tenants

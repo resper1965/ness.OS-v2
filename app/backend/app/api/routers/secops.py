@@ -22,7 +22,7 @@ from app.core.dependencies import (
     require_noc,
     resolve_tenant_scope,
 )
-from app.core.triage_engine import TriageAction, TriageEngine
+from app.core.triage_engine import FREQUENCY_WINDOW_SECONDS, TriageAction, TriageEngine
 from app.database import get_db
 from app.models.models import SocDecision, TenantMapping
 from app.models.users import User
@@ -702,26 +702,25 @@ async def triage_alert(
     rule_id = str(payload.get("rule", {}).get("id", "unknown"))
     agent_id = str(payload.get("agent", {}).get("id", "unknown"))
     agent_name = payload.get("agent", {}).get("name", "unknown")
-    # tenant no fingerprint: agent_id é local ao Wazuh de cada cliente (ex.: "001")
-    fingerprint = f"{tenant}:{agent_id}:{rule_id}"
+    # agent_id é local a cada Wazuh (ex.: "001"): tenant e cluster entram na chave.
+    # Pendente de cliente conta só dentro do próprio cluster, nunca com outro tenant.
+    freq_key = _freq_key(tenant, payload, agent_id, rule_id)
+    fingerprint = freq_key
+    recent = await _recent_count(db, freq_key)
 
     alert_data, threat_intel = _triage_input(payload, enriched_data)
     eval_result = _triage_engine.evaluate_alert(
         alert_data=alert_data,
         threat_intel=threat_intel,
         fingerprint=fingerprint,
+        frequency_count=recent + 1,
     )
 
     # 4. Atendimento é decidido aqui, independente do score e do modelo (política SOC
     # de 03/11): sem cliente, nível inválido ou nível >= piso atende. Abaixo do piso o
     # score decide; arquivado guarda o evento bruto (raw_alert) e entra na amostra
     # semanal (/archived-sample). Score alto (ex.: IOC) nunca é arquivado em silêncio.
-    must_attend = (
-        pending
-        or eval_result.action != TriageAction.ARCHIVE
-        or alert_data["level_invalid"]
-        or alert_data["level"] >= settings.soc_attendance_min_level
-    )
+    must_attend = _attendance_required(pending, eval_result.action, alert_data)
 
     if tenant is None:
         triage_result: dict[str, Any] = {
@@ -732,6 +731,7 @@ async def triage_alert(
                 "ausente ou ambíguo. Revisão técnica; sem enriquecimento nem IA."
             ),
             "action_taken": "PENDING_TENANT_REVIEW",
+            "state": "pendente_de_cliente",
             "risk_score": eval_result.risk_score,
             "llm_bypassed": True,
         }
@@ -774,6 +774,7 @@ async def triage_alert(
             "risk_score": triage_result["risk_score"],
             "llm_bypassed": triage_result["llm_bypassed"],
             "attendance_required": must_attend,
+            **({"state": triage_result["state"]} if "state" in triage_result else {}),
         },
     }
     try:
@@ -789,6 +790,7 @@ async def triage_alert(
             raw_alert=payload,
         )
         decision.dedup_key = dedup_key
+        decision.freq_key = freq_key
         db.add(decision)
         await db.commit()
     except IntegrityError:
@@ -833,6 +835,42 @@ async def triage_alert(
     triage_result["corrective_action_approved"] = False
 
     return triage_result
+
+
+def _attendance_required(
+    pending: bool, action: TriageAction, alert_data: dict[str, Any]
+) -> bool:
+    """Decisão de atendimento: só regra e score determinísticos; o modelo não entra."""
+    return (
+        pending
+        or action != TriageAction.ARCHIVE
+        or alert_data["level_invalid"]
+        or alert_data["level"] >= settings.soc_attendance_min_level
+    )
+
+
+def _freq_key(
+    tenant: str | None, payload: dict[str, Any], agent_id: str, rule_id: str
+) -> str:
+    """Chave de frequência com escopo: tenant + cluster (ou manager) + agente + regra."""
+    cluster = (
+        (payload.get("cluster") or {}).get("name")
+        or (payload.get("manager") or {}).get("name")
+        or "-"
+    )
+    raw = f"{tenant or '-pending-'}|{cluster}|{agent_id}|{rule_id}"
+    return hashlib.sha256(raw.encode()).hexdigest()
+
+
+async def _recent_count(db: AsyncSession, freq_key: str) -> int:
+    """Decisões já persistidas com a mesma chave na janela de recorrência."""
+    since = datetime.now(UTC) - timedelta(seconds=FREQUENCY_WINDOW_SECONDS)
+    result = await db.execute(
+        select(func.count())
+        .select_from(SocDecision)
+        .where(SocDecision.freq_key == freq_key, SocDecision.created_at >= since)
+    )
+    return int(result.scalar_one())
 
 
 def _dedup_key(tenant: str | None, payload: dict[str, Any]) -> str | None:
