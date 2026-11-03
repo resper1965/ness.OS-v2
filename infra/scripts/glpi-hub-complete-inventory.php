@@ -24,7 +24,10 @@ Session::callAsSystem(function () use ($plan, $DB) {
         $found = false;
         foreach ([Computer::class, NetworkEquipment::class] as $candidate) {
             foreach ($DB->request(['FROM' => $candidate::getTable()]) as $row) {
-                if (preg_match('/Zabbix Host ID:\s*(\d+)/', $row['comment'] ?? '', $m) && $m[1] === $hostid) $found = true;
+                if (preg_match('/Zabbix Host ID:\s*(\d+)/', $row['comment'] ?? '', $m) && $m[1] === $hostid) {
+                    if ($candidate !== $type) throw new RuntimeException('Marker for '.$hostid.' already exists as '.$candidate.', plan says '.$type);
+                    $found = true;
+                }
             }
         }
         if ($found) continue;
