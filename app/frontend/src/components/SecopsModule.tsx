@@ -356,6 +356,15 @@ export default function SecopsModule() {
     setCveLoading(true);
     setHealthLoading(true);
 
+    // independente do Zabbix (lento, até 15 s): dispara antes e aguarda no fim
+    const triageReq = (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/secops/triage-stats`, { credentials: 'include', headers: authHeader() });
+        setTriage(res.ok ? await res.json() : null);
+        setTriageFailed(!res.ok);
+      } catch (e) { console.error('Triage stats:', e); setTriage(null); setTriageFailed(true); }
+    })();
+
     try {
       const res = await fetch(`${API_BASE}/api/secops/cve-intel`, { credentials: 'include', headers: authHeader() });
       if (res.ok) setCveIntel(await res.json());
@@ -371,11 +380,7 @@ export default function SecopsModule() {
     } catch (e) { setHealthRequestError(e instanceof Error ? e.message : 'Falha na coleta Zabbix'); }
     finally { setHealthLoading(false); }
 
-    try {
-      const res = await fetch(`${API_BASE}/api/secops/triage-stats`, { credentials: 'include', headers: authHeader() });
-      setTriage(res.ok ? await res.json() : null);
-      setTriageFailed(!res.ok);
-    } catch (e) { console.error('Triage stats:', e); setTriage(null); setTriageFailed(true); }
+    await triageReq;
 
     setLastRefresh(new Date());
   }, [authHeader]);
