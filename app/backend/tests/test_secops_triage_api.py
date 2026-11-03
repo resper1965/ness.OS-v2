@@ -410,26 +410,37 @@ def test_dedup_key_is_per_tenant_and_absent_without_identity():
     assert k(None, _alert()) == k(None, _alert())
 
 
-def test_archived_sample_only_returns_archived_in_window(
+def test_archived_sample_returns_projected_rows_for_soc(
     persisted_triage_stats_database,
 ):
     from datetime import UTC, datetime
 
-    row = SimpleNamespace(
-        id=5,
-        wazuh_rule_id="1",
-        agent_name="pc",
-        customer_id="cavan",
-        summary="s",
-        created_at=datetime.now(UTC),
-    )
+    row = {
+        "id": 5,
+        "wazuh_rule_id": "1",
+        "agent_name": "pc",
+        "customer_id": "cavan",
+        "summary": "s",
+        "created_at": datetime.now(UTC),
+    }
     result = MagicMock()
-    result.scalars.return_value.all.return_value = [row]
+    result.mappings.return_value.all.return_value = [row]
     persisted_triage_stats_database.execute.return_value = result
 
-    data = client.get("/api/secops/archived-sample?days=7&limit=20").json()
+    data = client.get(
+        "/api/secops/archived-sample?days=7&limit=20&customer_id=cavan"
+    ).json()
 
     assert data["total"] == 1 and data["items"][0]["id"] == 5
-    sql = str(persisted_triage_stats_database.execute.call_args.args[0])
-    assert "ARCHIVE_NO_LLM" not in sql  # valor vai como bind, não no texto
-    assert "random()" in sql and "created_at >=" in sql
+    stmt = persisted_triage_stats_database.execute.call_args.args[0]
+    compiled = stmt.compile()
+    assert "ARCHIVE_NO_LLM" in compiled.params.values()  # só arquivados
+    assert "cavan" in compiled.params.values()  # escopo do cliente pedido
+    assert "raw_alert" not in str(stmt)  # não arrasta o JSONB
+
+
+def test_archived_sample_is_closed_to_tenant_users():
+    app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(
+        id=9, role=UserRole.viewer, tenant_id="cavan"
+    )
+    assert client.get("/api/secops/archived-sample").status_code == 403

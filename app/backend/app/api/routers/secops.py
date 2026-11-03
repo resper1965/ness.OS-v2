@@ -614,17 +614,28 @@ async def get_triage_stats(db: AsyncSession = Depends(get_db)) -> dict[str, Any]
     }
 
 
-@router.get("/archived-sample", dependencies=[Depends(require_noc)])
+@router.get("/archived-sample")
 async def archived_sample(
     days: int = Query(7, ge=1, le=31),
     limit: int = Query(20, ge=1, le=100),
     customer_id: str | None = Query(None),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_authenticated),
+    current_user: User = Depends(require_noc),
 ) -> dict[str, Any]:
-    """Amostra aleatória dos alertas arquivados sem LLM, para a revisão semanal da política SOC."""
+    """Amostra aleatória dos alertas arquivados sem LLM, para a revisão semanal da política SOC.
+
+    ponytail: ORDER BY random() varre a janela; ok no volume semanal. Se a tabela
+    passar de alguns milhões de linhas, amostrar por id aleatório dentro da janela.
+    """
     stmt = (
-        select(SocDecision)
+        select(
+            SocDecision.id,
+            SocDecision.wazuh_rule_id,
+            SocDecision.agent_name,
+            SocDecision.customer_id,
+            SocDecision.summary,
+            SocDecision.created_at,
+        )
         .where(
             SocDecision.action_taken == "ARCHIVE_NO_LLM",
             SocDecision.created_at >= datetime.now(UTC) - timedelta(days=days),
@@ -634,22 +645,8 @@ async def archived_sample(
     )
     if scope := resolve_tenant_scope(current_user, customer_id):
         stmt = stmt.where(SocDecision.customer_id == scope)
-    rows = (await db.execute(stmt)).scalars().all()
-    return {
-        "days": days,
-        "total": len(rows),
-        "items": [
-            {
-                "id": d.id,
-                "wazuh_rule_id": d.wazuh_rule_id,
-                "agent_name": d.agent_name,
-                "customer_id": d.customer_id,
-                "summary": d.summary,
-                "created_at": d.created_at,
-            }
-            for d in rows
-        ],
-    }
+    rows = (await db.execute(stmt)).mappings().all()
+    return {"days": days, "total": len(rows), "items": [dict(r) for r in rows]}
 
 
 @router.post("/triage", dependencies=[Depends(require_noc)])
