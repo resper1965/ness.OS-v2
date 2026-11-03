@@ -44,7 +44,8 @@ Tasks do [plano de execução](docs/superpowers/plans/2026-10-26-ness-os-executi
 2. Wazuh: limpar agentes desconectados (485, dos quais 146 há mais de 30 dias) e os 10 que nunca conectaram e apagar os scripts temporários da `homol`; regras 100100/100101 já aplicadas (`docs/execution/evidence/wazuh-rules-review-2026-10-29.md`)
 3. Issue #82: valores achados recusados em aiops, Zabbix prod, UAT e nas APIs ([evidência](docs/execution/evidence/credenciais-82-2026-10-29.md)); **falta testar a `homol` do Wazuh** (só com `sudo`); decidir (a) desativar as 36 contas locais do GLPI que nunca logaram e (b) fechar o pedido ao GitHub Support dos refs de PR
 4. Restringir a chave do agente à `stack` (`from=`)
-5. Depois: D4 MFA, D3/D6 compras Psono/Wazuh
+5. Isolamento Hub ↔ GLPI: a senha root do banco do GLPI está no ambiente do Hub; proposta A (tirar do `.env`, rede própria, rotacionar) em [glpi-hub-isolation](docs/execution/evidence/glpi-hub-isolation-2026-11-03.md) — pede OK
+6. Depois: D4 MFA, D3/D6 compras Psono/Wazuh
 
 ## Foco
 
