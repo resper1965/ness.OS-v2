@@ -22,10 +22,10 @@ $action=(new CAction())->get(['actionids'=>[$saved['action_id']],'output'=>'exte
 if (count($media)!==1 || $media[0]['name']!==$name || count($action)!==1 || $action[0]['name']!==$name) {throw new RuntimeException('Identity mismatch');}
 if ($action[0]['recovery_operations']) {throw new RuntimeException('Recovery operation already present');}
 foreach ($media[0]['parameters'] as $p) {if ($p['name']==='event_status') {throw new RuntimeException('event_status already present');}}
-file_put_contents("$dir/mediatype-before-recovery.json",json_encode($media[0]));
-file_put_contents("$dir/action-before-recovery.json",json_encode($action[0]));
-chmod("$dir/mediatype-before-recovery.json",0600);
-chmod("$dir/action-before-recovery.json",0600);
+foreach (['mediatype'=>$media[0],'action'=>$action[0]] as $k=>$v) {
+ $f="$dir/$k-before-recovery.json";
+ if (file_put_contents($f,json_encode($v,JSON_THROW_ON_ERROR))===false || !chmod($f,0600)) {throw new RuntimeException("Backup failed: $f");}
+}
 $script=$media[0]['script'];
 $new=str_replace("status:'PROBLEM'","status:(p.event_status==='RESOLVED'?'RESOLVED':'PROBLEM')",$script,$n);
 if ($n!==1) {throw new RuntimeException('Script layout changed');}
