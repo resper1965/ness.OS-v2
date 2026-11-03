@@ -115,6 +115,20 @@ if grep -Eq '^[[:space:]]*(export[[:space:]]+)?MYSQL_ROOT_PASSWORD=' "${glpi_app
   fail "MYSQL_ROOT_PASSWORD must not be in the GLPI app environment file ${glpi_app_env_file}"
 fi
 ((${#missing_glpi[@]} == 0)) || fail "missing GLPI database variables: ${missing_glpi[*]}"
+dotenv_value_hash() {
+  # imprime só o hash do valor (aspas externas removidas), nunca o valor
+  awk -v wanted="$1" '
+    { line=$0; sub(/\r$/, "", line); sub(/^[[:space:]]*export[[:space:]]+/, "", line)
+      i=index(line,"="); if(!i) next
+      k=substr(line,1,i-1); gsub(/^[[:space:]]+|[[:space:]]+$/,"",k); if(k!=wanted) next
+      v=substr(line,i+1); gsub(/^[[:space:]]+|[[:space:]]+$/,"",v)
+      if (v ~ /^".*"$/ || v ~ /^\047.*\047$/) v=substr(v,2,length(v)-2)
+      val=v }
+    END { printf "%s", val }' "$2" | sha256sum | cut -d' ' -f1
+}
+# O banco lê MYSQL_PASSWORD e o GLPI lê DB_PASSWORD: precisam ser o mesmo valor.
+[[ "$(dotenv_value_hash MYSQL_PASSWORD "${glpi_db_env_file}")" == "$(dotenv_value_hash DB_PASSWORD "${glpi_app_env_file}")" ]] \
+  || fail 'MYSQL_PASSWORD (glpi-db.env) and DB_PASSWORD (glpi-app.env) differ'
 for variable in NINF_GLPI_DB_ROOT_PASSWORD NINF_GLPI_DB_PASSWORD; do
   if grep -Eq "^[[:space:]]*(export[[:space:]]+)?${variable}=" "${env_file}"; then
     fail "${variable} must not be in the Hub environment file ${env_file}"

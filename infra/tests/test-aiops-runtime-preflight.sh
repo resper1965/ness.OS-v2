@@ -115,6 +115,18 @@ if blank_output="$(run_isolated bash "${preflight}" --env-file "${complete_env}"
 fi
 grep -q 'missing GLPI database variables: MYSQL_ROOT_PASSWORD' <<<"${blank_output}"
 
+glpi_app_env_diff="${tmpdir}/glpi-app-diff.env"
+printf '%s\n' DB_PASSWORD=do-not-print-other >"${glpi_app_env_diff}"
+if diff_out="$(run_isolated bash "${preflight}" --env-file "${complete_env}" --glpi-db-env "${glpi_db_env}" --glpi-app-env "${glpi_app_env_diff}" 2>&1)"; then
+  echo 'preflight accepted different MYSQL_PASSWORD and DB_PASSWORD' >&2
+  exit 1
+fi
+grep -q 'MYSQL_PASSWORD (glpi-db.env) and DB_PASSWORD (glpi-app.env) differ' <<<"${diff_out}"
+if grep -q 'do-not-print' <<<"${diff_out}"; then echo 'mismatch check exposed a secret' >&2; exit 1; fi
+# aspas externas não contam como diferença
+printf '%s\n' 'DB_PASSWORD="do-not-print-db"' >"${tmpdir}/glpi-app-quoted.env"
+run_isolated bash "${preflight}" --env-file "${complete_env}" --glpi-db-env "${glpi_db_env}" --glpi-app-env "${tmpdir}/glpi-app-quoted.env" >/dev/null 2>&1
+
 if app_leak="$(run_isolated bash "${preflight}" --env-file "${complete_env}" --glpi-db-env "${glpi_db_env}" --glpi-app-env "${glpi_app_env_leaky}" 2>&1)"; then
   echo 'preflight accepted the root password in the GLPI app file' >&2
   exit 1
