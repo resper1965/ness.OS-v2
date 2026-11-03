@@ -23,3 +23,7 @@ O plano de entrega GLPI (linha 19) proíbe `callAsSystem` para contornar direito
 ## Vínculo no Hub (03/11)
 
 O timer do `cmdb_sync` já tinha ligado os três: assets Hub 262, 261 e 263 (`alupar`) com `glpi_item_id` 108, 109 e 110; incidentes com `asset_id`: 884 (10983), 575 (10984), 30 (10987). Nenhum `--apply` manual necessário. Restam 510 incidentes sem ativo, em outros hosts (10985, 10988, 10996, 10991, 10997 …), assunto da T06.
+
+## Vínculos de ticket no GLPI — aberto (03/11)
+
+A T05 só fecha com os vínculos `Item_Ticket` elegíveis reparados, readback cruzado e segunda aplicação sem novos vínculos. Medido em leitura: `glpi_items_tickets` tem 22 links no Computer 108, 23 no 109 e 0 no 110; no Hub, 874 / 560 / 30 incidentes dos hosts 10983 / 10984 / 10987 têm ticket. Reparo pendente: `glpi-hub-link-tickets.php` usa `callAsSystem` (a exceção do Ricardo cobre só a criação dos 3 ativos), então precisa de novo OK ou de um caminho pela identidade de manutenção.
