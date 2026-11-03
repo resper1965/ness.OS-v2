@@ -4,6 +4,7 @@ set -Eeuo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 app_dir="${repo_root}/app"
 env_file="${AIOPS_ENV_FILE:-${app_dir}/.env}"
+glpi_db_env_file="${AIOPS_GLPI_DB_ENV_FILE:-/etc/ness-os/glpi-db.env}"
 compose_files=(
   "${app_dir}/docker-compose.yml"
   "${app_dir}/docker-compose.tickets.yml"
@@ -11,7 +12,7 @@ compose_files=(
 
 usage() {
   cat <<'EOF'
-Usage: infra/scripts/aiops-runtime-preflight.sh [--env-file PATH]
+Usage: infra/scripts/aiops-runtime-preflight.sh [--env-file PATH] [--glpi-db-env PATH]
 
 Validates the local AIOps Compose model and required environment variable
 presence without printing values, contacting production, or starting containers.
@@ -30,6 +31,11 @@ while (($#)); do
       env_file="$2"
       shift 2
       ;;
+    --glpi-db-env)
+      (($# >= 2)) || fail '--glpi-db-env requires a path'
+      glpi_db_env_file="$2"
+      shift 2
+      ;;
     -h|--help)
       usage
       exit 0
@@ -44,6 +50,7 @@ for compose_file in "${compose_files[@]}"; do
   [[ -r "${compose_file}" ]] || fail "Compose file is not readable: ${compose_file}"
 done
 [[ -r "${env_file}" ]] || fail "environment file is not readable: ${env_file}"
+[[ -r "${glpi_db_env_file}" ]] || fail "GLPI database environment file is not readable: ${glpi_db_env_file}"
 
 mapfile -t required_variables < <(
   grep -hoE '\$\{[A-Za-z_][A-Za-z0-9_]*:\?[^}]*\}' "${compose_files[@]}" |
@@ -54,6 +61,7 @@ mapfile -t required_variables < <(
 
 dotenv_has_nonempty_value() {
   local variable="$1"
+  local file="${2:-${env_file}}"
 
   awk -v wanted="${variable}" '
     function trim(value) {
@@ -75,7 +83,7 @@ dotenv_has_nonempty_value() {
       present = length(value) > 0
     }
     END { exit present ? 0 : 1 }
-  ' "${env_file}"
+  ' "${file}"
 }
 
 missing_variables=()
@@ -88,6 +96,19 @@ done
 if ((${#missing_variables[@]})); then
   fail "missing required variables: ${missing_variables[*]}"
 fi
+
+# GLPI database credentials live only in the GLPI-private file. The Hub receives the whole
+# app/.env, so they must be absent there (ADR 0020 follow-up, Hub <-> GLPI isolation).
+missing_glpi=()
+for variable in MYSQL_ROOT_PASSWORD MYSQL_PASSWORD DB_PASSWORD; do
+  dotenv_has_nonempty_value "${variable}" "${glpi_db_env_file}" || missing_glpi+=("${variable}")
+done
+((${#missing_glpi[@]} == 0)) || fail "missing GLPI database variables: ${missing_glpi[*]}"
+for variable in NINF_GLPI_DB_ROOT_PASSWORD NINF_GLPI_DB_PASSWORD; do
+  if grep -Eq "^[[:space:]]*(export[[:space:]]+)?${variable}=" "${env_file}"; then
+    fail "${variable} must not be in the Hub environment file ${env_file}"
+  fi
+done
 
 command -v docker >/dev/null 2>&1 || fail 'Docker CLI is not installed'
 docker compose version >/dev/null 2>&1 || fail 'Docker Compose plugin is not available'

@@ -17,8 +17,6 @@ cat >"${env_file}" <<'EOF'
 NINF_AUTHENTIK_SECRET_KEY=runner-secret-authentik
 NINF_DB_PASSWORD=runner-secret-database
 NINF_EVOLUTION_API_KEY=runner-secret-evolution
-NINF_GLPI_DB_PASSWORD=runner-secret-glpi-db
-NINF_GLPI_DB_ROOT_PASSWORD=runner-secret-glpi-root
 NINF_JWT_SECRET=runner-secret-jwt
 NINF_RESEND_API_KEY=runner-secret-resend
 NINF_ZABBIX_API_TOKEN=runner-secret-zabbix
@@ -27,6 +25,10 @@ NINF_GLPI_USER_TOKEN=runner-secret-glpi-user
 NINF_API_IMAGE=example.invalid/ness-api@sha256:0000000000000000000000000000000000000000000000000000000000000000
 NINF_FRONTEND_IMAGE=example.invalid/ness-frontend@sha256:0000000000000000000000000000000000000000000000000000000000000000
 EOF
+
+# O readiness repassa o ambiente ao preflight, que lê as senhas do GLPI neste arquivo.
+export AIOPS_GLPI_DB_ENV_FILE="${tmpdir}/glpi-db.env"
+printf '%s\n' MYSQL_ROOT_PASSWORD=runner-secret-glpi-root MYSQL_PASSWORD=runner-secret-glpi-db DB_PASSWORD=runner-secret-glpi-db >"${AIOPS_GLPI_DB_ENV_FILE}"
 
 cat >"${fake_bin}/docker" <<'EOF'
 #!/usr/bin/env bash

@@ -8,7 +8,7 @@ install -d -m 0700 -o root -g root "${rollback_dir}"
 docker cp ninf-glpi:/var/glpi/config/config_db.php "${rollback_dir}/config_db.php.pre-fix"
 chmod 0600 "${rollback_dir}/config_db.php.pre-fix"
 
-NEW_DB_PASSWORD="$(sed -n 's/^NINF_GLPI_DB_PASSWORD=//p' app/.env | tail -1)"
+NEW_DB_PASSWORD="$(sed -n 's/^MYSQL_PASSWORD=//p' /etc/ness-os/glpi-db.env | tail -1)"
 if [[ -z "${NEW_DB_PASSWORD}" ]]; then
   echo 'missing rotated GLPI password' >&2
   exit 1
@@ -47,7 +47,7 @@ case "${status}" in
   *) exit 1 ;;
 esac
 
-DB_PASS="$(sed -n 's/^NINF_GLPI_DB_PASSWORD=//p' app/.env | tail -1)"
+DB_PASS="$(sed -n 's/^MYSQL_PASSWORD=//p' /etc/ness-os/glpi-db.env | tail -1)"
 export DB_PASS
 printf 'glpi_tables='
 docker exec -e DB_PASS ninf-glpi-db sh -lc \

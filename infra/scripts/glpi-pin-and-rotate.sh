@@ -6,7 +6,7 @@ umask 077
 app_dir="/opt/n-infraops/app"
 staged_compose="${1:-/tmp/docker-compose.tickets.pinned.yml}"
 live_compose="${app_dir}/docker-compose.tickets.yml"
-env_file="${app_dir}/.env"
+env_file="/etc/ness-os/glpi-db.env"  # fora do app/.env: o Hub recebe o .env inteiro
 stamp="$(date +%Y%m%dt%H%M%S%z)"
 rollback_dir="/opt/n-infraops/change-backups/glpi-pin-${stamp}"
 expected_glpi_digest="sha256:48ec3ce559fda9eaf73c6fe2f0fc2dd382ef013f2dda14004f34ee88ec17c8b8"
@@ -21,8 +21,8 @@ expected_glpi_digest="sha256:48ec3ce559fda9eaf73c6fe2f0fc2dd382ef013f2dda14004f3
 }
 
 grep -Fq "elestio/glpi:latest@${expected_glpi_digest}" "${staged_compose}"
-if grep -Eq 'NINF_GLPI_DB_(ROOT_)?PASSWORD:-' "${staged_compose}"; then
-  echo "staged compose still contains password defaults" >&2
+if grep -Eq 'NINF_GLPI_DB_(ROOT_)?PASSWORD' "${staged_compose}"; then
+  echo "staged compose still references NINF_GLPI_DB_* (must use /etc/ness-os/glpi-db.env)" >&2
   exit 4
 fi
 
@@ -86,10 +86,11 @@ FLUSH PRIVILEGES;
 SQL
   ' >/dev/null
 
-env_tmp="$(mktemp "${app_dir}/.env.glpi.XXXXXX")"
-grep -Ev '^NINF_GLPI_DB_(ROOT_)?PASSWORD=' "${env_file}" > "${env_tmp}"
-printf 'NINF_GLPI_DB_ROOT_PASSWORD=%s\n' "${new_root}" >> "${env_tmp}"
-printf 'NINF_GLPI_DB_PASSWORD=%s\n' "${new_db}" >> "${env_tmp}"
+env_tmp="$(mktemp "$(dirname "${env_file}")/.glpi-db.env.XXXXXX")"
+grep -Ev '^(MYSQL_ROOT_PASSWORD|MYSQL_PASSWORD|DB_PASSWORD)=' "${env_file}" > "${env_tmp}"
+printf 'MYSQL_ROOT_PASSWORD=%s\n' "${new_root}" >> "${env_tmp}"
+printf 'MYSQL_PASSWORD=%s\n' "${new_db}" >> "${env_tmp}"
+printf 'DB_PASSWORD=%s\n' "${new_db}" >> "${env_tmp}"
 install -o root -g root -m 600 "${env_tmp}" "${env_file}"
 rm -f -- "${env_tmp}"
 install -o root -g root -m 600 "${staged_compose}" "${live_compose}"
