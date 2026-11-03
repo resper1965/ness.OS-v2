@@ -331,6 +331,13 @@ function ClientRiskMatrix({ cves }: { cves: CveItem[] }) {
 
 type FilterSev = 'all' | 'critical' | 'high';
 
+interface TriageStats {
+  total_processed: number;
+  llm_bypassed_count: number;
+  pending_tenant_review_count: number;
+  bypassed_percentage: number | null;
+}
+
 export default function SecopsModule() {
   const { authHeader } = useAuth();
   const [cveIntel, setCveIntel] = useState<CveIntel | null>(null);
@@ -342,6 +349,7 @@ export default function SecopsModule() {
   const [searchTerm, setSearchTerm] = useState('');
   const [exploitedOnly, setExploitedOnly] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
+  const [triage, setTriage] = useState<TriageStats | null>(null);
 
   const fetchAll = useCallback(async () => {
     setCveLoading(true);
@@ -361,6 +369,11 @@ export default function SecopsModule() {
       setHealthRequestError(next.error || null);
     } catch (e) { setHealthRequestError(e instanceof Error ? e.message : 'Falha na coleta Zabbix'); }
     finally { setHealthLoading(false); }
+
+    try {
+      const res = await fetch(`${API_BASE}/api/secops/triage-stats`, { credentials: 'include', headers: authHeader() });
+      setTriage(res.ok ? await res.json() : null);
+    } catch (e) { console.error('Triage stats:', e); setTriage(null); }
 
     setLastRefresh(new Date());
   }, [authHeader]);
@@ -411,6 +424,27 @@ export default function SecopsModule() {
           </button>
         </div>
       </div>
+
+      {/* ── Triagem SOC ────────────────────────────────────────────────────── */}
+      {triage && (
+        <div className="grid grid-cols-3 gap-3 text-[11px]">
+          <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-3">
+            <p className="text-white/40">Alertas triados</p>
+            <p className="text-lg font-semibold text-white">{triage.total_processed}</p>
+          </div>
+          <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-3">
+            <p className="text-white/40">Arquivados sem IA</p>
+            <p className="text-lg font-semibold text-white">
+              {triage.llm_bypassed_count}
+              {triage.bypassed_percentage !== null && <span className="ml-1 text-[10px] text-white/40">({triage.bypassed_percentage}%)</span>}
+            </p>
+          </div>
+          <div className={`rounded-xl border p-3 ${triage.pending_tenant_review_count > 0 ? 'bg-amber-500/10 border-amber-400/30' : 'bg-white/[0.03] border-white/[0.06]'}`}>
+            <p className="text-white/40">Sem cliente, em revisão técnica</p>
+            <p className="text-lg font-semibold text-white">{triage.pending_tenant_review_count}</p>
+          </div>
+        </div>
+      )}
 
       {/* ── Summary Cards ──────────────────────────────────────────────────── */}
       {!cveLoading && summary && (
