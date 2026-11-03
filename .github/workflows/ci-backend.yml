@@ -118,12 +118,14 @@ jobs:
         test ! -e app/.env
         test ! -e /etc/ness-os/glpi-integration.env
         test ! -e /etc/ness-os/glpi-db.env
+        test ! -e /etc/ness-os/glpi-app.env
         test ! -e /etc/ness-os/zabbix-integration.env
-        trap 'rm -f -- "$env_file" app/.env; sudo rm -f /etc/ness-os/glpi-integration.env /etc/ness-os/glpi-db.env /etc/ness-os/zabbix-integration.env' EXIT
+        trap 'rm -f -- "$env_file" app/.env; sudo rm -f /etc/ness-os/glpi-integration.env /etc/ness-os/glpi-db.env /etc/ness-os/glpi-app.env /etc/ness-os/zabbix-integration.env' EXIT
         cp "$env_file" app/.env
         sudo install -d -m 755 /etc/ness-os
         sudo install -m 644 /dev/null /etc/ness-os/glpi-integration.env
-        printf '%s\n' MYSQL_ROOT_PASSWORD=ci-placeholder MYSQL_PASSWORD=ci-placeholder DB_PASSWORD=ci-placeholder | sudo tee /etc/ness-os/glpi-db.env >/dev/null
+        printf '%s\n' MYSQL_ROOT_PASSWORD=ci-placeholder MYSQL_PASSWORD=ci-placeholder | sudo tee /etc/ness-os/glpi-db.env >/dev/null
+        printf '%s\n' DB_PASSWORD=ci-placeholder | sudo tee /etc/ness-os/glpi-app.env >/dev/null
         sudo install -m 644 /dev/null /etc/ness-os/zabbix-integration.env
         bash infra/tests/test-release-compose-contract.sh
         docker compose version
@@ -133,7 +135,7 @@ jobs:
         docker compose --env-file "$env_file" \
           -f app/docker-compose.yml -f app/docker-compose.dev.yml -f app/docker-compose.tickets.yml \
           config --quiet --no-env-resolution
-        bash infra/scripts/aiops-runtime-preflight.sh --env-file "$env_file" --glpi-db-env /etc/ness-os/glpi-db.env
+        bash infra/scripts/aiops-runtime-preflight.sh --env-file "$env_file" --glpi-db-env /etc/ness-os/glpi-db.env --glpi-app-env /etc/ness-os/glpi-app.env
         bash infra/tests/test-aiops-runtime-preflight.sh
 
     - name: Verify health history and monitor

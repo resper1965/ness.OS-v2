@@ -4,7 +4,8 @@ services:
     container_name: ninf-glpi-db
     restart: unless-stopped
     # Senhas do banco ficam fora do app/.env: o Hub recebe o .env inteiro e não deve vê-las.
-    # O arquivo define MYSQL_ROOT_PASSWORD, MYSQL_PASSWORD e DB_PASSWORD (preflight confere).
+    # glpi-db.env: MYSQL_ROOT_PASSWORD e MYSQL_PASSWORD (só o banco). glpi-app.env: DB_PASSWORD
+    # (só o GLPI). A senha root não chega ao app. O preflight confere os dois arquivos.
     env_file:
       - /etc/ness-os/glpi-db.env
     environment:
@@ -26,7 +27,7 @@ services:
     depends_on:
       - glpi-db
     env_file:
-      - /etc/ness-os/glpi-db.env
+      - /etc/ness-os/glpi-app.env
     environment:
       - GLPI_LANG=pt_BR
       - DB_HOST=glpi-db

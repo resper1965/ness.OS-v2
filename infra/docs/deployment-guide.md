@@ -52,7 +52,7 @@ Antes de iniciar, garanta que o servidor possui os seguintes requisitos instalad
    - `NINF_DESKMANAGER_API_TOKEN` e `NINF_DESKMANAGER_OPERATOR_ID`: Credenciais de ticketing.
    - `NINF_EVOLUTION_API_KEY` e `NINF_WHATSAPP_NOC_GROUP_ID`: Credenciais do WhatsApp.
    - `NINF_AUTHENTIK_SECRET_KEY`: Segredo criptograficamente aleatório do Authentik.
-   - Senhas do MariaDB/GLPI: **não** vão no `.env` (o Hub recebe o arquivo inteiro). Ficam em `/etc/ness-os/glpi-db.env` (root 0600) com `MYSQL_ROOT_PASSWORD`, `MYSQL_PASSWORD` e `DB_PASSWORD`; o banco fica em rede interna própria.
+   - Senhas do MariaDB/GLPI: **não** vão no `.env` (o Hub recebe o arquivo inteiro). Ficam em `/etc/ness-os/glpi-db.env` (root 0600: `MYSQL_ROOT_PASSWORD`, `MYSQL_PASSWORD`, só o banco) e `/etc/ness-os/glpi-app.env` (`DB_PASSWORD`, só o GLPI); o banco fica em rede interna própria.
    - `NINF_DASHBOARD_BASE_URL=https://hub.ness.com.br`: origem autorizada para mutações da sessão do Hub.
    - `NINF_SESSION_COOKIE_SECURE=true`: obrigatório em produção; use `false` somente no desenvolvimento local sem HTTPS.
 

@@ -28,7 +28,9 @@ EOF
 
 # O readiness repassa o ambiente ao preflight, que lê as senhas do GLPI neste arquivo.
 export AIOPS_GLPI_DB_ENV_FILE="${tmpdir}/glpi-db.env"
-printf '%s\n' MYSQL_ROOT_PASSWORD=runner-secret-glpi-root MYSQL_PASSWORD=runner-secret-glpi-db DB_PASSWORD=runner-secret-glpi-db >"${AIOPS_GLPI_DB_ENV_FILE}"
+export AIOPS_GLPI_APP_ENV_FILE="${tmpdir}/glpi-app.env"
+printf '%s\n' MYSQL_ROOT_PASSWORD=runner-secret-glpi-root MYSQL_PASSWORD=runner-secret-glpi-db >"${AIOPS_GLPI_DB_ENV_FILE}"
+printf '%s\n' DB_PASSWORD=runner-secret-glpi-db >"${AIOPS_GLPI_APP_ENV_FILE}"
 
 cat >"${fake_bin}/docker" <<'EOF'
 #!/usr/bin/env bash

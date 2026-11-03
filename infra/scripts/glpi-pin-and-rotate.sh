@@ -6,7 +6,8 @@ umask 077
 app_dir="/opt/n-infraops/app"
 staged_compose="${1:-/tmp/docker-compose.tickets.pinned.yml}"
 live_compose="${app_dir}/docker-compose.tickets.yml"
-env_file="/etc/ness-os/glpi-db.env"  # fora do app/.env: o Hub recebe o .env inteiro
+env_file="/etc/ness-os/glpi-db.env"      # MYSQL_ROOT_PASSWORD e MYSQL_PASSWORD (só o banco)
+app_env_file="/etc/ness-os/glpi-app.env" # DB_PASSWORD (só o GLPI); ambos fora do app/.env: o Hub recebe o .env inteiro
 stamp="$(date +%Y%m%dt%H%M%S%z)"
 rollback_dir="/opt/n-infraops/change-backups/glpi-pin-${stamp}"
 expected_glpi_digest="sha256:48ec3ce559fda9eaf73c6fe2f0fc2dd382ef013f2dda14004f34ee88ec17c8b8"
@@ -15,14 +16,14 @@ expected_glpi_digest="sha256:48ec3ce559fda9eaf73c6fe2f0fc2dd382ef013f2dda14004f3
   echo "staged compose not found" >&2
   exit 2
 }
-[[ -f "${live_compose}" && -f "${env_file}" ]] || {
+[[ -f "${live_compose}" && -f "${env_file}" && -f "${app_env_file}" ]] || {
   echo "live compose or environment file not found" >&2
   exit 3
 }
 
 grep -Fq "elestio/glpi:latest@${expected_glpi_digest}" "${staged_compose}"
 if grep -Eq 'NINF_GLPI_DB_(ROOT_)?PASSWORD' "${staged_compose}"; then
-  echo "staged compose still references NINF_GLPI_DB_* (must use /etc/ness-os/glpi-db.env)" >&2
+  echo "staged compose still references NINF_GLPI_DB_* (must use /etc/ness-os/glpi-db.env and glpi-app.env)" >&2
   exit 4
 fi
 
@@ -48,6 +49,7 @@ new_db="$(openssl rand -base64 48 | tr -d '\n')"
 install -d -o root -g root -m 700 "${rollback_dir}"
 install -o root -g root -m 600 "${live_compose}" "${rollback_dir}/docker-compose.tickets.yml"
 install -o root -g root -m 600 "${env_file}" "${rollback_dir}/env"
+install -o root -g root -m 600 "${app_env_file}" "${rollback_dir}/app-env"
 docker cp ninf-glpi:/var/glpi/config/config_db.php "${rollback_dir}/config_db.php"
 chmod 0600 "${rollback_dir}/config_db.php"
 
@@ -67,6 +69,7 @@ FLUSH PRIVILEGES;
 SQL
       ' >/dev/null 2>&1 || true
     install -o root -g root -m 600 "${rollback_dir}/env" "${env_file}"
+    install -o root -g root -m 600 "${rollback_dir}/app-env" "${app_env_file}"
     install -o root -g root -m 600 "${rollback_dir}/docker-compose.tickets.yml" "${live_compose}"
     docker cp "${rollback_dir}/config_db.php" ninf-glpi:/var/glpi/config/config_db.php >/dev/null 2>&1 || true
     cd "${app_dir}"
@@ -87,11 +90,13 @@ SQL
   ' >/dev/null
 
 env_tmp="$(mktemp "$(dirname "${env_file}")/.glpi-db.env.XXXXXX")"
-grep -Ev '^(MYSQL_ROOT_PASSWORD|MYSQL_PASSWORD|DB_PASSWORD)=' "${env_file}" > "${env_tmp}"
+{ grep -Ev '^(MYSQL_ROOT_PASSWORD|MYSQL_PASSWORD)=' "${env_file}" || true; } > "${env_tmp}"
 printf 'MYSQL_ROOT_PASSWORD=%s\n' "${new_root}" >> "${env_tmp}"
 printf 'MYSQL_PASSWORD=%s\n' "${new_db}" >> "${env_tmp}"
-printf 'DB_PASSWORD=%s\n' "${new_db}" >> "${env_tmp}"
 install -o root -g root -m 600 "${env_tmp}" "${env_file}"
+{ grep -Ev '^DB_PASSWORD=' "${app_env_file}" || true; } > "${env_tmp}"
+printf 'DB_PASSWORD=%s\n' "${new_db}" >> "${env_tmp}"
+install -o root -g root -m 600 "${env_tmp}" "${app_env_file}"
 rm -f -- "${env_tmp}"
 install -o root -g root -m 600 "${staged_compose}" "${live_compose}"
 

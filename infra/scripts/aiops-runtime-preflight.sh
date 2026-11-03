@@ -5,6 +5,7 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 app_dir="${repo_root}/app"
 env_file="${AIOPS_ENV_FILE:-${app_dir}/.env}"
 glpi_db_env_file="${AIOPS_GLPI_DB_ENV_FILE:-/etc/ness-os/glpi-db.env}"
+glpi_app_env_file="${AIOPS_GLPI_APP_ENV_FILE:-/etc/ness-os/glpi-app.env}"
 compose_files=(
   "${app_dir}/docker-compose.yml"
   "${app_dir}/docker-compose.tickets.yml"
@@ -12,7 +13,7 @@ compose_files=(
 
 usage() {
   cat <<'EOF'
-Usage: infra/scripts/aiops-runtime-preflight.sh [--env-file PATH] [--glpi-db-env PATH]
+Usage: infra/scripts/aiops-runtime-preflight.sh [--env-file PATH] [--glpi-db-env PATH] [--glpi-app-env PATH]
 
 Validates the local AIOps Compose model and required environment variable
 presence without printing values, contacting production, or starting containers.
@@ -36,6 +37,11 @@ while (($#)); do
       glpi_db_env_file="$2"
       shift 2
       ;;
+    --glpi-app-env)
+      (($# >= 2)) || fail '--glpi-app-env requires a path'
+      glpi_app_env_file="$2"
+      shift 2
+      ;;
     -h|--help)
       usage
       exit 0
@@ -50,6 +56,7 @@ for compose_file in "${compose_files[@]}"; do
   [[ -r "${compose_file}" ]] || fail "Compose file is not readable: ${compose_file}"
 done
 [[ -r "${env_file}" ]] || fail "environment file is not readable: ${env_file}"
+[[ -r "${glpi_app_env_file}" ]] || fail "GLPI app environment file is not readable: ${glpi_app_env_file}"
 [[ -r "${glpi_db_env_file}" ]] || fail "GLPI database environment file is not readable: ${glpi_db_env_file}"
 
 mapfile -t required_variables < <(
@@ -100,9 +107,13 @@ fi
 # GLPI database credentials live only in the GLPI-private file. The Hub receives the whole
 # app/.env, so they must be absent there (ADR 0020 follow-up, Hub <-> GLPI isolation).
 missing_glpi=()
-for variable in MYSQL_ROOT_PASSWORD MYSQL_PASSWORD DB_PASSWORD; do
+for variable in MYSQL_ROOT_PASSWORD MYSQL_PASSWORD; do
   dotenv_has_nonempty_value "${variable}" "${glpi_db_env_file}" || missing_glpi+=("${variable}")
 done
+dotenv_has_nonempty_value DB_PASSWORD "${glpi_app_env_file}" || missing_glpi+=(DB_PASSWORD)
+if grep -Eq '^[[:space:]]*(export[[:space:]]+)?MYSQL_ROOT_PASSWORD=' "${glpi_app_env_file}"; then
+  fail "MYSQL_ROOT_PASSWORD must not be in the GLPI app environment file ${glpi_app_env_file}"
+fi
 ((${#missing_glpi[@]} == 0)) || fail "missing GLPI database variables: ${missing_glpi[*]}"
 for variable in NINF_GLPI_DB_ROOT_PASSWORD NINF_GLPI_DB_PASSWORD; do
   if grep -Eq "^[[:space:]]*(export[[:space:]]+)?${variable}=" "${env_file}"; then
