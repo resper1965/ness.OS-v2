@@ -13,7 +13,11 @@ Session::callAsSystem(function () use ($plan, $DB) {
         $hostid = $gap['host_id'];
         $name = $gap['name'];
         $role = $gap['tags']['role'] ?? '';
-        if ($role === 'firewall') $type = NetworkEquipment::class;
+        if (isset($gap['itemtype'])) {
+            // classificação explícita do plano revisado (tags/nomes do Zabbix nem sempre bastam)
+            if (!in_array($gap['itemtype'], [Computer::class, NetworkEquipment::class], true)) throw new RuntimeException('Unsupported itemtype');
+            $type = $gap['itemtype'];
+        } elseif ($role === 'firewall') $type = NetworkEquipment::class;
         elseif ($role === 'virtual-server' || str_contains($name, '[ Servidor ') || $hostid === '10972') $type = Computer::class;
         else { echo json_encode(['skipped' => $hostid, 'reason' => 'unclassified']).PHP_EOL; continue; }
         $marker = 'Zabbix Host ID: '.$hostid;
