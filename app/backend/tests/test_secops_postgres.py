@@ -185,3 +185,97 @@ async def test_archived_sample_real_db(sessions):
 
     assert sorted(i["wazuh_rule_id"] for i in allr["items"]) == ["a1", "a2"]
     assert [i["wazuh_rule_id"] for i in one["items"]] == ["a1"]
+
+
+async def test_frequency_is_persisted_and_scoped_per_tenant(sessions):
+    async with sessions() as s:
+        s.add(
+            SocDecision(
+                wazuh_rule_id="100",
+                customer_id="cavan",
+                classification="LOW_PRIORITY",
+                confidence=0.5,
+                summary="x",
+                action_taken="ARCHIVE_NO_LLM",
+                freq_key=secops._freq_key("cavan", {}, "001", "100"),
+            )
+        )
+        await s.commit()
+    async with sessions() as s:
+        same = secops._freq_key("cavan", {}, "001", "100")
+        other = secops._freq_key("unimed", {}, "001", "100")  # mesmo agente e regra
+        assert (
+            await secops._recent_count(s, same) == 1
+        )  # sobrevive a novo processo/sessão
+        assert await secops._recent_count(s, other) == 0  # não soma entre tenants
+
+
+async def test_frequency_window_excludes_old_rows(sessions):
+    from datetime import UTC, datetime, timedelta
+
+    key = secops._freq_key("cavan", {}, "001", "7")
+    async with sessions() as s:
+        for age in (10, 3600):  # segundos: dentro e fora da janela de 5 min
+            s.add(
+                SocDecision(
+                    wazuh_rule_id="7",
+                    classification="LOW_PRIORITY",
+                    confidence=0.5,
+                    summary="x",
+                    action_taken="ARCHIVE_NO_LLM",
+                    freq_key=key,
+                    created_at=datetime.now(UTC) - timedelta(seconds=age),
+                )
+            )
+        await s.commit()
+    async with sessions() as s:
+        assert await secops._recent_count(s, key) == 1
+        assert await secops._recent_count(s, None) == 0
+
+
+async def test_burst_with_same_freq_key_counts_in_series(sessions, monkeypatch):
+    await _map(sessions, [("cavan", "g-cavan")])
+    seen = []
+    real = secops._recent_count
+
+    async def spy(db, key):
+        n = await real(db, key)
+        seen.append(n)
+        await asyncio.sleep(0.2)  # abre a corrida entre a contagem e o commit
+        return n
+
+    async def no_intel(_):
+        return {"abuseipdb": None, "virustotal": None}
+
+    monkeypatch.setattr(secops, "_recent_count", spy)
+    monkeypatch.setattr("app.integrations.n8n.notify_soc_triage_decision", lambda p: {})
+    monkeypatch.setattr("app.integrations.threat_intel.enrich_ip", no_intel)
+    monkeypatch.setattr("app.integrations.threat_intel.enrich_hash", no_intel)
+
+    async def db():
+        async with sessions() as s:
+            yield s
+
+    app.dependency_overrides[get_db] = db
+    app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(
+        id=7, role=UserRole.soc, tenant_id=None
+    )
+    try:
+        base = {
+            "manager": {"name": "m1"},
+            "agent": {"id": "001", "name": "pc", "group": ["g-cavan"]},
+            "rule": {"id": "555", "level": 3},
+        }
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://t"
+        ) as c:
+            rs = await asyncio.gather(
+                *[
+                    c.post("/api/secops/triage", json={**base, "id": f"1.{i}"})
+                    for i in range(4)
+                ]
+            )
+    finally:
+        app.dependency_overrides.clear()
+    assert [r.status_code for r in rs] == [200] * 4, [r.text for r in rs]
+    assert sorted(seen) == [0, 1, 2, 3]  # cada alerta enxerga os anteriores

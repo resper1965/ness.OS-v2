@@ -27,7 +27,11 @@ async def test_soc_decision_must_be_persisted_before_dispatch(
     async def resolved(db, payload):
         return "cavan"
 
+    async def no_recent(db, key):
+        return 0
+
     monkeypatch.setattr(secops, "_resolve_tenant", resolved)
+    monkeypatch.setattr(secops, "_recent_count", no_recent)
     monkeypatch.setattr(secops, "_extract_ips_and_hashes", lambda payload: ([], []))
     monkeypatch.setattr(
         secops._triage_engine,

@@ -14,7 +14,6 @@ Regras de Decisão:
 from __future__ import annotations
 
 import logging
-import time
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any
@@ -52,22 +51,8 @@ CRITICAL_ASSET_KEYWORDS: dict[str, int] = {
     "gateway": 15,
 }
 
-# Armazenamento em memória para deduplicação/frequência temporal (fallback quando Redis indisponível)
-_IN_MEMORY_FREQUENCY: dict[str, list[float]] = {}
-_WINDOW_SECONDS = 300  # Janela de 5 minutos
-
-
-def _get_frequency_count(fingerprint: str, now: float) -> int:
-    """Calcula a frequência do fingerprint nos últimos N segundos."""
-    if fingerprint not in _IN_MEMORY_FREQUENCY:
-        _IN_MEMORY_FREQUENCY[fingerprint] = []
-
-    timestamps = _IN_MEMORY_FREQUENCY[fingerprint]
-    # Filtra apenas timestamps dentro da janela
-    valid_timestamps = [t for t in timestamps if now - t <= _WINDOW_SECONDS]
-    valid_timestamps.append(now)
-    _IN_MEMORY_FREQUENCY[fingerprint] = valid_timestamps
-    return len(valid_timestamps)
+# Janela de recorrência; a contagem vem do banco (SocDecision.freq_key), não do processo
+FREQUENCY_WINDOW_SECONDS = 300
 
 
 class TriageEngine:
@@ -82,6 +67,7 @@ class TriageEngine:
         alert_data: dict[str, Any],
         threat_intel: dict[str, Any] | None = None,
         fingerprint: str = "default_fp",
+        frequency_count: int = 1,
     ) -> TriageResult:
         """Calcula o score de risco (0-100) multifatorial.
 
@@ -93,7 +79,6 @@ class TriageEngine:
         """
         reasons: list[str] = []
         score = 0
-        now = time.time()
 
         # 1. Wazuh Level (0 a 15) -> Base score (até 60 pontos)
         wazuh_level = int(alert_data.get("level", alert_data.get("rule_level", 0)))
@@ -126,7 +111,7 @@ class TriageEngine:
             reasons.append(f"Ativo Crítico detectado ({hostname}) (+{asset_score} pts)")
 
         # 3. Frequência / Recorrência Temporal
-        freq_count = _get_frequency_count(fingerprint, now)
+        freq_count = max(1, frequency_count)
         if freq_count > 1:
             freq_score = min(25, (freq_count - 1) * 5)
             score += freq_score

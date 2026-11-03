@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 import math
@@ -14,6 +15,9 @@ logger = logging.getLogger(__name__)
 settings = get_settings()
 
 _TIMEOUT = httpx.Timeout(connect=10.0, read=60.0, write=10.0, pool=5.0)
+_DEADLINE = (
+    45.0  # prazo total da chamada ao modelo; o atendimento não espera além disso
+)
 
 
 class TriageResult(TypedDict):
@@ -56,20 +60,28 @@ _WAZUH_FIELDS = (
 _CLASSES = ("FP", "LOW", "MED", "HIGH", "CRIT")
 
 
+class SignalRejected(ValueError):
+    """Campo do resultado do modelo fora do contrato; carrega o campo e o valor recebido."""
+
+    def __init__(self, field: str, value: Any):
+        super().__init__(f"invalid {field}")
+        self.field, self.value = field, value
+
+
 def _validated(data: Any) -> TriageResult:
     """Reject anything the schema should have guaranteed; caller falls back."""
     if not isinstance(data, dict):
-        raise ValueError("triage is not an object")
+        raise SignalRejected("result", data)
     conf = data.get("confidence")
     if data.get("classification") not in _CLASSES:
-        raise ValueError("invalid classification")
+        raise SignalRejected("classification", data.get("classification"))
     if isinstance(conf, bool) or not isinstance(conf, int | float):
-        raise ValueError("invalid confidence")
+        raise SignalRejected("confidence", conf)
     if not math.isfinite(conf) or not 0.0 <= conf <= 1.0:  # json.loads accepts NaN
-        raise ValueError("confidence out of range")
+        raise SignalRejected("confidence", conf)
     for key in ("summary", "action_taken"):
         if not isinstance(data.get(key), str) or not data[key].strip():
-            raise ValueError(f"invalid {key}")
+            raise SignalRejected(key, data.get(key))
     # Só os quatro campos; action_taken cabe na coluna (String(255)).
     return {
         "classification": data["classification"],
@@ -93,6 +105,16 @@ def wazuh_ai_request(alert: dict[str, Any], tenant: str) -> AIRequestV1:
         observed_at=_observed_at(alert.get("timestamp")),
         evidence=evidence,
     )
+
+
+def _manual_fallback(alert: dict[str, Any], reason: str) -> TriageResult:
+    """Modelo indisponível ou resposta rejeitada: o atendimento segue, para triagem manual."""
+    return {
+        "classification": "HIGH",
+        "confidence": 0.5,
+        "summary": f"Erro na triagem automática: {reason}. Alerta original: {alert.get('description', 'Sem descrição')}",
+        "action_taken": "Criar ticket de triagem manual",
+    }
 
 
 async def triage_wazuh_alert(
@@ -131,13 +153,16 @@ async def triage_wazuh_alert(
     usage: dict[str, Any] = {}
     outcome = "error"
     try:
-        text_response, usage = await achat_completion(
-            _SOC_SYSTEM_PROMPT,
-            user,
-            json_schema=schema,
-            temperature=0.2,
-            max_tokens=2048,
-            timeout=_TIMEOUT,
+        text_response, usage = await asyncio.wait_for(
+            achat_completion(
+                _SOC_SYSTEM_PROMPT,
+                user,
+                json_schema=schema,
+                temperature=0.2,
+                max_tokens=2048,
+                timeout=_TIMEOUT,
+            ),
+            timeout=_DEADLINE,
         )
         triage_data = _validated(json.loads(text_response))
         outcome = "ok"
@@ -147,13 +172,25 @@ async def triage_wazuh_alert(
             triage_data.get("confidence"),
         )
         return triage_data
+    except SignalRejected as exc:
+        logger.error(
+            "Sinal %s: resultado do modelo rejeitado | campo=%s valor=%s",
+            ai_request.source_event_id,
+            exc.field,
+            # texto livre do modelo pode ecoar dado do alerta: só tipo e tamanho
+            (
+                repr(exc.value)[:80]
+                if exc.field in ("classification", "confidence")
+                else f"<{type(exc.value).__name__} len={len(str(exc.value))}>"
+            ),
+        )
+        return _manual_fallback(alert_payload, "SignalRejected")
     except Exception as exc:
-        logger.error("Falha ao realizar triagem via LLM: %s", type(exc).__name__)
-        return {
-            "classification": "HIGH",
-            "confidence": 0.5,
-            "summary": f"Erro na triagem automática: {type(exc).__name__}. Alerta original: {alert_payload.get('description', 'Sem descrição')}",
-            "action_taken": "Criar ticket de triagem manual",
-        }
+        logger.error(
+            "Sinal %s: falha na triagem via LLM: %s",
+            ai_request.source_event_id,
+            type(exc).__name__,
+        )
+        return _manual_fallback(alert_payload, type(exc).__name__)
     finally:
         log_ai_call("soc_triage", outcome, started, usage)

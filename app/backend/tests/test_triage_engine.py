@@ -67,7 +67,7 @@ def test_triage_frequency_penalty():
     score1 = res1.risk_score
 
     # Segunda ocorrência
-    res2 = engine.evaluate_alert(alert_data, fingerprint=fp)
+    res2 = engine.evaluate_alert(alert_data, fingerprint=fp, frequency_count=2)
     score2 = res2.risk_score
 
     assert score2 > score1
