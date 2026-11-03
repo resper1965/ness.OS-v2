@@ -37,3 +37,16 @@ Autorização do Ricardo em 03/11 para `glpi-hub-link-tickets.php` só nestes 5 
 Rollback: excluir só os 498 ids de `links-created.jsonl` (ids de `glpi_items_tickets`), depois de provar que cada um segue sem edição posterior. Outro processo cria vínculos no mesmo intervalo (ids 103828–103830, 103936–103937, 104228 não são nossos): nunca filtrar por faixa de id e nunca restaurar o dump inteiro.
 
 Falta: 3 incidentes do 10988 sem ticket (replay), e o 10997 (entidade).
+
+## Host 10997 (03/11, entidade confirmada pelo Ricardo: Nova Energia)
+
+| Passo | Resultado |
+| --- | --- |
+| Criação | NetworkEquipment **158**, entidade 9, `is_recursive=0` (`glpi-hub-complete-inventory.php`, com `itemtype` explícito); segunda execução criou 0. `callAsSystem` coberto pela exceção da onda 1 estendida pelo Ricardo a este host |
+| Backup | `glpi_networkequipments` + `glpi_logs` em `/opt/n-infraops/rollback/glpi-t06-10997-20261103/` (id máx. antes: 157); rollback só pelo id 158 |
+| Hub | `cmdb_sync --apply`: 1 ativo mapeado, 11 incidentes ligados |
+| Vínculos de ticket | 11 elegíveis → 11 criados, 0 fora da entidade 9; segunda passada 0 |
+
+**Duplicidade de aparelho (decisão do Ricardo: manter).** O serial `system.hw.serialnumber` do 10997 (`FGT60FTK2109B0AR`) é o mesmo do host 10901 (Link Mundivox), que no GLPI já é o NetworkEquipment 131. O GLPI trata um ativo por host do Zabbix (um por link), então o 158 segue o padrão; um Fortigate com dois links conta como dois ativos. Decidir o modelo (um ativo por aparelho ou por link) numa onda própria, depois de gravar os seriais.
+
+**Seriais:** os 6 ativos novos (111–114, 157, 158) estão sem serial no GLPI. Fonte no Zabbix: `system.hw.serialnumber` só nos firewalls (157: `FG200E4Q17909933`, par HA `…945`; 158: `FGT60FTK2109B0AR`); os 4 servidores não têm serial no Zabbix. O usuário do Hub não pode editar ativo (`ERROR_GLPI_UPDATE`); gravar exige nova exceção de `callAsSystem`.
