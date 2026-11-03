@@ -9,7 +9,7 @@ Só leitura (`docker inspect`, nomes de variáveis; nenhum valor foi lido ou imp
 3. **Risco do ADR 0020 (aceito em 28/10) continua:** App-Token do Hub + `user_token` da 106 abre sessão a partir do Hub. O `NINF_GLPI_USER_TOKEN` do Hub é outro (conta do Hub), mas o achado 1 torna o 0020 secundário: quem lê o ambiente do Hub já tem mais do que a 106 daria.
 4. Contêineres sem a variável: `ninf-glpi`, gateway, `caddy`, `n8n`, `authentik-*`, `postgres`, `redis`, `evolution`, `psono`.
 
-## Proposta (recomendo A)
+## Proposta (recomendo A) — histórico: aplicada em 03/11, ver a última seção
 
 **A. Tirar as duas variáveis do ambiente do Hub e separar redes.**
 - Mover `NINF_GLPI_DB_ROOT_PASSWORD` e `NINF_GLPI_DB_PASSWORD` do `app/.env` para `/etc/ness-os/glpi-db.env` (root 0600), lido só pelos serviços `glpi-db` e `glpi`.
@@ -20,7 +20,7 @@ Só leitura (`docker inspect`, nomes de variáveis; nenhum valor foi lido ou imp
 - Rede `glpi-db-net` interna, só com `glpi-db` e `glpi` (e o necessário ao backup). O Hub fica em `ninf-net` e fala com o GLPI pela API.
 - Rotacionar as duas senhas depois, porque estiveram no ambiente do Hub, com o rotator já corrigido.
 - Rollback: recolocar as variáveis no `.env`, rede anterior e compose anterior; recriação dos contêineres do GLPI (~1–2 min, fora do backup das 23:00 -03).
-- Custo: mudança em produção no compose, no `.env`, nos dois scripts e no banco. **Pede OK do Ricardo e janela curta; não aplicado.** Os três ajustes de código/script entram em PR com teste antes de mexer em produção.
+- Custo: mudança em produção no compose, no `.env`, nos dois scripts e no banco. (Histórico: pedia OK do Ricardo; aprovado e aplicado em 03/11.) Os três ajustes de código/script entram em PR com teste antes de mexer em produção.
 
 **B. Só rede (sem mexer no `.env`).** Não resolve o achado 1: a senha continua no ambiente do Hub.
 
