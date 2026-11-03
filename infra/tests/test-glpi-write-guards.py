@@ -9,6 +9,7 @@ GUARDED_SCRIPTS = (
     "infra/scripts/glpi-hub-default-owners.php",
     "infra/scripts/glpi-hub-client-check.php",
     "infra/scripts/zabbix-hub-rollout.php",
+    "infra/scripts/zabbix-hub-recovery.php",
 )
 
 
