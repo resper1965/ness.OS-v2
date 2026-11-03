@@ -706,6 +706,13 @@ async def triage_alert(
     # Pendente de cliente conta só dentro do próprio cluster, nunca com outro tenant.
     freq_key = _freq_key(tenant, payload, agent_id, rule_id)
     fingerprint = freq_key or f"{tenant}:{agent_id}:{rule_id}"
+    if freq_key:
+        # Segura até o commit: surto com a mesma chave conta em série (cada um vê o
+        # anterior). Sempre depois do lock do dedup_key, então não forma ciclo.
+        await db.execute(
+            text("SELECT pg_advisory_xact_lock(:k)"),
+            {"k": int.from_bytes(bytes.fromhex(freq_key)[8:16], "big", signed=True)},
+        )
     recent = await _recent_count(db, freq_key)
 
     alert_data, threat_intel = _triage_input(payload, enriched_data)
@@ -856,9 +863,9 @@ def _freq_key(
 
     Pendente sem cluster/manager não tem escopo seguro (agent_id é local ao Wazuh de
     cada cliente): sem chave, a frequência não soma nada.
-    ponytail: dois alertas concorrentes com a mesma chave podem ler a mesma contagem
-    (só o score subestima; o atendimento não depende dele). Para exatidão, advisory
-    lock por freq_key antes da contagem.
+    ponytail: o lock por chave dura até o commit (inclui a chamada ao modelo), então
+    um surto da mesma regra/agente é processado em série. Se virar gargalo, gravar
+    a decisão antes do modelo e liberar o lock ali.
     """
     cluster = (payload.get("cluster") or {}).get("name") or (
         payload.get("manager") or {}

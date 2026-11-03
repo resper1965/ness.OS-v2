@@ -231,3 +231,51 @@ async def test_frequency_window_excludes_old_rows(sessions):
     async with sessions() as s:
         assert await secops._recent_count(s, key) == 1
         assert await secops._recent_count(s, None) == 0
+
+
+async def test_burst_with_same_freq_key_counts_in_series(sessions, monkeypatch):
+    await _map(sessions, [("cavan", "g-cavan")])
+    seen = []
+    real = secops._recent_count
+
+    async def spy(db, key):
+        n = await real(db, key)
+        seen.append(n)
+        await asyncio.sleep(0.2)  # abre a corrida entre a contagem e o commit
+        return n
+
+    async def no_intel(_):
+        return {"abuseipdb": None, "virustotal": None}
+
+    monkeypatch.setattr(secops, "_recent_count", spy)
+    monkeypatch.setattr("app.integrations.n8n.notify_soc_triage_decision", lambda p: {})
+    monkeypatch.setattr("app.integrations.threat_intel.enrich_ip", no_intel)
+    monkeypatch.setattr("app.integrations.threat_intel.enrich_hash", no_intel)
+
+    async def db():
+        async with sessions() as s:
+            yield s
+
+    app.dependency_overrides[get_db] = db
+    app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(
+        id=7, role=UserRole.soc, tenant_id=None
+    )
+    try:
+        base = {
+            "manager": {"name": "m1"},
+            "agent": {"id": "001", "name": "pc", "group": ["g-cavan"]},
+            "rule": {"id": "555", "level": 3},
+        }
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://t"
+        ) as c:
+            rs = await asyncio.gather(
+                *[
+                    c.post("/api/secops/triage", json={**base, "id": f"1.{i}"})
+                    for i in range(4)
+                ]
+            )
+    finally:
+        app.dependency_overrides.clear()
+    assert [r.status_code for r in rs] == [200] * 4, [r.text for r in rs]
+    assert sorted(seen) == [0, 1, 2, 3]  # cada alerta enxerga os anteriores
