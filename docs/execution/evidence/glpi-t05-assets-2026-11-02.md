@@ -24,6 +24,19 @@ O plano de entrega GLPI (linha 19) proíbe `callAsSystem` para contornar direito
 
 O timer do `cmdb_sync` já tinha ligado os três: assets Hub 262, 261 e 263 (`alupar`) com `glpi_item_id` 108, 109 e 110; incidentes com `asset_id`: 884 (10983), 575 (10984), 30 (10987). Nenhum `--apply` manual necessário. Restam 510 incidentes sem ativo, em outros hosts (10985, 10988, 10996, 10991, 10997 …), assunto da T06.
 
-## Vínculos de ticket no GLPI — aberto (03/11)
+## Vínculos de ticket no GLPI (03/11)
 
-A T05 só fecha com os vínculos `Item_Ticket` elegíveis reparados, readback cruzado e segunda aplicação sem novos vínculos. Medido em leitura: `glpi_items_tickets` tem 22 links no Computer 108, 23 no 109 e 0 no 110; no Hub, 874 / 560 / 30 incidentes dos hosts 10983 / 10984 / 10987 têm ticket. Reparo pendente: `glpi-hub-link-tickets.php` usa `callAsSystem` (a exceção do Ricardo cobre só a criação dos 3 ativos), então precisa de novo OK ou de um caminho pela identidade de manutenção.
+Decisão do Ricardo em 03/11: autorizar `glpi-hub-link-tickets.php` só para os 3 ativos, como segunda exceção registrada ao `callAsSystem` (a primeira foi a criação). Ondas seguintes (T06) voltam à regra do plano.
+
+| Passo | Resultado |
+| --- | --- |
+| Antes (leitura) | 22 links no Computer 108, 23 no 109, 0 no 110; no Hub, 1464 incidentes com ticket nos 3 hosts |
+| Plano | 1419 elegíveis (entidade 1, marcador `[n.infraops:<fingerprint>]` no nome, sem vínculo e não fechado); 45 já vinculados, pulados; 0 excluídos, 0 sem ticket no GLPI |
+| Backup | `glpi_items_tickets` em `/opt/n-infraops/rollback/glpi-t05-20261102/` (id máx. antes: 101811) |
+| Aplicação | lote de 50, depois 400 + 400 + 400 + 169, contagem antes/depois: 1419 criados, 0 erros |
+| Segunda aplicação | 0 criados |
+| Readback cruzado | Computer 108 = 874, 109 = 560, 110 = 30 vínculos, iguais aos incidentes com ticket do Hub; 0 fora da entidade 1; 0 com entidade do ticket diferente da do ativo |
+
+Rollback: excluir só os 1419 ids de `links-created-ids.txt` (ao lado do dump, sha256 `14a95115…`), e só depois de provar que cada um continua sem edição posterior. **Não** usar `id > 101811` como filtro: em 03/11 havia 1426 linhas acima desse id, 7 delas criadas por outro processo depois da execução. Nunca restaurar o dump inteiro.
+
+**T05 fechada.** Restam 510 incidentes sem ativo em outros hosts (10985, 10988, 10996, 10991, 10997 …), assunto da T06.
