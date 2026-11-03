@@ -29,3 +29,14 @@ Só leitura (`docker inspect`, nomes de variáveis; nenhum valor foi lido ou imp
 ## Verificação (Step 4)
 
 Só vale **depois de recriar** `ninf-api`, `ninf-worker-alerts` e `ninf-worker-ml` com o `.env` novo (inspecionar contêiner antigo não prova nada): `docker inspect` sem as duas variáveis; `grep -c GLPI_DB app/.env` = 0 também **depois** da rotação; `getent hosts glpi-db` a partir do `ninf-api` sem resolver; preflight de release passa; GLPI responde (`/apirest.php` interno 200, UI 302 para o SSO); `cmdb_sync` dry-run funciona; gateway de manutenção segue lendo o ID 14.
+
+## Aplicado em produção (03/11, 17:5x -03)
+
+Proposta A aplicada após #140 (`f0b0c75`). Backup antes: `/opt/n-infraops/change-backups/glpi-isolation-*/` (`.env` do app e da release, compose, `config_db.php`, dump `glpi.sql.gz`). Rollback automático por `trap ERR` no script de aplicação (não ativou).
+
+Resultado verificado:
+- `ninf-glpi-db` só em `app_glpi-db-net` (interna); `ninf-glpi` em `glpi-db-net`, `ninf-net` e `glpi-maintenance-private`; gateway de manutenção `running`.
+- `ninf-api`, `ninf-worker-alerts`, `ninf-worker-ml` recriados: `healthy`, **0** variáveis de senha do GLPI no ambiente, e o nome `glpi-db` **não resolve** a partir do Hub.
+- GLPI: 466 tabelas, HTTP interno 200, público 302; API do Hub → GLPI 200; `cmdb_sync` dry-run ok.
+- `NINF_GLPI_DB_*` removidas de `app/.env` e de `releases/521247b…/app/.env`; novas senhas (rotacionadas) em `/etc/ness-os/glpi-db.env` e `glpi-app.env` (root 0600).
+- Releases antigas ainda guardam `.env` com as senhas **antigas** (já inválidas após a rotação).
