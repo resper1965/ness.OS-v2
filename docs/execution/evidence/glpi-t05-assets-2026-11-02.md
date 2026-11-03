@@ -18,6 +18,6 @@ Rollback: só os ids 108–110, nunca o dump inteiro (apagaria escritas posterio
 
 ## Exceção à regra do plano
 
-O plano de entrega GLPI (linha 19) proíbe `callAsSystem` para contornar direitos. A criação o usou depois que a conta do Hub foi negada (`ERROR_GLPI_ADD`). Foi proposta ao Ricardo com esse custo declarado ("privilégio total"), e ele escolheu a opção em 02/11, mas o conflito com a regra do plano não foi apontado na hora. Decisão sobre manter os três registros ou refazê-los por identidade de manutenção restrita: pendente do Ricardo.
+O plano de entrega GLPI (linha 19) proíbe `callAsSystem` para contornar direitos. A criação o usou depois que a conta do Hub foi negada (`ERROR_GLPI_ADD`). Foi proposta ao Ricardo com esse custo declarado ("privilégio total"), e ele escolheu a opção em 02/11, mas o conflito com a regra do plano não foi apontado na hora. Decisão do Ricardo em 03/11: **manter os três registros, com a exceção registrada aqui**. Aplica-se só a este lote de 3 ativos; as ondas seguintes (T06) voltam à regra do plano.
 
 Falta: `cmdb_sync --apply --hostids …` (cria os `Asset` no Hub e liga os incidentes históricos) — decisão do Ricardo.
