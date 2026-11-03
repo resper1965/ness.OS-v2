@@ -26,7 +26,7 @@ Session::callAsSystem(function () use ($plan, $DB) {
         if ($found) continue;
         $item = new $type();
         $input = ['name' => $name, 'entities_id' => (int)$gap['entity'], 'is_recursive' => 0,
-                  'comment' => $marker."\nSource: Zabbix monitored identity, reconciled 2026-09-08. Hardware inventory pending."];
+                  'comment' => $marker."\nSource: Zabbix monitored identity, reconciled ".date('Y-m-d').". Hardware inventory pending."];
         $id = $item->add($input);
         if (!$id) throw new RuntimeException('GLPI create failed for '.$hostid);
         echo json_encode(['host_id' => $hostid, 'itemtype' => $type, 'id' => $id, 'entity' => $gap['entity']]).PHP_EOL;
