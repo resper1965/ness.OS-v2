@@ -422,6 +422,7 @@ def test_archived_sample_returns_projected_rows_for_soc(
         "customer_id": "cavan",
         "summary": "s",
         "created_at": datetime.now(UTC),
+        "raw_alert": {"rule": {"id": "1"}},
     }
     result = MagicMock()
     result.mappings.return_value.all.return_value = [row]
@@ -432,11 +433,11 @@ def test_archived_sample_returns_projected_rows_for_soc(
     ).json()
 
     assert data["total"] == 1 and data["items"][0]["id"] == 5
+    assert data["items"][0]["raw_alert"] == {"rule": {"id": "1"}}
     stmt = persisted_triage_stats_database.execute.call_args.args[0]
     compiled = stmt.compile()
     assert "ARCHIVE_NO_LLM" in compiled.params.values()  # só arquivados
     assert "cavan" in compiled.params.values()  # escopo do cliente pedido
-    assert "raw_alert" not in str(stmt)  # não arrasta o JSONB
 
 
 def test_archived_sample_is_closed_to_tenant_users():

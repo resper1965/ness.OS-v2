@@ -624,6 +624,9 @@ async def archived_sample(
 ) -> dict[str, Any]:
     """Amostra aleatória dos alertas arquivados sem LLM, para a revisão semanal da política SOC.
 
+    Inclui `raw_alert` (evidência original) para o analista julgar o arquivamento; por isso
+    é restrito a NOC/SOC.
+
     ponytail: ORDER BY random() varre a janela; ok no volume semanal. Se a tabela
     passar de alguns milhões de linhas, amostrar por id aleatório dentro da janela.
     """
@@ -635,6 +638,7 @@ async def archived_sample(
             SocDecision.customer_id,
             SocDecision.summary,
             SocDecision.created_at,
+            SocDecision.raw_alert,
         )
         .where(
             SocDecision.action_taken == "ARCHIVE_NO_LLM",
