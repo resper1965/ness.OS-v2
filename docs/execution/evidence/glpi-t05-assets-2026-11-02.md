@@ -37,6 +37,6 @@ Decisão do Ricardo em 03/11: autorizar `glpi-hub-link-tickets.php` só para os 
 | Segunda aplicação | 0 criados |
 | Readback cruzado | Computer 108 = 874, 109 = 560, 110 = 30 vínculos, iguais aos incidentes com ticket do Hub; 0 fora da entidade 1; 0 com entidade do ticket diferente da do ativo |
 
-Rollback: excluir só os links com id > 101811 criados por esta execução e tipo `Computer` 108–110, depois de provar que não receberam edição posterior. Nunca restaurar o dump inteiro.
+Rollback: excluir só os 1419 ids de `links-created-ids.txt` (ao lado do dump, sha256 `14a95115…`), e só depois de provar que cada um continua sem edição posterior. **Não** usar `id > 101811` como filtro: em 03/11 havia 1426 linhas acima desse id, 7 delas criadas por outro processo depois da execução. Nunca restaurar o dump inteiro.
 
 **T05 fechada.** Restam 510 incidentes sem ativo em outros hosts (10985, 10988, 10996, 10991, 10997 …), assunto da T06.
