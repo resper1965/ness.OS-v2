@@ -52,3 +52,16 @@ Falta: 3 incidentes do 10988 sem ticket (replay). O 10997 foi resolvido depois (
 **Seriais:** os 6 ativos novos (111–114, 157, 158) estão sem serial no GLPI. Fonte no Zabbix: `system.hw.serialnumber` só nos firewalls (157: `FG200E4Q17909933`, par HA `…945`; 158: `FGT60FTK2109B0AR`); os 4 servidores não têm serial no Zabbix. O usuário do Hub não pode editar ativo (`ERROR_GLPI_UPDATE`); gravar exige nova exceção de `callAsSystem`.
 
 **Rollback do 10997 (só estes ids, nunca o dump inteiro):** (1) excluir os 11 vínculos 104354–104364 se ainda não tiverem edição posterior; (2) excluir o NetworkEquipment 158 se não tiver edição posterior nem vínculos de outros processos (o 104368 existe: tratar antes); (3) no Hub, limpar `glpi_itemtype`/`glpi_item_id` do ativo e dos incidentes do host 10997 e das tabelas filhas, como na onda 1.
+
+## Seriais dos Fortigates (03/11, OK do Ricardo)
+
+Autorização do Ricardo para gravar serial só nos dois Fortigates (quarta exceção ao `callAsSystem`, restrita a este lote; o usuário do Hub não edita ativo, `ERROR_GLPI_UPDATE`). Script: `infra/scripts/glpi-hub-set-serials.php` (plano fixo, confere o marcador `Zabbix Host ID`, não sobrescreve serial existente).
+
+| Ativo | Serial gravado | Fonte |
+| --- | --- | --- |
+| NetworkEquipment 157 (Alupar, 10988) | `FG200E4Q17909933` | Zabbix `system.hw.serialnumber` (histórico: valor único em 13 leituras) |
+| NetworkEquipment 158 (Nova Energia, 10997) | `FGT60FTK2109B0AR` | idem (7 leituras; o mesmo serial vem do host 10901) |
+
+Backup: `glpi_networkequipments` + `glpi_logs` e `before.tsv` (serial `NULL` nos dois) em `/opt/n-infraops/rollback/glpi-t06-serials-20261103/`. Segunda execução: 2 pulados. Rollback: `serial = NULL` só nos ids 157 e 158, se não houver edição posterior.
+
+Sem serial no Zabbix: Computers 111–114 (servidores). O 131 (Nova Energia, mesmo aparelho do 158) segue sem serial, o que facilita achar a duplicidade ao decidir o modelo de ativos.
