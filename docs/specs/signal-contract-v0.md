@@ -31,8 +31,8 @@ Lote (OT): acrescenta `batch_id` estável, `rules_version`, intervalo coberto e 
    Em produção tem 9 vínculos `wazuh` desde 03/11 ([roteiro](../../infra/docs/runbooks/wazuh.md)); nenhum fluxo
    a lê em produção ainda. Grupo novo precisa de vínculo antes de enviar alertas.
 3. **Atendimento independe do score e do modelo.** A política SOC decide quais sinais
-   exigem atendimento. Provisório: severidade de origem ≥ 12
-   (`NINF_SOC_ATTENDANCE_MIN_LEVEL`), a substituir pela política aprovada. Abaixo do piso,
+   exigem atendimento ([política aprovada em 03/11](soc-attendance-policy.md)): severidade de
+   origem ≥ 12 (`NINF_SOC_ATTENDANCE_MIN_LEVEL`). Abaixo do piso,
    o score continua decidindo, como antes. Severidade ausente ou não numérica não é
    rebaixada: o sinal é atendido. Falha da IA não bloqueia o despacho.
 4. **Idempotência:** chave inclui `tenant_id`, `source_id` e identificador do evento.
@@ -45,5 +45,5 @@ Lote (OT): acrescenta `batch_id` estável, `rules_version`, intervalo coberto e 
 
 ## Aberto
 
-Nomes finais; política SOC de atendimento; duração da janela, banda, capacidade e
+Nomes finais; prazos de resposta por nível (SLA, T08); duração da janela, banda, capacidade e
 retenção OT (spec v2, §12).

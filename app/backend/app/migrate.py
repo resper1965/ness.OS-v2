@@ -81,6 +81,8 @@ async def run_migrations():
             "ALTER TABLE n_secops_soc_decisions ADD COLUMN IF NOT EXISTS dedup_key VARCHAR(64);",
             "CREATE UNIQUE INDEX IF NOT EXISTS uq_soc_decisions_dedup "
             "ON n_secops_soc_decisions (dedup_key) WHERE dedup_key IS NOT NULL;",
+            "CREATE INDEX IF NOT EXISTS ix_soc_decisions_action_created "
+            "ON n_secops_soc_decisions (action_taken, created_at);",
         ):
             await conn.execute(text(ddl))
         actions_ddl = """

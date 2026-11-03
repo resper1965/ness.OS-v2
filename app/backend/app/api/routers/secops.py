@@ -7,12 +7,12 @@ from __future__ import annotations
 
 import hashlib
 import logging
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select, text
+from sqlalchemy import func, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -614,6 +614,45 @@ async def get_triage_stats(db: AsyncSession = Depends(get_db)) -> dict[str, Any]
     }
 
 
+@router.get("/archived-sample")
+async def archived_sample(
+    days: int = Query(7, ge=1, le=31),
+    limit: int = Query(20, ge=1, le=100),
+    customer_id: str | None = Query(None),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_noc),
+) -> dict[str, Any]:
+    """Amostra aleatória dos alertas arquivados sem LLM, para a revisão semanal da política SOC.
+
+    Inclui `raw_alert` (evidência original) para o analista julgar o arquivamento; por isso
+    é restrito a NOC/SOC.
+
+    ponytail: ORDER BY random() varre a janela; ok no volume semanal. Se a tabela
+    passar de alguns milhões de linhas, amostrar por id aleatório dentro da janela.
+    """
+    stmt = (
+        select(
+            SocDecision.id,
+            SocDecision.wazuh_rule_id,
+            SocDecision.agent_name,
+            SocDecision.customer_id,
+            SocDecision.summary,
+            SocDecision.created_at,
+            SocDecision.raw_alert,
+        )
+        .where(
+            SocDecision.action_taken == "ARCHIVE_NO_LLM",
+            SocDecision.created_at >= datetime.now(UTC) - timedelta(days=days),
+        )
+        .order_by(func.random())
+        .limit(limit)
+    )
+    if scope := resolve_tenant_scope(current_user, customer_id):
+        stmt = stmt.where(SocDecision.customer_id == scope)
+    rows = (await db.execute(stmt)).mappings().all()
+    return {"days": days, "total": len(rows), "items": [dict(r) for r in rows]}
+
+
 @router.post("/triage", dependencies=[Depends(require_noc)])
 async def triage_alert(
     payload: dict[str, Any],
@@ -673,9 +712,10 @@ async def triage_alert(
         fingerprint=fingerprint,
     )
 
-    # 4. Atendimento é decidido aqui, independente do score e do modelo.
-    # ponytail: piso provisório (NINF_SOC_ATTENDANCE_MIN_LEVEL) até a política
-    # do SOC ser aprovada; abaixo dele o score segue valendo como antes.
+    # 4. Atendimento é decidido aqui, independente do score e do modelo (política SOC
+    # de 03/11): sem cliente, nível inválido ou nível >= piso atende. Abaixo do piso o
+    # score decide; arquivado guarda o evento bruto (raw_alert) e entra na amostra
+    # semanal (/archived-sample). Score alto (ex.: IOC) nunca é arquivado em silêncio.
     must_attend = (
         pending
         or eval_result.action != TriageAction.ARCHIVE

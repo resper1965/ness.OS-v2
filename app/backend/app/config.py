@@ -37,9 +37,9 @@ class Settings(BaseSettings):
     llm_base_url: str = "https://openrouter.ai/api/v1"
 
     # --- SOC ---
-    # ponytail: provisional floor until the SOC attendance policy is approved;
-    # upgrade path: per-tenant/per-rule policy table.
-    soc_attendance_min_level: int = 12
+    # Política SOC aprovada em 03/11 (docs/specs/soc-attendance-policy-proposal.md).
+    # ponytail: nível global; upgrade path: tabela de política por tenant/regra.
+    soc_attendance_min_level: int = 12  # >= atende sempre; abaixo, o score decide
 
     # --- Gemini API (embeddings only) ---
     gemini_api_key: str = ""

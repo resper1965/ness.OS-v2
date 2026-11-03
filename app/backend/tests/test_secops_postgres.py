@@ -137,3 +137,51 @@ async def test_concurrent_triage_dedups_once(sessions, monkeypatch):
         n = (await s.execute(select(func.count()).select_from(SocDecision))).scalar()
         cust = (await s.execute(select(SocDecision.customer_id))).scalars().all()
     assert n == 2 and sorted(map(str, cust)) == ["None", "cavan"]
+
+
+async def test_archived_sample_real_db(sessions):
+    from datetime import UTC, datetime, timedelta
+
+    now = datetime.now(UTC)
+
+    def row(rule, action, cust, age_days):
+        return SocDecision(
+            wazuh_rule_id=rule,
+            customer_id=cust,
+            classification="X",
+            summary="s",
+            action_taken=action,
+            raw_alert={},
+            created_at=now - timedelta(days=age_days),
+        )
+
+    async with sessions() as s:
+        s.add_all(
+            [
+                row("a1", "ARCHIVE_NO_LLM", "cavan", 1),
+                row("a2", "ARCHIVE_NO_LLM", "target", 2),
+                row("old", "ARCHIVE_NO_LLM", "cavan", 20),  # fora da janela
+                row("esc", "Escalated", "cavan", 1),  # não arquivado
+            ]
+        )
+        await s.commit()
+
+    async def db():
+        async with sessions() as s:
+            yield s
+
+    app.dependency_overrides[get_db] = db
+    app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(
+        id=7, role=UserRole.soc, tenant_id=None
+    )
+    try:
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://t"
+        ) as c:
+            allr = (await c.get("/api/secops/archived-sample?days=7")).json()
+            one = (await c.get("/api/secops/archived-sample?customer_id=cavan")).json()
+    finally:
+        app.dependency_overrides.clear()
+
+    assert sorted(i["wazuh_rule_id"] for i in allr["items"]) == ["a1", "a2"]
+    assert [i["wazuh_rule_id"] for i in one["items"]] == ["a1"]
