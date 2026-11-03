@@ -71,12 +71,39 @@ async def test_model_timeout_does_not_block_nor_lose_signal(monkeypatch):
 
 
 @pytest.mark.parametrize("level", [10, 12, 15])
-def test_attendance_ignores_model_and_score_inputs(level):
-    alert = {"level": level, "level_invalid": False}
-    # arquivável pelo score: só o nível (rótulo de teste, não piso fixo) decide
-    got = secops._attendance_required(False, TriageAction.ARCHIVE, alert)
+def test_attendance_decision_uses_only_rule_and_score(level):
+    # rótulos de teste, não piso: o limiar vem de settings
+    got = secops._attendance_required(
+        False, TriageAction.ARCHIVE, {"level": level, "level_invalid": False}
+    )
     assert got is (level >= secops.settings.soc_attendance_min_level)
-    assert secops._attendance_required(True, TriageAction.ARCHIVE, alert) is True
+
+
+def test_pending_and_high_score_always_attend():
+    low = {"level": 1, "level_invalid": False}
+    assert secops._attendance_required(True, TriageAction.ARCHIVE, low) is True
+    assert secops._attendance_required(False, TriageAction.TRIAGE_L1, low) is True
+    assert secops._attendance_required(False, TriageAction.ARCHIVE, low) is False
+
+
+def test_free_text_rejection_is_not_echoed_in_log(monkeypatch, caplog):
+    import json
+
+    monkeypatch.setattr(soc_agent.settings, "llm_api_key", "k")
+
+    async def reply(*a, **k):
+        bad = {
+            "classification": "HIGH",
+            "confidence": 0.5,
+            "summary": "  ",
+            "action_taken": "a",
+        }
+        return json.dumps(bad), {}
+
+    monkeypatch.setattr(soc_agent, "achat_completion", reply)
+    with caplog.at_level(logging.ERROR):
+        asyncio.run(soc_agent.triage_wazuh_alert(ALERT, "cavan"))
+    assert "campo=summary" in caplog.text and "str len=2" in caplog.text
 
 
 def test_freq_key_is_scoped_by_tenant_and_cluster():
@@ -86,3 +113,8 @@ def test_freq_key_is_scoped_by_tenant_and_cluster():
     assert a != secops._freq_key("unimed", p, "001", "100")
     assert a != secops._freq_key("cavan", {"manager": {"name": "m2"}}, "001", "100")
     assert a != secops._freq_key(None, p, "001", "100")  # pendente não soma com tenant
+
+
+def test_pending_without_cluster_has_no_frequency_key():
+    assert secops._freq_key(None, {}, "001", "100") is None
+    assert secops._freq_key(None, {"manager": {"name": "m1"}}, "001", "100")

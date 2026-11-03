@@ -174,10 +174,15 @@ async def triage_wazuh_alert(
         return triage_data
     except SignalRejected as exc:
         logger.error(
-            "Sinal %s: resultado do modelo rejeitado | campo=%s valor=%.80r",
+            "Sinal %s: resultado do modelo rejeitado | campo=%s valor=%s",
             ai_request.source_event_id,
             exc.field,
-            exc.value,
+            # texto livre do modelo pode ecoar dado do alerta: só tipo e tamanho
+            (
+                repr(exc.value)[:80]
+                if exc.field in ("classification", "confidence")
+                else f"<{type(exc.value).__name__} len={len(str(exc.value))}>"
+            ),
         )
         return _manual_fallback(alert_payload, "SignalRejected")
     except Exception as exc:

@@ -705,7 +705,7 @@ async def triage_alert(
     # agent_id é local a cada Wazuh (ex.: "001"): tenant e cluster entram na chave.
     # Pendente de cliente conta só dentro do próprio cluster, nunca com outro tenant.
     freq_key = _freq_key(tenant, payload, agent_id, rule_id)
-    fingerprint = freq_key
+    fingerprint = freq_key or f"{tenant}:{agent_id}:{rule_id}"
     recent = await _recent_count(db, freq_key)
 
     alert_data, threat_intel = _triage_input(payload, enriched_data)
@@ -851,19 +851,28 @@ def _attendance_required(
 
 def _freq_key(
     tenant: str | None, payload: dict[str, Any], agent_id: str, rule_id: str
-) -> str:
-    """Chave de frequência com escopo: tenant + cluster (ou manager) + agente + regra."""
-    cluster = (
-        (payload.get("cluster") or {}).get("name")
-        or (payload.get("manager") or {}).get("name")
-        or "-"
-    )
-    raw = f"{tenant or '-pending-'}|{cluster}|{agent_id}|{rule_id}"
+) -> str | None:
+    """Chave de frequência com escopo: tenant + cluster (ou manager) + agente + regra.
+
+    Pendente sem cluster/manager não tem escopo seguro (agent_id é local ao Wazuh de
+    cada cliente): sem chave, a frequência não soma nada.
+    ponytail: dois alertas concorrentes com a mesma chave podem ler a mesma contagem
+    (só o score subestima; o atendimento não depende dele). Para exatidão, advisory
+    lock por freq_key antes da contagem.
+    """
+    cluster = (payload.get("cluster") or {}).get("name") or (
+        payload.get("manager") or {}
+    ).get("name")
+    if not tenant and not cluster:
+        return None
+    raw = f"{tenant or '-pending-'}|{cluster or '-'}|{agent_id}|{rule_id}"
     return hashlib.sha256(raw.encode()).hexdigest()
 
 
-async def _recent_count(db: AsyncSession, freq_key: str) -> int:
+async def _recent_count(db: AsyncSession, freq_key: str | None) -> int:
     """Decisões já persistidas com a mesma chave na janela de recorrência."""
+    if freq_key is None:
+        return 0
     since = datetime.now(UTC) - timedelta(seconds=FREQUENCY_WINDOW_SECONDS)
     result = await db.execute(
         select(func.count())

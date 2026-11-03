@@ -208,3 +208,26 @@ async def test_frequency_is_persisted_and_scoped_per_tenant(sessions):
             await secops._recent_count(s, same) == 1
         )  # sobrevive a novo processo/sessão
         assert await secops._recent_count(s, other) == 0  # não soma entre tenants
+
+
+async def test_frequency_window_excludes_old_rows(sessions):
+    from datetime import UTC, datetime, timedelta
+
+    key = secops._freq_key("cavan", {}, "001", "7")
+    async with sessions() as s:
+        for age in (10, 3600):  # segundos: dentro e fora da janela de 5 min
+            s.add(
+                SocDecision(
+                    wazuh_rule_id="7",
+                    classification="LOW_PRIORITY",
+                    confidence=0.5,
+                    summary="x",
+                    action_taken="ARCHIVE_NO_LLM",
+                    freq_key=key,
+                    created_at=datetime.now(UTC) - timedelta(seconds=age),
+                )
+            )
+        await s.commit()
+    async with sessions() as s:
+        assert await secops._recent_count(s, key) == 1
+        assert await secops._recent_count(s, None) == 0

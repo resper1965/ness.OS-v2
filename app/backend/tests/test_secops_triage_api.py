@@ -450,3 +450,35 @@ def test_archived_sample_is_closed_to_tenant_users():
         id=9, role=UserRole.viewer, tenant_id="cavan"
     )
     assert client.get("/api/secops/archived-sample").status_code == 403
+
+
+def test_triage_counts_persisted_frequency_and_stores_key(
+    decision_database, monkeypatch
+):
+    from app.api.routers import secops
+
+    seen = {}
+
+    async def recent(db, key):
+        seen["key"] = key
+        return 4
+
+    real = secops._triage_engine.evaluate_alert
+
+    def spy(**kw):
+        seen["freq"] = kw["frequency_count"]
+        return real(**kw)
+
+    monkeypatch.setattr(secops, "_recent_count", recent)
+    monkeypatch.setattr(secops._triage_engine, "evaluate_alert", spy)
+    payload = {
+        "rule": {"id": "9", "level": 3},
+        "manager": {"name": "m1"},
+        "agent": {"id": "1", "name": "pc", "group": ["g"]},
+    }
+    client.post("/api/secops/triage", json=payload)
+    assert seen["freq"] == 5  # 4 já persistidas + a atual
+    stored = decision_database.add.call_args.args[0]
+    assert (
+        stored.freq_key == seen["key"] == secops._freq_key("cavan", payload, "1", "9")
+    )
