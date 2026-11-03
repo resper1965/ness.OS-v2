@@ -32,6 +32,7 @@ Tasks do [plano de execução](docs/superpowers/plans/2026-10-26-ness-os-executi
 - T06 onda 1 (03/11): 5 ativos criados no GLPI (Computers 111–114, NetworkEquipment 157) — [evidência](docs/execution/evidence/glpi-t06-assets-2026-11-03.md); 498 vínculos de ticket criados nos mesmos 5 ativos (OK do Ricardo, readback ok, rollback pela lista de ids); 10997 → NetworkEquipment 158 (Nova Energia, entidade 9) com 11 vínculos. Pendente: modelo um-ativo-por-aparelho vs. por-link (158 duplica o 131). Seriais dos 2 Fortigates (157, 158) já gravados no GLPI
 - 2.5 T05 GLPI: Computers 108–110 (entidade 1) criados e 1419 vínculos de ticket reparados (874 / 560 / 30), readback igual ao Hub, segunda aplicação 0; duas exceções `callAsSystem` aprovadas pelo Ricardo, só neste lote — [evidência](docs/execution/evidence/glpi-t05-assets-2026-11-02.md)
 - 2.3b Isolamento Hub ↔ GLPI aplicado em 03/11 (#140): senhas do banco fora do `.env` do Hub (`/etc/ness-os/glpi-{db,app}.env`), `glpi-db` em rede interna própria, senhas rotacionadas; Hub sem a variável e sem resolver `glpi-db`. [Evidência](docs/execution/evidence/glpi-hub-isolation-2026-11-03.md)
+- Recuperação Zabbix → Hub ligada em 03/11 (ação 7 e media type 72): antes nenhum incidente era marcado como recuperado. Pendente: indicadores por `ninf_zabbix_status` e backfill — [evidência](docs/execution/evidence/zabbix-hub-recovery-2026-11-03.md)
 
 ### Em andamento
 - (nada em andamento)
