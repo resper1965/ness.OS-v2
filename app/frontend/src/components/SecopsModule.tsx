@@ -350,6 +350,7 @@ export default function SecopsModule() {
   const [exploitedOnly, setExploitedOnly] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
   const [triage, setTriage] = useState<TriageStats | null>(null);
+  const [triageFailed, setTriageFailed] = useState(false);
 
   const fetchAll = useCallback(async () => {
     setCveLoading(true);
@@ -373,7 +374,8 @@ export default function SecopsModule() {
     try {
       const res = await fetch(`${API_BASE}/api/secops/triage-stats`, { credentials: 'include', headers: authHeader() });
       setTriage(res.ok ? await res.json() : null);
-    } catch (e) { console.error('Triage stats:', e); setTriage(null); }
+      setTriageFailed(!res.ok);
+    } catch (e) { console.error('Triage stats:', e); setTriage(null); setTriageFailed(true); }
 
     setLastRefresh(new Date());
   }, [authHeader]);
@@ -426,14 +428,15 @@ export default function SecopsModule() {
       </div>
 
       {/* ── Triagem SOC ────────────────────────────────────────────────────── */}
+      {triageFailed && <p className="text-[11px] text-amber-200/80">Triagem SOC indisponível.</p>}
       {triage && (
-        <div className="grid grid-cols-3 gap-3 text-[11px]">
+        <section aria-label="Triagem SOC" className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-[11px]">
           <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-3">
             <p className="text-white/40">Alertas triados</p>
             <p className="text-lg font-semibold text-white">{triage.total_processed}</p>
           </div>
           <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-3">
-            <p className="text-white/40">Arquivados sem IA</p>
+            <p className="text-white/40">Arquivados sem IA <span className="text-white/30">(% dos avaliados)</span></p>
             <p className="text-lg font-semibold text-white">
               {triage.llm_bypassed_count}
               {triage.bypassed_percentage !== null && <span className="ml-1 text-[10px] text-white/40">({triage.bypassed_percentage}%)</span>}
@@ -443,7 +446,7 @@ export default function SecopsModule() {
             <p className="text-white/40">Sem cliente, em revisão técnica</p>
             <p className="text-lg font-semibold text-white">{triage.pending_tenant_review_count}</p>
           </div>
-        </div>
+        </section>
       )}
 
       {/* ── Summary Cards ──────────────────────────────────────────────────── */}
