@@ -65,3 +65,11 @@ Gemini direto dava 429 (cota gratuita) em 134/135 análises. #117 troca os três
 ## Promoção de `521247b` (30/10) — fundação SOC e idempotência do triage
 
 #122 (cliente por vínculo, atendimento independente do score, `PENDING_REVIEW`) e #125 (idempotência de `/secops/triage`). API e workers em `ghcr.io/resper1965/ninf-api@sha256:d5120e8999887be0410b36a676c72228586a2d6f90db853a70b198a06615d168` (`publish-hub-images` run 41087515162). `promotion=PASS`, 3 contêineres `healthy`, `/api/assets` 401. Migração em produção conferida só leitura: `customer_id` anulável, `dedup_key` criada, `uq_soc_decisions_dedup` único parcial, 0 linhas na tabela. Rollback: release `7e7dfc6`. Nenhuma integração Wazuh → Hub ativada.
+
+## Promoção de `c16471d` (03/11) — triagem SOC aprovada
+
+#136 (`GET /api/secops/archived-sample`, índice `(action_taken, created_at)`) e #137 (cartão de triagem). API e workers em `ghcr.io/resper1965/ninf-api@sha256:211aaf9c4cc2d61e77ed5db0722f8b12dba2920f9fb6c421de7727122514197a`; frontend em `ghcr.io/resper1965/ninf-frontend@sha256:1051d84ff41f27cefed0e8ee2db1ff259282c51a3b3be15c9048a6bd569558f8` (`publish-hub-images`, commit `c16471d`). `promotion=PASS`, 15 alertas ok, 0 falhas; `/api/assets` e `/api/secops/archived-sample` 401 sem sessão. Rollback: release `521247b` (API/workers) e frontend `604e9b9…`.
+
+**Tentativa anterior (`d937141`) revertida sozinha pelo script.** O build novo resolveu `kombu 5.7.0` (celery 5.4 aceita `>=5.3,<6`), que exige `redis-py >= 6.1`; a imagem tem 5.3.1 e os dois workers reiniciavam com `VersionMismatch`. O rollback automático restaurou a release anterior, saudável, em ~10 min. Correção: pin `kombu==5.6.*` (#142). Lição: dependência transitiva sem lockfile faz o build do mesmo código diferir do que está em produção; vale congelar o resultado do `pip` (lockfile) no futuro.
+
+Frontend: a primeira troca devolveu 502 (o Caddy ainda não alcançava o contêiner novo) e o script reverteu; a segunda, com espera pelo `/` responder, passou.

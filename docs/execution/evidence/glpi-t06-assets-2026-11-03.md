@@ -22,3 +22,18 @@ Rollback: só Computers 111–114 e NetworkEquipment 157 (nunca o dump inteiro),
 - 10997 (Fortigate 60F, Nova Energia): entidade a decidir.
 - Vínculo `Item_Ticket` dos ~490 incidentes: precisa de nova autorização (o OK da T05 valia só para aquele lote).
 - Exceções sem host de origem: 50001, 50004–50006, 10001, 10978 e 1 incidente sem `host_id`.
+
+## Vínculos de ticket (03/11, OK do Ricardo)
+
+Autorização do Ricardo em 03/11 para `glpi-hub-link-tickets.php` só nestes 5 ativos (terceira exceção registrada ao `callAsSystem`, após a criação e os vínculos da T05). Ondas seguintes voltam à regra do plano.
+
+| Passo | Resultado |
+| --- | --- |
+| Plano | 518 incidentes do Hub nos 5 hosts → **498 elegíveis** (marcador `[n.infraops:<fingerprint>]`, entidade certa, não fechado, sem vínculo); 17 já vinculados; 3 sem ticket no GLPI (host 10988); 0 duplicados; 0 em entidade errada |
+| Backup | `glpi_items_tickets` em `/opt/n-infraops/rollback/glpi-t06-links-20261103/` (id máx. antes: 103776), mais `plan.json` e `links-created.jsonl` |
+| Aplicação | 50 + 150 + 150 + 148 = **498 criados**, 0 erros; segunda aplicação criou 0 |
+| Readback | 111 = 203 novos (209 no total), 112 = 63, 113 = 6, 114 = 111 (113 no total), NetworkEquipment 157 = 115 (126 no total); todos na entidade do ativo (12 e 1) |
+
+Rollback: excluir só os 498 ids de `links-created.jsonl` (ids de `glpi_items_tickets`), depois de provar que cada um segue sem edição posterior. Outro processo cria vínculos no mesmo intervalo (ids 103828–103830, 103936–103937, 104228 não são nossos): nunca filtrar por faixa de id e nunca restaurar o dump inteiro.
+
+Falta: 3 incidentes do 10988 sem ticket (replay), e o 10997 (entidade).
