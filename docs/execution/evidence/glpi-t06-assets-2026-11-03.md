@@ -19,7 +19,7 @@ Rollback: só Computers 111–114 e NetworkEquipment 157 (nunca o dump inteiro),
 
 ## Fora desta onda
 
-- 10997 (Fortigate 60F, Nova Energia): entidade a decidir.
+- 10997 (Fortigate 60F, Nova Energia): resolvido em 03/11, ver a seção "Host 10997" no fim (NetworkEquipment 158, entidade 9).
 - Vínculo `Item_Ticket` dos ~490 incidentes: precisa de nova autorização (o OK da T05 valia só para aquele lote).
 - Exceções sem host de origem: 50001, 50004–50006, 10001, 10978 e 1 incidente sem `host_id`.
 
@@ -36,17 +36,19 @@ Autorização do Ricardo em 03/11 para `glpi-hub-link-tickets.php` só nestes 5 
 
 Rollback: excluir só os 498 ids de `links-created.jsonl` (ids de `glpi_items_tickets`), depois de provar que cada um segue sem edição posterior. Outro processo cria vínculos no mesmo intervalo (ids 103828–103830, 103936–103937, 104228 não são nossos): nunca filtrar por faixa de id e nunca restaurar o dump inteiro.
 
-Falta: 3 incidentes do 10988 sem ticket (replay), e o 10997 (entidade).
+Falta: 3 incidentes do 10988 sem ticket (replay). O 10997 foi resolvido depois (seção "Host 10997").
 
 ## Host 10997 (03/11, entidade confirmada pelo Ricardo: Nova Energia)
 
 | Passo | Resultado |
 | --- | --- |
 | Criação | NetworkEquipment **158**, entidade 9, `is_recursive=0` (`glpi-hub-complete-inventory.php`, com `itemtype` explícito); segunda execução criou 0. `callAsSystem` coberto pela exceção da onda 1 estendida pelo Ricardo a este host |
-| Backup | `glpi_networkequipments` + `glpi_logs` em `/opt/n-infraops/rollback/glpi-t06-10997-20261103/` (id máx. antes: 157); rollback só pelo id 158 |
+| Backup | `glpi_networkequipments` + `glpi_logs` em `/opt/n-infraops/rollback/glpi-t06-10997-20261103/` (id máx. antes: 157); rollback do ativo só pelo id 158 (`created.jsonl` ao lado do dump) |
 | Hub | `cmdb_sync --apply`: 1 ativo mapeado, 11 incidentes ligados |
-| Vínculos de ticket | 11 elegíveis → 11 criados, 0 fora da entidade 9; segunda passada 0 |
+| Vínculos de ticket | 11 elegíveis → 11 criados (ids de `glpi_items_tickets` **104354–104364**, em `links-created.jsonl` de `/opt/n-infraops/rollback/glpi-t06-links-20261103/`), 0 fora da entidade 9; segunda passada 0. O id 104368, também no ativo 158, é de outro processo (ticket 104370) e **não** entra no rollback |
 
 **Duplicidade de aparelho (decisão do Ricardo: manter).** O serial `system.hw.serialnumber` do 10997 (`FGT60FTK2109B0AR`) é o mesmo do host 10901 (Link Mundivox), que no GLPI já é o NetworkEquipment 131. O GLPI trata um ativo por host do Zabbix (um por link), então o 158 segue o padrão; um Fortigate com dois links conta como dois ativos. Decidir o modelo (um ativo por aparelho ou por link) numa onda própria, depois de gravar os seriais.
 
 **Seriais:** os 6 ativos novos (111–114, 157, 158) estão sem serial no GLPI. Fonte no Zabbix: `system.hw.serialnumber` só nos firewalls (157: `FG200E4Q17909933`, par HA `…945`; 158: `FGT60FTK2109B0AR`); os 4 servidores não têm serial no Zabbix. O usuário do Hub não pode editar ativo (`ERROR_GLPI_UPDATE`); gravar exige nova exceção de `callAsSystem`.
+
+**Rollback do 10997 (só estes ids, nunca o dump inteiro):** (1) excluir os 11 vínculos 104354–104364 se ainda não tiverem edição posterior; (2) excluir o NetworkEquipment 158 se não tiver edição posterior nem vínculos de outros processos (o 104368 existe: tratar antes); (3) no Hub, limpar `glpi_itemtype`/`glpi_item_id` do ativo e dos incidentes do host 10997 e das tabelas filhas, como na onda 1.
