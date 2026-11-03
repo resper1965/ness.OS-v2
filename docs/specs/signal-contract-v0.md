@@ -28,8 +28,8 @@ Lote (OT): acrescenta `batch_id` estável, `rules_version`, intervalo coberto e 
    busca, não autorização.
 2. **Fonte do vínculo:** `n_infraops_tenant_mappings` (`external_platform`,
    `external_customer_id` → `internal_customer_id`); para Wazuh, `external_platform='wazuh'`.
-   A tabela existe em produção com 0 linhas e nenhum fluxo a lê hoje: o vínculo precisa
-   ser cadastrado antes de qualquer alerta ser atendido.
+   Em produção tem 9 vínculos `wazuh` desde 03/11 ([roteiro](../../infra/docs/runbooks/wazuh.md)); nenhum fluxo
+   a lê em produção ainda. Grupo novo precisa de vínculo antes de enviar alertas.
 3. **Atendimento independe do score e do modelo.** A política SOC decide quais sinais
    exigem atendimento. Provisório: severidade de origem ≥ 12
    (`NINF_SOC_ATTENDANCE_MIN_LEVEL`), a substituir pela política aprovada. Abaixo do piso,

@@ -19,3 +19,22 @@ Escopo: a 100100 só pega `eventID` 5038 sob a 60104 (falha de auditoria); 4625/
 6. Conferir após o restart, por hora, em `/var/ossec/logs/alerts/alerts.json`: `jq -r 'select(.data.win.system.eventID=="5038" or .data.win.system.providerName=="Brother BrLog") | .timestamp[0:13]' /var/ossec/logs/alerts/alerts.json | sort | uniq -c`. As horas posteriores ao restart devem ter 0 ocorrências; as anteriores mostram o volume que havia. Confirme também que 60122 e 60602 (outros provedores) continuam aparecendo.
 
 Rollback: restaurar o `.bak` do passo 1, rodar `wazuh-analysisd -t` e reiniciar o manager.
+
+## Vínculo grupo Wazuh → cliente (`n_infraops_tenant_mappings`)
+
+O Hub só resolve o cliente de um alerta por esta tabela (`external_platform='wazuh'`, `external_customer_id` = nome do grupo do agente). Grupo é chave de busca, nunca autorização. Sem vínculo, ou com vínculos para clientes diferentes, o alerta fica `PENDING_TENANT_REVIEW`.
+
+Cadastrado em 03/11/2026, por decisão do Ricardo (todo grupo `RZK-*` é o cliente `rzk`):
+
+| Grupo Wazuh | Cliente no Hub |
+|---|---|
+| `RZK-AGRO-ESTACOES`, `RZK-AGRO-SERVIDORES`, `RZK-HOLDING-ESTACOES`, `RZK-HOLDING-SERVIDORES`, `RZK-SOL-ESTACOES`, `RZK-SOL-SERVIDORES` | `rzk` |
+| `TARGET-ESTACOES`, `TARGET-SERVIDORES` | `target` |
+| `TESTES-HARDENING` | `ness` |
+
+Inserção idempotente (`INSERT … WHERE NOT EXISTS`, rodada duas vezes: 9 linhas). A tabela não tem restrição de unicidade: não inserir sem esse `WHERE NOT EXISTS`.
+
+Rollback: `DELETE FROM n_infraops_tenant_mappings WHERE external_platform='wazuh' AND external_customer_id IN (<os 9 grupos>)`.
+
+Novo grupo no Wazuh: cadastrar o vínculo antes de o agente enviar alertas; senão cai em revisão técnica.
+Não ativa a integração Wazuh → Hub: isso continua dependendo de contratação, desenho de coleta e homologação.
