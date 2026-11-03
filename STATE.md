@@ -4,7 +4,7 @@
 
 **Estágio:** em andamento
 
-**Próximo passo:** 2.5 (T05 do plano GLPI) em laboratório.
+**Próximo passo:** 2.5 T06 (reconciliar o inventário restante: 510 incidentes sem ativo).
 
 ## Quadro (atualizado a cada task fechada)
 
@@ -28,12 +28,13 @@ Tasks do [plano de execução](docs/superpowers/plans/2026-10-26-ness-os-executi
 - Reconciliação dos alertas de 26–27/10: 739 sem ticket, 215 sem cobertura — #102
 - 8.1 Contrato `AIRequestV1`, sanitização e métrica das chamadas ao Gemini — #99 (corrigiu vazamento de segredo para o Gemini em análise e triagem SOC); LLM via OpenRouter com limite de US$ 50/mês na chave — #117
 - Fundação SOC (A1/A2/A5/A6 + [contrato de sinal v0](docs/specs/signal-contract-v0.md)) e idempotência de `/secops/triage` — #122, #125; em produção na release `521247b` (30/10, `promotion=PASS`, migração aplicada: `dedup_key`, índice único parcial, `customer_id` anulável). Não ativa Wazuh em produção; `n_infraops_tenant_mappings` tem 0 linhas (cadastrar os vínculos `wazuh` antes de usar `/secops/triage`). Também: playbook do override do GLPI T03 — #124; `_resolve_tenant`, dedup concorrente e `pg_advisory_xact_lock` testados em Postgres real (service no CI) — #130
+- 2.5 T05 GLPI: Computers 108–110 (entidade 1) criados em 02/11 e ligados no Hub; exceção `callAsSystem` aprovada pelo Ricardo — [evidência](docs/execution/evidence/glpi-t05-assets-2026-11-02.md)
 
 ### Em andamento
 - (nada em andamento)
 
 ### Pronto para começar
-- 2.5 T05 do plano GLPI
+- 2.5 T06 do plano GLPI (reconciliar todo o inventário)
 
 ### Esperando o Ricardo
 0. Action1 ([ADR 0021](docs/adr/0021-action1-endpoint-executor.md)): API lida em GET (01/11, inventário e atualizações ausentes por organização OK); falta o mapa por endpoint e o resultado de execução, multi-tenant, licença acima de 200 endpoints e dados do agente antes de integrar; contratação precisa do seu OK

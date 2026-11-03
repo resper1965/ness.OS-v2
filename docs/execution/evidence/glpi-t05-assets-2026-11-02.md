@@ -20,4 +20,6 @@ Rollback: só os ids 108–110, nunca o dump inteiro (apagaria escritas posterio
 
 O plano de entrega GLPI (linha 19) proíbe `callAsSystem` para contornar direitos. A criação o usou depois que a conta do Hub foi negada (`ERROR_GLPI_ADD`). Foi proposta ao Ricardo com esse custo declarado ("privilégio total"), e ele escolheu a opção em 02/11, mas o conflito com a regra do plano não foi apontado na hora. Decisão do Ricardo em 03/11: **manter os três registros, com a exceção registrada aqui**. Aplica-se só a este lote de 3 ativos; as ondas seguintes (T06) voltam à regra do plano.
 
-Falta: `cmdb_sync --apply --hostids …` (cria os `Asset` no Hub e liga os incidentes históricos) — decisão do Ricardo.
+## Vínculo no Hub (03/11)
+
+O timer do `cmdb_sync` já tinha ligado os três: assets Hub 262, 261 e 263 (`alupar`) com `glpi_item_id` 108, 109 e 110; incidentes com `asset_id`: 884 (10983), 575 (10984), 30 (10987). Nenhum `--apply` manual necessário. Restam 510 incidentes sem ativo, em outros hosts (10985, 10988, 10996, 10991, 10997 …), assunto da T06.
