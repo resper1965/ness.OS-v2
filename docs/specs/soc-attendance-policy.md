@@ -1,6 +1,6 @@
-# Política de atendimento SOC — proposta (03/11/2026)
+# Política de atendimento SOC (03/11/2026)
 
-**Estado:** proposta. Substitui o piso provisório `NINF_SOC_ATTENDANCE_MIN_LEVEL=12` quando o Ricardo aprovar.
+**Estado:** aprovada pelo Ricardo em 03/11/2026 (regras 1 a 6). O piso `NINF_SOC_ATTENDANCE_MIN_LEVEL=12` deixa de ser provisório.
 Atendimento independe do score e do modelo de IA ([contrato de sinal v0](signal-contract-v0.md), regra 3).
 
 | # | Regra |
@@ -17,5 +17,6 @@ Atendimento independe do score e do modelo de IA ([contrato de sinal v0](signal-
 
 - Prazos de resposta por nível: dependem do SLA contratual (T08).
 - OT: duração da janela, banda, capacidade e retenção.
-- A regra 2 (amostragem semanal) e a regra 3 ainda não existem no código; entram na aprovação.
+- Implementado: regras 1, 2, 3, 5 e 7 (`/api/secops/triage`; amostra semanal em `GET /api/secops/archived-sample`, que sorteia os arquivados da janela). O evento bruto fica em `raw_alert` da decisão.
+- Regra 6 (OT) e a revisão semanal automatizada (quem olha a amostra, e quando) ainda não existem.
 - A regra 4 hoje não existe no código e ainda não há regra própria de detecção cadastrada.

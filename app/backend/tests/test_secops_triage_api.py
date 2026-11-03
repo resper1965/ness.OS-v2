@@ -408,3 +408,28 @@ def test_dedup_key_is_per_tenant_and_absent_without_identity():
     other = _alert(agent={"id": "1", "name": "y", "group": ["h"]})
     assert k(None, _alert()) != k(None, other)
     assert k(None, _alert()) == k(None, _alert())
+
+
+def test_archived_sample_only_returns_archived_in_window(
+    persisted_triage_stats_database,
+):
+    from datetime import UTC, datetime
+
+    row = SimpleNamespace(
+        id=5,
+        wazuh_rule_id="1",
+        agent_name="pc",
+        customer_id="cavan",
+        summary="s",
+        created_at=datetime.now(UTC),
+    )
+    result = MagicMock()
+    result.scalars.return_value.all.return_value = [row]
+    persisted_triage_stats_database.execute.return_value = result
+
+    data = client.get("/api/secops/archived-sample?days=7&limit=20").json()
+
+    assert data["total"] == 1 and data["items"][0]["id"] == 5
+    sql = str(persisted_triage_stats_database.execute.call_args.args[0])
+    assert "ARCHIVE_NO_LLM" not in sql  # valor vai como bind, não no texto
+    assert "random()" in sql and "created_at >=" in sql
