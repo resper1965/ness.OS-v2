@@ -10,6 +10,8 @@ Por padrão, o comando valida `app/.env`, `app/docker-compose.yml` e
 `app/docker-compose.tickets.yml`. Para conferir um arquivo candidato sem
 substituir `app/.env`, use `--env-file CAMINHO`.
 
+As senhas do MariaDB do GLPI ficam em `/etc/ness-os/glpi-db.env` (`--glpi-db-env`/`AIOPS_GLPI_DB_ENV_FILE`: `MYSQL_ROOT_PASSWORD` e `MYSQL_PASSWORD`) e `/etc/ness-os/glpi-app.env` (`--glpi-app-env`/`AIOPS_GLPI_APP_ENV_FILE`: `DB_PASSWORD`). O preflight exige as três ali, **falha** se a senha root estiver no arquivo do app e **falha** se `NINF_GLPI_DB_*` aparecer no `.env` do Hub.
+
 O preflight usa o próprio Compose como fonte de verdade para verificar a presença
 não vazia das variáveis marcadas como obrigatórias e a coerência do modelo
 mesclado via `docker compose config`. Ele não mostra valores, não acessa produção

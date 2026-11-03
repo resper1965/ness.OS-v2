@@ -3,9 +3,9 @@ set -euo pipefail
 
 # Read-only triage for the historical native-inventory scanner records.
 cd /opt/n-infraops
-db_password="$(sed -n 's/^NINF_GLPI_DB_PASSWORD=//p' app/.env | tail -1)"
+db_password="$(sed -n 's/^MYSQL_PASSWORD=//p' /etc/ness-os/glpi-db.env | tail -1)"
 if [[ -z "${db_password}" ]]; then
-    echo 'NINF_GLPI_DB_PASSWORD is not configured' >&2
+    echo 'MYSQL_PASSWORD is not configured in /etc/ness-os/glpi-db.env' >&2
     exit 1
 fi
 export DB_PASSWORD="${db_password}"
