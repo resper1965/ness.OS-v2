@@ -295,6 +295,7 @@ CREATE UNIQUE INDEX uq_soc_decisions_dedup ON n_secops_soc_decisions (dedup_key)
 CREATE INDEX IF NOT EXISTS ix_soc_decisions_freq ON n_secops_soc_decisions (freq_key, created_at);
 CREATE INDEX IF NOT EXISTS ix_soc_decisions_action_created ON n_secops_soc_decisions (action_taken, created_at);
 CREATE INDEX IF NOT EXISTS ix_soc_decisions_incident ON n_secops_soc_decisions (incident_id) WHERE incident_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS ix_soc_decisions_created ON n_secops_soc_decisions (created_at DESC);
 
 -- A tabela de usuários precisa existir antes de 002_push_subscriptions.sql.
 CREATE TYPE userrole AS ENUM (

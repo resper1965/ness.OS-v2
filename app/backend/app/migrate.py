@@ -89,6 +89,8 @@ async def run_migrations():
             "ON n_secops_soc_decisions (incident_id) WHERE incident_id IS NOT NULL;",
             "CREATE INDEX IF NOT EXISTS ix_soc_decisions_action_created "
             "ON n_secops_soc_decisions (action_taken, created_at);",
+            "CREATE INDEX IF NOT EXISTS ix_soc_decisions_created "
+            "ON n_secops_soc_decisions (created_at DESC);",
         ):
             await conn.execute(text(ddl))
         actions_ddl = """

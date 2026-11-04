@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import logging
 from datetime import datetime, timedelta, timezone
 from time import monotonic
 from urllib.parse import urlsplit
@@ -13,13 +14,16 @@ from app.config import get_settings
 from app.database import SessionLocal
 from app.integrations.glpi import GLPIClient
 from app.integrations.zabbix import ZabbixClient
-from app.models import Incident
+from app.models import Incident, SocDecision
 from app.workers.celery_app import celery_app
 from app.workers.telemetry import KEY
+
+logger = logging.getLogger(__name__)
 
 PROBE_TIMEOUT_SECONDS = 20
 MAX_QUEUE_AGE_SECONDS = 300
 MAX_SOURCE_AGE_SECONDS = 900
+SOURCE_COVERAGE_TIMEOUT_SECONDS = 5
 # Only recent delivery trouble is actionable; older entries are history, not alerts.
 WORKER_FAILURE_WINDOW_SECONDS = 900
 MISSING_TICKET_MIN_AGE = timedelta(minutes=5)
@@ -239,6 +243,50 @@ async def with_freshness(name, result, cache, now):
     }
 
 
+async def source_coverage(now):
+    """Last data per ingestion source; never invents a time (null + reason instead)."""
+    queries = {
+        "zabbix": select(func.max(Incident.last_seen)),
+        "wazuh": select(func.max(SocDecision.created_at)),
+    }
+    seen, reasons = {}, {}
+
+    async def collect():
+        async with SessionLocal() as session:
+            for name, query in queries.items():
+                try:
+                    seen[name] = await session.scalar(query)
+                    reasons[name] = "sem_dados"
+                except Exception:
+                    logger.warning(
+                        "source_coverage query failed: %s", name, exc_info=True
+                    )
+
+    # One deadline for connect + both queries + close, so the monitor (35 s) never hangs.
+    try:
+        await asyncio.wait_for(collect(), timeout=SOURCE_COVERAGE_TIMEOUT_SECONDS)
+    except Exception:
+        logger.warning("source_coverage failed or timed out", exc_info=True)
+    for name in queries:
+        if name not in seen:
+            seen[name], reasons[name] = None, "erro_consulta"
+    out = {}
+    for name, last in seen.items():
+        age = max(0, int((now - last).total_seconds())) if last else None
+        out[name] = {
+            "last_data_at": last.isoformat() if last else None,
+            "age_seconds": age,
+            "stale": age is None or age > MAX_SOURCE_AGE_SECONDS,
+            # ponytail: no per-client modality registry yet. Next step is a field on
+            # the client record (central_ness | sonda_no_cliente | cliente_gerenciado,
+            # set before the first collection); Ricardo decides it, so never infer it here.
+            "modality": "pendente_de_modalidade",
+            "coverage_declared": False,
+            **({} if last else {"reason": reasons[name]}),
+        }
+    return out
+
+
 async def pipeline_health():
     started = monotonic()
     zabbix, glpi, workers, delivery = await asyncio.gather(
@@ -277,6 +325,8 @@ async def pipeline_health():
         "glpi": glpi,
         "workers": workers,
         "delivery": delivery,
+        # Informational only: not part of status/ready/exit code.
+        "sources": await source_coverage(now),
     }
 
 
