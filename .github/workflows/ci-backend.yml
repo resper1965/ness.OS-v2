@@ -26,6 +26,8 @@ on:
       - 'infra/tests/test-signal-contract-v1.py'
       - 'infra/scripts/glpi_t03_functional_probe.py'
       - 'infra/tests/test_glpi_t03_prod_tooling.py'
+      - 'infra/scripts/glpi-t07-inventory-prepare.php'
+      - 'infra/tests/test-glpi-write-guards.py'
       - 'infra/tests/test-ness-release-manifest.py'
       - 'infra/scripts/aiops-runtime-readiness.sh'
       - 'infra/tests/test-aiops-runtime-readiness.sh'
@@ -107,6 +109,7 @@ jobs:
         python -m pytest -q infra/tests/test-signal-contract-v1.py
         python -m pytest -q infra/tests/test_glpi_network_boundary_probe.py
         python -m pytest -q infra/tests/test_glpi_t03_prod_tooling.py
+        python -m pytest -q infra/tests/test-glpi-write-guards.py
         python -m pytest -q infra/tests/test_glpi_ticket_replay.py
         bash infra/tests/test-aiops-runtime-readiness.sh
 
