@@ -25,7 +25,7 @@ Obrigatório = presente em todo sinal. Opcional = pode faltar sem impedir o regi
 | `links` | não | `{asset, service, cluster}` | Cada chave é opcional. Ausência não descarta o sinal. |
 | `event_id` | não | texto | Id do evento na origem; entra na chave de idempotência. Sem ele não há deduplicação. |
 | `quality` | não | `complete` \| `partial` \| `delayed` | Sinal degradado não é descartado. |
-| `batch` | só em `ot.batch` | objeto | Ver abaixo. |
+| `batch` | só em `ot.batch` | objeto | Obrigatório em `ot.batch`; proibido em qualquer outro `signal_type`. Ver abaixo. |
 | `extensions` | não | objeto | Extensão por origem, ver regra 5. |
 
 ### Instantes
@@ -44,14 +44,14 @@ política de atendimento.
 
 ### Lote OT (`signal_type = ot.batch`)
 
-`batch` é obrigatório e traz:
+`batch` é obrigatório (e só existe) neste tipo e traz:
 
 | Campo | Regra |
 |---|---|
 | `batch_id` | Estável e único por lote. Reenvio do mesmo lote repete o mesmo `batch_id`. |
 | `rules_version` | Versão das regras OT aplicadas na coleta. |
 | `interval` | `{start, end}`: intervalo coberto, instantes com fuso, `start` < `end`. |
-| `integrity` | `{algorithm: "sha256", digest, event_count?}`. `digest` = sha256 do `payload` em JSON canônico (chaves ordenadas, sem espaços, UTF-8). |
+| `integrity` | `{algorithm: "sha256", digest, event_count?}`. `digest` = sha256 (hex minúsculo) dos bytes UTF-8 da forma canônica do `payload` segundo a [RFC 8785 (JCS)](https://www.rfc-editor.org/rfc/rfc8785). Produtor e consumidor usam JCS, não a serialização padrão da linguagem. |
 
 `occurred_at` do lote é o início do intervalo coberto; `collected_at`, o fechamento do lote na sonda.
 O atraso até `received_at` é esperado (transmissão em janelas) e não é erro.

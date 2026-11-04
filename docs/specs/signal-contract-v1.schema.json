@@ -71,7 +71,7 @@
       }
     },
     "batch": {
-      "description": "Opcional; obrigatorio quando signal_type = ot.batch.",
+      "description": "Obrigatorio quando signal_type = ot.batch; proibido nos demais tipos.",
       "type": "object",
       "required": ["batch_id", "rules_version", "interval", "integrity"],
       "properties": {
@@ -108,6 +108,7 @@
     "required": ["signal_type"]
   },
   "then": { "required": ["batch"] },
+  "else": { "not": { "required": ["batch"] } },
   "$defs": {
     "instant": {
       "description": "Instante RFC 3339 com fuso explicito (Z ou +hh:mm). Sem fuso e invalido.",
