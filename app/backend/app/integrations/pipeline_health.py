@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import logging
 from datetime import datetime, timedelta, timezone
 from time import monotonic
 from urllib.parse import urlsplit
@@ -17,9 +18,12 @@ from app.models import Incident, SocDecision
 from app.workers.celery_app import celery_app
 from app.workers.telemetry import KEY
 
+logger = logging.getLogger(__name__)
+
 PROBE_TIMEOUT_SECONDS = 20
 MAX_QUEUE_AGE_SECONDS = 300
 MAX_SOURCE_AGE_SECONDS = 900
+SOURCE_QUERY_TIMEOUT_SECONDS = 5
 # Only recent delivery trouble is actionable; older entries are history, not alerts.
 WORKER_FAILURE_WINDOW_SECONDS = 900
 MISSING_TICKET_MIN_AGE = timedelta(minutes=5)
@@ -241,15 +245,21 @@ async def with_freshness(name, result, cache, now):
 
 async def source_coverage(now):
     """Last data per ingestion source; never invents a time (null + reason instead)."""
-    try:
-        async with SessionLocal() as session:
-            seen = {
-                "zabbix": await session.scalar(select(func.max(Incident.last_seen))),
-                "wazuh": await session.scalar(select(func.max(SocDecision.created_at))),
-            }
-        reason = "sem_dados"
-    except Exception:
-        seen, reason = dict.fromkeys(("zabbix", "wazuh")), "erro_consulta"
+    queries = {
+        "zabbix": select(func.max(Incident.last_seen)),
+        "wazuh": select(func.max(SocDecision.created_at)),
+    }
+    seen, reasons = {}, {}
+    async with SessionLocal() as session:
+        for name, query in queries.items():
+            try:
+                seen[name] = await asyncio.wait_for(
+                    session.scalar(query), timeout=SOURCE_QUERY_TIMEOUT_SECONDS
+                )
+                reasons[name] = "sem_dados"
+            except Exception:
+                logger.warning("source_coverage query failed: %s", name, exc_info=True)
+                seen[name], reasons[name] = None, "erro_consulta"
     out = {}
     for name, last in seen.items():
         age = max(0, int((now - last).total_seconds())) if last else None
@@ -262,7 +272,7 @@ async def source_coverage(now):
             # set before the first collection); Ricardo decides it, so never infer it here.
             "modality": "pendente_de_modalidade",
             "coverage_declared": False,
-            **({} if last else {"reason": reason}),
+            **({} if last else {"reason": reasons[name]}),
         }
     return out
 

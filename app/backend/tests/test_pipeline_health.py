@@ -490,3 +490,23 @@ def test_client_user_cannot_read_source_coverage():
     with TestClient(app) as client:
         r = client.get("/api/dashboard/pipeline-status")
     assert r.status_code == 403 and "sources" not in r.text
+
+
+@pytest.mark.asyncio
+async def test_source_query_timeout_is_erro_consulta_and_pipeline_unaffected(
+    monkeypatch, caplog
+):
+    class Hung(_ScalarSession):
+        async def scalar(self, _query):
+            await asyncio.sleep(10)
+
+    monkeypatch.setattr(health, "SOURCE_QUERY_TIMEOUT_SECONDS", 0.02)
+    monkeypatch.setattr(health, "SessionLocal", lambda: Hung())
+    _probes(monkeypatch, {"return_value": {"status": "ready"}})
+    result = await health.pipeline_health()
+    for name in ("zabbix", "wazuh"):
+        src = result["sources"][name]
+        assert src["last_data_at"] is None and src["age_seconds"] is None
+        assert src["stale"] is True and src["reason"] == "erro_consulta"
+        assert f"failed: {name}" in caplog.text
+    assert result["ready"] is True and result["status"] == "ok"
