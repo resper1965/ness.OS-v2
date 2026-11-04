@@ -11,6 +11,7 @@ from app.integrations.soc_agent import SignalRejected
 SPECS = Path(__file__).resolve().parents[3] / "docs/specs"
 SCHEMA = json.loads((SPECS / "signal-contract-v1.schema.json").read_text())
 RECV = datetime(2026, 11, 4, 13, 15, 32, tzinfo=UTC)
+COLL = datetime(2026, 11, 4, 13, 15, 31, tzinfo=UTC)
 
 
 def _alert(**over):
@@ -27,7 +28,10 @@ def _alert(**over):
 
 def _conv(a):
     return wazuh_alert_to_signal_v1(
-        a, source_id="wazuh-manager-sintetico-01", received_at=RECV
+        a,
+        source_id="wazuh-manager-sintetico-01",
+        collected_at=COLL,
+        received_at=RECV,
     )
 
 
@@ -52,8 +56,25 @@ def test_timestamp_without_zone_rejected(ts):
 def test_naive_received_at_rejected():
     with pytest.raises(SignalRejected):
         wazuh_alert_to_signal_v1(
-            _alert(), source_id="s", received_at=datetime(2026, 1, 1)
+            _alert(), source_id="s", collected_at=COLL, received_at=datetime(2026, 1, 1)
         )
+
+
+def test_collected_at_required_and_zone_checked():
+    with pytest.raises(TypeError):
+        wazuh_alert_to_signal_v1(_alert(), source_id="s", received_at=RECV)  # type: ignore[call-arg]
+    for bad in (None, datetime(2026, 1, 1)):
+        with pytest.raises(SignalRejected) as e:
+            wazuh_alert_to_signal_v1(
+                _alert(), source_id="s", collected_at=bad, received_at=RECV  # type: ignore[arg-type]
+            )
+        assert e.value.field == "collected_at"
+
+
+def test_collected_at_preserved_distinct_from_received_at():
+    doc = _conv(_alert())
+    assert doc["collected_at"] != doc["received_at"]
+    assert datetime.fromisoformat(doc["collected_at"]) == COLL
 
 
 def test_offset_normalized_same_instant():

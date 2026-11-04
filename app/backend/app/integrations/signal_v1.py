@@ -2,7 +2,8 @@
 
 Pure function, no I/O. Contract: docs/specs/signal-contract-v1.md.
 ponytail: /secops/triage does not call this yet; it will in the cut that turns on
-the v1 producer. Idempotency is (source_id, event_id): source_id must identify each
+the v1 producer, which must pass the real collection instant as collected_at
+(never received_at: the Hub derives the delay from their difference). Idempotency is (source_id, event_id): source_id must identify each
 Wazuh manager (ids from different managers collide). links/extensions/quality are omitted (optional in the contract).
 """
 
@@ -29,8 +30,8 @@ def wazuh_alert_to_signal_v1(
     payload: dict[str, Any],
     *,
     source_id: str,
+    collected_at: datetime,
     received_at: datetime,
-    collected_at: datetime | None = None,
 ) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise SignalRejected("payload", payload)
@@ -60,7 +61,7 @@ def wazuh_alert_to_signal_v1(
         "tenant_id": None,  # resolved by the Hub, never by the source
         "signal_type": "wazuh.alert",
         "occurred_at": occurred,
-        "collected_at": _aware(collected_at or received_at, "collected_at"),
+        "collected_at": _aware(collected_at, "collected_at"),
         "received_at": _aware(received_at, "received_at"),
         "severity_source": {
             "scheme": "wazuh.level",
