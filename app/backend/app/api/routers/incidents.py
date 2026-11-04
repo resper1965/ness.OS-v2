@@ -7,6 +7,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+from datetime import datetime, timezone
 from typing import Literal
 from urllib.parse import urlencode, urljoin
 
@@ -60,7 +61,48 @@ def _pipeline_stage(incident: Incident) -> str:
     return "detected"
 
 
-def _incident_payload(inc: Incident) -> dict:
+_TICKET_ACTIONS = (
+    "ticket_created",
+    "ticket_reused",
+    "ticket_failed",
+    "ticket_retry_exhausted",
+)
+_TICKET_PENDING = {"ticket_failed", "ticket_retry_exhausted"}
+
+
+def _ticket_state(inc: Incident, last_ticket_action: str | None) -> str:
+    """ticketed | pending_sync | none, derivado sem coluna.
+
+    ponytail: "tentativa em curso" não deixa rastro persistido (só o resultado
+    da tentativa vira ação); upgrade path: gravar ação ticket_attempt no worker.
+    """
+    if inc.deskmanager_ticket_id:
+        return "ticketed"
+    return "pending_sync" if last_ticket_action in _TICKET_PENDING else "none"
+
+
+async def _last_ticket_actions(session, incidents: list[Incident]) -> dict[int, str]:
+    """Última ação de ticket por incidente (só dos que ainda não têm ticket)."""
+    ids = [i.id for i in incidents if not i.deskmanager_ticket_id]
+    if not ids:
+        return {}
+    rows = await session.execute(
+        select(IncidentAction.incident_id, IncidentAction.action)
+        .where(
+            IncidentAction.incident_id.in_(ids),
+            IncidentAction.action.in_(_TICKET_ACTIONS),
+        )
+        .distinct(IncidentAction.incident_id)
+        .order_by(
+            IncidentAction.incident_id,
+            desc(IncidentAction.created_at),
+            desc(IncidentAction.id),
+        )
+    )
+    return {incident_id: action for incident_id, action in rows.all()}
+
+
+def _incident_payload(inc: Incident, last_ticket_action: str | None = None) -> dict:
     tags = inc.tags or {}
     asset_tags = inc.asset.tags or {} if inc.asset else {}
     return {
@@ -94,6 +136,12 @@ def _incident_payload(inc: Incident) -> dict:
         "alert_count": inc.alert_count or 1,
         "first_seen": inc.first_seen.isoformat() if inc.first_seen else None,
         "last_seen": inc.last_seen.isoformat() if inc.last_seen else None,
+        "age_seconds": (
+            max(0, int((datetime.now(timezone.utc) - inc.first_seen).total_seconds()))
+            if inc.first_seen
+            else None
+        ),
+        "ticket_state": _ticket_state(inc, last_ticket_action),
         "pipeline_stage": _pipeline_stage(inc),
     }
 
@@ -113,6 +161,23 @@ class IncidentActionRequest(BaseModel):
         return value
 
 
+def _instant(name: str, value: str | None) -> datetime | None:
+    """ISO 8601 com fuso explícito; sem fuso ou inválido → 422."""
+    if value is None:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value)
+    except ValueError:
+        parsed = None
+    if parsed is None or parsed.tzinfo is None:
+        raise HTTPException(
+            status_code=422,
+            detail=f"{name}: use ISO 8601 com fuso (ex.: 2026-11-04T10:00:00-03:00; "
+            "codifique '+' como %2B)",
+        )
+    return parsed
+
+
 @router.get(
     "/api/incidents",
     tags=["incidents"],
@@ -122,14 +187,31 @@ async def list_incidents(
     offset: int = Query(default=0, ge=0),
     status: str | None = Query(default=None),
     tenant_id: str | None = Query(default=None),
+    assignee: int | None = Query(default=None),
+    from_: str | None = Query(default=None, alias="from"),
+    to: str | None = Query(default=None),
     current_user: User = Depends(get_current_user),
 ):
-    """Retorna lista de incidentes com stage do pipeline."""
+    """Fila de incidentes ordenada por prioridade e depois por tempo de espera.
+
+    Prioridade = severity desc; empate: abertos/reconhecidos (open, acknowledged)
+    antes de resolved/closed. Depois, first_seen asc (quem espera há mais tempo
+    primeiro) e id asc para estabilidade. ponytail: sem pesos além disso;
+    upgrade path: SLA/criticidade do ativo quando houver dado confiável.
+    `from`/`to` filtram first_seen (inclusivo, ISO 8601 com fuso).
+    """
     scope = resolve_tenant_scope(current_user, tenant_id)
+    since, until = _instant("from", from_), _instant("to", to)
     async with SessionLocal() as session:
         criteria = []
         if status:
             criteria.append(Incident.status == status)
+        if assignee is not None:
+            criteria.append(Incident.assigned_user_id == assignee)
+        if since:
+            criteria.append(Incident.first_seen >= since)
+        if until:
+            criteria.append(Incident.first_seen <= until)
         if scope:
             criteria.append(
                 func.lower(Incident.tags["ninf_customer_name"].astext) == scope
@@ -143,15 +225,23 @@ async def list_incidents(
             select(Incident)
             .options(selectinload(Incident.asset))
             .where(*criteria)
-            .order_by(desc(Incident.last_seen), desc(Incident.id))
+            .order_by(
+                desc(Incident.severity),
+                Incident.status.in_(("open", "acknowledged")).desc(),
+                Incident.first_seen,
+                Incident.id,
+            )
             .limit(limit)
             .offset(offset)
         )
         result = await session.execute(stmt)
         incidents = result.scalars().all()
+        last = await _last_ticket_actions(session, incidents)
 
         return {
-            "incidents": [_incident_payload(inc) for inc in incidents],
+            "incidents": [
+                _incident_payload(inc, last.get(inc.id)) for inc in incidents
+            ],
             "total": total,
         }
 
@@ -315,8 +405,9 @@ async def get_incident_detail(
             .scalars()
             .all()
         )
+        last = await _last_ticket_actions(session, [incident])
         return {
-            **_incident_payload(incident),
+            **_incident_payload(incident, last.get(incident.id)),
             "host_id": incident.host_id,
             "trigger_id": incident.trigger_id,
             "source_event_id": event_id,
@@ -337,6 +428,65 @@ async def get_incident_detail(
                 }
                 for action in actions
             ],
+        }
+
+
+@router.get("/api/incidents/{incident_id}/timeline", tags=["incidents"])
+async def get_incident_timeline(
+    incident_id: int,
+    limit: int = Query(default=200, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+    current_user: User = Depends(get_current_user),
+):
+    """Ações do incidente em ordem cronológica ascendente, paginadas.
+
+    ponytail: só n_infraops_incident_actions. SocDecision não tem vínculo com
+    Incident (lacuna conhecida); upgrade path: FK/chave de correlação e union
+    ordenado por `at`.
+    """
+    scope = resolve_tenant_scope(current_user, None)
+    async with SessionLocal() as session:
+        stmt = select(Incident.id).where(Incident.id == incident_id)
+        if scope:
+            stmt = stmt.where(
+                func.lower(Incident.tags["ninf_customer_name"].astext) == scope
+            )
+        if (await session.execute(stmt)).scalar_one_or_none() is None:
+            raise HTTPException(status_code=404, detail="Incidente não encontrado")
+        where = IncidentAction.incident_id == incident_id
+        total = (
+            await session.execute(
+                select(func.count()).select_from(IncidentAction).where(where)
+            )
+        ).scalar_one()
+        actions = (
+            (
+                await session.execute(
+                    select(IncidentAction)
+                    .where(where)
+                    .order_by(IncidentAction.created_at, IncidentAction.id)
+                    .limit(limit)
+                    .offset(offset)
+                )
+            )
+            .scalars()
+            .all()
+        )
+        return {
+            "entries": [
+                {
+                    "kind": a.action,
+                    "at": a.created_at.isoformat(),
+                    "actor": {"source": a.actor_source, "user_id": a.actor_user_id},
+                    "source_table": "n_infraops_incident_actions",
+                    "source_id": str(a.id),
+                    "note": a.note,
+                }
+                for a in actions
+            ],
+            "total": total,
+            "limit": limit,
+            "offset": offset,
         }
 
 

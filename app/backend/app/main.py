@@ -9,7 +9,9 @@ from __future__ import annotations
 # ruff: noqa: E402
 import asyncio
 import logging
+import re
 import sys
+import uuid
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
@@ -62,6 +64,37 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
+_REQUEST_ID = re.compile(r"[A-Za-z0-9._-]{1,64}")
+
+
+class RequestIdMiddleware:
+    """Aceita X-Request-ID válido do cliente (senão uuid4) e o devolve na resposta.
+
+    ponytail: só header — não há handler comum de erros para incluir request_id
+    no corpo; upgrade path: exception_handler único quando existir.
+    """
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            return await self.app(scope, receive, send)
+        sent = dict(scope["headers"]).get(b"x-request-id", b"").decode("latin-1")
+        rid = sent if _REQUEST_ID.fullmatch(sent) else str(uuid.uuid4())
+        scope.setdefault("state", {})["request_id"] = rid
+
+        async def send_with_id(message):
+            if message["type"] == "http.response.start":
+                message["headers"] = [
+                    *(h for h in message["headers"] if h[0].lower() != b"x-request-id"),
+                    (b"x-request-id", rid.encode()),
+                ]
+            await send(message)
+
+        await self.app(scope, receive, send_with_id)
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -74,7 +107,9 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["X-Request-ID"],
 )
+app.add_middleware(RequestIdMiddleware)
 
 # --- ness.OS Core ---
 app.include_router(core_router)  # prefix: /api/core
