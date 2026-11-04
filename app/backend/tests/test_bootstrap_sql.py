@@ -36,3 +36,32 @@ def test_soc_decisions_indexes_from_migrate_exist_in_bootstrap():
         ddl = m.group(1)
         b = re.search(rf"INDEX (?:IF NOT EXISTS )?{name} ([^;]*);", SQL)
         assert b and _norm(b.group(1)) == ddl, name
+
+
+def test_tenant_mappings_modality_from_migrate_exist_in_bootstrap():
+    body = re.search(
+        r"CREATE TABLE IF NOT EXISTS n_infraops_tenant_mappings \((.*?)\n\);", SQL, re.S
+    ).group(1)
+    cols = dict(
+        re.findall(
+            r"ALTER TABLE n_infraops_tenant_mappings "
+            r"ADD COLUMN IF NOT EXISTS (\w+) ([\w()]+);",
+            _norm(MIGRATE),
+        )
+    )
+    assert cols == {"modality": "VARCHAR(32)", "operator": "VARCHAR(128)"}
+    for name, typ in cols.items():
+        assert re.search(rf"\b{name}\s+{re.escape(typ)},", body), name
+    check = r"CHECK \(\s*modality IS NULL OR modality IN\s*\(([^)]*)\)\s*\)"
+    values = [
+        re.findall(r"'(\w+)'", re.search(check, t).group(1)) for t in (MIGRATE, body)
+    ]
+    assert (
+        values[0]
+        == values[1]
+        == ["central_ness", "sonda_no_cliente", "cliente_gerenciado"]
+    )
+    assert (
+        "ck_tenant_mappings_modality" in MIGRATE
+        and "ck_tenant_mappings_modality" in body
+    )

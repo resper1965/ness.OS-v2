@@ -315,3 +315,17 @@ CREATE TABLE n_infraops_users (
     last_login      TIMESTAMPTZ
 );
 
+-- Vínculo plataforma externa -> cliente; modality nula = pendente_de_modalidade.
+CREATE TABLE IF NOT EXISTS n_infraops_tenant_mappings (
+    id                    BIGSERIAL PRIMARY KEY,
+    internal_customer_id  VARCHAR(128) NOT NULL,
+    external_platform     VARCHAR(64) NOT NULL,
+    external_customer_id  VARCHAR(128) NOT NULL,
+    external_customer_name VARCHAR(255),
+    modality              VARCHAR(32),
+    operator              VARCHAR(128),
+    created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT ck_tenant_mappings_modality CHECK (modality IS NULL OR modality IN ('central_ness', 'sonda_no_cliente', 'cliente_gerenciado'))
+);
+CREATE INDEX IF NOT EXISTS ix_n_infraops_tenant_mappings_internal_customer_id ON n_infraops_tenant_mappings (internal_customer_id);
+CREATE INDEX IF NOT EXISTS ix_n_infraops_tenant_mappings_external_customer_id ON n_infraops_tenant_mappings (external_customer_id);

@@ -42,6 +42,7 @@ Tasks do [plano de execução](docs/superpowers/plans/2026-10-26-ness-os-executi
 ### Em andamento
 - Vínculo `SocDecision` ↔ incidente na linha do tempo (P2, segundo corte): #164 em revisão
 - Cobertura e frescor por fonte (P2): backend em `pipeline-status` (`sources`), PR em revisão; modalidade por cliente pendente de decisão do Ricardo
+- Modalidade por cliente × origem (P2): colunas nulas `modality`/`operator` em `n_infraops_tenant_mappings` e `sources` com `mappings_total`/`coverage_declared`; nenhum valor preenchido, pendente de decisão do Ricardo por grupo
 
 ### Pronto para começar
 - 2.5 T06 do plano GLPI (reconciliar todo o inventário)
