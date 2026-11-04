@@ -15,6 +15,7 @@ from app.database import SessionLocal
 from app.integrations.glpi import GLPIClient
 from app.integrations.zabbix import ZabbixClient
 from app.models import Incident, SocDecision
+from app.models.models import TenantMapping
 from app.workers.celery_app import celery_app
 from app.workers.telemetry import KEY
 
@@ -249,7 +250,7 @@ async def source_coverage(now):
         "zabbix": select(func.max(Incident.last_seen)),
         "wazuh": select(func.max(SocDecision.created_at)),
     }
-    seen, reasons = {}, {}
+    seen, reasons, modalities = {}, {}, {}
 
     async def collect():
         async with SessionLocal() as session:
@@ -261,8 +262,23 @@ async def source_coverage(now):
                     logger.warning(
                         "source_coverage query failed: %s", name, exc_info=True
                     )
+            try:
+                rows = await session.execute(
+                    select(
+                        TenantMapping.external_platform,
+                        func.count(),
+                        func.count(TenantMapping.modality),
+                        func.count(func.distinct(TenantMapping.modality)),
+                        func.min(TenantMapping.modality),
+                    )
+                    .where(TenantMapping.external_platform.in_(queries))
+                    .group_by(TenantMapping.external_platform)
+                )
+                modalities.update({r[0]: r[1:] for r in rows})
+            except Exception:
+                logger.warning("source_coverage modality failed", exc_info=True)
 
-    # One deadline for connect + both queries + close, so the monitor (35 s) never hangs.
+    # One deadline for connect + all queries + close, so the monitor (35 s) never hangs.
     try:
         await asyncio.wait_for(collect(), timeout=SOURCE_COVERAGE_TIMEOUT_SECONDS)
     except Exception:
@@ -273,15 +289,20 @@ async def source_coverage(now):
     out = {}
     for name, last in seen.items():
         age = max(0, int((now - last).total_seconds())) if last else None
+        # Unknown (query failed/timed out) counts as no mapping: coverage is never declared.
+        total, with_modality, distinct, only = modalities.get(name, (0, 0, 0, None))
+        if total == 0 or with_modality < total:
+            modality = "pendente_de_modalidade"
+        else:
+            modality = only if distinct == 1 else "mista"
         out[name] = {
             "last_data_at": last.isoformat() if last else None,
             "age_seconds": age,
             "stale": age is None or age > MAX_SOURCE_AGE_SECONDS,
-            # ponytail: no per-client modality registry yet. Next step is a field on
-            # the client record (central_ness | sonda_no_cliente | cliente_gerenciado,
-            # set before the first collection); Ricardo decides it, so never infer it here.
-            "modality": "pendente_de_modalidade",
-            "coverage_declared": False,
+            "modality": modality,
+            "mappings_total": total,
+            "mappings_with_modality": with_modality,
+            "coverage_declared": total > 0 and with_modality == total,
             **({} if last else {"reason": reasons[name]}),
         }
     return out

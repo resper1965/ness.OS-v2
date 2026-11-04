@@ -51,6 +51,9 @@ class _ScalarSession:
             raise self.values[0]
         return self.values.pop(0)
 
+    async def execute(self, _query):
+        return []  # nenhum vínculo cadastrado
+
 
 @pytest.fixture(autouse=True)
 def no_db(monkeypatch):
@@ -442,7 +445,7 @@ async def test_source_coverage_recent_old_and_missing(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_source_coverage_never_declares_modality_or_coverage(monkeypatch):
+async def test_source_coverage_without_mappings_never_declares_coverage(monkeypatch):
     now = datetime.now(timezone.utc)
     _seen(monkeypatch, now, now)
     for item in (await health.source_coverage(now)).values():

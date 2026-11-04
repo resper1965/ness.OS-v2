@@ -10,6 +10,7 @@ from typing import Any
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     BigInteger,
+    CheckConstraint,
     DateTime,
     Enum,
     ForeignKey,
@@ -367,6 +368,13 @@ class TenantMapping(Base):
     """Mapeamento explícito de IDs de plataformas externas para Clientes internos."""
 
     __tablename__ = "n_infraops_tenant_mappings"
+    __table_args__ = (
+        CheckConstraint(
+            "modality IS NULL OR modality IN "
+            "('central_ness', 'sonda_no_cliente', 'cliente_gerenciado')",
+            name="ck_tenant_mappings_modality",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     internal_customer_id: Mapped[str] = mapped_column(
@@ -380,6 +388,9 @@ class TenantMapping(Base):
         String(128), nullable=False, index=True
     )
     external_customer_name: Mapped[str | None] = mapped_column(String(255))
+    # Nulo = pendente_de_modalidade: a cobertura não é declarada (decisão do Ricardo).
+    modality: Mapped[str | None] = mapped_column(String(32))
+    operator: Mapped[str | None] = mapped_column(String(128))
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()

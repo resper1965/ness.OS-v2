@@ -93,6 +93,29 @@ async def run_migrations():
             "ON n_secops_soc_decisions (created_at DESC);",
         ):
             await conn.execute(text(ddl))
+        # Modalidade por cliente x origem; nula = pendente_de_modalidade (sem backfill).
+        for ddl in (
+            "ALTER TABLE n_infraops_tenant_mappings "
+            "ADD COLUMN IF NOT EXISTS modality VARCHAR(32);",
+            "ALTER TABLE n_infraops_tenant_mappings "
+            "ADD COLUMN IF NOT EXISTS operator VARCHAR(128);",
+            """
+            DO $$ BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM pg_constraint
+                    WHERE conname = 'ck_tenant_mappings_modality'
+                      AND conrelid = 'n_infraops_tenant_mappings'::regclass
+                ) THEN
+                    ALTER TABLE n_infraops_tenant_mappings
+                    ADD CONSTRAINT ck_tenant_mappings_modality CHECK (
+                        modality IS NULL OR modality IN
+                        ('central_ness', 'sonda_no_cliente', 'cliente_gerenciado')
+                    );
+                END IF;
+            END $$;
+            """,
+        ):
+            await conn.execute(text(ddl))
         actions_ddl = """
                 CREATE TABLE IF NOT EXISTS n_infraops_incident_actions (
                     id BIGSERIAL PRIMARY KEY,

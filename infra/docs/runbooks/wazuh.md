@@ -36,5 +36,17 @@ Inserção idempotente (`INSERT … WHERE NOT EXISTS`, rodada duas vezes: 9 linh
 
 Rollback: `DELETE FROM n_infraops_tenant_mappings WHERE external_platform='wazuh' AND external_customer_id IN (<os 9 grupos>)`.
 
+### Modalidade e operador por vínculo
+
+`modality` (`central_ness` | `sonda_no_cliente` | `cliente_gerenciado`) e `operator` ficam nulos até o Ricardo decidir. Nulo = `pendente_de_modalidade`: `sources.<fonte>.coverage_declared` é `false` enquanto qualquer vínculo da plataforma estiver sem modalidade. O CHECK rejeita outro valor. Não há endpoint nem backfill: o registro é manual, por grupo, com valor decidido por ele.
+
+```sql
+UPDATE n_infraops_tenant_mappings
+   SET modality = '<modalidade decidida>', operator = '<quem opera>'
+ WHERE external_platform = 'wazuh' AND external_customer_id IN ('<grupo>', ...);
+```
+
+Rollback (volta a pendente): `UPDATE n_infraops_tenant_mappings SET modality = NULL, operator = NULL WHERE external_platform='wazuh' AND external_customer_id IN ('<grupo>', ...);`
+
 Novo grupo no Wazuh: cadastrar o vínculo antes de o agente enviar alertas; senão cai em revisão técnica.
 Não ativa a integração Wazuh → Hub: isso continua dependendo de contratação, desenho de coleta e homologação.
