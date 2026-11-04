@@ -5,6 +5,7 @@ Uso: python3 signal_v1_consumer.py [--stored] sinal.json  -> "ACEITO" ou "REJEIT
 Sem --stored valida o envelope de ENTRADA (tenant_id null ou ausente); com --stored, o registro armazenado.
 """
 import hashlib
+from fractions import Fraction
 import json
 import re
 import sys
@@ -24,7 +25,8 @@ MAX_SAFE_INT = 2 ** 53 - 1
 
 
 def parse_instant(v):
-    """RFC 3339 com fuso explicito (Z ou +hh:mm). Devolve datetime com tz ou None."""
+    """RFC 3339 com fuso explicito (Z ou +hh:mm). Devolve os segundos desde a epoca (Fraction exata, fracao
+    completa preservada, sem truncar a microssegundos) ou None."""
     if not isinstance(v, str):
         return None
     m = INSTANT.fullmatch(v)
@@ -40,7 +42,8 @@ def parse_instant(v):
             if oh > 23 or om > 59:
                 return None
             off = timezone(timedelta(hours=oh, minutes=om) * (-1 if tz[0] == '-' else 1))
-        return datetime(y, mo, d, h, mi, s, int(((frac or '.')[1:] + '000000')[:6]), tzinfo=off)
+        whole = (datetime(y, mo, d, h, mi, s, tzinfo=off) - datetime(1970, 1, 1, tzinfo=timezone.utc)) // timedelta(seconds=1)
+        return whole + (Fraction(int(frac[1:]), 10 ** (len(frac) - 1)) if frac else Fraction(0))
     except ValueError:  # data/hora impossivel (inclui segundo 60)
         return None
 
@@ -231,7 +234,7 @@ def idempotency_key(doc):
     return (doc['source_id'], doc['event_id']) if doc.get('event_id') else None
 
 def clock_skew(record):
-    """received_at - collected_at, derivado do registro (sem campo novo)."""
+    """received_at - collected_at em segundos (Fraction), derivado do registro (sem campo novo)."""
     return parse_instant(record['received_at']) - parse_instant(record['collected_at'])
 
 class Store:
@@ -262,8 +265,11 @@ def _no_dup(pairs):
     return d
 
 
+def _no_const(name):
+    raise ValueError(f'constante JSON invalida: {name}')
+
 def load(text):
-    return json.loads(text, object_pairs_hook=_no_dup)
+    return json.loads(text, object_pairs_hook=_no_dup, parse_constant=_no_const)
 
 
 if __name__ == '__main__':

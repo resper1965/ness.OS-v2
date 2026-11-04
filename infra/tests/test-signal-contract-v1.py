@@ -154,6 +154,10 @@ class SignalV1Test(unittest.TestCase):
         del doc["tenant_id"]
         self.assertFalse(list(entry.iter_errors(doc)))
         self.assertTrue(list(stored.iter_errors(doc)))
+        # instant without timezone is rejected by the schema pattern
+        doc = load("cloud-event")
+        doc["occurred_at"] = "2026-11-04T10:00:00"
+        self.assertTrue(list(entry.iter_errors(doc)))
         # severity_source.value absent or null does not discard the signal
         for sev in ({"scheme": "provider"}, {"scheme": "provider", "value": None}):
             doc = load("cloud-event")

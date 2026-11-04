@@ -108,6 +108,7 @@ jobs:
         python -m pytest -q infra/tests/test-psono-custodian-readiness.py
         python -m pytest -q infra/tests/test-zabbix-quality-wave.py
         python -m pytest -q infra/tests/test-hub-zabbix-backfill.py
+        pip install jsonschema
         python -m pytest -q infra/tests/test-signal-contract-v1.py
         python -m pytest -q infra/tests/test-signal-contract-v1-consumer.py
         python -m pytest -q infra/tests/test_glpi_network_boundary_probe.py

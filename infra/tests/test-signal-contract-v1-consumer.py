@@ -1,6 +1,7 @@
 """Consumidor independente do contrato de sinal v1: prova o contrato so com o texto, o schema e os exemplos.
 Rodar: python3 infra/tests/test-signal-contract-v1-consumer.py  (tambem coletavel pelo pytest)."""
 import copy
+from fractions import Fraction
 import hashlib
 import importlib.util
 import json
@@ -112,7 +113,7 @@ def test_b2_idempotency_key_has_no_tenant_and_conflict_is_recorded():
 
 def test_b3_clock_skew_derived_from_record():
     r = c.ingest(ex('wazuh-alert'), lambda s: None, '2026-11-04T13:15:32.480Z')['record']
-    assert abs(c.clock_skew(r).total_seconds() - 1.48) < 1e-6  # 13:15:32.480Z - 10:15:31-03:00
+    assert c.clock_skew(r) == Fraction(148, 100)  # 13:15:32.480Z - 10:15:31-03:00
 
 def test_c_instants_need_explicit_timezone():
     bad = ['2026-11-04T10:00:00', '2026-11-04T10:00:00+0300', '2026-11-04', '2026-11-04T10:00:00+03',
@@ -131,6 +132,18 @@ def test_c_instants_need_explicit_timezone():
     d['batch']['interval']['end'] = '2026-11-04T06:00:00'
     assert has(d, 'interval')
 
+
+def test_c3_fractional_seconds_are_not_truncated():
+    # RFC 3339 admite fracao com qualquer numero de digitos: 7 digitos distinguem start de end
+    d = ot_with_payload({'a': 1})
+    d['batch']['interval'] = {'start': '2026-11-03T09:00:00.0000001Z', 'end': '2026-11-03T09:00:00.0000002Z'}
+    assert not has(d, 'interval')
+    d['batch']['interval']['end'] = d['batch']['interval']['start']
+    assert has(d, 'start deve ser < end')
+    d['batch']['interval']['end'] = '2026-11-03T09:00:00.00000010Z'  # 0,1 us == 0,10 us: igual
+    assert has(d, 'start deve ser < end')
+    # mesmo instante com fusos diferentes e fracoes de tamanhos diferentes
+    assert c.parse_instant('2026-11-04T10:00:00.5-03:00') == c.parse_instant('2026-11-04T13:00:00.500Z')
 
 def test_c2_clock_skew_is_not_rejected():
     d = ex('wazuh-alert')
@@ -231,6 +244,24 @@ def test_e_payload_outside_integer_string_subset_is_flagged_not_crashing():
     assert errs(d) == []
     assert errs(ex('wazuh-alert')) == []  # payload.timestamp com -0300 aceito
 
+
+def test_g_nan_and_infinity_are_rejected():
+    for const in ('NaN', 'Infinity', '-Infinity'):
+        for text in ('{"severity_source": {"scheme": "x", "value": %s}}' % const,
+                     '{"payload": {"a": %s}}' % const):
+            try:
+                c.load(text)
+                raise AssertionError(f'deveria rejeitar {const}')
+            except ValueError:
+                pass
+    # documento completo com NaN no value nao chega a ser aceito
+    text = json.dumps(ex('wazuh-alert')).replace('"value": 12', '"value": NaN')
+    assert 'NaN' in text
+    try:
+        c.load(text)
+        raise AssertionError('deveria rejeitar')
+    except ValueError:
+        pass
 
 def test_f_links_optional():
     for n in ('cloud-event', 'wazuh-pending-tenant'):
