@@ -9,21 +9,15 @@
 | ≥ 12 | 15 min, 24x7 | atende sempre, com ticket (regra 1) |
 | 7 a 11, atendido pelo score | 4 h, horário comercial | |
 | ≤ 6 com score ≥ 75 | 1 h, 24x7 | IOC confirmado ou ativo crítico (regra 3) |
+| Severidade ausente ou inválida | 4 h, horário comercial | atende por regra (regra 7); sem nível, não se presume gravidade |
+| Regra própria da NESS que detecta, abaixo do nível 12 | 4 h, horário comercial | atende sempre (regra 4); a regra de detecção ainda não existe no código |
 | Sem cliente ou ambíguo | 1 dia útil | revisão técnica (regra 5) |
 
 Fator decisivo: o contrato de cada cliente prevalece. Estes valores só valem como padrão onde o contrato é omisso.
 
 ## 2. Sonda OT
 
-| Item | Proposta | Por quê |
-|---|---|---|
-| Janela | 24 h, fechada às 00:00 UTC | já aprovada como teto (regra 6) |
-| Banda | sem limite no protocolo; lote de até 50 MB compactado | OT costuma ter enlace estreito; lote grande vira reenvio |
-| Retenção do lote bruto | 90 dias | cobre uma auditoria trimestral |
-| Retenção do resultado da análise | 13 meses | cobre a comparação anual |
-| Capacidade | 1 sonda por site, dimensionada no piloto (P4) | só se mede com cliente real |
-
-Fator decisivo: retenção de evidência cria custo de armazenamento permanente. Prefira o menor prazo que atende ao contrato.
+**Fora desta proposta.** Ainda não há projeto operacional de OT, então janela, banda, retenção e capacidade não têm cliente nem contrato para dimensionar. A janela de até 24 h (regra 6) continua como teto aprovado. Os demais valores são decididos no piloto do P4, com cliente real.
 
 ## 3. Revisão da amostra semanal de arquivados
 
