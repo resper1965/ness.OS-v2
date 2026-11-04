@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 PROBE_TIMEOUT_SECONDS = 20
 MAX_QUEUE_AGE_SECONDS = 300
 MAX_SOURCE_AGE_SECONDS = 900
-SOURCE_QUERY_TIMEOUT_SECONDS = 5
+SOURCE_COVERAGE_TIMEOUT_SECONDS = 5
 # Only recent delivery trouble is actionable; older entries are history, not alerts.
 WORKER_FAILURE_WINDOW_SECONDS = 900
 MISSING_TICKET_MIN_AGE = timedelta(minutes=5)
@@ -250,16 +250,26 @@ async def source_coverage(now):
         "wazuh": select(func.max(SocDecision.created_at)),
     }
     seen, reasons = {}, {}
-    async with SessionLocal() as session:
-        for name, query in queries.items():
-            try:
-                seen[name] = await asyncio.wait_for(
-                    session.scalar(query), timeout=SOURCE_QUERY_TIMEOUT_SECONDS
-                )
-                reasons[name] = "sem_dados"
-            except Exception:
-                logger.warning("source_coverage query failed: %s", name, exc_info=True)
-                seen[name], reasons[name] = None, "erro_consulta"
+
+    async def collect():
+        async with SessionLocal() as session:
+            for name, query in queries.items():
+                try:
+                    seen[name] = await session.scalar(query)
+                    reasons[name] = "sem_dados"
+                except Exception:
+                    logger.warning(
+                        "source_coverage query failed: %s", name, exc_info=True
+                    )
+
+    # One deadline for connect + both queries + close, so the monitor (35 s) never hangs.
+    try:
+        await asyncio.wait_for(collect(), timeout=SOURCE_COVERAGE_TIMEOUT_SECONDS)
+    except Exception:
+        logger.warning("source_coverage failed or timed out", exc_info=True)
+    for name in queries:
+        if name not in seen:
+            seen[name], reasons[name] = None, "erro_consulta"
     out = {}
     for name, last in seen.items():
         age = max(0, int((now - last).total_seconds())) if last else None

@@ -500,7 +500,7 @@ async def test_source_query_timeout_is_erro_consulta_and_pipeline_unaffected(
         async def scalar(self, _query):
             await asyncio.sleep(10)
 
-    monkeypatch.setattr(health, "SOURCE_QUERY_TIMEOUT_SECONDS", 0.02)
+    monkeypatch.setattr(health, "SOURCE_COVERAGE_TIMEOUT_SECONDS", 0.02)
     monkeypatch.setattr(health, "SessionLocal", lambda: Hung())
     _probes(monkeypatch, {"return_value": {"status": "ready"}})
     result = await health.pipeline_health()
@@ -508,5 +508,38 @@ async def test_source_query_timeout_is_erro_consulta_and_pipeline_unaffected(
         src = result["sources"][name]
         assert src["last_data_at"] is None and src["age_seconds"] is None
         assert src["stale"] is True and src["reason"] == "erro_consulta"
-        assert f"failed: {name}" in caplog.text
+    assert "timed out" in caplog.text
     assert result["ready"] is True and result["status"] == "ok"
+
+
+@pytest.mark.asyncio
+async def test_coverage_deadline_is_total_and_hung_connect_is_covered(monkeypatch):
+    class HungConnect:
+        async def __aenter__(self):
+            await asyncio.sleep(10)
+
+        async def __aexit__(self, *exc):
+            pass
+
+    monkeypatch.setattr(health, "SOURCE_COVERAGE_TIMEOUT_SECONDS", 0.05)
+    monkeypatch.setattr(health, "SessionLocal", lambda: HungConnect())
+    started = time.monotonic()
+    src = await health.source_coverage(datetime.now(timezone.utc))
+    assert time.monotonic() - started < 1
+    assert all(s["reason"] == "erro_consulta" and s["stale"] for s in src.values())
+
+
+@pytest.mark.asyncio
+async def test_coverage_one_query_failing_keeps_the_other(monkeypatch):
+    now = datetime.now(timezone.utc)
+
+    class Half(_ScalarSession):
+        async def scalar(self, _query):
+            if not self.values:
+                raise ConnectionError("db")
+            return self.values.pop(0)
+
+    monkeypatch.setattr(health, "SessionLocal", lambda: Half(now))
+    src = await health.source_coverage(now)
+    assert src["zabbix"]["stale"] is False
+    assert src["wazuh"]["reason"] == "erro_consulta"

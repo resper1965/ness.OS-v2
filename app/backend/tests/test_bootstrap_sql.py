@@ -28,6 +28,7 @@ def test_soc_decisions_indexes_from_migrate_exist_in_bootstrap():
         "ix_soc_decisions_freq",
         "ix_soc_decisions_action_created",
         "ix_soc_decisions_incident",
+        "ix_soc_decisions_created",
         "uq_soc_decisions_dedup",
     ):
         m = re.search(rf"INDEX IF NOT EXISTS {name} ([^;]*);", _norm(MIGRATE))
