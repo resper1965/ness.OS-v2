@@ -73,3 +73,11 @@ Gemini direto dava 429 (cota gratuita) em 134/135 análises. #117 troca os três
 **Tentativa anterior (`d937141`) revertida sozinha pelo script.** O build novo resolveu `kombu 5.7.0` (celery 5.4 aceita `>=5.3,<6`), que exige `redis-py >= 6.1`; a imagem tem 5.3.1 e os dois workers reiniciavam com `VersionMismatch`. O rollback automático restaurou a release anterior, saudável, em ~10 min. Correção: pin `kombu==5.6.*` (#142). Lição: dependência transitiva sem lockfile faz o build do mesmo código diferir do que está em produção; vale congelar o resultado do `pip` (lockfile) no futuro.
 
 Frontend: a primeira troca devolveu 502 (o Caddy ainda não alcançava o contêiner novo) e o script reverteu; a segunda, com espera pelo `/` responder, passou.
+
+## Promoção de `56c4659` (04/11) — P0 Fundação SOC
+
+#147: atendimento por função própria, `pendente_de_cliente`, validação com campo/valor/sinal no log, prazo de 45 s no modelo, frequência persistida por tenant + cluster (`freq_key`). API e workers em `ghcr.io/resper1965/ninf-api@sha256:235ef1b81e555cc0c3d5ddc934b287c24a7d660790547465602df2e6416815f9`; frontend inalterado (`1051d84ff41f`, sem mudança de compose).
+
+`aiops-promote-hub-api.sh` com canário de 300 s: `promotion=PASS`, backup `20261104T074026-0300` (rodou o backup noturno, ~10 min). `migrate.py` criou `n_secops_soc_decisions.freq_key` e o índice `ix_soc_decisions_freq`. Verificado: `ready=200`, API e workers saudáveis, 0 erros nos logs do worker, `/api/secops/triage` 401 sem sessão, frontend 200, 45 eventos de incidente nos 10 min seguintes. Nenhuma integração Wazuh → Hub ativada.
+
+Rollback: release `c16471d` (`docker compose -p app -f /opt/n-infraops/releases/c16471ddeedad4a8cd03103441652696fefa64b1/app/docker-compose.yml -f …/docker-compose.tickets.yml up -d --no-deps --force-recreate api`, mais workers). A coluna `freq_key` é aditiva e nullable: a versão anterior a ignora.
