@@ -4,7 +4,7 @@
 
 **Estágio:** em andamento
 
-**Próximo passo:** A3 — aplicar o backfill dos incidentes já recuperados no Zabbix (espera o OK do Ricardo); depois P1. Trilha: [plano de 04/11](docs/superpowers/plans/2026-11-04-trilha-de-execucao.md).
+**Próximo passo:** promover o frontend com o contador novo (#149), com OK do Ricardo; P1 e T07 em andamento. Trilha: [plano de 04/11](docs/superpowers/plans/2026-11-04-trilha-de-execucao.md).
 
 ## Quadro (atualizado a cada task fechada)
 
@@ -33,10 +33,10 @@ Tasks do [plano de execução](docs/superpowers/plans/2026-10-26-ness-os-executi
 - 2.5 T05 GLPI: Computers 108–110 (entidade 1) criados e 1419 vínculos de ticket reparados (874 / 560 / 30), readback igual ao Hub, segunda aplicação 0; duas exceções `callAsSystem` aprovadas pelo Ricardo, só neste lote — [evidência](docs/execution/evidence/glpi-t05-assets-2026-11-02.md)
 - 2.3b Isolamento Hub ↔ GLPI aplicado em 03/11 (#140): senhas do banco fora do `.env` do Hub (`/etc/ness-os/glpi-{db,app}.env`), `glpi-db` em rede interna própria, senhas rotacionadas; Hub sem a variável e sem resolver `glpi-db`. [Evidência](docs/execution/evidence/glpi-hub-isolation-2026-11-03.md)
 - P0 Fundação SOC (03/11): atendimento por função própria, `pendente_de_cliente`, validação com campo/valor/sinal no log, prazo de 45 s no modelo, frequência persistida por tenant+cluster (`freq_key`). Em produção na release `56c4659` (04/11, `promotion=PASS`), coluna `freq_key` criada
-- Recuperação Zabbix → Hub ligada em 03/11 (ação 7 e media type 72): antes nenhum incidente era marcado como recuperado. Pendente: indicadores por `ninf_zabbix_status` e backfill — [evidência](docs/execution/evidence/zabbix-hub-recovery-2026-11-03.md)
+- Recuperação Zabbix → Hub ligada em 03/11 (ação 7 e media type 72): antes nenhum incidente era marcado como recuperado. Pendente: promover o frontend (#149) — [evidência](docs/execution/evidence/zabbix-hub-recovery-2026-11-03.md)
 
 ### Em andamento
-- Backfill Zabbix → Hub: dry-run completo, lote de 500 aplicado (279 incidentes); resto aguarda OK — `infra/scripts/hub-zabbix-backfill.py`
+- Backfill Zabbix → Hub aplicado em 04/11: 29.151 incidentes recuperados gravados, `status` intacto — [evidência](docs/execution/evidence/zabbix-hub-recovery-2026-11-03.md)
 
 ### Pronto para começar
 - 2.5 T06 do plano GLPI (reconciliar todo o inventário)

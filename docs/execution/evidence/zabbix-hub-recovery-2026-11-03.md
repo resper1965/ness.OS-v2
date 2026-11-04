@@ -14,4 +14,6 @@
 
 **Pendente:**
 1. Ajustar indicadores/telas que contam `status='open'` para considerar `ninf_zabbix_status`.
-2. Backfill: dry-run em 04/11 sobre 30.161 incidentes (29.149 recuperados, 319 ainda abertos, 693 sem evento no Zabbix); lote de 500 aplicado (279). Resto espera o OK.
+2. Ajustar o contador do frontend: feito em #149, ainda não promovido.
+
+**Backfill (04/11, OK do Ricardo):** dry-run sobre 30.161 incidentes `problem` (29.149 recuperados, 319 ainda abertos, 693 sem evento no Zabbix). Lote de 500 (279 gravados) e depois `--apply` completo: `examined=29881 recovered=28872 still_open=316 not_found=693`. Conferência: 29.151 incidentes com a tag `ninf_zabbix_backfill`, 29.151 ações `actor_source='backfill'`, todos com `status='open'` (não alterado). Restam 1.006 `open` com `ninf_zabbix_status=problem`: 316 realmente abertos no Zabbix e os 693 sem evento, mais os que abriram depois da leitura. Rollback: tag `ninf_zabbix_status`=problem, remover `ninf_zabbix_recovered_at` e `ninf_zabbix_backfill`, apagar as ações `backfill`, sempre pelos ids da tag.
