@@ -4,7 +4,7 @@
 
 **Estágio:** em andamento
 
-**Próximo passo:** P2 segundo corte: vincular a decisão SOC ao incidente (`incident_id` em `SocDecision`) e mapear `/secops/triage` para o envelope v1 de entrada; promover a API (#158 urgência/impacto, #161 fila/timeline) com OK do Ricardo. Trilha: [plano de 04/11](docs/superpowers/plans/2026-11-04-trilha-de-execucao.md).
+**Próximo passo:** P2 segundo corte em PR: vínculo `SocDecision` ↔ incidente (#164); depois cobertura e frescor por fonte. O produtor v1 do Wazuh espera contratação e desenho de coleta (D3/D6). Trilha: [plano de 04/11](docs/superpowers/plans/2026-11-04-trilha-de-execucao.md).
 
 ## Quadro (atualizado a cada task fechada)
 
@@ -22,7 +22,7 @@ Tasks do [plano de execução](docs/superpowers/plans/2026-10-26-ness-os-executi
 - 2.2 ADR 0020 aceito em 27/10 — #96, #110
 - 2.3 GLPI T03 em produção em 28/10: gateway por digest, cliente API 1 desativado, 106 ativa com `[13, 1, 0]`, caminho direto Hub+106 **não** bloqueado — risco aceito no ADR 0020; plano: steps 3 e 4 ficam abertos — [evidência](docs/execution/evidence/glpi-t03-prod-2026-10-28.md)
 - 2.4 GLPI T04: um ticket por alerta; 403 libera a reserva — #93
-- 3.1 Hub API + workers em `521247b` desde 30/10 (antes `7e7dfc6`, 28/10): monitor #111, alerta por e-mail #114, Unimed #115, LLM via OpenRouter #117, fundação SOC #122, idempotência do triage #125 — [evidência](docs/execution/evidence/hub-release-2026-10-26.md); promoção de 26/10 revertida (regressão GLPI, corrigida no #95); canário de alertas no script — #86
+- 3.1 Hub API + workers em `9992bf7` desde 04/11 (urgência/impacto #158, fila/timeline #161; antes `56c4659`, `521247b` em 30/10 e `7e7dfc6` em 28/10): monitor #111, alerta por e-mail #114, Unimed #115, LLM via OpenRouter #117, fundação SOC #122, idempotência do triage #125 — [evidência](docs/execution/evidence/hub-release-2026-10-26.md); promoção de 26/10 revertida (regressão GLPI, corrigida no #95); canário de alertas no script — #86
 - 6.1 + 6.3 Testes do frontend (vitest) e isolamento do SSE — #90
 - 6.2 Frescor/último sucesso/erro por fonte em `pipeline_health`, `ready` e exit code do monitor; UI sem hora falsa — #101
 - Reconciliação dos alertas de 26–27/10: 739 sem ticket, 215 sem cobertura — #102
@@ -40,8 +40,8 @@ Tasks do [plano de execução](docs/superpowers/plans/2026-10-26-ness-os-executi
 - Recuperação Zabbix → Hub ligada em 03/11 (ação 7 e media type 72): antes nenhum incidente era marcado como recuperado. Frontend com o contador novo promovido em 04/11 (#149) — [evidência](docs/execution/evidence/zabbix-hub-recovery-2026-11-03.md)
 
 ### Em andamento
-- Mapeamento do `/secops/triage` para o envelope v1 de entrada e vínculo `SocDecision` ↔ incidente (P2, segundo corte): ainda sem PR
-- Promoção da API com #158 e #161: espera OK do Ricardo
+- Vínculo `SocDecision` ↔ incidente na linha do tempo (P2, segundo corte): #164 em revisão
+- Cobertura e frescor por fonte (P2): ainda sem PR
 
 ### Pronto para começar
 - 2.5 T06 do plano GLPI (reconciliar todo o inventário)
