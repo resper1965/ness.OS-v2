@@ -24,7 +24,7 @@ aceitava POST sem autenticação.
 Por item pedido:
 
 - **Serviço instalado / tarefa agendada:** não se aplica — não há máquina por trás. Nenhum dos 110 computadores tem `last_inventory_update` nem `is_dynamic`; **nenhum agente real jamais reportou**.
-- **Endpoint/TLS:** `enabled_inventory = 0` hoje (desligado depois do incidente). Externamente `n-ticket…/Inventory` responde 302 para o SSO (Authentik forward_auth), então um agente real **não chega** ao endpoint: o agente não faz SSO. Internamente (`ninf-glpi`) responde 403. Certificado de `n-ticket` expira em 07/12/2026 (renovação automática a confirmar).
+- **Endpoint/TLS:** `enabled_inventory = 0` hoje. Externamente `n-ticket…/Inventory` responde 302 para o SSO (Authentik forward_auth), então um agente real **não chega** ao endpoint: o agente não faz SSO. Internamente (`ninf-glpi`) responde 403. Certificado de `n-ticket` expira em 07/12/2026 (renovação automática a confirmar).
 - **Autenticação de inventário:** `auth_required = none` e `basic_auth_login` vazio. Se alguém religar o inventário sem mudar isto, qualquer cliente de rede cria agentes — foi exatamente o que ocorreu em julho. Não há cliente OAuth (0).
 - **Regra de entidade:** 0 regras `RuleImportEntity`; `entities_id_default = 0`. Tudo que entrar cai na raiz. Isso impede declarar outro tenant via regra, mas também significa que cliente nenhum é separado hoje. As 71 regras `RuleImportAsset` são as padrão (57 ativas) — a correspondência por serial/UUID/nome pode atualizar ativo existente; ver teste isolado.
 - **Higiene:** `stale_agents_delay = 0` (limpeza de agentes velhos efetivamente desligada, apesar de a tarefa `Cleanoldagents` rodar).
