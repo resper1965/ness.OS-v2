@@ -1,6 +1,9 @@
 # Contrato de sinal v0 (rascunho)
 
-**Estado:** proposta para validação com os consumidores. Nomes finais ainda abertos
+> **Substituído pelo [contrato de sinal v1](signal-contract-v1.md).** Mantido só como histórico;
+> não evolua este arquivo.
+
+**Estado (v0):** proposta para validação com os consumidores. Nomes finais ainda abertos
 (spec v2, §5). Nada aqui autoriza ativação em produção.
 
 Vale para Wazuh, nuvem/SaaS e OT. Entrada de evento só muda depois deste contrato.
