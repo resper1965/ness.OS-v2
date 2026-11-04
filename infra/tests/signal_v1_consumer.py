@@ -1,7 +1,8 @@
 """Validador consumidor do contrato de sinal v1 (consumidor v1.0).
 
 Escrito somente a partir de docs/specs/signal-contract-v1.md, do schema e dos exemplos.
-Uso: python3 signal_v1_consumer.py sinal.json  -> "ACEITO" ou "REJEITADO: motivo" (exit 0/1).
+Uso: python3 signal_v1_consumer.py [--stored] sinal.json  -> "ACEITO" ou "REJEITADO: motivo" (exit 0/1).
+Sem --stored valida o envelope de ENTRADA (tenant_id null ou ausente); com --stored, o registro armazenado.
 """
 import hashlib
 import json
@@ -9,13 +10,13 @@ import re
 import sys
 from datetime import datetime, timedelta, timezone
 
-REQUIRED = ('schema_version', 'source_id', 'tenant_id', 'signal_type', 'occurred_at',
-            'collected_at', 'received_at', 'severity_source', 'payload')
+REQUIRED = ('schema_version', 'source_id', 'signal_type', 'occurred_at',
+            'collected_at', 'received_at', 'severity_source', 'payload')  # + tenant_id no registro armazenado
 INSTANT = re.compile(r'([0-9]{4})-([0-9]{2})-([0-9]{2})T([0-9]{2}):([0-9]{2}):([0-9]{2})'
                      r'(\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})')
 SOURCE_ID = re.compile(r'[A-Za-z0-9][A-Za-z0-9._:-]{0,127}')
 SIGNAL_TYPE = re.compile(r'[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+')
-VERSION = re.compile(r'([0-9]+)\.([0-9]+)')
+VERSION = re.compile(r'([0-9]+)\.(0|[1-9][0-9]*)')
 DIGEST = re.compile(r'[0-9a-f]{64}')
 EXT_KEY = re.compile(r'[a-z][a-z0-9_]*')
 QUALITY = ('complete', 'partial', 'delayed')
@@ -77,12 +78,17 @@ def _nonempty_str(v):
     return isinstance(v, str) and v != ''
 
 
-def validate(doc):
-    """(erros, avisos). Sem erros = aceitar. Campos desconhecidos sao ignorados."""
+def doc_id(doc):
+    return f"source_id={doc.get('source_id')!r} event_id={doc.get('event_id')!r}"
+
+def validate(doc, stored=False):
+    """(erros, avisos). Sem erros = aceitar. Campos desconhecidos sao ignorados.
+    stored=False: envelope de entrada (tenant_id null/ausente; preenchido = rejeitado).
+    stored=True: registro armazenado (tenant_id obrigatorio, texto ou null)."""
     errs, warns = [], []
     if not isinstance(doc, dict):
         return ['documento nao e objeto'], warns
-    missing = [k for k in REQUIRED if k not in doc]
+    missing = [k for k in REQUIRED + (('tenant_id',) if stored else ()) if k not in doc]
     if missing:
         errs.append('campo obrigatorio ausente: ' + ', '.join(missing))
 
@@ -96,8 +102,11 @@ def validate(doc):
 
     if 'source_id' in doc and not (isinstance(doc['source_id'], str) and SOURCE_ID.fullmatch(doc['source_id'])):
         errs.append('source_id invalido')
-    if 'tenant_id' in doc and doc['tenant_id'] is not None and not _nonempty_str(doc['tenant_id']):
-        errs.append('tenant_id deve ser texto nao vazio ou null')
+    if 'tenant_id' in doc and doc['tenant_id'] is not None:
+        if not stored:
+            errs.append(f"tenant_id preenchido na entrada: campo=tenant_id valor={doc['tenant_id']!r} {doc_id(doc)}")
+        elif not _nonempty_str(doc['tenant_id']):
+            errs.append('tenant_id deve ser texto nao vazio ou null')
     st = doc.get('signal_type')
     if 'signal_type' in doc and not (isinstance(st, str) and SIGNAL_TYPE.fullmatch(st)):
         errs.append('signal_type invalido')
@@ -121,9 +130,8 @@ def validate(doc):
         else:
             if not _nonempty_str(s.get('scheme')):
                 errs.append('severity_source.scheme obrigatorio')
-            if 'value' not in s:
-                errs.append('severity_source.value obrigatorio (pode ser null)')
-            elif s['value'] is not None and (isinstance(s['value'], bool)
+            # value ausente ou null: aceito (nao descarta; politica de atendimento, regra 7)
+            if s.get('value') is not None and (isinstance(s['value'], bool)
                                              or not isinstance(s['value'], (int, float, str))):
                 errs.append('severity_source.value deve ser numero, texto ou null')
     if 'payload' in doc and not isinstance(doc['payload'], dict):
@@ -182,6 +190,12 @@ def _batch(b, payload, inst, warns):
             if inst.get('collected_at') and inst['collected_at'] != end:
                 warns.append('collected_at do lote difere de interval.end (aceito)')
     ig = b.get('integrity')
+    if isinstance(payload, dict):  # o digest so cobre inteiros seguros e strings: o resto e rejeitado
+        try:
+            digest = payload_digest(payload)
+        except (ValueError, UnicodeEncodeError) as e:
+            digest = None
+            errs.append(f'payload fora do subconjunto JCS (float, inteiro > 2^53-1, surrogate isolado): {e}')
     if not isinstance(ig, dict):
         errs.append('batch.integrity obrigatorio')
         return errs
@@ -189,12 +203,8 @@ def _batch(b, payload, inst, warns):
         errs.append('batch.integrity.algorithm deve ser sha256')
     if not (isinstance(ig.get('digest'), str) and DIGEST.fullmatch(ig['digest'])):
         errs.append('batch.integrity.digest deve ser sha256 hex minusculo')
-    elif isinstance(payload, dict):
-        try:
-            if payload_digest(payload) != ig['digest']:
-                errs.append('batch.integrity.digest nao confere com o JCS do payload')
-        except (ValueError, UnicodeEncodeError) as e:
-            errs.append(f'payload fora do subconjunto JCS suportado: {e}')
+    elif isinstance(payload, dict) and digest is not None and digest != ig['digest']:
+        errs.append('batch.integrity.digest nao confere com o JCS do payload')
     ec = ig.get('event_count')
     if 'event_count' in ig and (isinstance(ec, bool) or not isinstance(ec, int) or ec < 0):
         errs.append('batch.integrity.event_count deve ser inteiro >= 0')
@@ -202,20 +212,46 @@ def _batch(b, payload, inst, warns):
 
 
 def ingest(doc, resolve_tenant, received_at):
-    """Recepcao no Hub: tenant_id e received_at da origem sao ignorados e substituidos.
-    resolve_tenant(source_id) -> tenant ou None (sem vinculo ou vinculos conflitantes).
-    Devolve registro so com campos conhecidos (desconhecidos ignorados) ou levanta ValueError."""
+    """Recepcao no Hub: documento de ENTRADA (tenant_id preenchido e rejeitado); o Hub grava
+    tenant_id (resolvido) e received_at. resolve_tenant(source_id) -> tenant ou None (sem vinculo
+    ou vinculos conflitantes). Devolve o registro armazenado ou levanta ValueError."""
     errs, warns = validate(doc)
     if errs:
         raise ValueError('; '.join(errs))
     known = {k: v for k, v in doc.items() if k in REQUIRED + ('event_id', 'quality', 'links', 'batch', 'extensions')}
-    if doc['tenant_id'] is not None:
-        warns.append('tenant_id da origem ignorado')
     known['tenant_id'] = resolve_tenant(doc['source_id'])
     known['received_at'] = received_at
     return {'record': known, 'pending_tenant_review': known['tenant_id'] is None,
             'ignored': sorted(set(doc) - set(known)), 'warnings': warns}
 
+def idempotency_key(doc):
+    """(source_id, event_id); lote: (source_id, batch_id). Sem tenant_id. None = sem deduplicacao."""
+    if doc.get('signal_type') == 'ot.batch':
+        return (doc['source_id'], doc['batch']['batch_id'])
+    return (doc['source_id'], doc['event_id']) if doc.get('event_id') else None
+
+def clock_skew(record):
+    """received_at - collected_at, derivado do registro (sem campo novo)."""
+    return parse_instant(record['received_at']) - parse_instant(record['collected_at'])
+
+class Store:
+    """Registro por chave de idempotencia. put -> 'new' | 'duplicate' | 'conflict'.
+    Mesma chave + mesmo payload = duplicate (devolve o salvo); payload diferente = conflict registrado, nao sobrescreve."""
+    def __init__(self):
+        self.records, self.conflicts = {}, []
+
+    def put(self, record):
+        key = idempotency_key(record)
+        if key is None:
+            return 'new'
+        old = self.records.get(key)
+        if old is None:
+            self.records[key] = record
+            return 'new'
+        if json.dumps(old['payload'], sort_keys=True) == json.dumps(record['payload'], sort_keys=True):
+            return 'duplicate'
+        self.conflicts.append((key, record))
+        return 'conflict'
 
 def _no_dup(pairs):
     d = {}
@@ -231,8 +267,9 @@ def load(text):
 
 
 if __name__ == '__main__':
+    stored = '--stored' in sys.argv
     try:
-        errs, _ = validate(load(open(sys.argv[1], encoding='utf-8').read()))
+        errs, _ = validate(load(open(sys.argv[-1], encoding='utf-8').read()), stored=stored)
     except ValueError as e:
         errs = [f'JSON invalido: {e}']
     print('ACEITO' if not errs else 'REJEITADO: ' + '; '.join(errs))

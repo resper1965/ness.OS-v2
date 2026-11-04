@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0",
   "source_id": "ot-probe-sintetica-01",
-  "tenant_id": "tenant-sintetico-002",
+  "tenant_id": null,
   "signal_type": "ot.batch",
   "occurred_at": "2026-11-03T06:00:00-03:00",
   "collected_at": "2026-11-04T06:00:00-03:00",

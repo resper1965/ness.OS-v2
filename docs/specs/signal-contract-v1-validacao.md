@@ -11,41 +11,33 @@ teste do autor. Código: `infra/tests/signal_v1_consumer.py`; prova: `infra/test
 - Compatibilidade: v1.0 aceita 1.1 com campo extra e o ignora; major 2.0 rejeitada.
 - Lote OT: `batch` obrigatório em `ot.batch` e proibido nos demais; `interval` com `start` < `end`; digest sha256 do JCS (RFC 8785) do `payload`, conferindo com o exemplo oficial.
 - Sem `tenant_id` resolvido: `null` → pendente (`PENDING_TENANT_REVIEW`), nunca `default`.
+- Com o contrato corrigido (2ª rodada): entrada com `tenant_id` preenchido rejeitada; `severity_source.value` ausente/`null` aceito; chave de idempotência sem tenant; payload `ot.batch` fora de inteiros/strings rejeitado; enums fechados; `v1.0` aceita `1.1` e rejeita `2.0`.
 
-## Ambiguidades e lacunas
+## Ambiguidades e resolução
 
-1. **Onde o `tenant_id` da origem é tratado (bloqueante).** Tabela: "Nunca aceito do payload nem da origem" e obrigatório;
-   esquema: "Valor enviado pela origem é ignorado"; os exemplos oficiais (`wazuh-alert`, `cloud-event`) trazem `tenant_id`
-   preenchido, e o contrato não diz se eles são o envelope **da origem** ou o **registro interno** pós-Hub. Não está dito
-   se envelope de origem com `tenant_id` é rejeitado ou ignorado, nem se a origem deve enviar o campo (obrigatório) e
-   `received_at` (obrigatório, "valor da origem é ignorado"). Comportamento exigido, lido do texto: o valor da origem nunca é
-   usado; o Hub grava o que resolve. O teste adota *ignorar e substituir* (não rejeitar). Falta um contrato separado de
-   "envelope de entrada" × "registro armazenado".
-2. **`severity_source.value` ausente.** Texto: "Valor ausente, `null` ou fora da escala não é rebaixado nem descartado".
-   Esquema: `value` é `required`. Chave ausente é aceita (texto) ou rejeitada (esquema)? O consumidor rejeita (segue o esquema).
-3. **Digest JCS fora de "inteiros/strings".** O contrato não limita o `payload` a inteiros e strings. Não diz o que fazer com
-   float (JCS usa a serialização numérica ES6), inteiro > 2^53−1 (não representável em JCS), chave duplicada ou string com
-   surrogate isolado; nem que "payload intacto" (bytes) e digest (valor parseado) são coisas diferentes. O consumidor sinaliza
-   rejeição para float/inteiro grande: decisão minha, não do contrato.
-4. **`event_count`**: contagem de quê? O contrato não define o formato do `payload` de `ot.batch`; o exemplo usa `payload.events`.
-   `event_count` não é verificável por um consumidor genérico.
-5. **`occurred_at`/`collected_at` do lote = início/fim do intervalo.** Descrito, mas sem dizer se divergência é erro. O consumidor só avisa.
-6. **Relógio desajustado "fica visível".** Não há campo, flag ou `quality` definido para registrar a diferença; só `delayed` existe e não é associado.
-7. **Idempotência.** (a) Chave inclui `tenant_id`, mas sinal pendente tem `tenant_id = null`: quando o vínculo chega a chave muda
-   (duplica)? (b) "lote: `batch_id`" — substitui o `event_id` ou se soma? (c) Mesma chave com `payload` diferente: devolve a
-   decisão salva ou é conflito?
-8. **Evolução de enums.** Regra 6 permite campo novo opcional em minor, mas não diz se minor pode ampliar `quality` ou a escala
-   de valor; um v1.0 rejeitaria `quality: "stale"` de um 1.1. O mesmo para `algorithm` (só `sha256`).
-9. **Escopo das regras de instante.** Aplicam-se só aos campos do envelope e a `batch.interval`; o `payload` do exemplo Wazuh
-   tem `timestamp` com `-0300` (sem dois-pontos) e deve ser aceito por ser "intacto". Dito implicitamente, não explicitamente.
-10. **Regras só no esquema, não no texto:** chaves de `extensions` `^[a-z][a-z0-9_]*$` e valores objeto; `source_id` até 128
-    caracteres e charset; `signal_type` com ao menos um ponto; `event_count` inteiro ≥ 0; deslocamento `+hh:mm` fora de 00–23:59
-    e segundo 60 (leap second) não tratados; `schema_version` aceita `1.01`. Resolução do vínculo para nuvem/OT está "aberta"
-    (Aberto), então o consumidor só injeta um resolvedor.
+Primeira rodada: NÃO VALIDADO, 10 ambiguidades. Resolvidas no contrato (decisões do Ricardo; **envelope inalterado**, sem campo novo):
 
-## Veredito: NÃO VALIDADO
+1. **`tenant_id` (era bloqueante).** Resolvido: contrato separa *envelope de entrada* × *registro armazenado* (mesmo esquema; raiz = armazenado, `#/$defs/input` = entrada). Na entrada, `tenant_id` é `null` ou ausente; valor preenchido é **rejeitado** com erro (campo, valor, `source_id`/`event_id`) — não é mais "ignorado". O Hub preenche o registro armazenado após resolver o vínculo; `received_at` da origem é substituído. Exemplos: sem sufixo = entrada (`tenant_id: null`), `-stored` = registro.
+2. **`severity_source.value` ausente.** Resolvido: esquema alinhado ao texto — só `scheme` é obrigatório; `value` pode faltar ou ser `null`. Atende pela regra 7 da política SOC.
+3. **Digest/JCS.** Resolvido: em `ot.batch`, payload com float, inteiro fora de ±(2^53−1), chave duplicada ou surrogate isolado é rejeitado; o digest só cobre inteiros e strings (e estruturas/bool/null).
+4. **`event_count` e formato do payload de `ot.batch`.** **Lacuna aberta**, declarada no contrato: depende do piloto de OT, que não existe. Não inventado; o consumidor só valida `event_count` como inteiro ≥ 0.
+5. **`occurred_at`/`collected_at` do lote vs intervalo.** Mantido como aviso, não erro (sem mudança de decisão; o contrato já descreve o significado e não pede rejeição).
+6. **Relógio desajustado.** Resolvido: derivado de `received_at − collected_at` no registro armazenado; sem campo novo (`clock_skew` no consumidor).
+7. **Idempotência.** Resolvido: chave `(source_id, event_id)`; lote `(source_id, batch_id)` (substitui `event_id`); `tenant_id` fora da chave, então o vínculo tardio não duplica. Mesma chave + payload diferente = conflito registrado, sem sobrescrever (`Store` no consumidor).
+8. **Evolução de enums.** Resolvido: minor não amplia enum (`quality`, `algorithm`); ampliar = major. v1.0 rejeita `quality: "stale"` de um 1.1 por contrato.
+9. **Instantes no payload.** Resolvido: isentos explicitamente; o envelope não valida instantes dentro do `payload`.
+10. **Regras só no esquema** (charset de `source_id`, `signal_type` com ponto, chaves de `extensions`, `+hh:mm` 00–23:59, `schema_version` `1.01`). Menores, sem mudança de decisão; o esquema é a referência. O esquema agora aceita só `1.0`, `1.1`, … sem zero à esquerda.
 
-Falta: resolver o item 1 (separar envelope de entrada × registro interno, e dizer se `tenant_id`/`received_at` vindos
-da origem são rejeitados ou ignorados) e o item 2 (`value` ausente: texto × esquema). Os itens 3, 4, 7 e 8 devem
-ser fechados antes de existir produtor/consumidor de lote OT ou deduplicação. Os demais são menores. Todo o resto do
-contrato (4 exemplos, instantes, compatibilidade, lote, `links`) foi implementado e provado sem consulta ao autor.
+## Ainda aberto
+
+- Formato do `payload` e significado de `event_count` em `ot.batch` (piloto de OT).
+- Chaves de `external_platform` para nuvem e OT (já listado em *Aberto* do contrato).
+
+## Veredito: VALIDADO
+
+O consumidor, escrito sem consulta ao autor e lendo só contrato, esquema e exemplos, passa nos documentos corrigidos
+(`python3 infra/tests/test-signal-contract-v1-consumer.py`, 13 testes) e o teste do autor também
+(`python3 infra/tests/test-signal-contract-v1.py`, 10 testes). Casos novos: `tenant_id` preenchido na entrada rejeitado,
+`value` ausente/`null` aceito, mesma chave com payload diferente = conflito, instantes sem fuso rejeitados, `v1.0`
+aceita `1.1` e rejeita `2.0`. A validação cobre o envelope; o payload de `ot.batch` segue como lacuna aberta e não
+bloqueia o contrato de envelope, mas bloqueia ativar produtor/consumidor de lote OT.

@@ -72,8 +72,20 @@ class SignalV1Test(unittest.TestCase):
 
     def test_schema_requires_the_envelope(self):
         schema = json.loads((SPECS / "signal-contract-v1.schema.json").read_text())
-        self.assertEqual(set(schema["required"]), set(ENVELOPE))
-        self.assertNotIn("links", schema["required"])
+        env = schema["$defs"]["envelope"]
+        # stored record (root) = envelope + tenant_id; input = envelope with tenant_id null/absent
+        self.assertEqual(set(schema["required"]) | set(env["required"]), set(ENVELOPE))
+        self.assertNotIn("tenant_id", env["required"])
+        self.assertNotIn("links", env["required"])
+        self.assertEqual(schema["$defs"]["input"]["properties"]["tenant_id"], {"type": "null"})
+        self.assertEqual(env["properties"]["severity_source"]["required"], ["scheme"])
+
+    def test_input_examples_have_null_tenant_and_stored_ones_do_not(self):
+        for path in EXAMPLES:
+            doc = json.loads(path.read_text())
+            self.assertEqual(
+                doc["tenant_id"] is not None, path.stem.endswith("-stored"), path.name
+            )
 
     def test_examples(self):
         for path in EXAMPLES:
@@ -86,7 +98,7 @@ class SignalV1Test(unittest.TestCase):
                 self.assertTrue(doc["tenant_id"] is None or doc["tenant_id"])
                 self.assertIsInstance(doc["payload"], dict)
                 sev = doc["severity_source"]
-                self.assertTrue(sev["scheme"] and "value" in sev)
+                self.assertTrue(sev["scheme"])
                 for key in ("occurred_at", "collected_at", "received_at"):
                     instant(doc[key])
                 if doc["signal_type"] == "ot.batch":
@@ -115,21 +127,48 @@ class SignalV1Test(unittest.TestCase):
 
     def test_schema_forbids_batch_outside_ot(self):
         schema = json.loads((SPECS / "signal-contract-v1.schema.json").read_text())
-        self.assertEqual(schema["then"], {"required": ["batch"]})
-        self.assertEqual(schema["else"], {"not": {"required": ["batch"]}})
+        env = schema["$defs"]["envelope"]
+        self.assertEqual(env["then"], {"required": ["batch"]})
+        self.assertEqual(env["else"], {"not": {"required": ["batch"]}})
 
-    def test_cloud_event_with_batch_is_rejected(self):
-        ot = json.loads((SPECS / "examples/signal-v1/ot-batch.json").read_text())
-        bad = json.loads((SPECS / "examples/signal-v1/cloud-event.json").read_text())
-        bad["batch"] = ot["batch"]
+    def test_schema_validators(self):
         try:
             import jsonschema
         except ImportError:
             self.skipTest("jsonschema not installed; structure checked above")
         schema = json.loads((SPECS / "signal-contract-v1.schema.json").read_text())
-        validator = jsonschema.Draft202012Validator(schema)
-        self.assertTrue(list(validator.iter_errors(bad)))
-        self.assertFalse(list(validator.iter_errors(ot)))
+        stored = jsonschema.Draft202012Validator(schema)
+        entry = jsonschema.Draft202012Validator(
+            {**schema, "$ref": "#/$defs/input", "required": []}
+        )
+        load = lambda n: json.loads((SPECS / f"examples/signal-v1/{n}.json").read_text())
+        for path in EXAMPLES:
+            doc = json.loads(path.read_text())
+            validator = stored if path.stem.endswith("-stored") else entry
+            self.assertFalse(list(validator.iter_errors(doc)), path.name)
+            self.assertFalse(list(stored.iter_errors(doc)), path.name)
+        # tenant_id filled on input is rejected; absent is fine; stored needs the key
+        doc = load("cloud-event")
+        doc["tenant_id"] = "t1"
+        self.assertTrue(list(entry.iter_errors(doc)))
+        del doc["tenant_id"]
+        self.assertFalse(list(entry.iter_errors(doc)))
+        self.assertTrue(list(stored.iter_errors(doc)))
+        # severity_source.value absent or null does not discard the signal
+        for sev in ({"scheme": "provider"}, {"scheme": "provider", "value": None}):
+            doc = load("cloud-event")
+            doc["severity_source"] = sev
+            self.assertFalse(list(entry.iter_errors(doc)))
+        # batch outside ot.batch is rejected
+        bad = load("cloud-event")
+        bad["batch"] = load("ot-batch")["batch"]
+        self.assertTrue(list(entry.iter_errors(bad)))
+        # v1.0 accepts 1.1 (unknown field), rejects 2.0
+        doc = load("cloud-event")
+        doc.update(schema_version="1.1", campo_novo=1)
+        self.assertFalse(list(entry.iter_errors(doc)))
+        doc["schema_version"] = "2.0"
+        self.assertTrue(list(entry.iter_errors(doc)))
 
     def test_ot_without_event_count_or_events(self):
         doc = json.loads((SPECS / "examples/signal-v1/ot-batch.json").read_text())
