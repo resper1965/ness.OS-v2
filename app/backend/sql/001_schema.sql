@@ -277,6 +277,7 @@ CREATE TABLE n_secops_soc_decisions (
     agent_name      VARCHAR(255),
     customer_id     VARCHAR(128),
     dedup_key       VARCHAR(64),
+    freq_key        VARCHAR(64),
     incident_id     BIGINT,
     classification  VARCHAR(32)     NOT NULL,
     confidence      DOUBLE PRECISION NOT NULL DEFAULT 1.0,
@@ -291,6 +292,8 @@ CREATE INDEX idx_soc_decisions_agent ON n_secops_soc_decisions (agent_id);
 CREATE INDEX idx_soc_decisions_customer ON n_secops_soc_decisions (customer_id);
 CREATE INDEX idx_soc_decisions_classification ON n_secops_soc_decisions (classification);
 CREATE UNIQUE INDEX uq_soc_decisions_dedup ON n_secops_soc_decisions (dedup_key) WHERE dedup_key IS NOT NULL;
+CREATE INDEX IF NOT EXISTS ix_soc_decisions_freq ON n_secops_soc_decisions (freq_key, created_at);
+CREATE INDEX IF NOT EXISTS ix_soc_decisions_action_created ON n_secops_soc_decisions (action_taken, created_at);
 CREATE INDEX IF NOT EXISTS ix_soc_decisions_incident ON n_secops_soc_decisions (incident_id) WHERE incident_id IS NOT NULL;
 
 -- A tabela de usuários precisa existir antes de 002_push_subscriptions.sql.
