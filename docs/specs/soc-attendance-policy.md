@@ -29,7 +29,7 @@ O texto aprovado dizia "nível ≤ 6: arquivar sem ticket". O código sempre dei
 | Sem cliente ou ambíguo (regra 5) | 1 dia útil |
 
 **Condição:** a janela conta do **reconhecimento** do caso, não da entrega da notificação.
-Notificação perdida ou atrasada não consome o prazo. O contrato de cada cliente prevalece onde for mais exigente.
+Notificação perdida ou atrasada não consome o prazo. O contrato do cliente prevalece quando é mais exigente que este padrão; onde é omisso ou menos exigente, vale este padrão.
 
 **Amostra semanal de arquivados:** 20 alertas por cliente, ou 10% do volume quando o cliente passa de 200 arquivados na semana.
 

@@ -1,6 +1,6 @@
 # P2: proposta de valores para decisão (04/11/2026)
 
-**Estado:** aceito pelo Ricardo em 04/11/2026, com as condições abaixo. As regras de prazo entram em `soc-attendance-policy.md`.
+**Estado:** aceitos em 04/11/2026 apenas os prazos de resposta (seção 1) e o tamanho da amostra (20 por cliente, ou 10% do volume acima de 200). O revisor e o dia da seção 3 seguem **pendentes**. A regra vigente está em `soc-attendance-policy.md`.
 
 ## 1. Prazos de resposta por nível Wazuh
 
@@ -13,7 +13,7 @@
 | Regra própria da NESS que detecta, abaixo do nível 12 | 4 h, horário comercial | atende sempre (regra 4); a regra de detecção ainda não existe no código |
 | Sem cliente ou ambíguo | 1 dia útil | revisão técnica (regra 5) |
 
-Fator decisivo: o contrato de cada cliente prevalece. Estes valores só valem como padrão onde o contrato é omisso.
+Fator decisivo: o contrato de cada cliente prevalece quando é mais exigente que este padrão; onde o contrato é omisso ou menos exigente, vale o padrão.
 
 ## 2. Sonda OT
 
@@ -25,7 +25,7 @@ Fator decisivo: o contrato de cada cliente prevalece. Estes valores só valem co
 |---|---|
 | Quem | analista de plantão do SOC, em rodízio semanal |
 | Quando | segunda-feira, até as 12:00 |
-| Tamanho | 20 alertas por semana por cliente com volume; todos se houver menos de 20 |
+| Tamanho | aceito: 20 alertas por semana por cliente, ou 10% do volume quando o cliente passa de 200 arquivados na semana; todos se houver menos de 20 |
 | Registro | resultado no próprio ticket de revisão, sem planilha à parte |
 | Escalonamento | um arquivado que devia ter sido atendido abre ajuste de regra, sem alterar o piso 12 |
 

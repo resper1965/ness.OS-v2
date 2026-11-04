@@ -4,7 +4,7 @@
 
 **Estágio:** em andamento
 
-**Próximo passo:** o Ricardo aceita ou corrige a proposta de prazos do P2 (`docs/specs/p2-proposta-valores.md`) e autoriza o `--apply` do T07 (`infra/scripts/glpi-t07-inventory-prepare.php`); em paralelo, o agente envia urgência e impacto do Hub ao GLPI. Trilha: [plano de 04/11](docs/superpowers/plans/2026-11-04-trilha-de-execucao.md).
+**Próximo passo:** fechar as ambiguidades do contrato v1 apontadas pelo consumidor independente (#160, `tenant_id` da origem e `severity_source.value`) para validar o P1; depois P2 (fila e caso). Trilha: [plano de 04/11](docs/superpowers/plans/2026-11-04-trilha-de-execucao.md).
 
 ## Quadro (atualizado a cada task fechada)
 
