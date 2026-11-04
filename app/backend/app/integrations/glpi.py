@@ -361,8 +361,9 @@ class GLPIClient:
         entity_id: int = 0,
         itilcategories_id: Optional[int] = None,
         linked_item: dict | None = None,
+        urgency: int = 3,
     ) -> Dict[str, Any]:
-        """Cria um novo ticket no GLPI."""
+        """Cria um novo ticket no GLPI (urgência = impacto, matriz padrão)."""
         if not self.session_token:
             await self.init_session()
 
@@ -372,7 +373,8 @@ class GLPIClient:
             "content": content,
             "entities_id": entity_id,
             "status": 1,  # Novo
-            "urgency": 3,  # Média
+            "urgency": urgency,
+            "impact": urgency,
         }
         if itilcategories_id is not None:
             input_data["itilcategories_id"] = itilcategories_id

@@ -86,6 +86,7 @@ async def test_absent_marker_creates_one_ticket_with_deterministic_key():
         content="conteúdo",
         entity_id=8,
         itilcategories_id=1,
+        urgency=3,
     )
     glpi.add_comment.assert_awaited_once_with(
         ticket_id=456,
@@ -1001,3 +1002,76 @@ def test_permission_error_blocks_without_retry_and_releases_claim(monkeypatch):
     alerts.process_alert_v1.run({}, "c" * 64)
     retry.assert_not_called()
     assert fake.posts == 2 and len(fake.tickets) == 1
+
+
+@pytest.mark.parametrize("sev", [1, 2, 3, 4, 5])
+def test_zabbix_severity_maps_one_to_one(sev):
+    assert alerts.glpi_urgency(sev) == sev
+
+
+@pytest.mark.parametrize("sev", [None, "", "high", "4", 0, 6, -1, 3.5, True])
+def test_unknown_severity_never_downgrades(sev):
+    assert alerts.glpi_urgency(sev) == 3
+    assert alerts.glpi_urgency(sev, wazuh=True) == 3
+
+
+@pytest.mark.parametrize(
+    "level,score,expected",
+    [
+        (15, None, 5),
+        (12, 0, 5),
+        (11, None, 4),
+        (10, None, 4),
+        (9, None, 3),
+        (7, None, 3),
+        (6, 75, 4),
+        (3, 90, 4),
+        (6, 74, 3),
+        (6, None, 3),
+    ],
+)
+def test_wazuh_level_follows_attendance_policy(level, score, expected):
+    assert alerts.glpi_urgency(level, wazuh=True, score=score) == expected
+
+
+@pytest.mark.asyncio
+async def test_ticket_urgency_reaches_glpi_create():
+    glpi = AsyncMock()
+    glpi.find_ticket_by_name_marker.return_value = None
+    glpi.create_ticket.return_value = {"id": 9}
+    await ensure_glpi_ticket(
+        glpi,
+        fingerprint="c" * 64,
+        entity_id=8,
+        category_id=1,
+        title="t",
+        content="c",
+        allow_create=True,
+        urgency=5,
+    )
+    assert glpi.create_ticket.await_args.kwargs["urgency"] == 5
+
+
+@pytest.mark.asyncio
+async def test_glpi_payload_sends_urgency_and_impact(monkeypatch):
+    seen = {}
+
+    def handler(request):
+        if request.url.path.endswith("initSession"):
+            return httpx.Response(200, json={"session_token": "s", "session": {}})
+        seen.update(json.loads(request.content)["input"])
+        return httpx.Response(201, json={"id": 1})
+
+    original = httpx.AsyncClient
+    monkeypatch.setattr(
+        httpx,
+        "AsyncClient",
+        lambda **kw: original(transport=httpx.MockTransport(handler), **kw),
+    )
+    client = GLPIClient(
+        base_url="http://glpi/apirest.php", app_token="a", user_token="u"
+    )
+    await client.create_ticket("t", "c", entity_id=8)
+    assert (seen["urgency"], seen["impact"]) == (3, 3)
+    await client.create_ticket("t", "c", entity_id=8, urgency=5)
+    assert (seen["urgency"], seen["impact"]) == (5, 5)
