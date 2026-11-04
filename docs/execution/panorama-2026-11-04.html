@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ness.OS — panorama de 04/11/2026</title>
+<style>
+:root{--bg:#0f1115;--card:#171a21;--line:#262b36;--tx:#e6e8ee;--mu:#8b93a7;--ok:#2ecc71;--wip:#f5b041;--wait:#e74c3c;--idle:#566074;--acc:#4da3ff}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.5 system-ui,Segoe UI,Roboto,sans-serif;padding:24px;max-width:1100px;margin:auto}
+h1{font-size:24px;margin:0}h2{font-size:17px;margin:32px 0 12px;border-bottom:1px solid var(--line);padding-bottom:6px}
+.sub{color:var(--mu);margin:4px 0 20px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px}
+.kpi b{display:block;font-size:26px}.kpi span{color:var(--mu);font-size:13px}
+.row{display:grid;grid-template-columns:260px 1fr 210px;gap:12px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+.bar{background:var(--line);border-radius:6px;height:14px;overflow:hidden}.bar i{display:block;height:100%}
+.ok{background:var(--ok)}.wip{background:var(--wip)}.wait{background:var(--wait)}.idle{background:var(--idle)}
+.tag{display:inline-block;font-size:12px;padding:2px 8px;border-radius:99px;border:1px solid var(--line);color:var(--mu)}
+.note{color:var(--mu);font-size:13px}
+.flow{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.node{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--idle);border-radius:8px;padding:10px 12px;min-width:150px}
+.node.ok{border-left-color:var(--ok);background:var(--card)}.node.wip{border-left-color:var(--wip);background:var(--card)}.node.wait{border-left-color:var(--wait);background:var(--card)}
+.node small{display:block;color:var(--mu)}
+.arrow{color:var(--mu)}
+.chain{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.p{padding:8px 14px;border-radius:8px;border:1px solid var(--line);background:var(--card);font-weight:600}
+.p.ok{border-color:var(--ok)}.p.next{border-color:var(--acc);color:var(--acc)}.p.wait{border-color:var(--wait)}
+table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}th{color:var(--mu);font-weight:500;font-size:13px}
+.legend{display:flex;gap:16px;flex-wrap:wrap;color:var(--mu);font-size:13px;margin:8px 0}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}
+@media(max-width:700px){.row{grid-template-columns:1fr}}
+@media print{body{background:#fff;color:#000}.kpi,.node,.p{background:#fff}}
+</style>
+</head>
+<body>
+<h1>ness.OS — panorama do projeto</h1>
+<p class="sub">Posição em 04/11/2026 · repositório <code>resper1965/ness.OS-v2</code> · <code>main</code> em <code>1b76de6</code> · Hub em produção na release <code>56c4659</code></p>
+
+<div class="legend">
+<span><i class="dot ok"></i>feito</span><span><i class="dot wip"></i>em curso</span><span><i class="dot wait"></i>espera o Ricardo</span><span><i class="dot idle"></i>não iniciado</span>
+</div>
+
+<div class="kpis">
+<div class="kpi"><b>#150</b><span>último PR mergeado na <code>main</code></span></div>
+<div class="kpi"><b>582</b><span>testes do backend passando</span></div>
+<div class="kpi"><b>P0</b><span>em produção (<code>promotion=PASS</code>)</span></div>
+<div class="kpi"><b>279 / 29.149</b><span>incidentes com backfill Zabbix gravado</span></div>
+<div class="kpi"><b>6</b><span>decisões que só o Ricardo destrava</span></div>
+</div>
+
+<h2>1. O projeto por completo — frentes do plano de execução</h2>
+<p class="note">Progresso é estimativa pela contagem de tasks de cada frente, não medição.</p>
+<div id="frentes"></div>
+
+<h2>2. Projetos P0–P7 (ordem do plano por projeto)</h2>
+<div class="chain">
+<span class="p ok">P0 Fundação SOC ✔</span><span class="arrow">+</span><span class="p next">P1 Contrato de sinais ►</span>
+<span class="arrow">→</span><span class="p wait">P2 ⏸</span><span class="arrow">→</span><span class="p">P3</span>
+<span class="arrow">→</span><span class="p">P5 piloto Ionic Health</span><span class="arrow">→</span><span class="p">P4</span>
+<span class="arrow">→</span><span class="p wait">P6 ⏸ (HTML)</span><span class="arrow">→</span><span class="p">P7</span>
+</div>
+<p class="note">P2 espera: SLA por nível, janela/banda/retenção OT e quem revisa a amostra semanal. P6 espera o HTML do redesenho visual.</p>
+
+<h2>3. Fluxo de dados — onde cada peça está</h2>
+<div class="flow">
+<div class="node ok">Zabbix<small>disponibilidade · recuperação ligada</small></div><span class="arrow">→</span>
+<div class="node ok">Hub<small>produção 56c4659</small></div><span class="arrow">→</span>
+<div class="node ok">GLPI<small>ticket único · T05/T06 feitas</small></div>
+</div>
+<div class="flow" style="margin-top:12px">
+<div class="node wait">Wazuh<small>exposição · ingestão em produção DESLIGADA</small></div><span class="arrow">→</span>
+<div class="node ok">Hub / SOC<small>P0 em produção</small></div><span class="arrow">→</span>
+<div class="node ok">n8n + IA<small>OpenRouter, sem bloquear atendimento</small></div><span class="arrow">→</span>
+<div class="node wip">Atendimento<small>política aprovada 03/11</small></div>
+</div>
+<div class="flow" style="margin-top:12px">
+<div class="node wip">Action1<small>pendência acionável · só GET · 1 endpoint</small></div><span class="arrow">→</span>
+<div class="node wip">Hub<small>mapa por endpoint pendente</small></div>
+<span class="arrow">·</span>
+<div class="node">n.360<small>consome evidências · ainda não</small></div>
+</div>
+
+<h2>4. Onde estamos agora</h2>
+<table>
+<tr><th>Feito hoje</th><th>Em curso</th><th>Próximo (sem depender do Ricardo)</th></tr>
+<tr>
+<td>✔ P0 em produção<br>✔ contador de abertos corrigido (#149)<br>✔ backfill pronto e revisado (#150)<br>✔ trilha de execução escrita</td>
+<td>◐ Backfill Zabbix → Hub: 279 gravados, ~29 mil prontos, 319 realmente abertos, 693 sem evento no Zabbix</td>
+<td>► P1 contrato de sinais v1<br>► T07–T09 do GLPI<br>► promover o frontend novo</td>
+</tr>
+</table>
+
+<h2>5. O que só o Ricardo destrava</h2>
+<table>
+<tr><th>Decisão</th><th>O que trava</th></tr>
+<tr><td>OK para aplicar o resto do backfill (~29 mil incidentes, reversível pela tag <code>ninf_zabbix_backfill</code>)</td><td>indicador correto de abertos</td></tr>
+<tr><td>SLA por nível, janela/banda/retenção OT, revisor da amostra semanal</td><td>P2</td></tr>
+<tr><td>Contratação do Wazuh e desenho de coleta (D3/D6)</td><td>ligar Wazuh ao Hub</td></tr>
+<tr><td>HTML do redesenho visual</td><td>P6 (UI)</td></tr>
+<tr><td>MFA (D4)</td><td>frente 4, identidade e cofre</td></tr>
+<tr><td>Três itens da #82 (testar <code>homol</code>, 36 contas locais do GLPI, pedido ao GitHub Support)</td><td>higiene de credenciais</td></tr>
+</table>
+
+<h2>6. Atenção</h2>
+<ul>
+<li>O que depende só do agente (P1, T07–T09, promoção do frontend) cabe em cerca de uma semana. Depois disso o ritmo depende das decisões da seção 5.</li>
+<li>Action1 passa a exigir licença acima de 200 endpoints (hoje 1): aviso quando chegar.</li>
+<li>Os 693 incidentes sem evento no Zabbix ficam como <code>problem</code>; decidir depois se viram <code>unknown</code>.</li>
+</ul>
+
+<p class="note">Fonte: <code>STATE.md</code> e <code>docs/superpowers/plans/2026-11-04-trilha-de-execucao.md</code>. Gerado em 04/11/2026.</p>
+
+<script>
+const F=[
+["0  Base de trabalho (CI, IaC, raiz)",100,"ok","fechada"],
+["1  IaC das 3 VPS",100,"ok","fechada"],
+["2  GLPI: trilho do incidente",50,"wip","T05/T06 feitas · faltam T07–T14"],
+["3  Release e continuidade",80,"wip","Hub em produção · falta continuidade (3.2)"],
+["4  Identidade e cofre",20,"wait","espera D4 (MFA) e compra"],
+["5  Zabbix definitivo",40,"wip","recuperação ligada · corte espera D5"],
+["6  Hub / PWA",50,"wait","UI espera o HTML do redesenho"],
+["7  Operação integrada",0,"idle","não iniciada"],
+["8  AIOps e orquestração",40,"wip","8.1 feito · falta Node-RED e Action1"],
+["9  Wazuh e Workspace",20,"wait","preparado · espera contratação (D6)"],
+["10 Marca e sustentação",0,"idle","contínua, depois do resto"]];
+document.getElementById("frentes").innerHTML=F.map(([n,p,c,s])=>
+`<div class="row"><div>${n}</div><div class="bar"><i class="${c}" style="width:${p}%"></i></div><div><span class="tag">${p}%</span> <span class="note">${s}</span></div></div>`).join("");
+</script>
+</body>
+</html>
