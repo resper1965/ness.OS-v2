@@ -370,8 +370,7 @@ class TenantMapping(Base):
     __tablename__ = "n_infraops_tenant_mappings"
     __table_args__ = (
         CheckConstraint(
-            "modality IS NULL OR modality IN "
-            "('central_ness', 'sonda_no_cliente', 'cliente_gerenciado')",
+            "modality IS NULL OR modality IN ('managed', 'onsite', 'shared')",
             name="ck_tenant_mappings_modality",
         ),
     )

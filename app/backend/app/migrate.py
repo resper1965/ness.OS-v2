@@ -99,20 +99,18 @@ async def run_migrations():
             "ADD COLUMN IF NOT EXISTS modality VARCHAR(32);",
             "ALTER TABLE n_infraops_tenant_mappings "
             "ADD COLUMN IF NOT EXISTS operator VARCHAR(128);",
+            "ALTER TABLE n_infraops_tenant_mappings "
+            "DROP CONSTRAINT IF EXISTS ck_tenant_mappings_modality;",
+            "UPDATE n_infraops_tenant_mappings SET modality = CASE modality "
+            "WHEN 'central_ness' THEN 'managed' "
+            "WHEN 'sonda_no_cliente' THEN 'onsite' "
+            "WHEN 'cliente_gerenciado' THEN 'shared' END "
+            "WHERE modality IN ('central_ness', 'sonda_no_cliente', 'cliente_gerenciado');",
             """
-            DO $$ BEGIN
-                IF NOT EXISTS (
-                    SELECT 1 FROM pg_constraint
-                    WHERE conname = 'ck_tenant_mappings_modality'
-                      AND conrelid = 'n_infraops_tenant_mappings'::regclass
-                ) THEN
-                    ALTER TABLE n_infraops_tenant_mappings
-                    ADD CONSTRAINT ck_tenant_mappings_modality CHECK (
-                        modality IS NULL OR modality IN
-                        ('central_ness', 'sonda_no_cliente', 'cliente_gerenciado')
-                    );
-                END IF;
-            END $$;
+            ALTER TABLE n_infraops_tenant_mappings
+            ADD CONSTRAINT ck_tenant_mappings_modality CHECK (
+                modality IS NULL OR modality IN ('managed', 'onsite', 'shared')
+            );
             """,
         ):
             await conn.execute(text(ddl))
