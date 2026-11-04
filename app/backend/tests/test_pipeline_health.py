@@ -34,6 +34,33 @@ def cache(monkeypatch):
     return fake
 
 
+class _ScalarSession:
+    """Answers the zabbix then wazuh max() queries of source_coverage."""
+
+    def __init__(self, *values):
+        self.values = list(values)
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *exc):
+        pass
+
+    async def scalar(self, _query):
+        if isinstance(self.values[0], Exception):
+            raise self.values[0]
+        return self.values.pop(0)
+
+
+@pytest.fixture(autouse=True)
+def no_db(monkeypatch):
+    monkeypatch.setattr(health, "SessionLocal", lambda: _ScalarSession(None, None))
+
+
+def _seen(monkeypatch, zabbix, wazuh):
+    monkeypatch.setattr(health, "SessionLocal", lambda: _ScalarSession(zabbix, wazuh))
+
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     "response", [None, {}, {"status": "error"}, {"status": "unknown"}]
@@ -391,3 +418,75 @@ async def test_old_worker_failures_do_not_alert_but_new_ones_do(monkeypatch):
         monkeypatch, [old, {"state": "failed", "at": now - 30}]
     )
     assert result["status"] == "error" and result["failed_tasks"] == 1
+
+
+@pytest.mark.asyncio
+async def test_source_coverage_recent_old_and_missing(monkeypatch):
+    now = datetime.now(timezone.utc)
+    recent = now - timedelta(seconds=30)
+    old = now - timedelta(seconds=health.MAX_SOURCE_AGE_SECONDS + 60)
+    _seen(monkeypatch, recent, old)
+    src = await health.source_coverage(now)
+    assert src["zabbix"]["stale"] is False and src["zabbix"]["age_seconds"] == 30
+    assert src["zabbix"]["last_data_at"] == recent.isoformat()
+    assert "reason" not in src["zabbix"]
+    assert src["wazuh"]["stale"] is True
+    assert src["wazuh"]["age_seconds"] == health.MAX_SOURCE_AGE_SECONDS + 60
+
+    _seen(monkeypatch, None, recent)
+    src = await health.source_coverage(now)
+    assert src["zabbix"]["last_data_at"] is None
+    assert src["zabbix"]["age_seconds"] is None
+    assert src["zabbix"]["stale"] is True and src["zabbix"]["reason"] == "sem_dados"
+    assert src["wazuh"]["stale"] is False
+
+
+@pytest.mark.asyncio
+async def test_source_coverage_never_declares_modality_or_coverage(monkeypatch):
+    now = datetime.now(timezone.utc)
+    _seen(monkeypatch, now, now)
+    for item in (await health.source_coverage(now)).values():
+        assert item["modality"] == "pendente_de_modalidade"
+        assert item["coverage_declared"] is False
+
+
+@pytest.mark.asyncio
+async def test_source_coverage_query_error_is_not_fake_time(monkeypatch):
+    monkeypatch.setattr(
+        health, "SessionLocal", lambda: _ScalarSession(ConnectionError("db"))
+    )
+    src = await health.source_coverage(datetime.now(timezone.utc))
+    assert all(
+        s["last_data_at"] is None and s["stale"] and s["reason"] == "erro_consulta"
+        for s in src.values()
+    )
+
+
+@pytest.mark.asyncio
+async def test_sources_do_not_change_legacy_fields_status_or_ready(monkeypatch):
+    _probes(monkeypatch, {"return_value": {"status": "ready"}})
+    _seen(monkeypatch, None, None)  # no source data must not flip ready/status
+    result = await health.pipeline_health()
+    assert result["ready"] is True and result["status"] == "ok"
+    assert {"zabbix", "glpi", "workers", "delivery", "checked_at"} <= result.keys()
+    assert result["zabbix"]["scope"] == "global" and "sources" in result
+    assert result["sources"]["zabbix"]["reason"] == "sem_dados"
+
+
+def test_client_user_cannot_read_source_coverage():
+    # Endpoint is NOC-only and global: clients get 403, so no tenant can learn
+    # that another tenant has data.
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from app.core.dependencies import get_current_user
+    from app.models import UserRole
+
+    app = FastAPI()
+    app.include_router(pipeline.router)
+    app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(
+        role=UserRole.cliente, tenant_id="cavan"
+    )
+    with TestClient(app) as client:
+        r = client.get("/api/dashboard/pipeline-status")
+    assert r.status_code == 403 and "sources" not in r.text

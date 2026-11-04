@@ -13,7 +13,7 @@ from app.config import get_settings
 from app.database import SessionLocal
 from app.integrations.glpi import GLPIClient
 from app.integrations.zabbix import ZabbixClient
-from app.models import Incident
+from app.models import Incident, SocDecision
 from app.workers.celery_app import celery_app
 from app.workers.telemetry import KEY
 
@@ -239,6 +239,34 @@ async def with_freshness(name, result, cache, now):
     }
 
 
+async def source_coverage(now):
+    """Last data per ingestion source; never invents a time (null + reason instead)."""
+    try:
+        async with SessionLocal() as session:
+            seen = {
+                "zabbix": await session.scalar(select(func.max(Incident.last_seen))),
+                "wazuh": await session.scalar(select(func.max(SocDecision.created_at))),
+            }
+        reason = "sem_dados"
+    except Exception:
+        seen, reason = dict.fromkeys(("zabbix", "wazuh")), "erro_consulta"
+    out = {}
+    for name, last in seen.items():
+        age = max(0, int((now - last).total_seconds())) if last else None
+        out[name] = {
+            "last_data_at": last.isoformat() if last else None,
+            "age_seconds": age,
+            "stale": age is None or age > MAX_SOURCE_AGE_SECONDS,
+            # ponytail: no per-client modality registry yet. Next step is a field on
+            # the client record (central_ness | sonda_no_cliente | cliente_gerenciado,
+            # set before the first collection); Ricardo decides it, so never infer it here.
+            "modality": "pendente_de_modalidade",
+            "coverage_declared": False,
+            **({} if last else {"reason": reason}),
+        }
+    return out
+
+
 async def pipeline_health():
     started = monotonic()
     zabbix, glpi, workers, delivery = await asyncio.gather(
@@ -277,6 +305,8 @@ async def pipeline_health():
         "glpi": glpi,
         "workers": workers,
         "delivery": delivery,
+        # Informational only: not part of status/ready/exit code.
+        "sources": await source_coverage(now),
     }
 
 
