@@ -81,3 +81,11 @@ Frontend: a primeira troca devolveu 502 (o Caddy ainda não alcançava o contêi
 `aiops-promote-hub-api.sh` com canário de 300 s: `promotion=PASS`, backup `20261104T074026-0300` (rodou o backup noturno, ~10 min). `migrate.py` criou `n_secops_soc_decisions.freq_key` e o índice `ix_soc_decisions_freq`. Verificado: `ready=200`, API e workers saudáveis, 0 erros nos logs do worker, `/api/secops/triage` 401 sem sessão, frontend 200, 45 eventos de incidente nos 10 min seguintes. Nenhuma integração Wazuh → Hub ativada.
 
 Rollback: release `c16471d` (`docker compose -p app -f /opt/n-infraops/releases/c16471ddeedad4a8cd03103441652696fefa64b1/app/docker-compose.yml -f …/docker-compose.tickets.yml up -d --no-deps --force-recreate api`, mais workers). A coluna `freq_key` é aditiva e nullable: a versão anterior a ignora.
+
+## Promoção de `9992bf7` (04/11) — urgência/impacto no GLPI e fila/timeline
+
+#158 (Hub envia `urgency` e `impact` ao GLPI conforme a severidade Zabbix; ausente, inválida ou 0 fica em 3), #161 (fila por prioridade, filtros, `ticket_state`, `/timeline`, `X-Request-ID`), #159/#160/#163 (documentação e contrato). API e workers em `ghcr.io/resper1965/ninf-api@sha256:7e55141bdec998fb1ba39bdb24706ed69de46bb9161b30305714ea3151031af9` (`publish-hub-images` run 41898439132). Frontend inalterado. Sem migração.
+
+`aiops-promote-hub-api.sh`: `promotion=PASS`. Verificado: `ready=200`, API e workers saudáveis, 0 erros na API; 17 incidentes novos em 15 min, todos com ticket. Tickets GLPI dos últimos 40 min: 68 com urgência/impacto 3 e 1 com 2/2, ou seja, a severidade chega ao GLPI. Seis `ReadTimeout` do GLPI no worker, todos reagendados em 900 s pela idempotência (sem ticket duplicado). Nenhuma integração Wazuh → Hub ativada.
+
+Rollback: release `56c4659` (`docker compose -p app -f /opt/n-infraops/releases/56c46594deea281392cfcc39a30ab20d6faeff19/app/docker-compose.yml -f …/docker-compose.tickets.yml up -d --no-deps --force-recreate api`, mais workers).
