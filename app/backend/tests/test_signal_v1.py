@@ -69,7 +69,7 @@ def test_tenant_never_filled():
 
 
 @pytest.mark.parametrize(
-    "rule", [{}, {"level": None}, {"level": "abc"}, {"level": True}]
+    "rule", [{}, {"level": None}, {"level": "abc"}, {"level": True}, {"level": 10**400}]
 )
 def test_missing_severity_is_null_not_downgraded(rule):
     doc = _conv(_alert(rule=rule))

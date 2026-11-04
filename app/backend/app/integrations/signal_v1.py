@@ -2,7 +2,8 @@
 
 Pure function, no I/O. Contract: docs/specs/signal-contract-v1.md.
 ponytail: /secops/triage does not call this yet; it will in the cut that turns on
-the v1 producer. links/extensions/quality are omitted (optional in the contract).
+the v1 producer. Idempotency is (source_id, event_id): source_id must identify each
+Wazuh manager (ids from different managers collide). links/extensions/quality are omitted (optional in the contract).
 """
 
 import math
@@ -44,11 +45,14 @@ def wazuh_alert_to_signal_v1(
         event_id = f"{agent['id']}:{rule['id']}:{payload['timestamp']}"
 
     level = rule.get("level", payload.get("level", payload.get("rule_level")))
-    numeric = (
-        isinstance(level, int | float)
-        and not isinstance(level, bool)
-        and math.isfinite(level)
-    )
+    try:
+        numeric = (
+            isinstance(level, int | float)
+            and not isinstance(level, bool)
+            and math.isfinite(level)
+        )
+    except OverflowError:  # int too large for float, e.g. 10**400
+        numeric = False
 
     doc: dict[str, Any] = {
         "schema_version": "1.0",
