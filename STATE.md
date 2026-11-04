@@ -4,7 +4,7 @@
 
 **Estágio:** em andamento
 
-**Próximo passo:** 2.5 T06 — reconciliar o inventário restante (510 incidentes sem ativo).
+**Próximo passo:** A3 — aplicar o backfill dos incidentes já recuperados no Zabbix (espera o OK do Ricardo); depois P1. Trilha: [plano de 04/11](docs/superpowers/plans/2026-11-04-trilha-de-execucao.md).
 
 ## Quadro (atualizado a cada task fechada)
 
@@ -36,7 +36,7 @@ Tasks do [plano de execução](docs/superpowers/plans/2026-10-26-ness-os-executi
 - Recuperação Zabbix → Hub ligada em 03/11 (ação 7 e media type 72): antes nenhum incidente era marcado como recuperado. Pendente: indicadores por `ninf_zabbix_status` e backfill — [evidência](docs/execution/evidence/zabbix-hub-recovery-2026-11-03.md)
 
 ### Em andamento
-- (nada em andamento)
+- Backfill Zabbix → Hub: dry-run completo, lote de 500 aplicado (279 incidentes); resto aguarda OK — `infra/scripts/hub-zabbix-backfill.py`
 
 ### Pronto para começar
 - 2.5 T06 do plano GLPI (reconciliar todo o inventário)

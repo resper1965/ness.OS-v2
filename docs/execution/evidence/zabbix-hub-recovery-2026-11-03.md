@@ -14,4 +14,4 @@
 
 **Pendente:**
 1. Ajustar indicadores/telas que contam `status='open'` para considerar `ninf_zabbix_status`.
-2. Backfill dos ~30 mil incidentes `problem` cuja recuperação já passou (dry-run primeiro). Os 75 mil anteriores a 12/10 não têm esse campo.
+2. Backfill: dry-run em 04/11 sobre 30.161 incidentes (29.149 recuperados, 319 ainda abertos, 693 sem evento no Zabbix); lote de 500 aplicado (279). Resto espera o OK.

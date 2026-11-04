@@ -19,6 +19,8 @@ on:
       - 'infra/tests/test-hub-health-history.py'
       - 'infra/tests/run-hub-local-flow.sh'
       - 'infra/scripts/ness-release-manifest.py'
+      - 'infra/scripts/hub-zabbix-backfill.py'
+      - 'infra/tests/test-hub-zabbix-backfill.py'
       - 'infra/scripts/glpi_t03_functional_probe.py'
       - 'infra/tests/test_glpi_t03_prod_tooling.py'
       - 'infra/tests/test-ness-release-manifest.py'
@@ -98,6 +100,7 @@ jobs:
         python -m pytest -q infra/tests/test-ness-release-manifest.py
         python -m pytest -q infra/tests/test-psono-custodian-readiness.py
         python -m pytest -q infra/tests/test-zabbix-quality-wave.py
+        python -m pytest -q infra/tests/test-hub-zabbix-backfill.py
         python -m pytest -q infra/tests/test_glpi_network_boundary_probe.py
         python -m pytest -q infra/tests/test_glpi_t03_prod_tooling.py
         python -m pytest -q infra/tests/test_glpi_ticket_replay.py
