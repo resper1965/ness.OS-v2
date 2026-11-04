@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ness.invalid/schemas/signal-v1.schema.json",
+  "title": "Sinal ness.OS v1",
+  "description": "Envelope de sinal normalizado pelo Hub. Contrato: signal-contract-v1.md. Campos desconhecidos sao permitidos (compatibilidade para frente).",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "source_id",
+    "tenant_id",
+    "signal_type",
+    "occurred_at",
+    "collected_at",
+    "received_at",
+    "severity_source",
+    "payload"
+  ],
+  "properties": {
+    "schema_version": {
+      "description": "Versao do contrato: major.minor. Minor so acrescenta campos opcionais.",
+      "type": "string",
+      "pattern": "^1\\.[0-9]+$"
+    },
+    "source_id": {
+      "description": "Identificador estavel e unico da integracao/origem. Nunca reutilizado.",
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "tenant_id": {
+      "description": "Cliente resolvido pelo Hub via vinculo administrativo. null = pendente de vinculo. Valor enviado pela origem e ignorado.",
+      "type": ["string", "null"],
+      "minLength": 1
+    },
+    "signal_type": {
+      "description": "Tipo do sinal, namespaced por origem (ex.: wazuh.alert, cloud.event, ot.batch).",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$"
+    },
+    "event_id": {
+      "description": "Identificador do evento na origem; entra na chave de idempotencia. Ausente = sem deduplicacao.",
+      "type": "string",
+      "minLength": 1
+    },
+    "occurred_at": { "$ref": "#/$defs/instant", "description": "Horario do fato na origem." },
+    "collected_at": { "$ref": "#/$defs/instant", "description": "Horario em que a coleta leu o fato." },
+    "received_at": { "$ref": "#/$defs/instant", "description": "Horario de recepcao no Hub; sempre atribuido pelo Hub." },
+    "severity_source": {
+      "description": "Severidade declarada pela origem, sem reinterpretacao. value null, ausente de sentido ou fora da escala nao descarta o sinal.",
+      "type": "object",
+      "required": ["scheme", "value"],
+      "properties": {
+        "scheme": { "type": "string", "minLength": 1 },
+        "value": { "type": ["number", "string", "null"] }
+      }
+    },
+    "quality": {
+      "description": "Opcional. Sinal degradado nao e descartado.",
+      "enum": ["complete", "partial", "delayed"]
+    },
+    "payload": {
+      "description": "Evento original, intacto (evidencia).",
+      "type": "object"
+    },
+    "links": {
+      "description": "Opcional. Ausencia nao impede o registro do sinal.",
+      "type": "object",
+      "properties": {
+        "asset": { "type": "string", "minLength": 1 },
+        "service": { "type": "string", "minLength": 1 },
+        "cluster": { "type": "string", "minLength": 1 }
+      }
+    },
+    "batch": {
+      "description": "Opcional; obrigatorio quando signal_type = ot.batch.",
+      "type": "object",
+      "required": ["batch_id", "rules_version", "interval", "integrity"],
+      "properties": {
+        "batch_id": { "type": "string", "minLength": 1 },
+        "rules_version": { "type": "string", "minLength": 1 },
+        "interval": {
+          "type": "object",
+          "required": ["start", "end"],
+          "properties": {
+            "start": { "$ref": "#/$defs/instant" },
+            "end": { "$ref": "#/$defs/instant" }
+          }
+        },
+        "integrity": {
+          "type": "object",
+          "required": ["algorithm", "digest"],
+          "properties": {
+            "algorithm": { "const": "sha256" },
+            "digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+            "event_count": { "type": "integer", "minimum": 0 }
+          }
+        }
+      }
+    },
+    "extensions": {
+      "description": "Opcional. Extensao por origem em chave propria (ex.: wazuh, cloud, ot); nunca altera o significado de campo do envelope.",
+      "type": "object",
+      "propertyNames": { "pattern": "^[a-z][a-z0-9_]*$" },
+      "additionalProperties": { "type": "object" }
+    }
+  },
+  "if": {
+    "properties": { "signal_type": { "const": "ot.batch" } },
+    "required": ["signal_type"]
+  },
+  "then": { "required": ["batch"] },
+  "$defs": {
+    "instant": {
+      "description": "Instante RFC 3339 com fuso explicito (Z ou +hh:mm). Sem fuso e invalido.",
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$"
+    }
+  }
+}

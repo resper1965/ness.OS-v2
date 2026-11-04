@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0",
+  "source_id": "wazuh-manager-sintetico-01",
+  "tenant_id": "tenant-sintetico-001",
+  "signal_type": "wazuh.alert",
+  "event_id": "1762250130.123456",
+  "occurred_at": "2026-11-04T10:15:30.123-03:00",
+  "collected_at": "2026-11-04T10:15:31-03:00",
+  "received_at": "2026-11-04T13:15:32.480Z",
+  "severity_source": { "scheme": "wazuh.level", "value": 12 },
+  "quality": "complete",
+  "payload": {
+    "id": "1762250130.123456",
+    "timestamp": "2026-11-04T10:15:30.123-0300",
+    "rule": { "id": "100999", "level": 12, "description": "Regra sintetica de exemplo" },
+    "agent": { "id": "001", "name": "host-sintetico-01" },
+    "manager": { "name": "wazuh-manager-sintetico-01" },
+    "full_log": "mensagem sintetica de exemplo"
+  },
+  "links": {
+    "asset": "ativo-sintetico-0001",
+    "service": "servico-sintetico-erp",
+    "cluster": "wazuh-cluster-sintetico"
+  },
+  "extensions": {
+    "wazuh": { "agent_groups": ["grupo-sintetico"] }
+  }
+}

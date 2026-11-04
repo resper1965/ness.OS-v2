@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "source_id": "cloud-saas-sintetico-01",
+  "tenant_id": "tenant-sintetico-001",
+  "signal_type": "cloud.event",
+  "event_id": "evt-sintetico-8f3a",
+  "occurred_at": "2026-11-04T09:58:12+00:00",
+  "collected_at": "2026-11-04T10:05:00+00:00",
+  "received_at": "2026-11-04T10:05:03Z",
+  "severity_source": { "scheme": "provider", "value": "High" },
+  "quality": "delayed",
+  "payload": {
+    "operation": "UserLoginFailed",
+    "actor": "usuario.sintetico@example.invalid",
+    "client_ip": "192.0.2.10"
+  },
+  "extensions": {
+    "cloud": { "provider": "saas-sintetico", "tenant_ref": "dir-sintetico-123" }
+  }
+}

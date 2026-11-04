@@ -21,6 +21,9 @@ on:
       - 'infra/scripts/ness-release-manifest.py'
       - 'infra/scripts/hub-zabbix-backfill.py'
       - 'infra/tests/test-hub-zabbix-backfill.py'
+      - 'docs/specs/signal-contract-v1.schema.json'
+      - 'docs/specs/examples/signal-v1/**'
+      - 'infra/tests/test-signal-contract-v1.py'
       - 'infra/scripts/glpi_t03_functional_probe.py'
       - 'infra/tests/test_glpi_t03_prod_tooling.py'
       - 'infra/tests/test-ness-release-manifest.py'
@@ -101,6 +104,7 @@ jobs:
         python -m pytest -q infra/tests/test-psono-custodian-readiness.py
         python -m pytest -q infra/tests/test-zabbix-quality-wave.py
         python -m pytest -q infra/tests/test-hub-zabbix-backfill.py
+        python -m pytest -q infra/tests/test-signal-contract-v1.py
         python -m pytest -q infra/tests/test_glpi_network_boundary_probe.py
         python -m pytest -q infra/tests/test_glpi_t03_prod_tooling.py
         python -m pytest -q infra/tests/test_glpi_ticket_replay.py
