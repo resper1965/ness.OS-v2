@@ -8,7 +8,7 @@ import asyncio
 import json
 import logging
 from datetime import datetime, timezone
-from typing import Literal
+from typing import Literal, Sequence
 from urllib.parse import urlencode, urljoin
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -81,7 +81,9 @@ def _ticket_state(inc: Incident, last_ticket_action: str | None) -> str:
     return "pending_sync" if last_ticket_action in _TICKET_PENDING else "none"
 
 
-async def _last_ticket_actions(session, incidents: list[Incident]) -> dict[int, str]:
+async def _last_ticket_actions(
+    session, incidents: Sequence[Incident]
+) -> dict[int, str]:
     """Última ação de ticket por incidente (só dos que ainda não têm ticket)."""
     ids = [i.id for i in incidents if not i.deskmanager_ticket_id]
     if not ids:

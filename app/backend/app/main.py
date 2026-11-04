@@ -18,6 +18,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from redis.asyncio import Redis
 from sqlalchemy import text
+from starlette.types import ASGIApp
 
 project_root = Path(__file__).resolve().parent.parent.parent.parent
 if str(project_root) not in sys.path:
@@ -53,7 +54,15 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
 
-app = FastAPI(
+
+class _App(FastAPI):
+    def build_middleware_stack(self) -> ASGIApp:
+        # Camada mais externa, fora do ServerErrorMiddleware: o 500 de exceção
+        # não tratada também recebe o header.
+        return RequestIdMiddleware(super().build_middleware_stack())
+
+
+app = _App(
     title="ness.OS",
     description=(
         "ness.OS — Sistema Operacional da ness. | "
@@ -109,10 +118,6 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["X-Request-ID"],
 )
-# Camada mais externa, fora do ServerErrorMiddleware: o 500 de exceção não tratada
-# também recebe o header.
-_build_stack = app.build_middleware_stack
-app.build_middleware_stack = lambda: RequestIdMiddleware(_build_stack())
 
 # --- ness.OS Core ---
 app.include_router(core_router)  # prefix: /api/core
