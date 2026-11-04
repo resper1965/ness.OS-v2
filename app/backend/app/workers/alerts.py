@@ -97,6 +97,19 @@ def resolve_glpi_entity_id(customer_name: str) -> int:
     raise ValueError("Cliente sem entidade GLPI mapeada; ticket recusado")
 
 
+def glpi_urgency(severity: Any = None) -> int:
+    """Urgência = impacto do GLPI (1-5) pela severidade Zabbix; desconhecido fica em 3.
+
+    Ausente, inválido, 0 (não classificado), fora de faixa ou bool nunca rebaixam
+    (regra 7 da política SOC).
+    ponytail: só Zabbix; o mapeamento Wazuh (nível/score) entra junto com o
+    chamador quando o fluxo Wazuh criar ticket. Sem SLA/grupo/origem (T08).
+    """
+    if isinstance(severity, bool) or not isinstance(severity, int):
+        return 3
+    return severity if 1 <= severity <= 5 else 3
+
+
 def resolve_glpi_category_id(alert_data: Dict[str, Any]) -> int:
     """Resolve o ID da categoria do GLPI com base nos dados do alerta.
 
@@ -197,6 +210,7 @@ async def ensure_glpi_ticket(
     content: str,
     allow_create: bool,
     linked_item: dict | None = None,
+    urgency: int = 3,
 ) -> tuple[int, bool]:
     """Return the single GLPI ticket for a fingerprint, creating it if absent."""
     marker = f"[n.infraops:{fingerprint}]"
@@ -215,6 +229,7 @@ async def ensure_glpi_ticket(
         title=title,
         content=content,
         linked_item=linked_item,
+        urgency=urgency,
     )
 
 
@@ -227,12 +242,14 @@ async def _create_glpi_ticket(
     title: str,
     content: str,
     linked_item: dict | None,
+    urgency: int = 3,
 ) -> tuple[int, bool]:
     response = await glpi.create_ticket(
         title=f"{marker} {title}",
         content=content,
         entity_id=entity_id,
         itilcategories_id=category_id,
+        urgency=urgency,
         **({"linked_item": linked_item} if linked_item else {}),
     )
     if isinstance(response, list) and response:
@@ -261,6 +278,7 @@ async def ensure_glpi_ticket_serialized(
     title: str,
     content: str,
     linked_item: dict | None = None,
+    urgency: int = 3,
 ) -> tuple[int, bool]:
     """Reserve one POST durably after lookup, before GLPI creation."""
     await glpi.change_active_entity(entity_id)
@@ -304,6 +322,7 @@ async def ensure_glpi_ticket_serialized(
                 title=title,
                 content=content,
                 linked_item=linked_item,
+                urgency=urgency,
             )
         except GLPIPermanentError:
             # Refused (401/403): release the claim so a replay after the permission
@@ -419,6 +438,7 @@ async def _async_process_alert_v1(
             title=ticket_title,
             content=ticket_content,
             linked_item=linked_item,
+            urgency=glpi_urgency(alert_data.get("severity")),
         )
         logger.info(
             "Ticket GLPI %s com ID: %s | Categoria ID: %s",
