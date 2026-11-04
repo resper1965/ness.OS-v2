@@ -306,3 +306,9 @@ async def test_timeline_union_total_and_pagination(maker, api):
     await _act(maker, 1, "comment", 20, note="x")
     r = (await api.get("/api/incidents/1/timeline?limit=1&offset=2")).json()
     assert r["entries"][0]["kind"] == "soc_decision" and r["total"] == 6
+
+
+async def test_timeline_offset_has_ceiling(maker, api):
+    await _inc(maker, 1)
+    assert (await api.get("/api/incidents/1/timeline?offset=10001")).status_code == 422
+    assert (await api.get("/api/incidents/1/timeline?offset=10000")).status_code == 200

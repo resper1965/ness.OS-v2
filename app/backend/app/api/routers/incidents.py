@@ -437,7 +437,7 @@ async def get_incident_detail(
 async def get_incident_timeline(
     incident_id: int,
     limit: int = Query(default=200, ge=1, le=500),
-    offset: int = Query(default=0, ge=0),
+    offset: int = Query(default=0, ge=0, le=10000),
     current_user: User = Depends(get_current_user),
 ):
     """Ações e decisões SOC vinculadas, em ordem cronológica ascendente, paginadas.
