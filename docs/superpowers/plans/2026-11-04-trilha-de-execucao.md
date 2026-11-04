@@ -18,8 +18,8 @@ Aceite A3: `ninf_zabbix_status='problem'` só onde o Zabbix mantém o problema a
 | Passo | Estado |
 |---|---|
 | P0 Fundação SOC | feito, em produção `56c4659` |
-| P1 contrato de sinais v1 | feito em 04/11 (#153): `docs/specs/signal-contract-v1.md`, schema, exemplos sintéticos e teste no CI; mapeamento do `/secops/triage` para o envelope fica no P2 |
-| P2 | prazos por nível aceitos em 04/11 ([política](../../specs/soc-attendance-policy.md)); espera a validação do P1 (#160, não validado) e o revisor da amostra semanal. OT sem projeto operacional, fora do escopo |
+| P1 contrato de sinais v1 | validado em 04/11 (#153, #160): consumidor independente passou; `docs/specs/signal-contract-v1-validacao.md` |
+| P2 | prazos aceitos 04/11; primeiro corte backend na `main` (#161); falta vínculo decisão SOC ↔ incidente, mapeamento do `/secops/triage`, UI (espera redesenho) e o revisor da amostra semanal |
 | Wazuh → Hub em produção | espera contratação e desenho de coleta (D3/D6) |
 
 ## Trilha C — GLPI (plano GLPI T06 → T14)
