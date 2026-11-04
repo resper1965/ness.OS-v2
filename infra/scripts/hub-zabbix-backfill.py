@@ -52,7 +52,7 @@ async def main(apply: bool, limit: int | None) -> None:
                     .limit(min(BATCH, limit - total) if limit else BATCH)
                 )
                 if apply:
-                    stmt = stmt.with_for_update(skip_locked=True)
+                    stmt = stmt.with_for_update()  # espera o worker; nunca pula linha
                 rows = (await session.execute(stmt)).scalars().all()
                 if not rows:
                     break
