@@ -41,6 +41,7 @@ Tasks do [plano de execução](docs/superpowers/plans/2026-10-26-ness-os-executi
 
 ### Em andamento
 - Mapeamento do `/secops/triage` para o envelope v1 de entrada e vínculo `SocDecision` ↔ incidente (P2, segundo corte): ainda sem PR
+- `SocDecision.incident_id` (nulo) e decisão de qualificação na `/timeline` do incidente, com o mesmo tenant; nenhum produtor vincula ainda (o triage não cria incidente)
 - Promoção da API com #158 e #161: espera OK do Ricardo
 
 ### Pronto para começar

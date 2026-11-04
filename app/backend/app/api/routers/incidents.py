@@ -28,7 +28,7 @@ from app.core.dependencies import (
     resolve_tenant_scope,
 )
 from app.database import SessionLocal
-from app.models import Incident, IncidentAction
+from app.models import Incident, IncidentAction, SocDecision
 from app.models.schemas import IncidentAnalyzeRequest
 from app.models.users import User
 
@@ -440,42 +440,65 @@ async def get_incident_timeline(
     offset: int = Query(default=0, ge=0),
     current_user: User = Depends(get_current_user),
 ):
-    """Ações do incidente em ordem cronológica ascendente, paginadas.
+    """Ações e decisões SOC vinculadas, em ordem cronológica ascendente, paginadas.
 
-    ponytail: só n_infraops_incident_actions. SocDecision não tem vínculo com
-    Incident (lacuna conhecida); upgrade path: FK/chave de correlação e union
-    ordenado por `at`.
+    A decisão só entra se `incident_id` bate E o tenant (customer_id) é o do incidente.
+    ponytail: união feita em memória (offset+limit linhas por fonte); upgrade path:
+    UNION ALL em SQL se a página ficar funda.
     """
     scope = resolve_tenant_scope(current_user, None)
+    tenant_col = func.lower(Incident.tags["ninf_customer_name"].astext)
     async with SessionLocal() as session:
-        stmt = select(Incident.id).where(Incident.id == incident_id)
+        stmt = select(tenant_col).where(Incident.id == incident_id)
         if scope:
-            stmt = stmt.where(
-                func.lower(Incident.tags["ninf_customer_name"].astext) == scope
-            )
-        if (await session.execute(stmt)).scalar_one_or_none() is None:
+            stmt = stmt.where(tenant_col == scope)
+        found = (await session.execute(stmt)).first()
+        if found is None:
             raise HTTPException(status_code=404, detail="Incidente não encontrado")
-        where = IncidentAction.incident_id == incident_id
+        tenant = found[0]
+        a_where = IncidentAction.incident_id == incident_id
+        d_where = (SocDecision.incident_id == incident_id) & (
+            func.lower(SocDecision.customer_id) == tenant
+        )
         total = (
             await session.execute(
-                select(func.count()).select_from(IncidentAction).where(where)
+                select(func.count()).select_from(IncidentAction).where(a_where)
+            )
+        ).scalar_one() + (
+            await session.execute(
+                select(func.count()).select_from(SocDecision).where(d_where)
             )
         ).scalar_one()
+        n = offset + limit
         actions = (
             (
                 await session.execute(
                     select(IncidentAction)
-                    .where(where)
+                    .where(a_where)
                     .order_by(IncidentAction.created_at, IncidentAction.id)
-                    .limit(limit)
-                    .offset(offset)
+                    .limit(n)
                 )
             )
             .scalars()
             .all()
         )
-        return {
-            "entries": [
+        decisions = (
+            (
+                await session.execute(
+                    select(SocDecision)
+                    .where(d_where)
+                    .order_by(SocDecision.created_at, SocDecision.id)
+                    .limit(n)
+                )
+            )
+            .scalars()
+            .all()
+        )
+        entries = [
+            (
+                a.created_at,
+                "n_infraops_incident_actions",
+                a.id,
                 {
                     "kind": a.action,
                     "at": a.created_at.isoformat(),
@@ -483,9 +506,28 @@ async def get_incident_timeline(
                     "source_table": "n_infraops_incident_actions",
                     "source_id": str(a.id),
                     "note": a.note,
-                }
-                for a in actions
-            ],
+                },
+            )
+            for a in actions
+        ] + [
+            (
+                d.created_at,
+                "n_secops_soc_decisions",
+                d.id,
+                {
+                    "kind": "soc_decision",
+                    "at": d.created_at.isoformat(),
+                    "actor": {"source": "soc_triage", "user_id": None},
+                    "source_table": "n_secops_soc_decisions",
+                    "source_id": str(d.id),
+                    "note": f"{d.classification}: {d.action_taken}",
+                },
+            )
+            for d in decisions
+        ]
+        entries.sort(key=lambda e: e[:3])
+        return {
+            "entries": [e[3] for e in entries[offset:n]],
             "total": total,
             "limit": limit,
             "offset": offset,

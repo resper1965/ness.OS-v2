@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from app.api.routers.incidents import router
 from app.core.dependencies import get_current_user
 from app.database import Base
-from app.models.models import Asset, Incident, IncidentAction
+from app.models.models import Asset, Incident, IncidentAction, SocDecision
 from app.models.users import UserRole
 
 URL = os.environ.get("NINF_TEST_PG_URL")
@@ -32,7 +32,12 @@ T0 = datetime(2026, 11, 1, 12, tzinfo=timezone.utc)
 @pytest_asyncio.fixture
 async def maker():
     engine = create_async_engine(URL)
-    tabs = [Asset.__table__, Incident.__table__, IncidentAction.__table__]
+    tabs = [
+        Asset.__table__,
+        Incident.__table__,
+        IncidentAction.__table__,
+        SocDecision.__table__,
+    ]
     async with engine.begin() as c:
         await c.run_sync(lambda sc: Base.metadata.drop_all(sc, tables=tabs))
         await c.run_sync(lambda sc: Base.metadata.create_all(sc, tables=tabs))
@@ -229,3 +234,75 @@ async def test_timeline_ascending_total_and_pagination(maker, api):
     assert page["total"] == 3
     assert (await api.get("/api/incidents/1/timeline?limit=501")).status_code == 422
     assert (await api.get("/api/incidents/99/timeline")).status_code == 404
+
+
+async def _dec(maker, incident_id, minutes, customer="a", **kw):
+    async with maker() as s:
+        s.add(
+            SocDecision(
+                wazuh_rule_id="r1",
+                customer_id=customer,
+                classification=kw.pop("classification", "HIGH"),
+                summary="resumo com dado bruto",
+                action_taken=kw.pop("action", "ESCALATE"),
+                raw_alert={"segredo": "RAW-SECRET"},
+                incident_id=incident_id,
+                created_at=T0 + timedelta(minutes=minutes),
+            )
+        )
+        await s.commit()
+
+
+async def test_timeline_merges_soc_decision_in_order(maker, api):
+    await _inc(maker, 1)
+    await _act(maker, 1, "incident_created", 10, source="zabbix")
+    await _dec(maker, 1, 20)
+    await _act(maker, 1, "acknowledge", 30)
+    body = (await api.get("/api/incidents/1/timeline")).json()
+    assert [e["kind"] for e in body["entries"]] == [
+        "incident_created",
+        "soc_decision",
+        "acknowledge",
+    ]
+    e = body["entries"][1]
+    assert e["actor"] == {"source": "soc_triage", "user_id": None}
+    assert e["source_table"] == "n_secops_soc_decisions" and e["source_id"].isdigit()
+    assert e["note"] == "HIGH: ESCALATE"
+    assert datetime.fromisoformat(e["at"]).tzinfo is not None
+    assert "RAW-SECRET" not in str(body) and "dado bruto" not in str(body)
+
+
+async def test_timeline_ignores_unlinked_and_other_tenant_decisions(maker, api):
+    await _inc(maker, 1, tenant="a")
+    await _dec(maker, None, 5)  # sem vínculo
+    await _dec(maker, 2, 6)  # outro incidente
+    await _dec(maker, 1, 7, customer="b")  # incident_id certo, tenant errado
+    await _dec(maker, 1, 8, customer="A")  # mesmo tenant, caixa diferente: entra
+    body = (await api.get("/api/incidents/1/timeline")).json()
+    assert [e["kind"] for e in body["entries"]] == ["soc_decision"]
+    assert body["total"] == 1 and "RAW-SECRET" not in str(body)
+
+
+async def test_timeline_union_total_and_pagination(maker, api):
+    await _inc(maker, 1)
+    await _act(maker, 1, "incident_created", 10, source="zabbix")
+    await _dec(maker, 1, 20)
+    await _act(maker, 1, "acknowledge", 30)
+    await _dec(maker, 1, 40)
+    await _act(maker, 1, "resolve", 50, note="ok")
+    kinds = []
+    for o in range(6):
+        r = (await api.get(f"/api/incidents/1/timeline?limit=2&offset={o * 2}")).json()
+        assert r["total"] == 5
+        kinds += [e["kind"] for e in r["entries"]]
+    assert kinds == [
+        "incident_created",
+        "soc_decision",
+        "acknowledge",
+        "soc_decision",
+        "resolve",
+    ]
+    # empate de instante: ação antes da decisão, estável por (tabela, id)
+    await _act(maker, 1, "comment", 20, note="x")
+    r = (await api.get("/api/incidents/1/timeline?limit=1&offset=2")).json()
+    assert r["entries"][0]["kind"] == "soc_decision" and r["total"] == 6
