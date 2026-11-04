@@ -14,6 +14,6 @@
 
 **Pendente:**
 1. Ajustar indicadores/telas que contam `status='open'` para considerar `ninf_zabbix_status`.
-2. Ajustar o contador do frontend: feito em #149, ainda não promovido.
+2. Ajustar o contador do frontend: feito em #149 e promovido em 04/11 (`ninf-frontend@sha256:f4afa04a6f48076cd7a899cd16980ddd43a1c0ed856111e47e4f2a6ee7e9fb6f`, commit `1b76de6`). Rollback: `NINF_FRONTEND_IMAGE` de volta para `@sha256:1051d84f…` no `.env` da release e recriar só o `frontend`.
 
 **Backfill (04/11, OK do Ricardo):** dry-run sobre 30.161 incidentes `problem` (29.149 recuperados, 319 ainda abertos, 693 sem evento no Zabbix). Lote de 500 (279 gravados) e depois `--apply` completo: `examined=29881 recovered=28872 still_open=316 not_found=693`. Conferência: 29.151 incidentes com a tag `ninf_zabbix_backfill`, 29.151 ações `actor_source='backfill'`, todos com `status='open'` (não alterado). Na conferência restavam 1.006 `open` com `ninf_zabbix_status=problem`, contra 1.009 esperados pela leitura do backfill (316 abertos + 693 sem evento). A diferença de 3 é compatível com incidentes que se recuperaram ao vivo entre as duas leituras; não confirmei incidente a incidente. Rollback: tag `ninf_zabbix_status`=problem, remover `ninf_zabbix_recovered_at` e `ninf_zabbix_backfill`, apagar as ações `backfill`, sempre pelos ids da tag.

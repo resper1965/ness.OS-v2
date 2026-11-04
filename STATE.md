@@ -4,7 +4,7 @@
 
 **Estágio:** em andamento
 
-**Próximo passo:** decisões do Ricardo sobre o piloto de agentes do GLPI (T07: caminho `/Inventory`, RMM, tenant) e os valores do P2; em paralelo, T08 e o mapeamento do `/secops/triage` para o envelope. Trilha: [plano de 04/11](docs/superpowers/plans/2026-11-04-trilha-de-execucao.md).
+**Próximo passo:** o Ricardo aceita ou corrige a proposta de prazos do P2 (`docs/specs/p2-proposta-valores.md`) e autoriza o `--apply` do T07 (`infra/scripts/glpi-t07-inventory-prepare.php`); em paralelo, o agente envia urgência e impacto do Hub ao GLPI. Trilha: [plano de 04/11](docs/superpowers/plans/2026-11-04-trilha-de-execucao.md).
 
 ## Quadro (atualizado a cada task fechada)
 
@@ -33,10 +33,12 @@ Tasks do [plano de execução](docs/superpowers/plans/2026-10-26-ness-os-executi
 - 2.5 T05 GLPI: Computers 108–110 (entidade 1) criados e 1419 vínculos de ticket reparados (874 / 560 / 30), readback igual ao Hub, segunda aplicação 0; duas exceções `callAsSystem` aprovadas pelo Ricardo, só neste lote — [evidência](docs/execution/evidence/glpi-t05-assets-2026-11-02.md)
 - 2.3b Isolamento Hub ↔ GLPI aplicado em 03/11 (#140): senhas do banco fora do `.env` do Hub (`/etc/ness-os/glpi-{db,app}.env`), `glpi-db` em rede interna própria, senhas rotacionadas; Hub sem a variável e sem resolver `glpi-db`. [Evidência](docs/execution/evidence/glpi-hub-isolation-2026-11-03.md)
 - P0 Fundação SOC (03/11): atendimento por função própria, `pendente_de_cliente`, validação com campo/valor/sinal no log, prazo de 45 s no modelo, frequência persistida por tenant+cluster (`freq_key`). Em produção na release `56c4659` (04/11, `promotion=PASS`), coluna `freq_key` criada
+- Backfill Zabbix → Hub aplicado em 04/11: 29.151 incidentes recuperados gravados, `status` intacto — [evidência](docs/execution/evidence/zabbix-hub-recovery-2026-11-03.md)
+- T08 diagnóstico do atendimento no GLPI (#156) e T07 preparo dos agentes: script com dry-run e rota `/Inventory` de exemplo (#157), nada aplicado em produção
 - Recuperação Zabbix → Hub ligada em 03/11 (ação 7 e media type 72): antes nenhum incidente era marcado como recuperado. Frontend com o contador novo promovido em 04/11 (#149) — [evidência](docs/execution/evidence/zabbix-hub-recovery-2026-11-03.md)
 
 ### Em andamento
-- Backfill Zabbix → Hub aplicado em 04/11: 29.151 incidentes recuperados gravados, `status` intacto — [evidência](docs/execution/evidence/zabbix-hub-recovery-2026-11-03.md)
+- Mapeamento do `/secops/triage` para o envelope v1 (P2) e envio de urgência/impacto do Hub ao GLPI (T08): ainda sem PR
 
 ### Pronto para começar
 - 2.5 T06 do plano GLPI (reconciliar todo o inventário)

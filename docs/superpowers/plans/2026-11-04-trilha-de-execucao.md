@@ -8,7 +8,7 @@ Ordem dos projetos (plano por projeto do Ricardo): P0 e P1 em paralelo → P2 �
 | Passo | Entrega | Estado |
 |---|---|---|
 | A1 | Recuperação ligada no Zabbix (ação 7, media 72) | feito 03/11 (#146) |
-| A2 | Contador "abertos" ignora recuperados | feito (#149), frontend ainda não promovido |
+| A2 | Contador "abertos" ignora recuperados | feito (#149); frontend promovido em 04/11 (A4) |
 | A3 | Backfill dos incidentes `problem` já recuperados — `infra/scripts/hub-zabbix-backfill.py` | feito em 04/11: 29.151 gravados, `status` intacto (evidência em `zabbix-hub-recovery-2026-11-03.md`) |
 | A4 | Promover frontend com o contador novo | feito em 04/11: `ninf-frontend@sha256:f4afa04a…` (commit `1b76de6`); rollback = imagem `1051d84f…` no `.env` da release |
 
