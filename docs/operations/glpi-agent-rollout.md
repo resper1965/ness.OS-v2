@@ -1,6 +1,6 @@
 # GLPI Agent — diagnóstico e plano de rollout (T07)
 
-Estado em 04/11/2026, **somente leitura** (SELECT no GLPI 11.0.8 de produção).
+Estado em 04/11/2026, **somente leitura** (§8 acrescenta o preparo aprovado, ainda não aplicado) (SELECT no GLPI 11.0.8 de produção).
 Nada foi escrito, nenhum agente instalado, nenhum inventário enviado.
 Relatório agregado: sem serial, IP, nome de pessoa ou valor secreto.
 Política em `config/glpi/ness-agent-rollout.json`.
@@ -93,3 +93,65 @@ Critério: qualquer item 3/4 que toque outra entidade reprova a abertura do endp
 ## Reprodução do diagnóstico
 
 `infra/scripts/glpi-inventory-readiness-report.sh` e `glpi-inventory-security-audit.sh` (somente leitura). Neste relatório os números vêm de SELECTs equivalentes sobre `glpi_agents`, `glpi_configs`, `glpi_rules`, `glpi_computers`, `glpi_networkequipments`, `glpi_refusedequipments`.
+
+## 8. Preparo aprovado (T07) — NÃO aplicado
+
+Decisões do Ricardo: (1) rota `/Inventory` dedicada no Caddy, fora do SSO, básica sobre TLS + lista de origens; (2) piloto só na Ness, entidade fixa, sem regra por tag; (3) excluir os 7 registros de varredura, com backup e rollback; (4) desligar `import_process` e `import_registry`; (5) RMM = Action1 (ADR 0021).
+
+Duas etapas independentes. A 8.1 não expõe nada; a 8.2 só roda quando o piloto começar.
+
+### 8.1 GLPI — `infra/scripts/glpi-t07-inventory-prepare.php`
+
+Faz, numa transação: `import_process=0`, `import_registry=0`, `auth_required=basic_auth` com login/senha de inventário, e exclui definitivamente os agentes de varredura. **Nunca toca `enabled_inventory`** (aborta se não for 0; continua 0 até o gate do piloto). Não usa `callAsSystem`.
+
+Critério dos 7 agentes (todos juntos): entidade raiz, `Computer` sem ativo (`items_id=0`), sem versão/porta/tag, User-Agent `Mozilla/%`, sem contato há mais de 100 dias, e payload `SLEEP(` ou `deviceid` de 1 caractere. Se o conjunto não for exatamente os ids `1..7`, aborta. Também aborta se houver referência em `rulematchedlogs`, `unmanageds` ou `refusedequipments`.
+
+```bash
+A='sudo -n docker exec -i -u www-data ninf-glpi php --'
+S=infra/scripts/glpi-t07-inventory-prepare.php
+$A < $S                      # dry-run: só SELECT; mostra ids, linhas de log e estado atual
+```
+
+Aplicar (janela). A senha é gerada na hora e vai para um env-file 0600 (nunca em argv: apareceria no log do `sudo` e no `ps`) e para o cofre; nunca para arquivo versionado. O login pode ficar no argv.
+
+```bash
+set -o pipefail; umask 077
+R=/opt/n-infraops/rollback/glpi-t07; S=infra/scripts/glpi-t07-inventory-prepare.php
+sudo -n install -d -m 700 $R
+PW=$(openssl rand -hex 24)     # 48 caracteres; guardar no Psono antes de aplicar
+sudo -n install -m 600 /dev/null $R/.env
+printf 'GLPI_INVENTORY_BASIC_PASSWORD=%s\n' "$PW" | sudo -n tee $R/.env >/dev/null; unset PW
+F=$R/rollback-$(date +%F-%H%M%S).json; ! sudo -n test -e $F && sudo -n install -m 600 /dev/null $F   # nunca sobrescreve um rollback existente
+sudo -n docker exec -i -u www-data -e GLPI_INVENTORY_BASIC_LOGIN=glpi-inventory --env-file $R/.env \
+  ninf-glpi php -- --apply < $S | sudo -n tee $F >/dev/null; echo "pipeline rc=$?"
+sudo -n shred -u $R/.env       # sempre, com sucesso ou falha
+```
+
+Leia o **stderr** antes de seguir: sucesso termina com `{"applied":true,...}`; qualquer `FAIL: ...` antes do commit significa que nada foi escrito (validação prévia e transação com rollback). Um `FAIL: ... readback mismatch` vem **depois** do commit: a escrita ficou aplicada; investigue e, se preciso, use o rollback abaixo. Não prossiga para o Caddy sem `applied:true`. O nome do arquivo de rollback leva hora para que um segundo `--apply` não sobrescreva o primeiro.
+
+O JSON de rollback é gravado **antes** da escrita e contém: linhas completas dos 7 agentes (inclui `remote_addr`, `useragent`, `name`, `deviceid` — IPs e metadados de terceiros que varreram o serviço), linhas de `glpi_logs` e `restore_sql`; e a configuração anterior. Num segundo `--apply` a "configuração anterior" já é a nova: traz o login e a senha de inventário **cifrada** (chave do GLPI). Trate como sensível: diretório 700 e arquivo 600 só na VPS, **fora do Git**, descarte em 30 dias (`sudo -n shred -u`) depois do aceite do piloto.
+
+Rollback (caminho absoluto; `$R` não existe em shell nova; leitura com `sudo` porque o diretório é 700 de root):
+
+```bash
+J=/opt/n-infraops/rollback/glpi-t07/rollback-AAAA-MM-DD-HHMMSS.json
+sudo -n cat $J | python3 -c "import json,sys;print('START TRANSACTION;');print('\n'.join(json.load(sys.stdin)['restore_sql']));print('COMMIT;')" \
+  | sudo -n docker exec -i ninf-glpi-db sh -c 'mariadb -uroot -p"$MYSQL_ROOT_PASSWORD" glpi'
+```
+
+Se algum comando do restore falhar, o `COMMIT` não roda e a conexão encerra com rollback implícito. O restore recoloca `auth_required`, `import_*` e os agentes; `basic_auth_login`/`basic_auth_password` voltam ao valor anterior (vazio no primeiro `--apply`). Reexecutar o dry-run depois do rollback volta a listar os mesmos 7 ids. Validado em lab sintético (MariaDB 10.11 + GLPI 11.0.11): dry-run, `--apply` sem credencial (recusa), `--apply`, leitura de volta, restauração por `restore_sql`.
+
+### 8.2 Caddy — `infra/caddy/glpi-inventory-route.example.Caddyfile`
+
+Exemplo, **não aplicado**. Entra no `route {}` de `n-ticket.ness.com.br` em `app/Caddyfile` antes do `forward_auth`. Só `POST /Inventory` exato passa; demais métodos recebem 405 e subcaminhos (`/Inventory/Configuration`) continuam atrás do SSO. Ordem: origem (`remote_ip`, 403) → básica (401) → proxy, removendo cabeçalhos de identidade SSO/`Remote-User`. O GLPI valida a mesma credencial (`auth_required=basic_auth`). Variáveis lidas do ambiente do Caddy (hash `bcrypt` via `caddy hash-password`; nada no repo); lista de origens vazia nega tudo.
+
+Verificado em Caddy 2 isolado (sem credencial 401, errada 401, correta 200, GET 405, `/Inventory/Configuration` e `/` seguem para o SSO, origem fora da lista 403).
+
+Procedimento (só no início do piloto, depois de 8.1 e do teste isolado do §6):
+1. Backup: `cp app/Caddyfile /opt/n-infraops/rollback/glpi-t07/Caddyfile.$(date +%F)` e `caddy validate` do candidato com as variáveis.
+2. Definir `GLPI_INVENTORY_BASIC_LOGIN`, `GLPI_INVENTORY_BASIC_HASH` (hash da senha de 8.1) e `GLPI_INVENTORY_ORIGINS` (saída do Action1/rede da Ness) no ambiente do `ninf-caddy`.
+   **Nunca definir só uma das duas** (`..._BASIC_LOGIN` sem `..._BASIC_HASH` ou o inverso): o `basic_auth` fica vazio, o Caddyfile deixa de adaptar e **derruba todos os sites** do `ninf-caddy`. Defina as duas no mesmo passo.
+3. Inserir o trecho e rodar `caddy validate` **com as variáveis reais** (`docker exec ninf-caddy caddy validate --config /etc/caddy/Caddyfile`, no ambiente do contêiner que vai carregar). Só se válido: `caddy reload` (nunca restart do contêiner: derruba os demais sites).
+4. Pré-requisitos da conferência (antes de liberar o piloto): (a) o cabeçalho `Authorization` chega ao PHP do GLPI (o 401 do GLPI com senha errada e 200/resposta de inventário com a correta provam; se o GLPI responder "Authorization header required" mesmo com credencial, o proxy/PHP está descartando o cabeçalho); (b) `remote_ip` enxerga o IP real do cliente e não o do proxy/Cloudflare (teste de fora com origem permitida → passa, origem fora da lista → 403; se tudo vier do mesmo IP interno, a lista não está restringindo nada — configurar `trusted_proxies`/`client_ip_headers` antes). Conferir de fora: sem credencial 401; do IP permitido com credencial, resposta do GLPI com `enabled_inventory` ainda 0 (inventário desligado). Só então `enabled_inventory=1`, pelo gate do §5.
+
+Rollback: restaurar o `Caddyfile` do backup, `caddy reload`, e `enabled_inventory=0`. A rota fora do ar volta a responder 302 do SSO.
