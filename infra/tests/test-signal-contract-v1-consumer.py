@@ -1,0 +1,219 @@
+"""Consumidor independente do contrato de sinal v1: prova o contrato so com o texto, o schema e os exemplos.
+Rodar: python3 infra/tests/test-signal-contract-v1-consumer.py  (tambem coletavel pelo pytest)."""
+import copy
+import hashlib
+import importlib.util
+import json
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+EXAMPLES = HERE.parents[1] / 'docs/specs/examples/signal-v1'
+spec = importlib.util.spec_from_file_location('signal_v1_consumer', HERE / 'signal_v1_consumer.py')
+c = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(c)
+
+
+def ex(name):
+    return json.loads((EXAMPLES / f'{name}.json').read_text(encoding='utf-8'))
+
+
+def errs(doc):
+    return c.validate(doc)[0]
+
+
+def has(doc, text):
+    return any(text in e for e in errs(doc))
+
+
+def ot_with_payload(payload):
+    d = ex('ot-batch')
+    d['payload'] = payload
+    d['batch']['integrity']['digest'] = c.payload_digest(payload)
+    return d
+
+
+def test_a_official_examples_accepted():
+    names = sorted(p.stem for p in EXAMPLES.glob('*.json'))
+    assert names == ['cloud-event', 'ot-batch', 'wazuh-alert', 'wazuh-pending-tenant'], names
+    for n in names:
+        assert errs(ex(n)) == [], (n, errs(ex(n)))
+
+
+def test_b_origin_tenant_is_ignored_and_resolved_by_hub():
+    # O contrato manda IGNORAR/nunca aceitar tenant da origem; nao manda rejeitar o sinal.
+    doc = ex('wazuh-alert')
+    doc['tenant_id'] = 'tenant-forjado'
+    doc['received_at'] = '2000-01-01T00:00:00Z'
+    r = c.ingest(doc, lambda s: 'tenant-vinculado', '2026-11-04T13:15:32Z')
+    assert r['record']['tenant_id'] == 'tenant-vinculado'
+    assert r['record']['received_at'] == '2026-11-04T13:15:32Z'
+    assert not r['pending_tenant_review']
+    # sem vinculo (ou vinculos conflitantes) -> pendente, nunca o valor da origem nem 'default'
+    r = c.ingest(doc, lambda s: None, '2026-11-04T13:15:32Z')
+    assert r['record']['tenant_id'] is None and r['pending_tenant_review']
+    # tenant vazio/nao textual continua invalido no envelope
+    doc['tenant_id'] = ''
+    assert has(doc, 'tenant_id')
+    doc['tenant_id'] = 7
+    assert has(doc, 'tenant_id')
+    # tenant_id ausente: campo obrigatorio
+    del doc['tenant_id']
+    assert has(doc, 'obrigatorio')
+
+
+def test_c_instants_need_explicit_timezone():
+    bad = ['2026-11-04T10:00:00', '2026-11-04T10:00:00+0300', '2026-11-04', '2026-11-04T10:00:00+03',
+           '2026-11-04 10:00:00Z', '2026-11-04T10:00Z', '2026-13-04T10:00:00Z', '2026-11-04T10:00:00+25:00',
+           '', None, 1762250130]
+    for field in ('occurred_at', 'collected_at', 'received_at'):
+        for v in bad:
+            d = ex('wazuh-alert')
+            d[field] = v
+            assert has(d, field), (field, v)
+        for v in ('2026-11-04T10:00:00Z', '2026-11-04T10:00:00.5-03:00', '2026-11-04T10:00:00+05:30'):
+            d = ex('wazuh-alert')
+            d[field] = v
+            assert not has(d, field), (field, v)
+    d = ot_with_payload({'a': 1})
+    d['batch']['interval']['end'] = '2026-11-04T06:00:00'
+    assert has(d, 'interval')
+
+
+def test_c2_clock_skew_is_not_rejected():
+    d = ex('wazuh-alert')
+    d['occurred_at'], d['received_at'] = '2026-11-05T00:00:00Z', '2026-11-01T00:00:00Z'
+    errors, warnings = c.validate(d)
+    assert errors == [] and warnings
+
+
+def test_d_compatibility():
+    d = ex('wazuh-alert')
+    d['schema_version'] = '1.1'
+    d['campo_novo'] = {'x': 1}
+    d['severity_source']['extra'] = True
+    assert errs(d) == []
+    r = c.ingest(d, lambda s: 't', '2026-11-04T13:15:32Z')
+    assert 'campo_novo' in r['ignored'] and 'campo_novo' not in r['record']
+    for v in ('2.0', '0.9', '10.0'):
+        d['schema_version'] = v
+        assert has(d, 'major') or has(d, 'schema_version'), v
+    d['schema_version'] = '2.0'
+    assert has(d, 'major incompativel')
+    for v in ('1', '1.', '1.x', 1.0, None, 'v1.0'):
+        d['schema_version'] = v
+        assert has(d, 'schema_version'), v
+
+
+def test_e_ot_batch_rules():
+    d = ex('ot-batch')
+    del d['batch']
+    assert has(d, 'batch obrigatorio')
+    for n in ('wazuh-alert', 'cloud-event', 'wazuh-pending-tenant'):
+        d = ex(n)
+        d['batch'] = copy.deepcopy(ex('ot-batch')['batch'])
+        assert has(d, 'batch proibido'), n
+    for key in ('batch_id', 'rules_version', 'interval', 'integrity'):
+        d = ex('ot-batch')
+        del d['batch'][key]
+        assert errs(d), key
+    d = ex('ot-batch')
+    d['batch']['interval']['start'], d['batch']['interval']['end'] = (
+        d['batch']['interval']['end'], d['batch']['interval']['start'])
+    assert has(d, 'start deve ser < end')
+    d = ex('ot-batch')
+    d['batch']['interval']['end'] = d['batch']['interval']['start']
+    assert has(d, 'start deve ser < end')
+    d = ex('ot-batch')
+    d['batch']['integrity']['algorithm'] = 'sha1'
+    assert has(d, 'algorithm')
+    d = ex('ot-batch')
+    d['batch']['integrity']['digest'] = d['batch']['integrity']['digest'].upper()
+    assert has(d, 'hex minusculo')
+    d = ex('ot-batch')
+    del d['batch']['integrity']['event_count']  # opcional
+    assert errs(d) == []
+
+
+def test_e_digest_is_rfc8785_not_language_default():
+    d = ex('ot-batch')
+    assert d['batch']['integrity']['digest'] == c.payload_digest(d['payload'])
+    # forma canonica escrita a mao: chaves ordenadas, sem espaco, UTF-8 sem escape de nao-ASCII
+    payload = {'b': 1, 'a': 'é', 'c': ['x', 2, None, True]}
+    canonical = '{"a":"é","b":1,"c":["x",2,null,true]}'
+    assert c.jcs(payload) == canonical
+    assert c.payload_digest(payload) == hashlib.sha256(canonical.encode('utf-8')).hexdigest()
+    naive = hashlib.sha256(json.dumps(payload).encode()).hexdigest()  # serializacao padrao != JCS
+    assert c.payload_digest(payload) != naive
+    # ordem das chaves por unidade UTF-16 (U+1F600 = D83D DE00 < U+FF5E), nao por code point
+    assert c.jcs({'\uff5e': 1, '\U0001f600': 2}) == '{"\U0001f600":2,"\uff5e":1}'
+    # escapes minimos do JCS
+    assert c.jcs({'k': 'a"b\\c\n\x01/'}) == '{"k":"a\\"b\\\\c\\n\\u0001/"}'
+    # digest errado e rejeitado; payload alterado invalida o digest
+    d = ex('ot-batch')
+    d['payload']['events'][0]['rule']['level'] = 10
+    assert has(d, 'nao confere')
+    assert errs(ot_with_payload(payload)) == []
+    # reordenar chaves do payload nao muda o digest (e canonico)
+    assert errs({**ot_with_payload(payload), 'payload': {'c': ['x', 2, None, True], 'a': 'é', 'b': 1}}) == []
+
+
+def test_e_payload_outside_integer_string_subset_is_flagged_not_crashing():
+    d = ot_with_payload({'a': 1})
+    d['payload'] = {'a': 1.5}
+    assert has(d, 'subconjunto JCS')
+    d['payload'] = {'a': 2 ** 60}
+    assert has(d, 'subconjunto JCS')
+
+
+def test_f_links_optional():
+    for n in ('cloud-event', 'wazuh-pending-tenant'):
+        d = ex(n)
+        assert 'links' not in d and errs(d) == [], n
+    d = ex('wazuh-alert')
+    del d['links']
+    assert errs(d) == []
+    d = ex('wazuh-alert')
+    d['links'] = {}
+    assert errs(d) == []
+    d['links'] = {'service': 's'}
+    assert errs(d) == []
+
+
+def test_envelope_misc():
+    for k in ('schema_version', 'source_id', 'tenant_id', 'signal_type', 'occurred_at', 'collected_at',
+              'received_at', 'severity_source', 'payload'):
+        d = ex('wazuh-alert')
+        del d[k]
+        assert has(d, k), k
+    for k in ('event_id', 'quality', 'links', 'extensions'):  # opcionais
+        d = ex('wazuh-alert')
+        d.pop(k, None)
+        assert errs(d) == [], k
+    d = ex('wazuh-alert')
+    d['signal_type'] = 'wazuh'
+    assert has(d, 'signal_type')
+    d = ex('wazuh-alert')
+    d['source_id'] = '-x'
+    assert has(d, 'source_id')
+    d = ex('wazuh-alert')
+    d['quality'] = 'good'
+    assert has(d, 'quality')
+    d = ex('wazuh-alert')
+    d['payload'] = []
+    assert has(d, 'payload')
+    # severidade: null, texto e fora de escala nao descartam o sinal
+    for v in (None, 'High', 99, -1, 'abc'):
+        d = ex('wazuh-alert')
+        d['severity_source']['value'] = v
+        assert errs(d) == [], v
+    d = ex('wazuh-alert')
+    d['severity_source'] = {'scheme': 'wazuh.level'}
+    assert errs(d)  # value e chave obrigatoria (AMBIGUO vs "valor ausente": ver validacao.md)
+
+
+if __name__ == '__main__':
+    tests = [(n, f) for n, f in sorted(globals().items()) if n.startswith('test_') and callable(f)]
+    for n, f in tests:
+        f()
+        print('ok', n)
+    print(f'{len(tests)} testes ok')

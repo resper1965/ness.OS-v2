@@ -24,6 +24,8 @@ on:
       - 'docs/specs/signal-contract-v1.schema.json'
       - 'docs/specs/examples/signal-v1/**'
       - 'infra/tests/test-signal-contract-v1.py'
+      - 'infra/tests/test-signal-contract-v1-consumer.py'
+      - 'infra/tests/signal_v1_consumer.py'
       - 'infra/scripts/glpi_t03_functional_probe.py'
       - 'infra/tests/test_glpi_t03_prod_tooling.py'
       - 'infra/scripts/glpi-t07-inventory-prepare.php'
@@ -107,6 +109,7 @@ jobs:
         python -m pytest -q infra/tests/test-zabbix-quality-wave.py
         python -m pytest -q infra/tests/test-hub-zabbix-backfill.py
         python -m pytest -q infra/tests/test-signal-contract-v1.py
+        python -m pytest -q infra/tests/test-signal-contract-v1-consumer.py
         python -m pytest -q infra/tests/test_glpi_network_boundary_probe.py
         python -m pytest -q infra/tests/test_glpi_t03_prod_tooling.py
         python -m pytest -q infra/tests/test-glpi-write-guards.py
