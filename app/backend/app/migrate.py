@@ -84,6 +84,9 @@ async def run_migrations():
             "ALTER TABLE n_secops_soc_decisions ADD COLUMN IF NOT EXISTS freq_key VARCHAR(64);",
             "CREATE INDEX IF NOT EXISTS ix_soc_decisions_freq "
             "ON n_secops_soc_decisions (freq_key, created_at);",
+            "ALTER TABLE n_secops_soc_decisions ADD COLUMN IF NOT EXISTS incident_id BIGINT;",
+            "CREATE INDEX IF NOT EXISTS ix_soc_decisions_incident "
+            "ON n_secops_soc_decisions (incident_id) WHERE incident_id IS NOT NULL;",
             "CREATE INDEX IF NOT EXISTS ix_soc_decisions_action_created "
             "ON n_secops_soc_decisions (action_taken, created_at);",
         ):

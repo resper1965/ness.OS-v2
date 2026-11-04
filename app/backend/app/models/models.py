@@ -400,6 +400,9 @@ class SocDecision(Base):
     dedup_key: Mapped[str | None] = mapped_column(String(64))
     # Frequência: hash de tenant + cluster + agente + regra; contagem recente é consulta a esta coluna
     freq_key: Mapped[str | None] = mapped_column(String(64))
+    # Vínculo opcional com Incident (sem FK, como o resto do projeto); nulo até haver produtor.
+    # Índice parcial em migrate.py.
+    incident_id: Mapped[int | None] = mapped_column(BigInteger)
 
     classification: Mapped[str] = mapped_column(
         String(32), index=True
