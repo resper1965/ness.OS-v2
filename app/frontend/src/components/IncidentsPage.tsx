@@ -113,7 +113,8 @@ const ACTION_LABEL: Record<Action, string> = {
 interface Props { incidents: Incident[]; total: number; loading: boolean; loadingMore: boolean; error: string | null; canAct: boolean; onChanged: () => void | Promise<void>; onLoadMore: () => void | Promise<void>; }
 
 export default function IncidentsPage({ incidents, total, loading, loadingMore, error, canAct, onChanged, onLoadMore }: Props) {
-  const openCount = incidents.filter(i => i.status === 'open').length;
+  // "Aberto de verdade": o status só muda pelo GLPI; o Zabbix já recuperado não conta.
+  const openCount = incidents.filter(i => i.status === 'open' && i.source_status !== 'resolved').length;
   const [activeId, setActiveId] = React.useState<string | null>(null);
   const [detail, setDetail] = React.useState<IncidentDetail | null>(null);
   const [detailLoading, setDetailLoading] = React.useState(false);
