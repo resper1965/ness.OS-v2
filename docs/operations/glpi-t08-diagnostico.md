@@ -65,7 +65,7 @@ Princípio: reaproveitar GLPI nativo, nada de plugin nem tabela nova; tudo por U
 
 1. **Triagem:** criar o grupo raiz `triagem` (atribuível, recursivo) e usá-lo como destino das regras quando não houver grupo validado para serviço/entidade. Sem pessoa por padrão.
 2. **Categorias:** manter a árvore; adicionar só o necessário para os fluxos automáticos: categoria folha para alerta de infraestrutura (Zabbix) e para SOC (Wazuh), com grupo padrão (`infraops`, `secops`), e apontar `NINF_GLPI_INFRA_CATEGORY_ID` / `NINF_GLPI_SECURITY_CATEGORY_ID` para elas. Marcar o serviço pelo nome da categoria (7 serviços `NESS-*` ↔ nível 2 da árvore); não criar objeto de catálogo novo.
-3. **Templates (2):** incidente (obrigatórios: categoria, urgência, impacto, ativo "se aplicável"; predefinido: origem, tipo=incidente) e requisição (categoria, descrição). Ligar por `tickettemplates_id_incident` / `_demand` nas categorias-folha.
+3. **Templates (2):** incidente (obrigatórios: categoria, urgência, impacto, ativo "se aplicável"; predefinido: origem, tipo=incidente) e requisição (obrigatórios: categoria, descrição, entidade, urgência, impacto, serviço pelo nome da categoria e ativo "se aplicável"; predefinido: origem, tipo=requisição). Campo desconhecido fica explícito como "não informado", nunca em branco. Ligar por `tickettemplates_id_incident` / `_demand` nas categorias-folha.
 4. **Regras `RuleTicket` (recriar, não remendar):** `condition = 1` (ao criar); critério "categoria **é** X" por folha → `_groups_id_assign`; na entidade sem grupo `infraops/NOC` com membros → `triagem`. Prioridade vem da matriz, não de regra. Regras de SLA só depois do contrato (seção 6).
 5. **Hub (código, fora do GLPI):** enviar `urgency` e `impact` conforme a severidade (tabela da seção 6) e fixar `requesttypes_id`; manter urgência 3 só quando a severidade vier ausente (política SOC regra 7). Mudança pequena em `create_ticket` / `_create_glpi_ticket`.
 6. **Ciclo de vida:** cadastrar motivos de pendência (aguardando cliente, fornecedor, janela, mudança), 2–3 tipos de solução e um modelo de solução; usar o fluxo nativo Novo → Em atendimento → Pendente → Solucionado → Fechado. Pendência pausa o SLA nativamente (quando houver SLA). Reabertura pelo fluxo nativo; fechamento automático só após decisão.
@@ -85,7 +85,9 @@ Mapeamento proposto (severidade Zabbix / nível Wazuh → urgência = impacto �
 | Alta | High (4) | 10–11 | 4 | 4 | 30 min | 8 h | 24x7 | proposta, depende do contrato e do Ricardo |
 | Média | Average (3) | 7–9 | 3 | 3 | 2 h | 24 h | 08–20 seg–sex | proposta, depende do contrato e do Ricardo |
 | Baixa | Warning (2) | arquivado com amostragem semanal | 2 | 2 | 8 h | 3 dias úteis | 08–20 seg–sex | proposta, depende do contrato e do Ricardo |
-| Informativa | Information (1) / não classificado (0) | ≤ 6 sem exceção | 1 | 1 | sem prazo | sem prazo (sem ticket quando Wazuh) | n/a | proposta, depende do contrato e do Ricardo |
+| Informativa | Information (1) | ≤ 6 sem exceção | 1 | 1 | sem prazo | sem prazo (sem ticket quando Wazuh) | n/a | proposta, depende do contrato e do Ricardo |
+
+**Não classificado (Zabbix 0) e severidade ausente ou inválida não entram na linha Informativa.** Seguem a regra 7 da política SOC: atender, sem rebaixar. Urgência e impacto ficam em 3 (o comportamento de hoje, equivalente ao triagem manual de urgência média), com a origem marcada como "não classificado" para a triagem decidir. Nenhum valor desconhecido vira prioridade mínima.
 
 Pontos abertos para decisão (T08 e política SOC "Aberto"):
 
