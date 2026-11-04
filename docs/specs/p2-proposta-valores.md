@@ -1,6 +1,6 @@
 # P2: proposta de valores para decisão (04/11/2026)
 
-**Estado:** proposta do agente. Nada aqui está decidido nem implementado. Cada linha espera aceite ou correção do Ricardo; os prazos de resposta ainda dependem do SLA contratual (T08).
+**Estado:** aceito pelo Ricardo em 04/11/2026, com as condições abaixo. As regras de prazo entram em `soc-attendance-policy.md`.
 
 ## 1. Prazos de resposta por nível Wazuh
 

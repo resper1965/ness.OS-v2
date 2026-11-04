@@ -17,9 +17,25 @@ Atendimento independe do score e do modelo de IA ([contrato de sinal v0](signal-
 
 O texto aprovado dizia "nível ≤ 6: arquivar sem ticket". O código sempre deixou o score do motor de risco (≥ 75) prevalecer sobre o nível, para não arquivar IOC confirmado ou ativo crítico em silêncio. A regra 3 agora diz isso explicitamente. Ricardo: se preferir arquivar tudo ≤ 6 sem exceção, é uma linha de código, mas não recomendo.
 
+## Prazos de resposta (aceitos pelo Ricardo em 04/11/2026)
+
+| Caso | Primeira resposta |
+|---|---|
+| Nível Wazuh ≥ 12 | 15 min, 24x7 |
+| Nível ≤ 6 com score ≥ 75 | 1 h, 24x7 |
+| Níveis 7 a 11, atendidos pelo score | 4 h, horário comercial |
+| Severidade ausente ou inválida (regra 7) | 4 h, horário comercial |
+| Regra própria da NESS abaixo de 12 (regra 4) | 4 h, horário comercial |
+| Sem cliente ou ambíguo (regra 5) | 1 dia útil |
+
+**Condição:** a janela conta do **reconhecimento** do caso, não da entrega da notificação.
+Notificação perdida ou atrasada não consome o prazo. O contrato de cada cliente prevalece onde for mais exigente.
+
+**Amostra semanal de arquivados:** 20 alertas por cliente, ou 10% do volume quando o cliente passa de 200 arquivados na semana.
+
 ## Aberto
 
-- Prazos de resposta por nível: dependem do SLA contratual (T08).
+- Quem revisa a amostra semanal e em que dia: pendente (a proposta de rodízio do plantão não foi decidida).
 - OT: duração da janela, banda, capacidade e retenção.
 - Implementado: regras 1, 2, 3, 5 e 7 (`/api/secops/triage`; amostra semanal em `GET /api/secops/archived-sample`, só NOC/SOC, que sorteia os arquivados da janela e devolve `raw_alert` como evidência).
 - Regra 6 (OT) e a revisão semanal automatizada (quem olha a amostra, e quando) ainda não existem.
