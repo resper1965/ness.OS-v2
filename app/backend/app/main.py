@@ -9,13 +9,16 @@ from __future__ import annotations
 # ruff: noqa: E402
 import asyncio
 import logging
+import re
 import sys
+import uuid
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from redis.asyncio import Redis
 from sqlalchemy import text
+from starlette.types import ASGIApp
 
 project_root = Path(__file__).resolve().parent.parent.parent.parent
 if str(project_root) not in sys.path:
@@ -51,7 +54,15 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
 
-app = FastAPI(
+
+class _App(FastAPI):
+    def build_middleware_stack(self) -> ASGIApp:
+        # Camada mais externa, fora do ServerErrorMiddleware: o 500 de exceção
+        # não tratada também recebe o header.
+        return RequestIdMiddleware(super().build_middleware_stack())
+
+
+app = _App(
     title="ness.OS",
     description=(
         "ness.OS — Sistema Operacional da ness. | "
@@ -61,6 +72,37 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
 )
+
+_REQUEST_ID = re.compile(r"[A-Za-z0-9._-]{1,64}")
+
+
+class RequestIdMiddleware:
+    """Aceita X-Request-ID válido do cliente (senão uuid4) e o devolve na resposta.
+
+    ponytail: só header — não há handler comum de erros para incluir request_id
+    no corpo; upgrade path: exception_handler único quando existir.
+    """
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            return await self.app(scope, receive, send)
+        sent = dict(scope["headers"]).get(b"x-request-id", b"").decode("latin-1")
+        rid = sent if _REQUEST_ID.fullmatch(sent) else str(uuid.uuid4())
+        scope.setdefault("state", {})["request_id"] = rid
+
+        async def send_with_id(message):
+            if message["type"] == "http.response.start":
+                message["headers"] = [
+                    *(h for h in message["headers"] if h[0].lower() != b"x-request-id"),
+                    (b"x-request-id", rid.encode()),
+                ]
+            await send(message)
+
+        await self.app(scope, receive, send_with_id)
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -74,6 +116,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["X-Request-ID"],
 )
 
 # --- ness.OS Core ---

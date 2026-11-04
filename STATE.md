@@ -39,6 +39,7 @@ Tasks do [plano de execução](docs/superpowers/plans/2026-10-26-ness-os-executi
 
 ### Em andamento
 - Mapeamento do `/secops/triage` para o envelope v1 (P2) e envio de urgência/impacto do Hub ao GLPI (T08): ainda sem PR
+- P2 Command Center camada 1, primeiro corte só backend (fila por prioridade, filtros, `ticket_state`, `/timeline`, `X-Request-ID`): PR aberto, sem UI, sem tabela nova
 
 ### Pronto para começar
 - 2.5 T06 do plano GLPI (reconciliar todo o inventário)
