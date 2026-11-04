@@ -100,7 +100,7 @@ implementação de JSON Schema 2020-12.
 
 Dependem do Ricardo; nada foi preenchido por suposição:
 
-- Prazos de resposta por nível (SLA, T08).
+- Prazos de resposta por nível: aceitos em 04/11 e registrados em [soc-attendance-policy.md](soc-attendance-policy.md). Falta só o SLA contratual por cliente (T08), que prevalece onde for mais exigente.
 - OT: duração da janela, banda, capacidade e retenção (spec v2, §12).
 - Quem revisa a amostra semanal de arquivados, e quando.
 - Piso de severidade para origens além do Wazuh (o piso 12 vale só para nível Wazuh).
