@@ -1,130 +1,210 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="pt-BR" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ness.OS — panorama de 04/11/2026</title>
+<meta name="theme-color" content="#00ade8">
+<title>Panorama do projeto — 04/11/2026</title>
 <style>
-:root{--bg:#0f1115;--card:#171a21;--line:#262b36;--tx:#e6e8ee;--mu:#8b93a7;--ok:#2ecc71;--wip:#f5b041;--wait:#e74c3c;--idle:#566074;--acc:#4da3ff}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.5 system-ui,Segoe UI,Roboto,sans-serif;padding:24px;max-width:1100px;margin:auto}
-h1{font-size:24px;margin:0}h2{font-size:17px;margin:32px 0 12px;border-bottom:1px solid var(--line);padding-bottom:6px}
-.sub{color:var(--mu);margin:4px 0 20px}
-.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
-.kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px}
-.kpi b{display:block;font-size:26px}.kpi span{color:var(--mu);font-size:13px}
-.row{display:grid;grid-template-columns:260px 1fr 210px;gap:12px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
-.bar{background:var(--line);border-radius:6px;height:14px;overflow:hidden}.bar i{display:block;height:100%}
-.ok{background:var(--ok)}.wip{background:var(--wip)}.wait{background:var(--wait)}.idle{background:var(--idle)}
-.tag{display:inline-block;font-size:12px;padding:2px 8px;border-radius:99px;border:1px solid var(--line);color:var(--mu)}
-.note{color:var(--mu);font-size:13px}
-.flow{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-.node{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--idle);border-radius:8px;padding:10px 12px;min-width:150px}
-.node.ok{border-left-color:var(--ok);background:var(--card)}.node.wip{border-left-color:var(--wip);background:var(--card)}.node.wait{border-left-color:var(--wait);background:var(--card)}
-.node small{display:block;color:var(--mu)}
-.arrow{color:var(--mu)}
-.chain{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
-.p{padding:8px 14px;border-radius:8px;border:1px solid var(--line);background:var(--card);font-weight:600}
-.p.ok{border-color:var(--ok)}.p.next{border-color:var(--acc);color:var(--acc)}.p.wait{border-color:var(--wait)}
-table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}th{color:var(--mu);font-weight:500;font-size:13px}
-.legend{display:flex;gap:16px;flex-wrap:wrap;color:var(--mu);font-size:13px;margin:8px 0}
-.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}
-@media(max-width:700px){.row{grid-template-columns:1fr}}
-@media print{body{background:#fff;color:#000}.kpi,.node,.p{background:#fff}}
+/* Tokens do design system ness. (colors, typography, spacing, base) inlinados para o arquivo abrir sozinho. */
+@import url("https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap");
+:root{
+  --ness-bluedot:#00ade8;--ness-bluedot-tint:rgba(0,173,232,.12);--ness-accent-ink:#04121c;
+  --ness-paper:#0b1326;--ness-surface:#162244;--ness-surface-2:#1e2d52;--ness-line:rgba(255,255,255,.10);
+  --ness-ink:#f1f5f9;--ness-ink-2:#cbd5e1;--ness-ink-3:#94a3b8;--ness-ink-4:#8fa0b6;
+  --ness-ok:#10b981;--ness-warn:#f59e0b;--ness-bad:#ef4444;--ness-info:#00ade8;
+  --text-primary:var(--ness-ink);--text-secondary:var(--ness-ink-2);--text-muted:var(--ness-ink-3);--text-faint:var(--ness-ink-4);
+  --surface-page:var(--ness-paper);--surface-card:var(--ness-surface);--surface-raised:var(--ness-surface-2);
+  --border-hairline:var(--ness-line);--accent:var(--ness-bluedot);
+  --font-head:"Montserrat",system-ui,-apple-system,sans-serif;--font-body:"Inter",system-ui,-apple-system,sans-serif;--font-mono:"JetBrains Mono",ui-monospace,SFMono-Regular,monospace;
+  --type-h1:600 20px/1.1 var(--font-head);--type-h2:600 17px/1.2 var(--font-head);--type-kpi:600 28px/1 var(--font-head);
+  --type-body:400 13px/1.5 var(--font-body);--type-body-sm:400 12px/1.5 var(--font-body);--type-meta:500 9px/1 var(--font-mono);--type-code:400 11px/1.4 var(--font-mono);
+  --tracking-title:-.02em;--tracking-meta:.16em;
+  --space-1:4px;--space-2:8px;--space-3:12px;--space-4:16px;--space-6:24px;--space-7:28px;--space-8:32px;--space-12:48px;
+  --radius:0;--shell-header-h:64px;
+}
+[data-theme="light"]{--ness-paper:#fff;--ness-surface:#f8fafc;--ness-surface-2:#eef2f7;--ness-line:#e2e8f0;--ness-ink:#0f172a;--ness-ink-2:#334155;--ness-ink-3:#475569;--ness-ink-4:#52627a}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--surface-page);color:var(--text-primary);font:var(--type-body);-webkit-font-smoothing:antialiased}
+a{color:var(--accent);text-decoration:none}:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+code{font:var(--type-code);color:var(--text-secondary)}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+.meta{font:var(--type-meta);letter-spacing:var(--tracking-meta);text-transform:uppercase;color:var(--text-muted)}
+
+/* shell */
+header.top{position:sticky;top:0;z-index:4;height:var(--shell-header-h);display:flex;align-items:center;gap:var(--space-4);padding:0 var(--space-7);background:var(--surface-page);border-bottom:1px solid var(--border-hairline)}
+header.top h1{margin:0;flex:1;min-width:0;font:var(--type-h1);letter-spacing:var(--tracking-title)}
+header.top .meta{white-space:nowrap}
+button.theme{background:transparent;height:30px;padding:0 var(--space-3);border:1px solid var(--border-hairline);color:var(--text-secondary);font:500 12px/1 var(--font-body)}
+button.theme:hover{color:var(--text-primary);border-color:var(--text-muted)}
+main{max-width:1120px;margin:0 auto;padding:var(--space-7)}
+h2{font:var(--type-h2);letter-spacing:var(--tracking-title);margin:var(--space-12) 0 var(--space-3)}
+h2:first-of-type{margin-top:var(--space-8)}
+.lead{color:var(--text-secondary);margin:0 0 var(--space-4);max-width:70ch}
+.note{font:var(--type-body-sm);color:var(--text-faint);margin:var(--space-2) 0 0;max-width:80ch}
+
+/* legenda e estados */
+.legend{display:flex;gap:var(--space-6);flex-wrap:wrap;margin:0 0 var(--space-6);font:var(--type-body-sm);color:var(--text-muted)}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:var(--space-2);vertical-align:baseline;background:var(--c)}
+.s-ok{--c:var(--ness-ok)}.s-wip{--c:var(--ness-info)}.s-wait{--c:var(--ness-warn)}.s-idle{--c:var(--text-faint)}
+.badge{display:inline-block;font:500 10px/1.7 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;padding:1px 8px;color:var(--c);background:color-mix(in oklab,var(--c) 16%,transparent)}
+
+/* indicadores */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));border:1px solid var(--border-hairline);background:var(--surface-card)}
+.kpi{padding:var(--space-4) var(--space-4);border-right:1px solid var(--border-hairline)}
+.kpi:last-child{border-right:0}
+.kpi b{display:block;font:var(--type-kpi);letter-spacing:var(--tracking-title);margin:var(--space-2) 0}
+.kpi span:last-child{color:var(--text-muted);font:var(--type-body-sm)}
+
+/* frentes */
+.frentes{border:1px solid var(--border-hairline);background:var(--surface-card)}
+.frente{display:grid;grid-template-columns:minmax(200px,1.1fr) 2fr 56px minmax(180px,1.4fr);gap:var(--space-4);align-items:center;padding:var(--space-3) var(--space-4);border-bottom:1px solid var(--border-hairline)}
+.frente:last-child{border-bottom:0}
+.frente .n{font:var(--type-code);color:var(--text-faint);margin-right:var(--space-2)}
+.bar{height:8px;background:var(--surface-raised)}
+.bar i{display:block;height:100%;background:var(--c)}
+.frente .why{color:var(--text-muted);font:var(--type-body-sm)}
+
+/* projetos P0–P7 */
+.chain{display:flex;flex-wrap:wrap;gap:0;border:1px solid var(--border-hairline);background:var(--surface-card)}
+.p{flex:1 1 130px;padding:var(--space-3) var(--space-4);border-right:1px solid var(--border-hairline);border-bottom:2px solid var(--c)}
+.p:last-child{border-right:0}
+.p b{display:block;font:600 14px/1.2 var(--font-head);margin:var(--space-1) 0}
+.p span.t{display:block;color:var(--text-muted);font:var(--type-body-sm)}
+
+/* fluxo */
+.flows{border:1px solid var(--border-hairline);background:var(--surface-card)}
+.flow{display:flex;flex-wrap:wrap;align-items:stretch;padding:var(--space-4);border-bottom:1px solid var(--border-hairline);gap:var(--space-2)}
+.flow:last-child{border-bottom:0}
+.node{flex:1 1 170px;padding:var(--space-3);background:var(--surface-raised);box-shadow:inset 2px 0 0 var(--c)}
+.node b{display:block;font:600 13px/1.3 var(--font-head)}
+.node small{display:block;margin-top:var(--space-1);color:var(--text-muted);font:var(--type-body-sm)}
+.sep{align-self:center;flex:none;color:var(--text-faint);font:var(--type-code)}
+
+/* tabelas */
+table{width:100%;border-collapse:collapse;border:1px solid var(--border-hairline);background:var(--surface-card)}
+th{text-align:left;padding:var(--space-3) var(--space-4);font:var(--type-meta);letter-spacing:var(--tracking-meta);text-transform:uppercase;color:var(--text-muted);background:var(--surface-page);border-bottom:1px solid var(--border-hairline);position:sticky;top:var(--shell-header-h)}
+td{padding:var(--space-3) var(--space-4);vertical-align:top;border-bottom:1px solid var(--border-hairline);color:var(--text-secondary)}
+tr:last-child td{border-bottom:0}
+td ul{margin:0;padding-left:var(--space-4)}td li{margin:2px 0}
+
+@media(max-width:760px){main{padding:var(--space-4)}.frente{grid-template-columns:1fr 56px}.frente .why{grid-column:1/-1}.frente .bar{grid-column:1}.kpi{border-right:0;border-bottom:1px solid var(--border-hairline)}th{position:static}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+@media print{:root,[data-theme]{--ness-paper:#fff;--ness-surface:#f8fafc;--ness-surface-2:#eef2f7;--ness-line:#e2e8f0;--ness-ink:#0f172a;--ness-ink-2:#334155;--ness-ink-3:#475569;--ness-ink-4:#52627a}header.top{position:static}button.theme{display:none}th{position:static}}
 </style>
 </head>
 <body>
-<h1>ness.OS — panorama do projeto</h1>
-<p class="sub">Posição em 04/11/2026 · repositório <code>resper1965/ness.OS-v2</code> · <code>main</code> em <code>1b76de6</code> · Hub em produção na release <code>56c4659</code></p>
+<header class="top">
+  <h1>Panorama do projeto</h1>
+  <span class="meta">04/11/2026 · main 1b76de6 · produção 56c4659</span>
+  <button class="theme" type="button" aria-label="Alternar tema claro e escuro" id="tema">Tema</button>
+</header>
 
-<div class="legend">
-<span><i class="dot ok"></i>feito</span><span><i class="dot wip"></i>em curso</span><span><i class="dot wait"></i>espera o Ricardo</span><span><i class="dot idle"></i>não iniciado</span>
+<main>
+<p class="lead">Onde o projeto está hoje e o que depende de quem. As barras de progresso são estimativa pela contagem de tasks de cada frente, não medição.</p>
+
+<div class="legend" role="list" aria-label="Legenda">
+  <span role="listitem"><i class="dot s-ok"></i>Feito</span>
+  <span role="listitem"><i class="dot s-wip"></i>Em curso</span>
+  <span role="listitem"><i class="dot s-wait"></i>Espera o Ricardo</span>
+  <span role="listitem"><i class="dot s-idle"></i>Não iniciado</span>
 </div>
 
-<div class="kpis">
-<div class="kpi"><b>#150</b><span>último PR mergeado na <code>main</code></span></div>
-<div class="kpi"><b>582</b><span>testes do backend passando</span></div>
-<div class="kpi"><b>P0</b><span>em produção (<code>promotion=PASS</code>)</span></div>
-<div class="kpi"><b>279 / 29.149</b><span>incidentes com backfill Zabbix gravado</span></div>
-<div class="kpi"><b>6</b><span>decisões que só o Ricardo destrava</span></div>
+<section class="kpis" aria-label="Indicadores">
+  <div class="kpi s-ok"><span class="meta">Último PR na main</span><b>#150</b><span>mergeado em 04/11</span></div>
+  <div class="kpi s-ok"><span class="meta">Testes do backend</span><b>582</b><span>passando, 1 pulado</span></div>
+  <div class="kpi s-ok"><span class="meta">P0 Fundação SOC</span><b>Em produção</b><span>promoção aprovada pelo canário</span></div>
+  <div class="kpi s-wip"><span class="meta">Backfill Zabbix → Hub</span><b>279 de 29.149</b><span>incidentes recuperados já gravados</span></div>
+  <div class="kpi s-wait"><span class="meta">Dependem do Ricardo</span><b>6</b><span>decisões abertas</span></div>
+</section>
+
+<h2>Frentes do plano de execução</h2>
+<div class="frentes" id="frentes" role="list"></div>
+
+<h2>Projetos P0 a P7</h2>
+<p class="lead">Ordem do plano por projeto: P0 e P1 em paralelo, depois P2, P3, P5 (piloto Ionic Health), P4, P6 e P7.</p>
+<div class="chain" role="list">
+  <div class="p s-ok" role="listitem"><span class="badge">Feito</span><b>P0 Fundação SOC</b><span class="t">Em produção</span></div>
+  <div class="p s-wip" role="listitem"><span class="badge">Próximo</span><b>P1 Contrato de sinais</b><span class="t">Rascunho v0 existe</span></div>
+  <div class="p s-wait" role="listitem"><span class="badge">Espera</span><b>P2</b><span class="t">SLA, janela OT, revisor</span></div>
+  <div class="p s-idle" role="listitem"><span class="badge">Não iniciado</span><b>P3</b><span class="t">&nbsp;</span></div>
+  <div class="p s-idle" role="listitem"><span class="badge">Não iniciado</span><b>P5</b><span class="t">Piloto Ionic Health</span></div>
+  <div class="p s-idle" role="listitem"><span class="badge">Não iniciado</span><b>P4</b><span class="t">&nbsp;</span></div>
+  <div class="p s-wait" role="listitem"><span class="badge">Espera</span><b>P6</b><span class="t">HTML do redesenho</span></div>
+  <div class="p s-idle" role="listitem"><span class="badge">Não iniciado</span><b>P7</b><span class="t">&nbsp;</span></div>
 </div>
 
-<h2>1. O projeto por completo — frentes do plano de execução</h2>
-<p class="note">Progresso é estimativa pela contagem de tasks de cada frente, não medição.</p>
-<div id="frentes"></div>
-
-<h2>2. Projetos P0–P7 (ordem do plano por projeto)</h2>
-<div class="chain">
-<span class="p ok">P0 Fundação SOC ✔</span><span class="arrow">+</span><span class="p next">P1 Contrato de sinais ►</span>
-<span class="arrow">→</span><span class="p wait">P2 ⏸</span><span class="arrow">→</span><span class="p">P3</span>
-<span class="arrow">→</span><span class="p">P5 piloto Ionic Health</span><span class="arrow">→</span><span class="p">P4</span>
-<span class="arrow">→</span><span class="p wait">P6 ⏸ (HTML)</span><span class="arrow">→</span><span class="p">P7</span>
-</div>
-<p class="note">P2 espera: SLA por nível, janela/banda/retenção OT e quem revisa a amostra semanal. P6 espera o HTML do redesenho visual.</p>
-
-<h2>3. Fluxo de dados — onde cada peça está</h2>
-<div class="flow">
-<div class="node ok">Zabbix<small>disponibilidade · recuperação ligada</small></div><span class="arrow">→</span>
-<div class="node ok">Hub<small>produção 56c4659</small></div><span class="arrow">→</span>
-<div class="node ok">GLPI<small>ticket único · T05/T06 feitas</small></div>
-</div>
-<div class="flow" style="margin-top:12px">
-<div class="node wait">Wazuh<small>exposição · ingestão em produção DESLIGADA</small></div><span class="arrow">→</span>
-<div class="node ok">Hub / SOC<small>P0 em produção</small></div><span class="arrow">→</span>
-<div class="node ok">n8n + IA<small>OpenRouter, sem bloquear atendimento</small></div><span class="arrow">→</span>
-<div class="node wip">Atendimento<small>política aprovada 03/11</small></div>
-</div>
-<div class="flow" style="margin-top:12px">
-<div class="node wip">Action1<small>pendência acionável · só GET · 1 endpoint</small></div><span class="arrow">→</span>
-<div class="node wip">Hub<small>mapa por endpoint pendente</small></div>
-<span class="arrow">·</span>
-<div class="node">n.360<small>consome evidências · ainda não</small></div>
+<h2>Fluxo de dados</h2>
+<div class="flows">
+  <div class="flow">
+    <div class="node s-ok"><b>Zabbix</b><small>Disponibilidade. Recuperação ligada.</small></div><svg class="sep" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+    <div class="node s-ok"><b>Hub</b><small>Produção na release 56c4659.</small></div><svg class="sep" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+    <div class="node s-ok"><b>GLPI</b><small>Ticket único por incidente. Ativos e vínculos feitos.</small></div>
+  </div>
+  <div class="flow">
+    <div class="node s-wait"><b>Wazuh</b><small>Exposição. Ingestão em produção desligada.</small></div><svg class="sep" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+    <div class="node s-ok"><b>Hub / SOC</b><small>P0 em produção.</small></div><svg class="sep" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+    <div class="node s-ok"><b>Triagem com IA</b><small>Não bloqueia o atendimento.</small></div><svg class="sep" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+    <div class="node s-wip"><b>Atendimento</b><small>Política aprovada em 03/11.</small></div>
+  </div>
+  <div class="flow">
+    <div class="node s-wip"><b>Action1</b><small>Pendência acionável. Só leitura, 1 endpoint.</small></div><svg class="sep" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+    <div class="node s-wip"><b>Hub</b><small>Mapa por endpoint pendente.</small></div><span class="sep" aria-hidden="true">·</span>
+    <div class="node s-idle"><b>n.360</b><small>Consome as evidências. Ainda não.</small></div>
+  </div>
 </div>
 
-<h2>4. Onde estamos agora</h2>
+<h2>Onde estamos agora</h2>
 <table>
-<tr><th>Feito hoje</th><th>Em curso</th><th>Próximo (sem depender do Ricardo)</th></tr>
-<tr>
-<td>✔ P0 em produção<br>✔ contador de abertos corrigido (#149)<br>✔ backfill pronto e revisado (#150)<br>✔ trilha de execução escrita</td>
-<td>◐ Backfill Zabbix → Hub: 279 gravados, ~29 mil prontos, 319 realmente abertos, 693 sem evento no Zabbix</td>
-<td>► P1 contrato de sinais v1<br>► T07–T09 do GLPI<br>► promover o frontend novo</td>
-</tr>
+  <thead><tr><th scope="col">Feito hoje</th><th scope="col">Em curso</th><th scope="col">Próximo, sem depender do Ricardo</th></tr></thead>
+  <tbody><tr>
+    <td><ul><li>P0 em produção</li><li>Contador de abertos corrigido (#149)</li><li>Backfill pronto e revisado (#150)</li><li>Trilha de execução escrita</li></ul></td>
+    <td><ul><li>Backfill Zabbix → Hub: 279 gravados, cerca de 29 mil prontos</li><li>319 incidentes ainda abertos no Zabbix</li><li>693 sem o evento no Zabbix</li></ul></td>
+    <td><ul><li>P1: contrato de sinais v1</li><li>T07 a T09 do GLPI</li><li>Promover o frontend novo</li></ul></td>
+  </tr></tbody>
 </table>
 
-<h2>5. O que só o Ricardo destrava</h2>
+<h2>O que só o Ricardo destrava</h2>
 <table>
-<tr><th>Decisão</th><th>O que trava</th></tr>
-<tr><td>OK para aplicar o resto do backfill (~29 mil incidentes, reversível pela tag <code>ninf_zabbix_backfill</code>)</td><td>indicador correto de abertos</td></tr>
-<tr><td>SLA por nível, janela/banda/retenção OT, revisor da amostra semanal</td><td>P2</td></tr>
-<tr><td>Contratação do Wazuh e desenho de coleta (D3/D6)</td><td>ligar Wazuh ao Hub</td></tr>
-<tr><td>HTML do redesenho visual</td><td>P6 (UI)</td></tr>
-<tr><td>MFA (D4)</td><td>frente 4, identidade e cofre</td></tr>
-<tr><td>Três itens da #82 (testar <code>homol</code>, 36 contas locais do GLPI, pedido ao GitHub Support)</td><td>higiene de credenciais</td></tr>
+  <thead><tr><th scope="col">Decisão</th><th scope="col">O que trava</th></tr></thead>
+  <tbody>
+    <tr><td>OK para gravar o resto do backfill (cerca de 29 mil incidentes; reversível pela marca <code>ninf_zabbix_backfill</code>)</td><td>Indicador correto de abertos</td></tr>
+    <tr><td>SLA por nível, janela, banda e retenção OT, revisor da amostra semanal</td><td>P2</td></tr>
+    <tr><td>Contratação do Wazuh e desenho de coleta (D3, D6)</td><td>Ligar o Wazuh ao Hub</td></tr>
+    <tr><td>HTML do redesenho visual</td><td>P6, a interface</td></tr>
+    <tr><td>MFA (D4)</td><td>Frente 4, identidade e cofre</td></tr>
+    <tr><td>Três itens da #82: testar a <code>homol</code>, 36 contas locais do GLPI, pedido de limpeza ao suporte</td><td>Higiene de credenciais</td></tr>
+  </tbody>
 </table>
 
-<h2>6. Atenção</h2>
-<ul>
-<li>O que depende só do agente (P1, T07–T09, promoção do frontend) cabe em cerca de uma semana. Depois disso o ritmo depende das decisões da seção 5.</li>
-<li>Action1 passa a exigir licença acima de 200 endpoints (hoje 1): aviso quando chegar.</li>
-<li>Os 693 incidentes sem evento no Zabbix ficam como <code>problem</code>; decidir depois se viram <code>unknown</code>.</li>
-</ul>
-
-<p class="note">Fonte: <code>STATE.md</code> e <code>docs/superpowers/plans/2026-11-04-trilha-de-execucao.md</code>. Gerado em 04/11/2026.</p>
+<h2>Atenção</h2>
+<table>
+  <tbody>
+    <tr><td>O que depende só do agente (P1, T07 a T09, promoção do frontend) cabe em cerca de uma semana. Depois disso o ritmo depende das decisões acima.</td></tr>
+    <tr><td>Action1 exige licença acima de 200 endpoints. Hoje há 1; o aviso sai quando chegar perto.</td></tr>
+    <tr><td>Os 693 incidentes sem evento no Zabbix ficam como <code>problem</code>. Decidir depois se viram <code>unknown</code>.</td></tr>
+  </tbody>
+</table>
+<p class="note">Fonte: <code>STATE.md</code> e <code>docs/superpowers/plans/2026-11-04-trilha-de-execucao.md</code>.</p>
+</main>
 
 <script>
 const F=[
-["0  Base de trabalho (CI, IaC, raiz)",100,"ok","fechada"],
-["1  IaC das 3 VPS",100,"ok","fechada"],
-["2  GLPI: trilho do incidente",50,"wip","T05/T06 feitas · faltam T07–T14"],
-["3  Release e continuidade",80,"wip","Hub em produção · falta continuidade (3.2)"],
-["4  Identidade e cofre",20,"wait","espera D4 (MFA) e compra"],
-["5  Zabbix definitivo",40,"wip","recuperação ligada · corte espera D5"],
-["6  Hub / PWA",50,"wait","UI espera o HTML do redesenho"],
-["7  Operação integrada",0,"idle","não iniciada"],
-["8  AIOps e orquestração",40,"wip","8.1 feito · falta Node-RED e Action1"],
-["9  Wazuh e Workspace",20,"wait","preparado · espera contratação (D6)"],
-["10 Marca e sustentação",0,"idle","contínua, depois do resto"]];
-document.getElementById("frentes").innerHTML=F.map(([n,p,c,s])=>
-`<div class="row"><div>${n}</div><div class="bar"><i class="${c}" style="width:${p}%"></i></div><div><span class="tag">${p}%</span> <span class="note">${s}</span></div></div>`).join("");
+["0","Base de trabalho (CI, IaC, raiz)",100,"ok","Fechada"],
+["1","IaC das 3 VPS",100,"ok","Fechada"],
+["2","GLPI: trilho do incidente",50,"wip","T05 e T06 feitas; faltam T07 a T14"],
+["3","Release e continuidade",80,"wip","Hub em produção; falta a continuidade (3.2)"],
+["4","Identidade e cofre",20,"wait","Espera MFA (D4) e compra"],
+["5","Zabbix definitivo",40,"wip","Recuperação ligada; corte espera D5"],
+["6","Hub e PWA",50,"wait","A interface espera o HTML do redesenho"],
+["7","Operação integrada",0,"idle","Não iniciada"],
+["8","AIOps e orquestração",40,"wip","8.1 feita; falta Node-RED e Action1"],
+["9","Wazuh e Workspace",20,"wait","Preparado; espera contratação (D6)"],
+["10","Marca e sustentação",0,"idle","Contínua, depois do resto"]];
+const el=document.getElementById("frentes");
+el.innerHTML=F.map(([n,t,p,c,w])=>`<div class="frente s-${c}" role="listitem"><div><span class="n">${n.padStart(2,"0")}</span>${t}</div><div class="bar" role="img" aria-label="${p} por cento"><i style="width:${p}%"></i></div><div class="num">${p}%</div><div class="why">${w}</div></div>`).join("");
+const t=document.documentElement;
+document.getElementById("tema").onclick=()=>{t.dataset.theme=t.dataset.theme==="dark"?"light":"dark"};
 </script>
 </body>
 </html>
