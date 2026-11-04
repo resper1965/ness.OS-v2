@@ -136,6 +136,15 @@ async def test_filters_assignee_and_first_seen_range(maker, api):
     assert _ids(await api.get("/api/incidents?status=open&assignee=9")) == ["1", "2"]
 
 
+async def test_pagination_is_stable_on_full_ties(maker, api):
+    for n in (3, 1, 2):  # mesma severity, status e first_seen
+        await _inc(maker, n)
+    pages = [
+        _ids(await api.get(f"/api/incidents?limit=1&offset={o}")) for o in range(3)
+    ]
+    assert pages == [["1"], ["2"], ["3"]]
+
+
 @pytest.mark.parametrize("param", ("from", "to"))
 @pytest.mark.parametrize("value", ("2026-11-01T10:00:00", "2026-11-01", "lixo"))
 async def test_dates_without_timezone_are_422(api, param, value):

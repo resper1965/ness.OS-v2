@@ -109,7 +109,10 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["X-Request-ID"],
 )
-app.add_middleware(RequestIdMiddleware)
+# Camada mais externa, fora do ServerErrorMiddleware: o 500 de exceção não tratada
+# também recebe o header.
+_build_stack = app.build_middleware_stack
+app.build_middleware_stack = lambda: RequestIdMiddleware(_build_stack())
 
 # --- ness.OS Core ---
 app.include_router(core_router)  # prefix: /api/core
