@@ -56,11 +56,7 @@ def test_tenant_mappings_modality_from_migrate_exist_in_bootstrap():
     values = [
         re.findall(r"'(\w+)'", re.search(check, t).group(1)) for t in (MIGRATE, body)
     ]
-    assert (
-        values[0]
-        == values[1]
-        == ["central_ness", "sonda_no_cliente", "cliente_gerenciado"]
-    )
+    assert values[0] == values[1] == ["managed", "onsite", "shared"]
     assert (
         "ck_tenant_mappings_modality" in MIGRATE
         and "ck_tenant_mappings_modality" in body

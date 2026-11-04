@@ -325,7 +325,7 @@ CREATE TABLE IF NOT EXISTS n_infraops_tenant_mappings (
     modality              VARCHAR(32),
     operator              VARCHAR(128),
     created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    CONSTRAINT ck_tenant_mappings_modality CHECK (modality IS NULL OR modality IN ('central_ness', 'sonda_no_cliente', 'cliente_gerenciado'))
+    CONSTRAINT ck_tenant_mappings_modality CHECK (modality IS NULL OR modality IN ('managed', 'onsite', 'shared'))
 );
 CREATE INDEX IF NOT EXISTS ix_n_infraops_tenant_mappings_internal_customer_id ON n_infraops_tenant_mappings (internal_customer_id);
 CREATE INDEX IF NOT EXISTS ix_n_infraops_tenant_mappings_external_customer_id ON n_infraops_tenant_mappings (external_customer_id);
