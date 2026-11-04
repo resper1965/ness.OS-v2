@@ -1,0 +1,50 @@
+{
+  "schema": "ness-agent-rollout-v1",
+  "status": "proposta-pendente-aprovacao",
+  "inventory": {
+    "frequency_hours": 24,
+    "stale_after_hours": 48,
+    "unknown_before_first_inventory": true,
+    "intermittent_exception": {
+      "allowed": true,
+      "requires": ["motivo", "responsavel", "prazo_revisao_dias"],
+      "stale_after_hours": null,
+      "note": "Exceção registrada por ativo; não altera SLA contratual."
+    }
+  },
+  "states": {
+    "ok": "last_contact <= 48h",
+    "atrasado": "last_contact > 48h",
+    "desconhecido": "sem primeiro inventário (last_inventory_update nulo)",
+    "excecao": "ativo intermitente com exceção registrada"
+  },
+  "agent_modules": {
+    "computer_inventory": true,
+    "network_discovery": false,
+    "network_inventory": false,
+    "package_deployment": false,
+    "remote_inventory": false,
+    "wake_on_lan": false,
+    "esx_remote_inventory": false,
+    "collect_data": false
+  },
+  "glpi_inventory_settings_required": {
+    "auth_required": "basic ou oauth (nunca none)",
+    "enabled_inventory": "só depois do gate de autenticação do endpoint",
+    "import_process": false,
+    "import_registry": false,
+    "import_env": false
+  },
+  "entity_assignment": {
+    "pilot_entity": "Ness Processos e Tecnologia Ltda.",
+    "client_declared_tag_is_trusted": false,
+    "rule": "entidade definida por regra do servidor; tag/domínio/hostname do cliente não escolhem tenant sem aprovação"
+  },
+  "pilot": {
+    "size": 5,
+    "scope": "ativos internos Ness",
+    "deployer": "RMM existente do ativo (ADR 0003 / ADR 0021)",
+    "status": "PENDENTE Ricardo / #79"
+  },
+  "waves": { "max_assets_per_wave": 25, "requires_approval": true, "report_by": ["entidade", "sistema"] }
+}
