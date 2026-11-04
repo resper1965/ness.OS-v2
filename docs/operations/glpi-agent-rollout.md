@@ -121,7 +121,7 @@ sudo -n install -d -m 700 $R
 PW=$(openssl rand -hex 24)     # 48 caracteres; guardar no Psono antes de aplicar
 sudo -n install -m 600 /dev/null $R/.env
 printf 'GLPI_INVENTORY_BASIC_PASSWORD=%s\n' "$PW" | sudo -n tee $R/.env >/dev/null; unset PW
-F=$R/rollback-$(date +%F-%H%M%S).json; sudo -n install -m 600 /dev/null $F
+F=$R/rollback-$(date +%F-%H%M%S).json; ! sudo -n test -e $F && sudo -n install -m 600 /dev/null $F   # nunca sobrescreve um rollback existente
 sudo -n docker exec -i -u www-data -e GLPI_INVENTORY_BASIC_LOGIN=glpi-inventory --env-file $R/.env \
   ninf-glpi php -- --apply < $S | sudo -n tee $F >/dev/null; echo "pipeline rc=$?"
 sudo -n shred -u $R/.env       # sempre, com sucesso ou falha
