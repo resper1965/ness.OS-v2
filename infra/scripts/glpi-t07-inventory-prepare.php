@@ -1,6 +1,6 @@
 <?php
 // T07 preparation (docs/operations/glpi-agent-rollout.md). Dry-run (SELECT only) unless --apply.
-// Usage: docker exec -i -u www-data [-e GLPI_INVENTORY_BASIC_LOGIN -e GLPI_INVENTORY_BASIC_PASSWORD] ninf-glpi php -- [--apply] < glpi-t07-inventory-prepare.php
+// Usage: docker exec -i -u www-data [-e GLPI_INVENTORY_BASIC_LOGIN=<login> --env-file <0600 file with GLPI_INVENTORY_BASIC_PASSWORD>] ninf-glpi php -- [--apply] < glpi-t07-inventory-prepare.php
 // --apply, in one transaction:
 //   1. import_process=0, import_registry=0
 //   2. auth_required=basic_auth with the credential from the environment (enabled_inventory is NEVER touched; it must be 0)

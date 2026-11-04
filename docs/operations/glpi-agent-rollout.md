@@ -112,25 +112,34 @@ S=infra/scripts/glpi-t07-inventory-prepare.php
 $A < $S                      # dry-run: só SELECT; mostra ids, linhas de log e estado atual
 ```
 
-Aplicar (janela; a senha é gerada na hora, vai só para o ambiente do `docker exec` e para o cofre — nunca para arquivo versionado):
+Aplicar (janela). A senha é gerada na hora e vai para um env-file 0600 (nunca em argv: apareceria no log do `sudo` e no `ps`) e para o cofre; nunca para arquivo versionado. O login pode ficar no argv.
 
 ```bash
-umask 077; R=/opt/n-infraops/rollback/glpi-t07; sudo -n install -d -m 700 $R
+set -o pipefail; umask 077
+R=/opt/n-infraops/rollback/glpi-t07; S=infra/scripts/glpi-t07-inventory-prepare.php
+sudo -n install -d -m 700 $R
 PW=$(openssl rand -hex 24)     # 48 caracteres; guardar no Psono antes de aplicar
-sudo -n docker exec -i -u www-data -e GLPI_INVENTORY_BASIC_LOGIN=glpi-inventory -e GLPI_INVENTORY_BASIC_PASSWORD="$PW" \
-  ninf-glpi php -- --apply < $S | sudo -n tee $R/rollback-$(date +%F).json >/dev/null
+sudo -n install -m 600 /dev/null $R/.env
+printf 'GLPI_INVENTORY_BASIC_PASSWORD=%s\n' "$PW" | sudo -n tee $R/.env >/dev/null; unset PW
+F=$R/rollback-$(date +%F-%H%M%S).json; sudo -n install -m 600 /dev/null $F
+sudo -n docker exec -i -u www-data -e GLPI_INVENTORY_BASIC_LOGIN=glpi-inventory --env-file $R/.env \
+  ninf-glpi php -- --apply < $S | sudo -n tee $F >/dev/null; echo "pipeline rc=$?"
+sudo -n shred -u $R/.env       # sempre, com sucesso ou falha
 ```
 
-O JSON de rollback é gravado **antes** da escrita (config anterior, linhas completas dos 7 agentes, linhas de `glpi_logs` e `restore_sql`). Contém a configuração anterior, sem a senha nova.
+Leia o **stderr** antes de seguir: sucesso termina com `{"applied":true,...}`; qualquer `FAIL: ...` antes do commit significa que nada foi escrito (validação prévia e transação com rollback). Um `FAIL: ... readback mismatch` vem **depois** do commit: a escrita ficou aplicada; investigue e, se preciso, use o rollback abaixo. Não prossiga para o Caddy sem `applied:true`. O nome do arquivo de rollback leva hora para que um segundo `--apply` não sobrescreva o primeiro.
 
-Rollback:
+O JSON de rollback é gravado **antes** da escrita e contém: linhas completas dos 7 agentes (inclui `remote_addr`, `useragent`, `name`, `deviceid` — IPs e metadados de terceiros que varreram o serviço), linhas de `glpi_logs` e `restore_sql`; e a configuração anterior. Num segundo `--apply` a "configuração anterior" já é a nova: traz o login e a senha de inventário **cifrada** (chave do GLPI). Trate como sensível: diretório 700 e arquivo 600 só na VPS, **fora do Git**, descarte em 30 dias (`sudo -n shred -u`) depois do aceite do piloto.
+
+Rollback (caminho absoluto; `$R` não existe em shell nova; leitura com `sudo` porque o diretório é 700 de root):
 
 ```bash
-python3 -c "import json,sys;print('\n'.join(json.load(open(sys.argv[1]))['restore_sql']))" $R/rollback-AAAA-MM-DD.json \
+J=/opt/n-infraops/rollback/glpi-t07/rollback-AAAA-MM-DD-HHMMSS.json
+sudo -n cat $J | python3 -c "import json,sys;print('START TRANSACTION;');print('\n'.join(json.load(sys.stdin)['restore_sql']));print('COMMIT;')" \
   | sudo -n docker exec -i ninf-glpi-db sh -c 'mariadb -uroot -p"$MYSQL_ROOT_PASSWORD" glpi'
 ```
 
-Reexecutar o dry-run depois do rollback volta a listar os mesmos 7 ids. Validado em lab sintético (MariaDB 10.11 + GLPI 11.0.11): dry-run, `--apply` sem credencial (recusa), `--apply`, leitura de volta, restauração por `restore_sql`.
+Se algum comando do restore falhar, o `COMMIT` não roda e a conexão encerra com rollback implícito. O restore recoloca `auth_required`, `import_*` e os agentes; `basic_auth_login`/`basic_auth_password` voltam ao valor anterior (vazio no primeiro `--apply`). Reexecutar o dry-run depois do rollback volta a listar os mesmos 7 ids. Validado em lab sintético (MariaDB 10.11 + GLPI 11.0.11): dry-run, `--apply` sem credencial (recusa), `--apply`, leitura de volta, restauração por `restore_sql`.
 
 ### 8.2 Caddy — `infra/caddy/glpi-inventory-route.example.Caddyfile`
 
@@ -141,7 +150,8 @@ Verificado em Caddy 2 isolado (sem credencial 401, errada 401, correta 200, GET 
 Procedimento (só no início do piloto, depois de 8.1 e do teste isolado do §6):
 1. Backup: `cp app/Caddyfile /opt/n-infraops/rollback/glpi-t07/Caddyfile.$(date +%F)` e `caddy validate` do candidato com as variáveis.
 2. Definir `GLPI_INVENTORY_BASIC_LOGIN`, `GLPI_INVENTORY_BASIC_HASH` (hash da senha de 8.1) e `GLPI_INVENTORY_ORIGINS` (saída do Action1/rede da Ness) no ambiente do `ninf-caddy`.
-3. Inserir o trecho, `caddy validate` e recarregar (`caddy reload`).
-4. Conferir de fora: sem credencial 401; do IP permitido com credencial 200 e `enabled_inventory` ainda 0 (resposta do GLPI de inventário desligado). Só então `enabled_inventory=1`, pelo gate do §5.
+   **Nunca definir só uma das duas** (`..._BASIC_LOGIN` sem `..._BASIC_HASH` ou o inverso): o `basic_auth` fica vazio, o Caddyfile deixa de adaptar e **derruba todos os sites** do `ninf-caddy`. Defina as duas no mesmo passo.
+3. Inserir o trecho e rodar `caddy validate` **com as variáveis reais** (`docker exec ninf-caddy caddy validate --config /etc/caddy/Caddyfile`, no ambiente do contêiner que vai carregar). Só se válido: `caddy reload` (nunca restart do contêiner: derruba os demais sites).
+4. Pré-requisitos da conferência (antes de liberar o piloto): (a) o cabeçalho `Authorization` chega ao PHP do GLPI (o 401 do GLPI com senha errada e 200/resposta de inventário com a correta provam; se o GLPI responder "Authorization header required" mesmo com credencial, o proxy/PHP está descartando o cabeçalho); (b) `remote_ip` enxerga o IP real do cliente e não o do proxy/Cloudflare (teste de fora com origem permitida → passa, origem fora da lista → 403; se tudo vier do mesmo IP interno, a lista não está restringindo nada — configurar `trusted_proxies`/`client_ip_headers` antes). Conferir de fora: sem credencial 401; do IP permitido com credencial, resposta do GLPI com `enabled_inventory` ainda 0 (inventário desligado). Só então `enabled_inventory=1`, pelo gate do §5.
 
 Rollback: restaurar o `Caddyfile` do backup, `caddy reload`, e `enabled_inventory=0`. A rota fora do ar volta a responder 302 do SSO.
