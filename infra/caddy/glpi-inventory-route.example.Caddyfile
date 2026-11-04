@@ -1,0 +1,39 @@
+# EXEMPLO — NÃO aplicado. Rota /Inventory do GLPI Agent (T07, docs/operations/glpi-agent-rollout.md §8).
+# Entra no bloco `route { ... }` de n-ticket.ness.com.br em app/Caddyfile, DEPOIS do `respond @glpi_api 403`
+# e ANTES do `forward_auth` (o agente não faz SSO). Só entra no ar quando o piloto começar.
+# TLS: o próprio site n-ticket.ness.com.br (HTTPS automático do Caddy); não existe listener HTTP para esta rota.
+# Variáveis (lidas pelo Caddy; nunca no repo):
+#   GLPI_INVENTORY_BASIC_LOGIN  mesmo login gravado no GLPI (--apply do glpi-t07-inventory-prepare.php)
+#   GLPI_INVENTORY_BASIC_HASH   hash bcrypt (caddy hash-password) da MESMA senha gravada no GLPI
+#   GLPI_INVENTORY_ORIGINS      CIDRs/IPs separados por espaço (saída do RMM / rede da Ness)
+
+		# Só POST em /Inventory exato. /Inventory/Configuration e demais subcaminhos seguem para o SSO.
+		@inventory {
+			path /Inventory
+			method POST
+		}
+		@inventory_denied {
+			path /Inventory
+			not method POST
+		}
+		respond @inventory_denied 405
+
+		route @inventory {
+			@origin_denied not remote_ip {$GLPI_INVENTORY_ORIGINS}
+			respond @origin_denied 403
+
+			basic_auth {
+				{$GLPI_INVENTORY_BASIC_LOGIN} {$GLPI_INVENTORY_BASIC_HASH}
+			}
+
+			# Nada de identidade SSO vinda do cliente. O GLPI revalida a mesma credencial (auth_required=basic_auth).
+			request_header -X-Remote-User
+			request_header -Remote-User
+			request_header -X-Authentik-Username
+			request_header -X-Authentik-Groups
+			request_header -X-Authentik-Email
+			request_header -X-Authentik-Name
+			request_header -X-Authentik-Uid
+
+			reverse_proxy ninf-glpi:80
+		}
