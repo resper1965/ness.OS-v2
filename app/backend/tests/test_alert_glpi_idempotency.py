@@ -1012,26 +1012,6 @@ def test_zabbix_severity_maps_one_to_one(sev):
 @pytest.mark.parametrize("sev", [None, "", "high", "4", 0, 6, -1, 3.5, True])
 def test_unknown_severity_never_downgrades(sev):
     assert alerts.glpi_urgency(sev) == 3
-    assert alerts.glpi_urgency(sev, wazuh=True) == 3
-
-
-@pytest.mark.parametrize(
-    "level,score,expected",
-    [
-        (15, None, 5),
-        (12, 0, 5),
-        (11, None, 4),
-        (10, None, 4),
-        (9, None, 3),
-        (7, None, 3),
-        (6, 75, 4),
-        (3, 90, 4),
-        (6, 74, 3),
-        (6, None, 3),
-    ],
-)
-def test_wazuh_level_follows_attendance_policy(level, score, expected):
-    assert alerts.glpi_urgency(level, wazuh=True, score=score) == expected
 
 
 @pytest.mark.asyncio
@@ -1075,3 +1055,43 @@ async def test_glpi_payload_sends_urgency_and_impact(monkeypatch):
     assert (seen["urgency"], seen["impact"]) == (3, 3)
     await client.create_ticket("t", "c", entity_id=8, urgency=5)
     assert (seen["urgency"], seen["impact"]) == (5, 5)
+
+
+@pytest.mark.asyncio
+async def test_zabbix_severity_reaches_create_ticket_through_alert_flow(monkeypatch):
+    class Stop(BaseException):
+        """Interrompe o fluxo logo após o POST, sem exercitar o resto do worker."""
+
+    @asynccontextmanager
+    async def session_factory():
+        session = MagicMock()
+
+        @asynccontextmanager
+        async def transaction():
+            yield
+
+        async def execute(statement, params=None):
+            return MagicMock(scalar_one_or_none=lambda: 1)
+
+        session.begin.side_effect = transaction
+        session.execute = execute
+        yield session
+
+    glpi = AsyncMock()
+    glpi.find_ticket_by_name_marker.return_value = None
+    glpi.create_ticket.side_effect = Stop
+    monkeypatch.setattr(alerts, "GLPIClient", lambda: glpi)
+    monkeypatch.setattr(alerts, "SessionLocal", session_factory)
+    monkeypatch.setattr(
+        alerts, "resolve_alert_customer", AsyncMock(return_value="Ness")
+    )
+    monkeypatch.setattr(alerts, "lookup_glpi_asset", AsyncMock(return_value=None))
+    monkeypatch.setattr(alerts, "analyze_incident", AsyncMock(return_value=MagicMock()))
+    monkeypatch.setattr(alerts, "build_glpi_ticket_content", lambda *_: "c")
+
+    with pytest.raises(Stop):
+        await alerts._async_process_alert_v1(
+            {"severity": 5, "trigger_name": "t", "host_name": "h"}, "d" * 64
+        )
+
+    assert glpi.create_ticket.await_args.kwargs["urgency"] == 5

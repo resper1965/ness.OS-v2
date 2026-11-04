@@ -97,27 +97,17 @@ def resolve_glpi_entity_id(customer_name: str) -> int:
     raise ValueError("Cliente sem entidade GLPI mapeada; ticket recusado")
 
 
-def glpi_urgency(
-    severity: Any = None, *, wazuh: bool = False, score: float | None = None
-) -> int:
-    """Urgência = impacto do GLPI (1-5) pela severidade; desconhecido fica em 3.
+def glpi_urgency(severity: Any = None) -> int:
+    """Urgência = impacto do GLPI (1-5) pela severidade Zabbix; desconhecido fica em 3.
 
-    Zabbix 1-5 mapeia 1:1. Wazuh (nível): >=12 -> 5, 10-11 -> 4, 7-9 -> 3 e, abaixo
-    disso, 4 só se o score >= 75 (única forma de chegar a ticket). Ausente,
-    inválido, Zabbix 0 ou Wazuh abaixo de 7 sem score alto nunca rebaixam (regra 7).
-    ponytail: sem SLA/grupo/origem; entram com o contrato (T08).
+    Ausente, inválido, 0 (não classificado), fora de faixa ou bool nunca rebaixam
+    (regra 7 da política SOC).
+    ponytail: só Zabbix; o mapeamento Wazuh (nível/score) entra junto com o
+    chamador quando o fluxo Wazuh criar ticket. Sem SLA/grupo/origem (T08).
     """
-    if not isinstance(severity, int) or isinstance(severity, bool):
+    if isinstance(severity, bool) or not isinstance(severity, int):
         return 3
-    if not wazuh:
-        return severity if 1 <= severity <= 5 else 3
-    if severity >= 12:
-        return 5
-    if severity >= 10:
-        return 4
-    if severity >= 7:
-        return 3
-    return 4 if severity >= 0 and score is not None and score >= 75 else 3
+    return severity if 1 <= severity <= 5 else 3
 
 
 def resolve_glpi_category_id(alert_data: Dict[str, Any]) -> int:
