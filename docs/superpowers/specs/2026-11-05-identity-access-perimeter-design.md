@@ -56,7 +56,7 @@ Emergência ──► SSH (chave + origem restrita) ──port forward──► 
 | População | Como entra | MFA |
 |---|---|---|
 | Operadores | Membro `@ness.com.br` | P1 + Acesso Condicional "MFA sempre" |
-| Clientes | Convidado B2B (Microsoft, Google ou código por e-mail) | *Security defaults*; revisar se contrato exigir |
+| Clientes | Convidado B2B (Microsoft, Google ou código por e-mail) | Política de Acesso Condicional para convidados (MFA); *security defaults* não coexistem com Acesso Condicional. Licença e custo a decidir antes da Fase B |
 | Emergência | 2 contas no Entra fora do Acesso Condicional + contas locais por app | Senha longa em cofre; uso auditado |
 
 Colaboração externa: restringir convidados (sem enumerar diretório; sem acesso a Teams/SharePoint por padrão). Se o volume ou a regulação exigir, mover clientes para um tenant External ID separado (grátis até 50 mil MAU).
