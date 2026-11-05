@@ -318,7 +318,7 @@ CREATE TABLE n_infraops_users (
 -- ADR 0015: vínculo (issuer, subject) do IdP -> usuário local; sem JIT.
 CREATE TABLE IF NOT EXISTS n_infraops_identities (
     id                 BIGSERIAL PRIMARY KEY,
-    issuer             VARCHAR(255) NOT NULL,
+    issuer             VARCHAR(512) NOT NULL,
     subject            VARCHAR(255) NOT NULL,
     user_id            BIGINT NOT NULL REFERENCES n_infraops_users(id),
     created_by_user_id BIGINT REFERENCES n_infraops_users(id),

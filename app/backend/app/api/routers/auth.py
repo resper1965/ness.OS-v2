@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 import bcrypt as _bcrypt
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -319,7 +319,7 @@ async def oidc_callback(
     )
     user = result.scalar_one_or_none()
     if user is None:
-        logger.warning("OIDC sem vínculo: iss=%s sub=%s", issuer, subject)
+        logger.warning("OIDC sem vínculo: iss=%r sub=%r", issuer, subject)
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Acesso não autorizado. Solicite o cadastro ao administrador.",
@@ -357,8 +357,8 @@ async def oidc_callback(
 
 class IdentityCreate(BaseModel):
     user_id: int
-    issuer: str = Field(min_length=1, max_length=255)
-    subject: str = Field(min_length=1, max_length=255)
+    issuer: str
+    subject: str
 
 
 class IdentityOut(BaseModel):
@@ -382,13 +382,25 @@ async def create_identity(
     """
     Papel e tenant continuam no cadastro do User; aqui só se liga a identidade do IdP.
 
-    - **404** usuário local inexistente · **409** vínculo (issuer, subject) já existe
+    - **422** issuer/subject vazio ou longo demais · **404** usuário local inexistente
+    - **409** usuário inativo ou vínculo (issuer, subject) já existe
+
+    O issuer deve ser idêntico ao ``iss`` do token (sem normalizar barra final nem caixa).
     """
     issuer, subject = body.issuer.strip(), body.subject.strip()
-    if not issuer or not subject:
-        raise HTTPException(status_code=422, detail="issuer e subject obrigatórios")
-    if await db.get(User, body.user_id) is None:
+    if not (0 < len(issuer) <= 512 and 0 < len(subject) <= 255):
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "issuer (1-512) e subject (1-255) obrigatórios; o issuer deve ser "
+                "idêntico ao iss do token, inclusive barra final e caixa"
+            ),
+        )
+    target = await db.get(User, body.user_id)
+    if target is None:
         raise HTTPException(status_code=404, detail="Usuário não encontrado")
+    if not target.is_active:
+        raise HTTPException(status_code=409, detail="Usuário inativo")
     row = Identity(
         issuer=issuer,
         subject=subject,
@@ -403,7 +415,7 @@ async def create_identity(
         raise HTTPException(status_code=409, detail="Identidade já vinculada")
     # ponytail: auditoria = created_by/created_at na linha + este log; sem tabela de auditoria no Hub.
     logger.info(
-        "Identidade vinculada: id=%s user_id=%s iss=%s sub=%s por admin_id=%s",
+        "Identidade vinculada: id=%s user_id=%s iss=%r sub=%r por admin_id=%s",
         row.id,
         row.user_id,
         issuer,

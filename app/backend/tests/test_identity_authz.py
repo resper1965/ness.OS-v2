@@ -225,3 +225,50 @@ async def test_register_identity_for_unknown_user_is_404(maker, client):
         json={"user_id": 999, "issuer": ISS, "subject": "o-1"},
     )
     assert r.status_code == 404
+
+
+async def test_subject_with_newline_cannot_forge_a_log_line(maker, client, caplog):
+    with caplog.at_level("WARNING", logger="app.api.routers.auth"):
+        r = await _callback(client, oid="o-1\nWARNING forged line")
+    assert r.status_code == 403
+    assert all("\n" not in rec.getMessage() for rec in caplog.records)
+    assert any("\\n" in rec.getMessage() for rec in caplog.records)
+
+
+@pytest.mark.parametrize("issuer", ["", "   ", "x" * 513])
+async def test_register_rejects_empty_or_long_issuer(maker, client, issuer):
+    pa = await _user(maker, "pa@example.invalid", UserRole.platform_admin, None)
+    target = await _user(maker, "t@example.invalid")
+    r = await client.post(
+        "/api/auth/identities",
+        headers=_bearer(pa),
+        json={"user_id": target.id, "issuer": issuer, "subject": "o-1"},
+    )
+    assert r.status_code == 422 and "idêntico" in r.text
+    assert await _count(maker, Identity) == 0
+
+
+async def test_register_keeps_issuer_trailing_slash_and_case(maker, client):
+    pa = await _user(maker, "pa@example.invalid", UserRole.platform_admin, None)
+    target = await _user(maker, "t@example.invalid")
+    iss = "https://IdP.example.invalid/Tenant/"
+    r = await client.post(
+        "/api/auth/identities",
+        headers=_bearer(pa),
+        json={"user_id": target.id, "issuer": f"  {iss}  ", "subject": "o-1"},
+    )
+    assert r.status_code == 201 and r.json()["issuer"] == iss
+    assert (await _callback(client, oid="o-1", iss=iss)).status_code == 200
+    assert (await _callback(client, oid="o-1", iss=iss.lower())).status_code == 403
+
+
+async def test_register_rejects_inactive_user(maker, client):
+    pa = await _user(maker, "pa@example.invalid", UserRole.platform_admin, None)
+    target = await _user(maker, "t@example.invalid", is_active=False)
+    r = await client.post(
+        "/api/auth/identities",
+        headers=_bearer(pa),
+        json={"user_id": target.id, "issuer": ISS, "subject": "o-1"},
+    )
+    assert r.status_code == 409
+    assert await _count(maker, Identity) == 0
