@@ -627,6 +627,45 @@ async def act_on_incident(
         }
 
 
+@router.get("/api/notifications/inbox", tags=["incidents"])
+async def notifications_inbox(
+    limit: int = Query(50, ge=1, le=200),
+    current_user: User = Depends(require_operator),
+):
+    """Caixa do usuário logado: um item por caso, só o mínimo (caso, severidade, ack).
+
+    O escopo do tenant é revalidado na leitura: ter recebido o aviso não concede acesso.
+    `sent_at` é aceite do provedor; só `acknowledged_at` conta como reconhecimento.
+    """
+    scope = resolve_tenant_scope(current_user, None)
+    stmt = (
+        select(
+            Notification.incident_id,
+            Incident.severity,
+            func.max(Notification.sent_at).label("sent_at"),
+            func.max(Notification.acknowledged_at).label("acknowledged_at"),
+        )
+        .join(Incident, Incident.id == Notification.incident_id)
+        .where(Notification.user_id == current_user.id)
+        .group_by(Notification.incident_id, Incident.severity)
+        .order_by(func.max(Notification.created_at).desc())
+        .limit(limit)
+    )
+    if scope:
+        stmt = stmt.where(func.lower(Incident.tags["ninf_customer_name"].astext) == scope)
+    async with SessionLocal() as session:
+        rows = (await session.execute(stmt)).all()
+    return [
+        {
+            "incident_id": str(r.incident_id),
+            "severity": r.severity,
+            "sent_at": r.sent_at,
+            "acknowledged_at": r.acknowledged_at,
+        }
+        for r in rows
+    ]
+
+
 @router.post("/api/incidents/{incident_id}/notifications/ack", tags=["incidents"])
 async def ack_notifications(
     incident_id: int,
