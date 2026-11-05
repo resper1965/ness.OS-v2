@@ -68,3 +68,17 @@ migração e reconciliação real.
 
 Nenhuma contagem baixa por exclusão/encerramento em massa. A operação aprova
 separadamente a política de transições de tickets históricos.
+
+## Leitura de 05/11/2026 (somente leitura, nenhuma escrita)
+
+`glpi_backlog_classify.py` em páginas de 500 sobre `deskmanager_ticket_id IS NULL`: 949 incidentes, todos `open`, criados entre 10/07 e 27/10/2026. Nada novo entrou depois de 27/10: não há falha de integração gerando entradas hoje.
+
+| Classe | Qtde | Origem |
+|---|---|---|
+| `failed_unclassified` | 819 | Último evento `ticket_failed` com `error=RuntimeError` genérico, todos criados em outubro (período da falha de isolamento e da identidade técnica 106 desativada). Causa ainda não determinada |
+| `historical_unclassified` | 115 | Marcadores históricos não encontrados nas entidades mapeadas (igual à leitura de 13/10) |
+| `source_id_missing` | 15 | Legados sem identificador de evento; permanecem em quarentena |
+
+Os 819 não são ausência provada de ticket: erro genérico e busca negativa não provam que o POST falhou. Próximo passo permitido: `glpi_backlog_reconcile.py` em páginas de até cinco, para separar "ticket existe e falta vínculo" de "ticket não existe". Replay (POST) continua bloqueado pelo gate acima e pede decisão de operação.
+
+Inventário sem ativo: dos 510 incidentes do manifesto T06 de 03/11, hoje 11 incidentes do Hub (de 110.075) estão sem `asset_id`, em 7 `host_id` de teste ou sintéticos (10001, 50001, 50004–50006, 10978 e 1 sem host); não há ativo real a cadastrar. O restante foi ligado.
