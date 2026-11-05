@@ -45,8 +45,8 @@ Este ADR cataloga o que está disponível, o que está fora e as regras para con
 ### O que não se aplica
 
 - **Magic WAN, Magic Transit, WAF:** já avaliados no desenho de identidade e perímetro.
-- **Intune, Defender e Purview:** exigem licença não contratada. O Acesso Condicional depende de Entra ID P1; hoje o STATE registra MFA por *security defaults*, sem P1. Confirmar a licença antes de depender dele.
-- **Qualquer feature que exija Entra ID P1 ou P2:** o MFA vigente é *security defaults*, sem licença. O ADR 0015 prevê P1 para operadores, ainda não contratado.
+- **Intune, Defender e Purview:** exigem licença não contratada.
+- **Qualquer feature que exija Entra ID P1 ou P2.** O tenant está em **Entra ID Free** (confirmado pelo Ricardo no centro de administração em 05/11/2026). Sem P1: Acesso Condicional, grupos dinâmicos, Proxy de Aplicativo, relatórios avançados, redefinição de senha com write-back. Sem P2: Identity Protection, PIM, revisões de acesso, gerenciamento de direitos. O que o plano gratuito entrega: SSO ilimitado, convidados B2B, gerenciamento de usuários e grupos, MFA para funções de administrador e *security defaults*. O ADR 0015 prevê P1 para operadores, ainda não contratado.
 
 ## Consequências
 
@@ -55,4 +55,4 @@ Este ADR cataloga o que está disponível, o que está fora e as regras para con
 - Se um cliente exigir Teams ou e-mail como canal, o ADR do P3 cobre.
 - Se a autorização local do ADR 0015 se mostrar insuficiente, a Graph API é o próximo passo documentado.
 - Peças indisponíveis não voltam à discussão sem decisão de compra.
-- A lista de licenças é a conhecida em 05/11/2026. Confirmar no centro de administração do M365 antes de qualquer decisão que dependa dela.
+- A lista de licenças é a conhecida em 05/11/2026. Entra ID Free está confirmado; as demais licenças (Purview, Defender) seguem por confirmar no centro de administração antes de qualquer decisão que dependa delas.
