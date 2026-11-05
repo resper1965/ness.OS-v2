@@ -78,3 +78,12 @@ def test_notifications_table_matches_between_migrate_and_bootstrap():
     assert {"provider_result", "acknowledged_at", "ack_type", "resolved_at"} <= bodies[
         0
     ]
+
+
+def test_identities_table_matches_between_migrate_and_bootstrap():
+    pat = r"CREATE TABLE IF NOT EXISTS n_infraops_identities \((.*?)\n\s*\)"
+    bodies = [_norm(re.search(pat, t, re.S).group(1)) for t in (MIGRATE, SQL)]
+    assert bodies[0] == bodies[1]
+    assert "UNIQUE (issuer, subject)" in bodies[0]
+    for t in (MIGRATE, SQL):
+        assert "ix_n_infraops_identities_user_id" in t

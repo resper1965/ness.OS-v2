@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import logging
 import os
-import secrets
 from datetime import datetime, timezone
 
 import bcrypt as _bcrypt
@@ -13,10 +12,11 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
-from app.core.dependencies import get_current_user, is_noc_role
+from app.core.dependencies import get_current_user, require_platform_admin
 from app.core.jwt import create_access_token
 from app.core.oidc import exchange_oidc_code, verify_oidc_token
 from app.core.session import (
@@ -26,7 +26,7 @@ from app.core.session import (
     set_session_cookie,
 )
 from app.database import get_db
-from app.models.users import User, UserRole
+from app.models.users import Identity, User, UserRole
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -71,39 +71,6 @@ def _verify_password(plain: str, hashed: str) -> bool:
         return _bcrypt.checkpw(plain.encode(), hashed.encode())
     except Exception:
         return False
-
-
-_AUTHENTIK_GROUP_ROLE_PRIORITY = (
-    ({"platform_admin", "ness-os-platform-admin"}, UserRole.platform_admin),
-    ({"admin"}, UserRole.admin),
-    ({"viewer"}, UserRole.viewer),
-    ({"operator"}, UserRole.operator),
-    ({"noc"}, UserRole.noc),
-    ({"soc"}, UserRole.soc),
-    ({"helpdesk"}, UserRole.helpdesk),
-    ({"gestao"}, UserRole.gestao),
-    ({"usuarios"}, UserRole.cliente),
-)
-
-
-def map_authentik_role(claims: dict) -> UserRole:
-    """Mapeia grupos/role sem depender de um único nome legado de grupo."""
-    groups = claims.get("groups", [])
-    if isinstance(groups, str):
-        groups = [groups]
-    normalized_groups = {str(group).strip().lower() for group in groups}
-
-    for aliases, role in _AUTHENTIK_GROUP_ROLE_PRIORITY:
-        if normalized_groups.intersection(aliases):
-            return role
-
-    if not normalized_groups:
-        raw_role = str(claims.get("role", "cliente")).lower()
-        try:
-            return UserRole(raw_role)
-        except ValueError:
-            pass
-    return UserRole.cliente
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
@@ -275,7 +242,7 @@ async def seed_admin(
     return SeedResponse(detail=f"Usuário admin criado com id={admin.id}")
 
 
-# --- Authentik OIDC BFF Callback (Task 3) ---
+# --- OIDC BFF Callback (ADR 0015: o provedor autentica, o Hub autoriza) ---
 
 
 class OidcCallbackRequest(BaseModel):
@@ -287,7 +254,7 @@ class OidcCallbackRequest(BaseModel):
 @router.post(
     "/oidc/callback",
     response_model=MeResponse,
-    summary="Callback OIDC para troca de tokens com Authentik (BFF)",
+    summary="Callback OIDC (BFF): identidade vinculada previamente, sem JIT",
 )
 async def oidc_callback(
     body: OidcCallbackRequest,
@@ -303,7 +270,7 @@ async def oidc_callback(
             detail="Autenticação OIDC desabilitada no servidor.",
         )
 
-    # 1. Trocar código OIDC no Authentik
+    # 1. Trocar código OIDC no provedor
     try:
         token_payload = await exchange_oidc_code(
             body.code, body.redirect_uri, body.code_verifier
@@ -312,7 +279,7 @@ async def oidc_callback(
         logger.error("OIDC code exchange failed: %s", type(exc).__name__)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Falha ao autenticar com o Authentik SSO (troca de código falhou).",
+            detail="Falha ao autenticar com o SSO (troca de código falhou).",
         )
 
     id_token = token_payload.get("id_token")
@@ -320,7 +287,7 @@ async def oidc_callback(
     if not id_token:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Authentik não retornou um token de identidade válido.",
+            detail="O SSO não retornou um token de identidade válido.",
         )
 
     # 2. Validar token
@@ -330,63 +297,43 @@ async def oidc_callback(
         logger.error("OIDC identity token validation failed: %s", type(exc).__name__)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token OIDC fornecido pelo Authentik é inválido ou expirou.",
+            detail="Token OIDC inválido ou expirado.",
         )
 
-    email = claims.get("email")
-    if not email:
+    # 3. Identidade = (iss, oid|sub). Nunca e-mail; groups/role/tenant_id/email são ignorados.
+    # ponytail: o Authentik atual não emite `oid`, então cai em `sub`; Entra ID emite `oid`
+    # (o `sub` do Entra é por aplicação). upgrade path: exigir `oid` ao trocar o IdP.
+    issuer = claims.get("iss")
+    subject = claims.get("oid") or claims.get("sub")
+    if not (
+        isinstance(issuer, str) and isinstance(subject, str) and issuer and subject
+    ):
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Token OIDC do Authentik não possui a claim obrigatória 'email'.",
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token OIDC inválido ou expirou.",
         )
-
-    user_role = map_authentik_role(claims)
-
-    raw_tenant = claims.get("tenant_id")
-    if raw_tenant is not None and not isinstance(raw_tenant, str):
-        raise HTTPException(
-            status_code=403, detail="Cliente informado pelo SSO é inválido"
-        )
-    tenant_id = (raw_tenant or "").strip().lower()
-    if len(tenant_id) > 128 or (not is_noc_role(user_role) and not tenant_id):
-        raise HTTPException(
-            status_code=403,
-            detail="Usuário sem cliente associado no SSO. Solicite o vínculo ao administrador.",
-        )
-    full_name = claims.get("name") or claims.get("given_name")
-
-    # 3. Just-In-Time Provisioning
-    result = await db.execute(select(User).where(User.email == email))
+    result = await db.execute(
+        select(User)
+        .join(Identity, Identity.user_id == User.id)
+        .where(Identity.issuer == issuer, Identity.subject == subject)
+    )
     user = result.scalar_one_or_none()
-
-    if not user:
-        logger.info(f"OIDC JIT: Criando novo usuário local para o e-mail: {email}")
-        random_pwd = secrets.token_urlsafe(32)
-        user = User(
-            email=email,
-            hashed_password=_hash_password(random_pwd),
-            full_name=full_name,
-            role=user_role,
-            tenant_id=tenant_id,
-            is_active=True,
+    if user is None:
+        logger.warning("OIDC sem vínculo: iss=%r sub=%r", issuer, subject)
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Acesso não autorizado. Solicite o cadastro ao administrador.",
         )
-        db.add(user)
-    else:
-        if not user.is_active:
-            raise HTTPException(
-                status_code=403,
-                detail="Conta inativa. Entre em contato com o administrador.",
-            )
-        logger.info(f"OIDC JIT: Atualizando usuário local existente: {email}")
-        user.role = user_role
-        user.tenant_id = tenant_id
-        if full_name:
-            user.full_name = full_name
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Usuário não encontrado ou inativo.",
+        )
 
+    user.last_login = datetime.now(tz=timezone.utc)
     await db.commit()
-    await db.refresh(user)
 
-    # 4. Emitir JWT de sessão local compatível com o n.infraops
+    # 4. Sessão local com papel e tenant DO BANCO
     local_token = create_access_token(
         user_id=user.id,
         role=user.role.value,
@@ -403,3 +350,76 @@ async def oidc_callback(
         role=user.role.value,
         full_name=user.full_name,
     )
+
+
+# --- Cadastro de identidades (somente platform_admin) ---
+
+
+class IdentityCreate(BaseModel):
+    user_id: int
+    issuer: str
+    subject: str
+
+
+class IdentityOut(BaseModel):
+    id: int
+    user_id: int
+    issuer: str
+    subject: str
+
+
+@router.post(
+    "/identities",
+    response_model=IdentityOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Vincula (issuer, oid) a um usuário local existente",
+)
+async def create_identity(
+    body: IdentityCreate,
+    admin: User = Depends(require_platform_admin),
+    db: AsyncSession = Depends(get_db),
+) -> IdentityOut:
+    """
+    Papel e tenant continuam no cadastro do User; aqui só se liga a identidade do IdP.
+
+    - **422** issuer/subject vazio ou longo demais · **404** usuário local inexistente
+    - **409** usuário inativo ou vínculo (issuer, subject) já existe
+
+    O issuer deve ser idêntico ao ``iss`` do token (sem normalizar barra final nem caixa).
+    """
+    issuer, subject = body.issuer.strip(), body.subject.strip()
+    if not (0 < len(issuer) <= 512 and 0 < len(subject) <= 255):
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "issuer (1-512) e subject (1-255) obrigatórios; o issuer deve ser "
+                "idêntico ao iss do token, inclusive barra final e caixa"
+            ),
+        )
+    target = await db.get(User, body.user_id)
+    if target is None:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+    if not target.is_active:
+        raise HTTPException(status_code=409, detail="Usuário inativo")
+    row = Identity(
+        issuer=issuer,
+        subject=subject,
+        user_id=body.user_id,
+        created_by_user_id=admin.id,
+    )
+    db.add(row)
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(status_code=409, detail="Identidade já vinculada")
+    # ponytail: auditoria = created_by/created_at na linha + este log; sem tabela de auditoria no Hub.
+    logger.info(
+        "Identidade vinculada: id=%s user_id=%s iss=%r sub=%r por admin_id=%s",
+        row.id,
+        row.user_id,
+        issuer,
+        subject,
+        admin.id,
+    )
+    return IdentityOut(id=row.id, user_id=row.user_id, issuer=issuer, subject=subject)

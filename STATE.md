@@ -40,6 +40,7 @@ Tasks do [plano de execução](docs/superpowers/plans/2026-10-26-ness-os-executi
 - Recuperação Zabbix → Hub ligada em 03/11 (ação 7 e media type 72): antes nenhum incidente era marcado como recuperado. Frontend com o contador novo promovido em 04/11 (#149) — [evidência](docs/execution/evidence/zabbix-hub-recovery-2026-11-03.md)
 
 ### Em andamento
+- Identidade Fase A (PR `feat/identidade-fase-a`, ADR 0015): autorização local no Hub (vínculo iss+oid, sem JIT); só código, sem deploy — promoção exige cadastrar as identidades antes ([runbook](docs/runbooks/identidade-fase-a.md))
 - P3 backend (PR `feat/p3-notificacoes`): e-mail + Web Push com registro, ack e escalonamento; falta UI/PWA e decidir mapa severidade→janela e a escala de plantão
 - Zabbix sem vínculo em `n_infraops_tenant_mappings`: fica `pendente_de_modalidade` até o Ricardo decidir o mapeamento cliente ↔ Zabbix
 
