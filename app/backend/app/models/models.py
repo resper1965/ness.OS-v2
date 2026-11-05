@@ -557,8 +557,8 @@ class Contract(Base):
             name="ck_contracts_default",
         ),
         Index(
-            "uq_contracts_tenant_active",
-            "tenant_id",
+            "uq_contracts_tenant_active_ci",
+            func.lower(text("tenant_id")),
             unique=True,
             postgresql_where=text("status = 'active'"),
         ),

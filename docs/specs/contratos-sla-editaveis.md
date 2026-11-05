@@ -8,7 +8,7 @@ Nenhum prazo, janela, calendário ou ordem de escalonamento mora no código: tud
 - `n_infraops_sla_policies` (por contrato, UNIQUE `(contract_id, key)`): `severity`/`min_severity`/`has_tenant` (quem a política cobre), `ack_minutes` (janela de reconhecimento do P3, único campo consumido hoje), `tto_minutes`/`ttr_minutes` (**só armazenados**; o SLM do GLPI os lerá), calendário, `enabled`.
 - `n_infraops_escalation_steps` (por contrato): `position`, `role`, `enabled`.
 - `n_infraops_sla_calendars` / `_calendar_hours` (vários intervalos por dia) / `_holidays`: **compartilhados**, referenciados pelo contrato e pela política. Fuso por calendário (`zoneinfo`), padrão `America/Sao_Paulo`.
-- `n_infraops_contract_changes`: antes/depois (JSONB) de toda alteração de SLA em contrato **ativo** (política, passo, contrato, status, e calendário/feriado/horário de qualquer contrato ativo que o use).
+- `n_infraops_contract_changes`: antes/depois (sem `notes`; transições, inclusive para `suspended`, são gravadas só como transição de status) (JSONB) de toda alteração de SLA em contrato **ativo** (política, passo, contrato, status, e calendário/feriado/horário de qualquer contrato ativo que o use).
 
 ## Resolução (a cada ciclo da varredura, sem cache)
 
@@ -25,15 +25,16 @@ Nenhum prazo, janela, calendário ou ordem de escalonamento mora no código: tud
 |---|---|---|---|---|
 | critical | sev 5, com cliente | 15 min | 15 min / 4 h | 24x7 |
 | elevated | sev 4, com cliente | 60 min | 30 min / 8 h | 24x7 |
-| no_client | sev ≥ 4, sem cliente | 600 min (1 dia útil) | — | comercial |
+| no_client | sev ≥ 4, sem cliente | 720 min (1 dia útil de 12 h) | — | comercial |
 
-`comercial` = seg–sex 08:00–18:00 (como o P3 já fazia; o GLPI usa 08–20: **divergência a decidir**, valor não alterado). Passos: soc, noc, operator, admin. tto/ttr vêm da proposta de `docs/operations/glpi-t08-diagnostico.md` §6, **não contratual**. Os valores do `ack` são os do P3 aceitos em 04/11.
+`comercial` = seg–sex 08:00–20:00, `America/Sao_Paulo` (**decisão do Ricardo em 05/11**; o calendário padrão do GLPI também é 08–20). Mudança intencional: o P3 em produção ainda roda 08–18/600 min até a próxima promoção, e o `ack` do sem cliente passou de 600 para 720 min para continuar significando "1 dia útil". Passos: soc, noc, operator, admin. tto/ttr vêm da proposta de `docs/operations/glpi-t08-diagnostico.md` §6, **não contratual**. Os `ack` de crítica e alta são os do P3 aceitos em 04/11.
 
 ## Como editar
 
 API `/api/v1/sla`: GET para operator+ (cliente/viewer: 403); escrita só `admin`/`platform_admin`.
+**Isolamento de tenant nas leituras:** NOC/admin leem tudo; `operator` com tenant lê só o próprio contrato (comparação sem diferenciar maiúsculas), a trilha dele e o contrato padrão (a trilha do padrão é só NOC); contrato de outro tenant responde 404; `operator` sem tenant, 403. Calendários não têm dono de tenant e são legíveis por operator+.
 `contracts` (POST/PUT, `POST …/status`), `contracts/{id}/policies/{key}` (PUT/DELETE), `contracts/{id}/escalation-steps/{position}` (PUT/DELETE), `calendars` (+ `/hours`, `/holidays/{data}`), `contracts/{id}/changes`, `contracts/modality-divergences`.
-Regras: minutos 1..43200; weekday 0–6; início < fim; timezone válido; calendário em uso não apaga (409); transições `draft→active→suspended↔active→ended` (ended final; inválida = 409); ativar exige ≥1 política habilitada e calendário; dois ativos no mesmo tenant = 409; contrato ativo não fica sem política habilitada; o padrão não fica sem passo habilitado.
+Regras: `tenant_id` é normalizado (`lower().strip()`) e a unicidade de contrato ativo é por `lower(tenant_id)`; `PUT` com `null` em campo obrigatório = 422; `notes` até 4000 caracteres e **fora da trilha e do log**; passos só com soc/noc/operator/admin; intervalos do mesmo dia não podem se sobrepor (encostar é válido); minutos 1..43200; weekday 0–6; início < fim; timezone válido; calendário em uso não apaga (409); transições `draft→active→suspended↔active→ended` (ended final; inválida = 409); ativar exige ≥1 política habilitada e calendário; dois ativos no mesmo tenant = 409; contrato ativo não fica sem política habilitada; o padrão não fica sem passo habilitado.
 
 ## Recomendações (ITIL 4 / ISO 20000), todas editáveis — não são contrato
 

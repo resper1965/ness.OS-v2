@@ -409,7 +409,8 @@ CREATE TABLE IF NOT EXISTS n_infraops_contracts (
         OR (NOT is_default AND tenant_id IS NOT NULL AND contractual)
     )
 );
-CREATE UNIQUE INDEX IF NOT EXISTS uq_contracts_tenant_active ON n_infraops_contracts (tenant_id) WHERE status = 'active';
+DROP INDEX IF EXISTS uq_contracts_tenant_active;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_contracts_tenant_active_ci ON n_infraops_contracts (lower(tenant_id)) WHERE status = 'active';
 CREATE UNIQUE INDEX IF NOT EXISTS uq_contracts_default ON n_infraops_contracts (is_default) WHERE is_default;
 CREATE TABLE IF NOT EXISTS n_infraops_sla_policies (
     id                 BIGSERIAL PRIMARY KEY,
@@ -458,7 +459,7 @@ WITH c AS (
     RETURNING id, name
 )
 INSERT INTO n_infraops_sla_calendar_hours (calendar_id, weekday, start_time, end_time)
-SELECT c.id, d, '08:00', '18:00' FROM c, generate_series(0, 4) AS d WHERE c.name = 'comercial';
+SELECT c.id, d, '08:00', '20:00' FROM c, generate_series(0, 4) AS d WHERE c.name = 'comercial';
 WITH cal AS (
     SELECT (SELECT id FROM n_infraops_sla_calendars WHERE name = '24x7') AS h24,
            (SELECT id FROM n_infraops_sla_calendars WHERE name = 'comercial') AS biz
@@ -475,7 +476,7 @@ WITH cal AS (
     FROM c, cal, (VALUES
         ('critical', 'Crítica', NULL::int, 5, TRUE, 15, 15, 240, 'h24'),
         ('elevated', 'Alta', NULL, 4, TRUE, 60, 30, 480, 'h24'),
-        ('no_client', 'Sem cliente', 4, NULL, FALSE, 600, NULL, NULL, 'biz')
+        ('no_client', 'Sem cliente', 4, NULL, FALSE, 720, NULL, NULL, 'biz')
     ) AS v(key, name, min_sev, sev, has_tenant, ack, tto, ttr, calk)
     RETURNING 1
 )

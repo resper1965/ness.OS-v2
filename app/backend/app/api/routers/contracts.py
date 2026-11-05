@@ -18,7 +18,11 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.dependencies import require_admin, require_operator
+from app.core.dependencies import (
+    require_admin,
+    require_operator,
+    resolve_tenant_scope,
+)
 from app.database import get_db
 from app.models import (
     Contract,
@@ -39,6 +43,7 @@ router = APIRouter(prefix="/api/v1/sla", tags=["sla-contracts"])
 
 Minutes = Field(ge=1, le=43200)
 Modality = Literal["managed", "onsite", "shared"]
+ESCALATION_ROLES = (UserRole.soc, UserRole.noc, UserRole.operator, UserRole.admin)
 # draft→active→suspended↔active→ended; ended é final.
 TRANSITIONS = {
     "draft": {"active", "ended"},
@@ -88,7 +93,15 @@ class ContractIn(BaseModel):
     starts_on: date | None = None
     ends_on: date | None = None
     calendar_id: int | None = None
-    notes: str | None = None
+    notes: str | None = Field(default=None, max_length=4000)
+
+    @field_validator("tenant_id")
+    @classmethod
+    def _norm_tenant(cls, v: str) -> str:
+        v = v.lower().strip()
+        if not v:
+            raise ValueError("tenant_id vazio")
+        return v
 
     @model_validator(mode="after")
     def _dates(self):
@@ -103,7 +116,14 @@ class ContractPatch(BaseModel):
     starts_on: date | None = None
     ends_on: date | None = None
     calendar_id: int | None = None
-    notes: str | None = None
+    notes: str | None = Field(default=None, max_length=4000)
+
+    @model_validator(mode="after")
+    def _no_null_required(self):
+        # name é NOT NULL; null explícito viraria 500 no banco
+        if "name" in self.model_fields_set and self.name is None:
+            raise ValueError("name não aceita null")
+        return self
 
 
 class StatusIn(BaseModel):
@@ -129,6 +149,13 @@ class StepIn(BaseModel):
     role: UserRole
     enabled: bool = True
 
+    @field_validator("role")
+    @classmethod
+    def _escalation_role(cls, v: UserRole) -> UserRole:
+        if v not in ESCALATION_ROLES:
+            raise ValueError("role fora de soc/noc/operator/admin")
+        return v
+
 
 def _row(obj: Any) -> dict[str, Any]:
     return {
@@ -152,6 +179,32 @@ async def _get(db: AsyncSession, model, id_: int, what: str):
     return obj
 
 
+def _scope(user: User) -> str | None:
+    """None = escopo global (NOC/admin); senão o tenant do usuário, em minúsculas.
+
+    Operator com tenant só lê o próprio contrato e o padrão; sem tenant = 403.
+    """
+    scope = resolve_tenant_scope(user, None)
+    return scope.lower().strip() if scope else None
+
+
+async def _visible(db: AsyncSession, user: User, contract_id: int) -> Contract:
+    """Leitura: fora do escopo responde 404 (não revela que o contrato existe)."""
+    c = await _get(db, Contract, contract_id, "Contrato")
+    scope = _scope(user)
+    if scope and not c.is_default and (c.tenant_id or "").lower() != scope:
+        raise HTTPException(404, "Contrato não encontrado")
+    return c
+
+
+# `notes` é texto livre e pode ter dado do cliente: fica fora de log e trilha.
+_AUDIT_SKIP = {"notes"}
+
+
+def _audit_row(obj: Any) -> dict[str, Any]:
+    return {k: v for k, v in _row(obj).items() if k not in _AUDIT_SKIP}
+
+
 async def _audit(
     db: AsyncSession,
     contract: Contract,
@@ -161,6 +214,16 @@ async def _audit(
     after: dict | None,
 ) -> None:
     """Trilha só para contrato ativo; sempre log estruturado do antes/depois."""
+    before = (
+        {k: v for k, v in (before or {}).items() if k not in _AUDIT_SKIP}
+        if before is not None
+        else None
+    )
+    after = (
+        {k: v for k, v in (after or {}).items() if k not in _AUDIT_SKIP}
+        if after is not None
+        else None
+    )
     logger.info(
         "sla_change",
         extra={
@@ -208,15 +271,20 @@ async def _mutable(db: AsyncSession, contract_id: int) -> Contract:
 
 @router.get("/contracts")
 async def list_contracts(
-    _: User = Depends(require_operator), db: AsyncSession = Depends(get_db)
+    user: User = Depends(require_operator), db: AsyncSession = Depends(get_db)
 ):
-    rows = (await db.execute(select(Contract).order_by(Contract.id))).scalars().all()
-    return [_contract_out(c) for c in rows]
+    stmt = select(Contract).order_by(Contract.id)
+    scope = _scope(user)
+    if scope:
+        stmt = stmt.where(
+            Contract.is_default | (func.lower(Contract.tenant_id) == scope)
+        )
+    return [_contract_out(c) for c in (await db.execute(stmt)).scalars().all()]
 
 
 @router.get("/contracts/modality-divergences")
 async def get_modality_divergences(
-    _: User = Depends(require_operator), db: AsyncSession = Depends(get_db)
+    user: User = Depends(require_operator), db: AsyncSession = Depends(get_db)
 ):
     """Contrato ativo x mapeamento (pipeline_health). Só leitura."""
     contracts = (
@@ -231,16 +299,21 @@ async def get_modality_divergences(
             select(TenantMapping.internal_customer_id, TenantMapping.modality)
         )
     ).all()
-    return modality_divergences(contracts, mappings)
+    scope = _scope(user)
+    return [
+        d
+        for d in modality_divergences(contracts, mappings)
+        if not scope or d["tenant_id"] == scope
+    ]
 
 
 @router.get("/contracts/{contract_id}")
 async def get_contract(
     contract_id: int,
-    _: User = Depends(require_operator),
+    user: User = Depends(require_operator),
     db: AsyncSession = Depends(get_db),
 ):
-    c = await _get(db, Contract, contract_id, "Contrato")
+    c = await _visible(db, user, contract_id)
     pols = (
         (
             await db.execute(
@@ -273,10 +346,12 @@ async def get_contract(
 @router.get("/contracts/{contract_id}/changes")
 async def list_changes(
     contract_id: int,
-    _: User = Depends(require_operator),
+    user: User = Depends(require_operator),
     db: AsyncSession = Depends(get_db),
 ):
-    await _get(db, Contract, contract_id, "Contrato")
+    c = await _visible(db, user, contract_id)
+    if _scope(user) and c.is_default:
+        raise HTTPException(404, "Contrato não encontrado")  # trilha do padrão: NOC
     rows = (
         (
             await db.execute(
@@ -363,7 +438,7 @@ async def change_status(
     c.updated_by_user_id = user.id
     try:
         await db.flush()
-    except IntegrityError as exc:  # uq_contracts_tenant_active
+    except IntegrityError as exc:  # uq_contracts_tenant_active_ci
         await db.rollback()
         raise HTTPException(409, "Já existe contrato ativo para este tenant") from exc
     # a transição de/para ativo também entra na trilha
@@ -682,8 +757,12 @@ async def replace_hours(
     user: User = Depends(require_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    """Substitui todos os intervalos do calendário (vários por dia permitidos)."""
+    """Substitui todos os intervalos do calendário (vários por dia, sem sobreposição)."""
     await _get(db, SlaCalendar, calendar_id, "Calendário")
+    for day in {h.weekday for h in body}:
+        spans = sorted((h.start_time, h.end_time) for h in body if h.weekday == day)
+        if any(a[1] > b[0] for a, b in zip(spans, spans[1:])):
+            raise HTTPException(422, f"Intervalos sobrepostos no dia {day}")
     old = (
         (
             await db.execute(

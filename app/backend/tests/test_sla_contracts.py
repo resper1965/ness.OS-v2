@@ -282,8 +282,46 @@ async def test_seed_is_idempotent_and_default_is_not_contractual(maker):
         assert d.is_default and not d.contractual and d.tenant_id is None
         pol = {p.key: p for p in (await s.execute(select(SlaPolicy))).scalars()}
     assert [pol[k].ack_minutes for k in ("critical", "elevated", "no_client")] == [
-        15, 60, 600,
+        15, 60, 720,
     ]  # fmt: skip
+
+
+@pg
+@pytest.mark.asyncio
+async def test_seeded_business_calendar_is_mon_fri_08_to_20_sao_paulo(maker):
+    async with maker() as s:
+        cal = (
+            await s.execute(select(SlaCalendar).where(SlaCalendar.name == "comercial"))
+        ).scalar_one()
+        hours = (
+            (
+                await s.execute(
+                    select(SlaCalendarHours).where(
+                        SlaCalendarHours.calendar_id == cal.id
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+    assert cal.timezone == "America/Sao_Paulo" and not cal.is_24x7
+    assert sorted((h.weekday, h.start_time, h.end_time) for h in hours) == [
+        (d, time(8), time(20)) for d in range(5)
+    ]
+
+
+@pg
+@pytest.mark.asyncio
+async def test_seeded_no_client_policy_is_one_business_day_of_12h(maker):
+    from app.services.sla import load_config
+
+    async with maker() as s:
+        cfg = await load_config(s)
+    p = next(p for p in cfg.default.policies if p.key == "no_client")
+    assert p.ack == timedelta(hours=12)
+    # segunda 10:00 BRT + 12 h úteis (08-20) = terça 10:00 BRT
+    mon = datetime(2026, 11, 2, 13, 0, tzinfo=UTC)
+    assert add_calendar_time(mon, p.ack, p.calendar) == mon + timedelta(days=1)
 
 
 @pg
@@ -473,7 +511,7 @@ async def test_api_write_forbidden_below_admin(maker, role):
 @pg
 @pytest.mark.asyncio
 async def test_api_operator_reads_default_marked_not_contractual(maker):
-    async with _api(maker, UserRole.operator) as c:
+    async with _api(maker, UserRole.noc) as c:
         body = (await c.get(f"{BASE}/contracts")).json()
         assert [(x["is_default"], x["contractual"]) for x in body] == [(True, False)]
         det = (await c.get(f"{BASE}/contracts/{body[0]['id']}")).json()
@@ -609,7 +647,7 @@ async def test_api_modality_divergence_between_contract_and_mapping(maker):
         s.add(TenantMapping(internal_customer_id="acme", external_platform="zabbix", external_customer_id="1", modality="onsite"))  # fmt: skip
         await s.commit()
     await _tenant_contract(maker, "acme", modality="managed")
-    async with _api(maker, UserRole.operator) as c:
+    async with _api(maker, UserRole.noc) as c:
         out = (await c.get(f"{BASE}/contracts/modality-divergences")).json()
     assert out == [{"tenant_id": "acme", "contract_modality": "managed", "mapping_modality": "onsite"}]  # fmt: skip
 
@@ -620,9 +658,242 @@ async def test_db_constraints_two_active_per_tenant_and_single_default(maker):
     await _tenant_contract(maker, "acme")
     with pytest.raises(Exception):
         await _tenant_contract(maker, "acme")
+    with pytest.raises(Exception):  # case-insensitive, no banco
+        await _tenant_contract(maker, "Acme")
     async with maker() as s:
         with pytest.raises(Exception):
             await s.execute(text(
                 "INSERT INTO n_infraops_contracts (is_default, contractual, name, status)"
                 " VALUES (TRUE, FALSE, 'outro', 'active')"
             ))  # fmt: skip
+
+
+# ---------- P1-1: isolamento de tenant nas leituras ----------
+
+
+async def _two_tenants(maker):
+    a = await _tenant_contract(maker, "acme", modality="managed")
+    b = await _tenant_contract(maker, "beta", modality="shared")
+    async with maker() as s:
+        for t in ("acme", "beta"):
+            s.add(TenantMapping(internal_customer_id=t, external_platform="zabbix", external_customer_id=t, modality="onsite"))  # fmt: skip
+        await s.commit()
+    async with _api(maker, UserRole.admin) as c:  # gera linhas de trilha nos dois
+        for cid in (a, b):
+            await c.put(f"{BASE}/contracts/{cid}/policies/critical", json={**POLICY, "ack_minutes": 25})  # fmt: skip
+    return a, b
+
+
+@pg
+@pytest.mark.asyncio
+async def test_scoped_operator_reads_only_own_tenant(maker):
+    a, b = await _two_tenants(maker)
+    async with _api(maker, UserRole.operator, "beta") as c:
+        rows = (await c.get(f"{BASE}/contracts")).json()
+        assert {r["tenant_id"] for r in rows} == {None, "beta"}
+        assert (await c.get(f"{BASE}/contracts/{a}")).status_code == 404
+        assert (await c.get(f"{BASE}/contracts/{b}")).status_code == 200
+        assert (await c.get(f"{BASE}/contracts/{a}/changes")).status_code == 404
+        mine = (await c.get(f"{BASE}/contracts/{b}/changes")).json()
+        assert mine and {r["contract_id"] for r in mine} == {b}
+        div = (await c.get(f"{BASE}/contracts/modality-divergences")).json()
+        assert {d["tenant_id"] for d in div} == {"beta"}
+        default = next(r for r in rows if r["is_default"])
+        assert (await c.get(f"{BASE}/contracts/{default['id']}")).status_code == 200
+
+
+@pg
+@pytest.mark.asyncio
+async def test_scoped_operator_tenant_match_is_case_insensitive(maker):
+    a, _ = await _two_tenants(maker)
+    async with _api(maker, UserRole.operator, "ACME") as c:
+        assert (await c.get(f"{BASE}/contracts/{a}")).status_code == 200
+
+
+@pg
+@pytest.mark.asyncio
+async def test_operator_without_tenant_is_forbidden_and_noc_sees_all(maker):
+    await _two_tenants(maker)
+    async with _api(maker, UserRole.operator, None) as c:
+        assert (await c.get(f"{BASE}/contracts")).status_code == 403
+        assert (
+            await c.get(f"{BASE}/contracts/modality-divergences")
+        ).status_code == 403
+    async with _api(maker, UserRole.noc) as c:
+        tenants = {r["tenant_id"] for r in (await c.get(f"{BASE}/contracts")).json()}
+    assert tenants == {None, "acme", "beta"}
+
+
+# ---------- P1-2: unicidade case-insensitive ----------
+
+
+@pg
+@pytest.mark.asyncio
+async def test_api_tenant_is_normalised_and_two_active_acme_acme_conflict(maker):
+    async with _api(maker, UserRole.admin) as c:
+        cal = (await c.get(f"{BASE}/calendars")).json()[0]["id"]
+        ids = []
+        for t in ("Acme", "  acme "):
+            r = await c.post(f"{BASE}/contracts", json={"tenant_id": t, "name": "n", "calendar_id": cal})  # fmt: skip
+            assert r.status_code == 201 and r.json()["tenant_id"] == "acme"
+            ids.append(r.json()["id"])
+            await c.put(f"{BASE}/contracts/{ids[-1]}/policies/critical", json=POLICY)
+        assert (await c.post(f"{BASE}/contracts", json={"tenant_id": "   ", "name": "n"})).status_code == 422  # fmt: skip
+        ok = await c.post(
+            f"{BASE}/contracts/{ids[0]}/status", json={"status": "active"}
+        )
+        dup = await c.post(
+            f"{BASE}/contracts/{ids[1]}/status", json={"status": "active"}
+        )
+    assert (ok.status_code, dup.status_code) == (200, 409)
+
+
+# ---------- P2-3: validações da API ----------
+
+
+@pg
+@pytest.mark.asyncio
+async def test_api_patch_rejects_null_for_not_null_fields_and_long_notes(maker):
+    async with _api(maker, UserRole.admin) as c:
+        cid = (await c.post(f"{BASE}/contracts", json={"tenant_id": "z", "name": "z"})).json()["id"]  # fmt: skip
+        assert (await c.put(f"{BASE}/contracts/{cid}", json={"name": None})).status_code == 422  # fmt: skip
+        assert (await c.put(f"{BASE}/contracts/{cid}", json={"notes": "x" * 4001})).status_code == 422  # fmt: skip
+        assert (await c.post(f"{BASE}/contracts", json={"tenant_id": "y", "name": "y", "notes": "x" * 4001})).status_code == 422  # fmt: skip
+        ok = await c.put(
+            f"{BASE}/contracts/{cid}", json={"notes": None, "modality": None}
+        )
+        assert ok.status_code == 200
+        for bad in ({"enabled": None}, {"name": None}, {"ack_minutes": None}):
+            r = await c.put(f"{BASE}/contracts/{cid}/policies/critical", json={**POLICY, **bad})  # fmt: skip
+            assert r.status_code == 422, bad
+
+
+@pg
+@pytest.mark.asyncio
+@pytest.mark.parametrize("role", ["viewer", "cliente", "gestao", "platform_admin", "x"])
+async def test_api_step_role_restricted_to_escalation_roles(maker, role):
+    async with _api(maker, UserRole.admin) as c:
+        did = (await c.get(f"{BASE}/contracts")).json()[0]["id"]
+        r = await c.put(f"{BASE}/contracts/{did}/escalation-steps/9", json={"position": 9, "role": role})  # fmt: skip
+        assert r.status_code == 422
+
+
+@pg
+@pytest.mark.asyncio
+async def test_api_hours_overlap_same_day_is_422_touching_is_ok(maker):
+    async with _api(maker, UserRole.admin) as c:
+        cal = (await c.get(f"{BASE}/calendars")).json()[1]["id"]
+        h = lambda d, a, b: {"weekday": d, "start_time": a, "end_time": b}  # noqa: E731
+        url = f"{BASE}/calendars/{cal}/hours"
+        assert (await c.put(url, json=[h(0, "08:00", "12:00"), h(0, "11:00", "18:00")])).status_code == 422  # fmt: skip
+        assert (await c.put(url, json=[h(0, "08:00", "18:00"), h(0, "09:00", "10:00")])).status_code == 422  # fmt: skip
+        assert (await c.put(url, json=[h(0, "08:00", "12:00"), h(0, "08:00", "12:00")])).status_code == 422  # fmt: skip
+        assert (await c.put(url, json=[h(0, "08:00", "12:00"), h(1, "08:00", "12:00")])).status_code == 200  # fmt: skip
+        assert (await c.put(url, json=[h(0, "08:00", "12:00"), h(0, "12:00", "18:00")])).status_code == 200  # fmt: skip
+
+
+# ---------- P3-5: auditoria sem notes ----------
+
+
+@pg
+@pytest.mark.asyncio
+async def test_audit_does_not_store_or_log_notes(maker, caplog):
+    secret = "NOTA-CONFIDENCIAL-123"
+    async with _api(maker, UserRole.admin) as c:
+        cal = (await c.get(f"{BASE}/calendars")).json()[0]["id"]
+        cid = (await c.post(f"{BASE}/contracts", json={"tenant_id": "n", "name": "n", "calendar_id": cal, "notes": secret})).json()["id"]  # fmt: skip
+        await c.put(f"{BASE}/contracts/{cid}/policies/critical", json=POLICY)
+        await c.post(f"{BASE}/contracts/{cid}/status", json={"status": "active"})
+        with caplog.at_level(logging.INFO, logger="nessops.api.contracts"):
+            r = await c.put(f"{BASE}/contracts/{cid}", json={"name": "n2", "notes": secret + "-2"})  # fmt: skip
+            assert r.status_code == 200
+        rows = (await c.get(f"{BASE}/contracts/{cid}/changes")).json()
+    row = next(x for x in rows if x["entity"] == "contract")
+    assert "notes" not in row["before"] and "notes" not in row["after"]
+    assert row["after"]["name"] == "n2"
+    assert secret not in caplog.text and secret not in str(
+        [r.__dict__ for r in caplog.records]
+    )
+
+
+# ---------- P2-4: mutações sobreviventes ----------
+
+
+def test_pick_exact_severity_wins_over_floor_with_overlapping_policies():
+    floor = _p(2, "floor", None, 99, True, min_sev=4)
+    exact = _p(2, "exact", 5, 5)
+    for order in ((floor, exact), (exact, floor)):
+        cfg = SlaConfig((DEFAULT, _c(2, "acme", order)))
+        assert resolve(cfg, "acme", 5, MON)[1].key == "exact"
+        assert resolve(cfg, "acme", 4, MON)[1].key == "floor"  # só o piso cobre
+
+
+BIZ20 = CalendarCfg(
+    "America/Sao_Paulo",
+    False,
+    {d: ((time(8), time(20)),) for d in range(5)},
+    frozenset(),
+)
+
+
+def test_calendar_time_starting_exactly_at_closing_goes_to_next_opening():
+    close = datetime(2026, 11, 2, 23, 0, tzinfo=UTC)  # segunda 20:00 BRT
+    assert add_calendar_time(close, timedelta(minutes=1), BIZ20) == datetime(
+        2026, 11, 3, 11, 1, tzinfo=UTC
+    )
+    fri = datetime(2026, 11, 6, 23, 0, tzinfo=UTC)  # sexta 20:00 BRT
+    assert add_calendar_time(fri, timedelta(minutes=1), BIZ20) == datetime(
+        2026, 11, 9, 11, 1, tzinfo=UTC
+    )
+
+
+def test_calendar_time_starting_after_closing_same_day_does_not_borrow_time():
+    late = datetime(2026, 11, 3, 0, 0, tzinfo=UTC)  # segunda 21:00 BRT
+    assert add_calendar_time(late, timedelta(hours=1), BIZ20) == datetime(
+        2026, 11, 3, 12, 0, tzinfo=UTC
+    )
+    early = datetime(2026, 11, 3, 10, 0, tzinfo=UTC)  # terça 07:00 BRT
+    assert add_calendar_time(early, timedelta(hours=1), BIZ20) == datetime(
+        2026, 11, 3, 12, 0, tzinfo=UTC
+    )
+
+
+def test_calendar_time_ending_exactly_at_closing_stays_on_same_day():
+    start = datetime(2026, 11, 2, 22, 0, tzinfo=UTC)  # segunda 19:00 BRT
+    assert add_calendar_time(start, timedelta(hours=1), BIZ20) == datetime(
+        2026, 11, 2, 23, 0, tzinfo=UTC
+    )
+    assert add_calendar_time(start, timedelta(hours=1, minutes=1), BIZ20) == datetime(
+        2026, 11, 3, 11, 1, tzinfo=UTC
+    )
+
+
+def test_severity_floor_is_derived_from_enabled_policies():
+    cfg = SlaConfig((DEFAULT,))
+    assert cfg.severity_floor(MON) == 4
+    only_critical = SlaConfig((_c(1, None, [_p(1, "critical", 5, 15)], default=True),))
+    assert only_critical.severity_floor(MON) == 5
+    assert SlaConfig(()).severity_floor(MON) is None
+    out_of_force = _c(
+        2, "acme", [_p(2, "x", None, 5, True, 1)], starts=date(2027, 1, 1)
+    )
+    assert SlaConfig((DEFAULT, out_of_force)).severity_floor(MON) == 4
+
+
+@pg
+@pytest.mark.asyncio
+@pytest.mark.parametrize("tenant", ["acme", ""])
+async def test_sweep_never_notifies_severity_3(maker, monkeypatch, tenant):
+    ch = Channels(monkeypatch)
+    await _tenant_contract(maker, "acme")
+    await _seed(maker, severity=3, tenant=tenant)
+    assert await svc.sweep(MON) == {"notified": 0, "escalated": 0}
+    assert not ch.emails and not await _rows(maker)
+
+
+@pg
+@pytest.mark.asyncio
+async def test_sweep_does_notify_severity_4_without_client(maker, monkeypatch):
+    ch = Channels(monkeypatch)
+    await _seed(maker, severity=4, tenant="")
+    assert (await svc.sweep(MON))["notified"] == 1 and len(ch.emails) == 1
