@@ -28,7 +28,7 @@ Este ADR cataloga o que está disponível, o que está fora e as regras para con
 |---|---|---|
 | **Defender for Endpoint** | Sem licença de EDR | Licença Defender for Business ou P2 |
 | **Defender for Office 365** | Sem licença | Licença Defender for Office 365 |
-| **Purview (Audit, eDiscovery)** | Sem licença, **não confirmada no tenant**; confirmar antes de depender dela | Licença de conformidade |
+| **Purview (Audit, eDiscovery)** | Sem licença (confirmado pelo Ricardo em 05/11/2026) | Licença de conformidade |
 | **Intune** | Sem licença de MDM | Licença Intune ou EMS |
 | **Sentinel (SIEM)** | Sem licença de SIEM | Custo por GB ingerido, sem teto |
 | **Power Platform (Automate, Apps, BI)** | Sem licença | Licença premium por usuário |
@@ -55,4 +55,4 @@ Este ADR cataloga o que está disponível, o que está fora e as regras para con
 - Se um cliente exigir Teams ou e-mail como canal, o ADR do P3 cobre.
 - Se a autorização local do ADR 0015 se mostrar insuficiente, a Graph API é o próximo passo documentado.
 - Peças indisponíveis não voltam à discussão sem decisão de compra.
-- A lista de licenças é a conhecida em 05/11/2026. Entra ID Free está confirmado; as demais licenças (Purview, Defender) seguem por confirmar no centro de administração antes de qualquer decisão que dependa delas.
+- A lista de licenças é a conhecida em 05/11/2026. Entra ID Free está confirmado; Purview está confirmado como ausente. Defender segue por confirmar no centro de administração antes de qualquer decisão que dependa dele.
