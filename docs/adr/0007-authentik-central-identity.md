@@ -1,6 +1,6 @@
 # ADR 0007 — Authentik como identidade central
 
-- Status: aceita
+- Status: substituída pelo [ADR 0015](0015-entra-id-identity-local-authorization.md) em 05/11/2026; vigente até o desligamento do Authentik
 - Data: 20/08/2026
 - Decisor: Ricardo Esper
 
