@@ -315,6 +315,18 @@ CREATE TABLE n_infraops_users (
     last_login      TIMESTAMPTZ
 );
 
+-- ADR 0015: vínculo (issuer, subject) do IdP -> usuário local; sem JIT.
+CREATE TABLE IF NOT EXISTS n_infraops_identities (
+    id                 BIGSERIAL PRIMARY KEY,
+    issuer             VARCHAR(255) NOT NULL,
+    subject            VARCHAR(255) NOT NULL,
+    user_id            BIGINT NOT NULL REFERENCES n_infraops_users(id),
+    created_by_user_id BIGINT REFERENCES n_infraops_users(id),
+    created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT uq_identities_iss_sub UNIQUE (issuer, subject)
+);
+CREATE INDEX IF NOT EXISTS ix_n_infraops_identities_user_id ON n_infraops_identities (user_id);
+
 -- Vínculo plataforma externa -> cliente; modality nula = pendente_de_modalidade.
 CREATE TABLE IF NOT EXISTS n_infraops_tenant_mappings (
     id                    BIGSERIAL PRIMARY KEY,

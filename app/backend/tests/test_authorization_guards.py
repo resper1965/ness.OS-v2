@@ -4,7 +4,6 @@ import pytest
 from fastapi import HTTPException
 from fastapi.routing import APIRoute
 
-from app.api.routers.auth import map_authentik_role
 from app.core.dependencies import (
     require_admin,
     require_noc,
@@ -33,25 +32,6 @@ def test_local_admin_is_not_platform_admin():
     with pytest.raises(HTTPException) as error:
         require_platform_admin(SimpleNamespace(role=UserRole.admin))
     assert error.value.status_code == 403
-
-
-@pytest.mark.parametrize("group", ("platform_admin", "ness-os-platform-admin"))
-def test_platform_admin_group_aliases_map_to_global_role(group):
-    assert map_authentik_role({"groups": [group]}) == UserRole.platform_admin
-
-
-def test_unknown_group_falls_back_to_least_privileged_role():
-    assert map_authentik_role({"groups": ["unknown"]}) == UserRole.cliente
-
-
-@pytest.mark.parametrize("group,role", (("operator", "operator"), ("viewer", "viewer")))
-def test_scoped_authentik_groups_map_to_scoped_roles(group, role):
-    assert map_authentik_role({"groups": [group]}).value == role
-
-
-def test_scoped_group_wins_over_legacy_noc_group():
-    assert map_authentik_role({"groups": ["noc", "operator"]}) == UserRole.operator
-    assert map_authentik_role({"groups": ["noc", "viewer"]}) == UserRole.viewer
 
 
 @pytest.mark.parametrize("role", ("operator", "viewer"))
