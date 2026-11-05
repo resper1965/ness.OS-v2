@@ -142,7 +142,7 @@ Access exige sessão de navegador (cookie ou JWT). Tráfego de máquina e chamad
 
 | Caminho | Quem chama | Tratamento proposto |
 |---|---|---|
-| `POST /webhook/zabbix`, `/webhook/glpi`, `GET /webhook/health`, `POST /v1/alerts`, `/api/v1/alerts` | Zabbix, GLPI, n8n (máquina) | *Bypass* restrito a esses paths e métodos. O controle continua sendo o `source-key` da aplicação (`docs/security/access-control-matrix.md`). Opcional: *service token* se a origem suportar cabeçalhos. |
+| `POST /webhook/zabbix`, `/webhook/glpi`, `GET /webhook/health`, `POST /v1/alerts`, `/api/v1/alerts` | Zabbix, GLPI, n8n (máquina) | *Bypass* restrito a esses **paths** (o Access casa por hostname e path, não por método: o bypass vale para todos os métodos). Os métodos listados são impostos no Caddy (`method` matcher; demais métodos = 405) e o controle de identidade continua sendo o `source-key` da aplicação (`docs/security/access-control-matrix.md`). Teste negativo obrigatório: método fora da lista = 405; sem `source-key` = 401. Opcional: *service token* se a origem suportar cabeçalhos. |
 | Token exchange, JWKS e discovery OIDC (Hub → `sso.ness.com.br`) | Backend do Hub | Preferir URL interna (rede Docker) para o issuer server-side. Se o issuer público for obrigatório, *bypass* só para `/application/o/*/token`, `/jwks` e `/.well-known`. |
 | `POST /api/auth/oidc/callback` | Navegador | Passa pelo Access normalmente (sessão já existe). Validar que o redirect não cai em laço com o Authentik. |
 | `apirest.php` do GLPI (`initSession`) | AIOps (máquina) | Já recebe 302 do Authentik hoje (`gate-0-status.md`). Resolver por rota privada AIOps→GLPI, não por *bypass* público. |
@@ -179,7 +179,10 @@ Fase 0 — Preparação
   3. Configurar Gateway DNS filtering (modo log, depois enforce)
 
 Fase 1 — Borda (sem derrubar acesso atual)
-  4. Criar política Access: permitir @ness.com.br, exigir MFA (OTP)
+  4. Criar política Access: permitir @ness.com.br, exigir MFA (OTP). Access é deny-by-default:
+     usuários de cliente só entram com uma política de allow própria por tenant (grupo
+     Access ou e-mail/domínio do cliente), criada no onboarding do tenant junto com o IdP
+     no Authentik. Teste de isolamento: usuário do tenant A não alcança nada do tenant B.
   4a. Criar políticas de bypass/service token da seção 6.1 (webhooks, OIDC server-side)
   5. Apontar túnel para Caddy (localhost)
   6. Testar: WARP → Access → túnel → Caddy → Hub (ainda com Google OAuth)
@@ -194,6 +197,7 @@ Fase 2 — Troca de provedor externo
   12. Atualizar external-approval doc (genérico, não Google-específico)
 
 Fase 3 — Fechamento
+  12a. Gate: acesso de emergência por SSH + port forward testado (seção 10)
   13. Fechar porta 443 no firewall da VPS AIOps (só cloudflared). Zabbix 10051 permanece.
   14. Remover registro A público do DNS (túnel dispensa)
   15. Atualizar runbook, healthcheck
@@ -214,7 +218,7 @@ Fase 3 — Fechamento
 
 | Risco | Mitigação |
 |---|---|
-| Cloudflare Access fora do ar | WARP desconectado → túnel inacessível. Contas locais break-glass no Hub e Zabbix, independentes do Access. |
+| Cloudflare Access/túnel fora do ar | Com a 443 fechada, contas locais do Hub e `akadmin` **não** são alcançáveis pela web e não mitigam essa falha. Caminho fora de banda obrigatório antes da Fase 3: SSH restrito por chave e origem administrativa (já exigido em `ecosystem-completion-plan.md`) com *port forward* para Caddy/Authentik, testado em exercício trimestral. Sem esse teste aprovado, a 443 não fecha. |
 | Entra ID fora do ar | `akadmin` local no Authentik. |
 | Authentik fora do ar | Backup testado (Tier 1), restore em < RTO de 4h (ADR 0004). |
 | cloudflared crash | Systemd restart. Healthcheck monitora. |
