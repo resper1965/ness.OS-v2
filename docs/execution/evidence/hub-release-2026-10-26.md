@@ -99,3 +99,13 @@ Rollback: release `56c4659` (`docker compose -p app -f /opt/n-infraops/releases/
 Registro (OK do Ricardo em 05/11): `UPDATE n_infraops_tenant_mappings SET modality='managed'` nos 9 vínculos `wazuh` (ids 1–9). Rollback: `UPDATE ... SET modality=NULL WHERE id BETWEEN 1 AND 9`. Efeito em `pipeline-status`: Wazuh passa a `coverage_declared=true`; Zabbix continua `pendente_de_modalidade` porque não há vínculo dele em `n_infraops_tenant_mappings`. O Wazuh aparece com `stale=true` e `reason=sem_dados` (nenhuma decisão SOC gravada), o que é o estado real: nada chama `/secops/triage` em produção.
 
 Rollback da API: release `fa4f2a9` (`docker compose -p app -f /opt/n-infraops/releases/fa4f2a9ba9b0b74fbdeb7d8c26a5f00aeaf7be8d/app/docker-compose.yml -f …/docker-compose.tickets.yml up -d --no-deps --force-recreate api`, mais workers).
+
+## 05/11/2026 — promoção `1175954` (P3 + Fase A + corte sev 4)
+
+Imagem `ghcr.io/resper1965/ninf-api@sha256:0814e14aa2ae01adb47d9f2c30920e5d49f2c2d632742248d006285a69ff57e6`. `aiops-promote-hub-api.sh`: `promotion=PASS`. Verificado: `ready=200`, 0 erros nos logs, tabelas `n_infraops_notifications` e `n_infraops_identities` criadas, `--beat` ativo em réplica única do `worker-alerts`.
+
+OK do Ricardo em 05/11 (aceitou o risco do SSO; sem uso de OIDC nos últimos 7 dias). Na primeira varredura, 15 incidentes de severidade 4 geraram registros com `error:EmailDisabledError` (e-mail ainda desligado) e `error:no_subscription` (push, sem assinaturas).
+
+Depois: `NINF_TRANSACTIONAL_EMAIL_ENABLED=true` em `/opt/n-infraops/app/.env` e no `.env` da release; `worker-alerts` recriado; Resend respondeu 200 e o envio foi aceito. Domínio `ness.com.br` verificado no Resend. Backup dos `.env` em `/opt/n-infraops/change-backups/p3-email-20261105T172515/`.
+
+Rollback: `.env` do backup + recriar `worker-alerts`; API para a release `3b7e7cb`.
