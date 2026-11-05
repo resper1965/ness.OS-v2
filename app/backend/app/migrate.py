@@ -168,6 +168,26 @@ async def run_migrations():
             )
             raise
 
+        notifications_ddl = """
+            CREATE TABLE IF NOT EXISTS n_infraops_notifications (
+                id                      BIGSERIAL PRIMARY KEY,
+                incident_id             BIGINT NOT NULL REFERENCES n_infraops_incidents(id),
+                user_id                 BIGINT NOT NULL REFERENCES n_infraops_users(id),
+                channel                 VARCHAR(16) NOT NULL,
+                step                    SMALLINT NOT NULL,
+                created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                sent_at                 TIMESTAMPTZ,
+                provider_result         TEXT,
+                acknowledged_at         TIMESTAMPTZ,
+                ack_type                VARCHAR(16),
+                acknowledged_by_user_id BIGINT,
+                resolved_at             TIMESTAMPTZ,
+                CONSTRAINT uq_notifications_slot UNIQUE (incident_id, user_id, channel, step),
+                CONSTRAINT ck_notifications_channel CHECK (channel IN ('email', 'push'))
+            );
+            """
+        await conn.execute(text(notifications_ddl))
+
     logger.info("Migração de banco de dados concluída com sucesso.")
 
 

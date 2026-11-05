@@ -329,3 +329,21 @@ CREATE TABLE IF NOT EXISTS n_infraops_tenant_mappings (
 );
 CREATE INDEX IF NOT EXISTS ix_n_infraops_tenant_mappings_internal_customer_id ON n_infraops_tenant_mappings (internal_customer_id);
 CREATE INDEX IF NOT EXISTS ix_n_infraops_tenant_mappings_external_customer_id ON n_infraops_tenant_mappings (external_customer_id);
+
+-- P3: registro por notificação; aceite do provedor != reconhecimento != resolução.
+CREATE TABLE IF NOT EXISTS n_infraops_notifications (
+    id                      BIGSERIAL PRIMARY KEY,
+    incident_id             BIGINT NOT NULL REFERENCES n_infraops_incidents(id),
+    user_id                 BIGINT NOT NULL REFERENCES n_infraops_users(id),
+    channel                 VARCHAR(16) NOT NULL,
+    step                    SMALLINT NOT NULL,
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    sent_at                 TIMESTAMPTZ,
+    provider_result         TEXT,
+    acknowledged_at         TIMESTAMPTZ,
+    ack_type                VARCHAR(16),
+    acknowledged_by_user_id BIGINT,
+    resolved_at             TIMESTAMPTZ,
+    CONSTRAINT uq_notifications_slot UNIQUE (incident_id, user_id, channel, step),
+    CONSTRAINT ck_notifications_channel CHECK (channel IN ('email', 'push'))
+);
