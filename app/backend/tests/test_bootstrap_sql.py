@@ -87,3 +87,15 @@ def test_identities_table_matches_between_migrate_and_bootstrap():
     assert "UNIQUE (issuer, subject)" in bodies[0]
     for t in (MIGRATE, SQL):
         assert "ix_n_infraops_identities_user_id" in t
+
+
+def test_sla_block_matches_between_migrate_and_bootstrap():
+    sql = re.search(r"-- sla:begin\n(.*?)-- sla:end", SQL, re.S).group(1)
+    mig = re.search(r'SLA_SQL = """\n(.*?)"""', MIGRATE, re.S).group(1)
+    assert sql.strip() == mig.strip()
+    for t in (
+        "sla_calendars", "sla_calendar_hours", "sla_holidays", "contracts",
+        "sla_policies", "escalation_steps", "contract_changes",
+    ):  # fmt: skip
+        assert f"CREATE TABLE IF NOT EXISTS n_infraops_{t} " in sql
+    assert "ON CONFLICT" in sql
