@@ -40,7 +40,8 @@ Tasks do [plano de execução](docs/superpowers/plans/2026-10-26-ness-os-executi
 - Recuperação Zabbix → Hub ligada em 03/11 (ação 7 e media type 72): antes nenhum incidente era marcado como recuperado. Frontend com o contador novo promovido em 04/11 (#149) — [evidência](docs/execution/evidence/zabbix-hub-recovery-2026-11-03.md)
 
 ### Em andamento
-- P3 backend (PR `feat/p3-notificacoes`): e-mail + Web Push com registro, ack e escalonamento; aviso só a partir da severidade Zabbix 4 (decisão de 05/11, `_MIN_SEVERITY`; sev 3 tem ~1.731 abertos); falta UI/PWA, confirmar mapa severidade→janela e a escala de plantão
+- Identidade Fase A (#190, ADR 0015) na `main`, sem deploy: autorização local no Hub (vínculo iss+oid, sem JIT); a promoção exige cadastrar as identidades antes ([runbook](docs/runbooks/identidade-fase-a.md))
+- P3 backend (#186 na `main`, #191 em revisão), sem deploy: e-mail + Web Push com registro, ack e escalonamento; aviso só a partir da severidade Zabbix 4 (decisão de 05/11, `_MIN_SEVERITY`; sev 3 tem ~1.731 abertos); falta UI/PWA, a escala de plantão e, antes da promoção, ligar o e-mail transacional e confirmar o remetente no Resend
 - Zabbix sem vínculo em `n_infraops_tenant_mappings`: fica `pendente_de_modalidade` até o Ricardo decidir o mapeamento cliente ↔ Zabbix
 
 - Identidade: ADR 0015 (Entra ID único IdP, Authentik sai). Execução só após o aceite do MVP e o gate da Fase 0; UAT da Fase 1 segue sobre o Authentik atual. Não mexer em Authentik, Entra, DNS, firewall, Caddy nem Cloudflare até lá. Preparável em branch, sem deploy: Fase A (autorização local no Hub, vínculo por issuer + oid). Desenho: [identity-access-perimeter](docs/superpowers/specs/2026-11-05-identity-access-perimeter-design.md)
