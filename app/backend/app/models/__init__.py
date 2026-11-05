@@ -8,6 +8,7 @@ from app.models.models import (
     IncidentAction,
     IncidentReport,
     Metric,
+    Notification,
     PlaybookExecution,
     RmmProvider,
     SocDecision,
@@ -30,4 +31,5 @@ __all__ = [
     "User",
     "UserRole",
     "PushSubscription",
+    "Notification",
 ]
