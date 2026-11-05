@@ -407,9 +407,7 @@ async def test_contract_without_steps_uses_default_steps(maker, monkeypatch):
 
 @pg
 @pytest.mark.asyncio
-async def test_sweep_honors_longer_contract_window_over_default(
-    maker, monkeypatch
-):
+async def test_sweep_honors_longer_contract_window_over_default(maker, monkeypatch):
     """Contrato com 120 min não escala aos 60: o padrão (15 min) já teria escalado."""
     Channels(monkeypatch)
     await _tenant_contract(maker, "acme", ack=120)
