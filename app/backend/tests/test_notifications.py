@@ -554,3 +554,35 @@ async def test_inactive_holder_without_accept_escalates_to_next(maker, monkeypat
     rows = await _rows(maker)
     assert {(r.user_id, r.step) for r in rows} == {(first, 0), (second, 1)}
     assert all(r.sent_at for r in rows if r.step == 1)
+
+
+@pg
+@pytest.mark.asyncio
+async def test_exhausted_step_without_accept_escalates_to_next_recipient(
+    maker, monkeypatch
+):
+    Channels(monkeypatch, email_ok=False, push_ok=False)
+    iid, (first, second) = await _seed(maker)
+    for i in range(11):  # varredura a cada 6 min por 1 h
+        await svc.sweep(MON + timedelta(minutes=6 * i))
+        if i == 3:  # ainda há tentativas: o titular não é abandonado
+            assert {r.user_id for r in await _rows(maker)} == {first}
+    rows = await _rows(maker)
+    assert {r.user_id for r in rows} == {first, second}
+    assert all(r.attempts == 5 for r in rows if r.user_id == first)
+
+
+@pg
+@pytest.mark.asyncio
+async def test_one_channel_exhausted_but_other_accepted_does_not_escalate(
+    maker, monkeypatch
+):
+    Channels(monkeypatch, email_ok=False)  # e-mail sempre falha, push aceita
+    await _seed(maker, severity=3)  # janela de 4 h comerciais: não vence em 1 h
+    for i in range(11):
+        out = await svc.sweep(MON + timedelta(minutes=6 * i))
+        assert out["escalated"] == 0
+    rows = await _rows(maker)
+    email = [r for r in rows if r.channel == "email"][0]
+    assert email.attempts == 5 and email.sent_at is None
+    assert {r.user_id for r in rows} == {rows[0].user_id}

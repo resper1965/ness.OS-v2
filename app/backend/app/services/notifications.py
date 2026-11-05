@@ -337,9 +337,21 @@ async def sweep(now: datetime | None = None) -> dict[str, int]:
             accepted = [r.sent_at for r in current if r.sent_at]
             done = {r.user_id for r in rows}
             pending = [u for u in people if u.id not in done]
-            if not accepted and holder is not None:
+            # Esgotado = todo slot do degrau sem aceite e sem tentativas restantes.
+            exhausted = not accepted and all(
+                r.attempts >= _MAX_ATTEMPTS or r.provider_result == _NO_SUBSCRIPTION
+                for r in current
+            )
+            if exhausted and holder is not None:
+                logger.warning(
+                    "Degrau %s do caso %s esgotado sem aceite; passando ao próximo",
+                    step,
+                    inc.id,
+                )
+            if not accepted and holder is not None and not exhausted:
                 continue
-            # Titular inativo/inelegível sem aceite: degrau vazio, passa ao próximo já.
+            # Titular inativo/inelegível ou degrau esgotado sem aceite: degrau vazio,
+            # passa ao próximo já.
             nxt = (
                 step + 1
                 if not accepted
