@@ -42,6 +42,8 @@ Tasks do [plano de execução](docs/superpowers/plans/2026-10-26-ness-os-executi
 ### Em andamento
 - Zabbix sem vínculo em `n_infraops_tenant_mappings`: fica `pendente_de_modalidade` até o Ricardo decidir o mapeamento cliente ↔ Zabbix
 
+- Identidade: ADR 0015 (Entra ID único IdP, Authentik sai). Execução só após o aceite do MVP e o gate da Fase 0; UAT da Fase 1 segue sobre o Authentik atual. Não mexer em Authentik, Entra, DNS, firewall, Caddy nem Cloudflare até lá. Preparável em branch, sem deploy: Fase A (autorização local no Hub, vínculo por issuer + oid). Desenho: [identity-access-perimeter](docs/superpowers/specs/2026-11-05-identity-access-perimeter-design.md)
+
 ### Pronto para começar
 - 2.5 T06 do plano GLPI (reconciliar todo o inventário)
 
