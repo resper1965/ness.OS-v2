@@ -79,6 +79,6 @@ separadamente a política de transições de tickets históricos.
 | `historical_unclassified` | 115 | Marcadores históricos não encontrados nas entidades mapeadas (igual à leitura de 13/10) |
 | `source_id_missing` | 15 | Legados sem identificador de evento; permanecem em quarentena |
 
-Os 819 não são ausência provada de ticket: erro genérico e busca negativa não provam que o POST falhou. Próximo passo permitido: `glpi_backlog_reconcile.py` em páginas de até cinco, para separar "ticket existe e falta vínculo" de "ticket não existe". Replay (POST) continua bloqueado pelo gate acima e pede decisão de operação.
+Reconciliação de 05/11 (somente leitura, 1ª página de 5): nenhum tem ticket no GLPI (`remote_absent` = 5). **Decisão do Ricardo (05/11): nunca existiu ticket para esses incidentes; a criação automática de ticket é recurso novo.** Logo, os 949 não são tickets perdidos nem "backlog a reparar": são incidentes anteriores ao recurso. Não há reprocessamento a fazer; o `RuntimeError` dos 819 de outubro fica como histórico de tentativas da fase de teste. Replay (POST retroativo) segue fora: abrir 949 tickets antigos geraria ruído e SLA falso. Tratar como saneamento de ciclo de vida (decisão de operação: arquivar/marcar como `sem_ticket_legado`), sem apagar histórico.
 
 Inventário sem ativo: dos 510 incidentes do manifesto T06 de 03/11, hoje 11 incidentes do Hub (de 110.075) estão sem `asset_id`, em 7 `host_id` de teste ou sintéticos (10001, 50001, 50004–50006, 10978 e 1 sem host); não há ativo real a cadastrar. O restante foi ligado.
