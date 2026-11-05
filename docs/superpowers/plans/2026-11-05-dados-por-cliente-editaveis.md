@@ -31,12 +31,13 @@
 | 3 | Modalidade (managed/onsite/shared) | `n_infraops_tenant_mappings.modality`, por SQL | contrato é a fonte; mapeamento deriva (Task 3) |
 | 4 | Prazos, calendário, feriados, escalonamento | `notifications.py` (constantes) | tabelas do PR de contratos |
 | 5 | Piso de atendimento SOC (nível 12), limiar de score (75), janela 24 h OT, janela de amostra semanal | constantes em `secops.py`, `triage_engine.py` | `n_infraops_contract_policy_params` (Task 4) |
-| 6 | Frescor e cobertura por fonte (900 s, 300 s) | `pipeline_health.py:24-29` | parâmetro por contrato, padrão global (Task 4) |
+| 6 | Frescor e cobertura por fonte (900 s, 300 s) | `pipeline_health.py:24-29` | **fica global** (a medição é `scope: global`, sem tenant); editável na tabela `n_infraops_platform_params`, não por contrato (Task 4) |
 | 7 | Contatos de aviso do cliente (e-mail/telefone de plantão do cliente) | não existe | `n_infraops_customer_contacts` (Task 5) |
 | 8 | Lista de clientes afetados nos cards do SecOps | strings fixas em `secops.py:41-185` (dado de exemplo/mock) | fora de escopo: é conteúdo de demonstração; remover quando a tela real existir |
 
 ## Review Focus
 
+- Host em dois grupos de clientes distintos: `ValueError`, nunca `None` (senão o fallback por hostname escolhe um cliente e cria dado no tenant errado).
 - Cliente com apelido não cadastrado: deve recusar o ticket (`ValueError`), nunca cair em entidade 0.
 - Dois clientes com o mesmo apelido: cadastro recusa (409); resolução ambígua não escolhe um.
 - Contrato `ended` ou fora da vigência: tratado como inexistente, cai no padrão não contratual.
@@ -78,7 +79,7 @@
 - Consumes: `resolve_customer` da Task 1.
 - Produces: tabela `n_infraops_hostgroup_rules(id, pattern TEXT, customer_id FK, ignore_when_with_customer_id FK NULL, priority INT)`; função `async def customer_from_hostgroups(session, groups: list[dict[str, str]]) -> str | None` com o mesmo contrato de hoje.
 
-- [ ] **Step 1: Failing tests:** `test_hostgroup_bracket_resolves`, `test_zabbix_servers_is_ness` (nomes especiais "Zabbix servers" e "UAT sintético" → Ness, agora como regra cadastrada), `test_alupar_with_pe_prefers_pe` (par {1,5} e {1,6} descarta Alupar, hoje fixo no código), `test_ambiguous_returns_none` (mais de um cliente distinto → `None`).
+- [ ] **Step 1: Failing tests:** `test_hostgroup_bracket_resolves`, `test_zabbix_servers_is_ness` (nomes especiais "Zabbix servers" e "UAT sintético" → Ness, agora como regra cadastrada), `test_alupar_with_pe_prefers_pe` (par {1,5} e {1,6} descarta Alupar, hoje fixo no código), `test_ambiguous_raises` (mais de um cliente distinto → `ValueError("Host associado a clientes distintos; ticket recusado")`, como o `test_conflicting_customer_groups_are_rejected` de `test_hub_rollout.py:40` exige; `None` só quando nenhum grupo casa, para `resolve_alert_customer` cair no nome do host).
 - [ ] **Step 2: Run** — Expected: FAIL.
 - [ ] **Step 3: Implement** regras semeadas com o comportamento atual; `ignore_when_with_customer_id` substitui o `if set(candidates) in ({1,5},{1,6})`.
 - [ ] **Step 4: Run** suíte — Expected: PASS.
@@ -103,17 +104,18 @@
 ### Task 4: Parâmetros da política de atendimento por contrato
 
 **Files:**
-- Modify: models/migrate/schema, `app/backend/app/api/routers/secops.py` (`_attendance_required`, piso e score), `app/backend/app/core/triage_engine.py`, `app/backend/app/integrations/pipeline_health.py:24-29`
+- Modify: models/migrate/schema, `app/backend/app/api/routers/secops.py` (`_attendance_required`, piso e score, `archived_sample`), `app/backend/app/core/triage_engine.py`, `app/backend/app/integrations/pipeline_health.py:24-29`
 - Create: `app/backend/app/services/policy_params.py`
 - Test: `app/backend/tests/test_policy_params.py`
 
 **Interfaces:**
 - Consumes: contrato ativo (Task 3).
-- Produces: tabela `n_infraops_contract_policy_params(contract_id FK, key TEXT, value_int INT, UNIQUE(contract_id,key))`; chaves: `soc_attend_min_level` (12), `soc_archive_score_floor` (75), `ot_retrospective_hours` (24), `weekly_sample_per_client` (20), `weekly_sample_pct` (10), `source_max_age_seconds` (900), `queue_max_age_seconds` (300); `async def get_param(session, tenant_id: str | None, key: str) -> ParamValue` com `ParamValue(value: int, contractual: bool)`. Sem contrato → padrão interno com `contractual=False`. `ot_retrospective_hours` é limitado a 24 por validação (teto da política SOC).
+- Produces: tabela `n_infraops_contract_policy_params(contract_id FK, key TEXT, value_int INT, UNIQUE(contract_id,key))` e tabela `n_infraops_platform_params(key TEXT PK, value_int INT, updated_at, updated_by_user_id)` para o que é global (`source_max_age_seconds` 900, `queue_max_age_seconds` 300, `worker_failure_window_seconds` 900, `probe_timeout_seconds` 20; editável só por `platform_admin`); chaves por contrato: `soc_attend_min_level` (12), `soc_archive_score_floor` (75), `ot_retrospective_hours` (24), `weekly_sample_per_client` (20), `weekly_sample_pct` (10),  `async def get_param(session, tenant_id: str | None, key: str) -> ParamValue` com `ParamValue(value: int, contractual: bool)`. Sem contrato → padrão interno com `contractual=False`. `ot_retrospective_hours` é limitado a 24 por validação (teto da política SOC).
 
-- [ ] **Step 1: Failing tests:** `test_defaults_equal_legacy_constants`, `test_contract_overrides_default`, `test_param_edit_effective_next_call`, `test_ot_hours_over_24_rejected_422`, `test_non_contractual_flag_present`.
+- [ ] **Step 1: Failing tests:** `test_defaults_equal_legacy_constants`, `test_contract_overrides_default`, `test_param_edit_effective_next_call`, `test_ot_hours_over_24_rejected_422`, `test_floor_above_12_rejected_422`, `test_floor_below_12_accepted_effective_min`, `test_non_contractual_flag_present`.
 - [ ] **Step 2: Run** — Expected: FAIL.
-- [ ] **Step 3: Implement** `get_param` e substituir as constantes nos três pontos, sem mudar a regra: o piso de nível 12 não é alterado por contrato abaixo do piso aprovado em 03/11 sem decisão registrada — a API recusa valor menor que 12 em `soc_attend_min_level` (422) e o motivo vai no doc.
+- [ ] **Step 3: Implement** `get_param` e substituir as constantes nos três pontos, sem mudar a regra: o piso de nível 12 não é alterado por contrato abaixo do piso aprovado em 03/11 sem decisão registrada — a API recusa valor MAIOR que 12 em `soc_attend_min_level` (422): o contrato só vale quando é mais exigente que a política (piso menor atende mais), nunca mais frouxo (`soc-attendance-policy.md`, linha 32); o valor efetivo é `min(contrato, 12)` e o motivo vai no doc.
+- [ ] **Step 3b: Amostra semanal:** `/api/secops/archived-sample` passa a agrupar por cliente e aplicar `weekly_sample_per_client` (20) e, acima de 200 arquivados/semana, `weekly_sample_pct` (10%); o `limit` do chamador vira teto, não regra. Testes: `test_sample_20_per_client`, `test_sample_10pct_above_200`, `test_sample_param_edit_effective`.
 - [ ] **Step 4: Run** suíte — Expected: PASS.
 - [ ] **Step 5: Mutation:** ignorar o contrato em `get_param` e provar que `test_contract_overrides_default` falha.
 - [ ] **Step 6: Commit** `feat: parâmetros de atendimento por contrato`.
