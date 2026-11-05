@@ -2,6 +2,8 @@
 
 Aceite do provedor (`provider_result`) nunca é leitura: só `acknowledged_at` conta.
 Conteúdo mínimo: caso, severidade e ação esperada; nada do cliente.
+Reenvio: o e-mail é deduplicado pelo Idempotency-Key; o push pode duplicar se o worker
+morrer entre o envio e a gravação de `sent_at` (o provedor não tem idempotência).
 """
 
 from __future__ import annotations
@@ -9,7 +11,9 @@ from __future__ import annotations
 import asyncio
 import logging
 import time as _time
+from collections.abc import Coroutine
 from datetime import datetime, time, timedelta, timezone
+from typing import Any
 
 from sqlalchemy import select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -42,6 +46,8 @@ _CHANNEL_TIMEOUT_SECONDS = 15.0
 # Tentativa sem aceite do provedor volta a ser elegível após o lease (enquanto o caso
 # estiver aberto e dentro da janela de 24 h); o aceite encerra o slot.
 _LEASE = timedelta(minutes=5)
+_MAX_ATTEMPTS = 5
+_NO_SUBSCRIPTION = "error:no_subscription"  # não retenta: nada a reenviar
 
 # Janelas de resposta (soc-attendance-policy.md / p2-proposta-valores.md, aceitas em 04/11).
 # (prazo, conta só em horário comercial). "1 dia útil" = 10 h comerciais.
@@ -135,20 +141,18 @@ async def _send_email(user: User, inc: Incident, step: int) -> tuple[bool, str]:
         return False, f"error:{type(exc).__name__}"
 
 
-async def _send_push(session, user: User, inc: Incident, step: int) -> tuple[bool, str]:
+async def _push_subscriptions(session, user: User) -> list[PushSubscription]:
+    # Fora do wait_for: cancelar um SELECT deixaria a sessão compartilhada inválida.
+    res = await session.execute(
+        select(PushSubscription).where(PushSubscription.user_id == user.id)
+    )
+    return list(res.scalars().all())
+
+
+async def _send_push(subs: list[PushSubscription], inc: Incident) -> tuple[bool, str]:
+    """Só HTTP, sem sessão do chamador: pode ser cancelada pelo timeout com segurança."""
     subject, text = _message(inc)
     try:
-        subs = (
-            (
-                await session.execute(
-                    select(PushSubscription).where(PushSubscription.user_id == user.id)
-                )
-            )
-            .scalars()
-            .all()
-        )
-        if not subs:
-            return False, "error:no_subscription"
         payload = {
             "title": subject,
             "body": text.splitlines()[-1],
@@ -206,6 +210,8 @@ async def _claim(session, inc: Incident, user: User, channel: str, step: int, no
                     *(getattr(Notification, k) == v for k, v in slot.items()),
                     Notification.sent_at.is_(None),
                     Notification.claimed_at <= now - _LEASE,
+                    Notification.attempts < _MAX_ATTEMPTS,
+                    Notification.provider_result.is_distinct_from(_NO_SUBSCRIPTION),
                 )
                 .values(claimed_at=now, attempts=Notification.attempts + 1)
                 .returning(Notification.id)
@@ -221,15 +227,22 @@ async def _notify(session, inc: Incident, user: User, step: int, now: datetime) 
         claimed = await _claim(session, inc, user, channel, step, now)
         if claimed is None:
             continue
-        send = (
-            _send_email(user, inc, step)
-            if channel == "email"
-            else _send_push(session, user, inc, step)
-        )
         try:
-            ok, detail = await asyncio.wait_for(send, _CHANNEL_TIMEOUT_SECONDS)
+            send: Coroutine[Any, Any, tuple[bool, str]] | None
+            if channel == "email":
+                send = _send_email(user, inc, step)
+            else:
+                subs = await _push_subscriptions(session, user)
+                send = _send_push(subs, inc) if subs else None
+            if send is None:
+                ok, detail = False, _NO_SUBSCRIPTION
+            else:
+                ok, detail = await asyncio.wait_for(send, _CHANNEL_TIMEOUT_SECONDS)
         except asyncio.TimeoutError:
             ok, detail = False, "error:timeout"
+        except Exception as exc:  # noqa: BLE001 - um canal nunca derruba a varredura
+            await session.rollback()
+            ok, detail = False, f"error:{type(exc).__name__}"
         await session.execute(
             update(Notification)
             .where(Notification.id == claimed)
@@ -322,17 +335,22 @@ async def sweep(now: datetime | None = None) -> dict[str, int]:
                 await _notify(session, inc, holder, step, now)
             # A janela conta do primeiro aceite do provedor, não da tentativa.
             accepted = [r.sent_at for r in current if r.sent_at]
-            if not accepted:
-                continue
             done = {r.user_id for r in rows}
             pending = [u for u in people if u.id not in done]
-            nxt = next_escalation(
-                window=window,
-                step_at=min(accepted),
-                step=step,
-                total=step + 1 + len(pending),
-                acknowledged=False,
-                now=now,
+            if not accepted and holder is not None:
+                continue
+            # Titular inativo/inelegível sem aceite: degrau vazio, passa ao próximo já.
+            nxt = (
+                step + 1
+                if not accepted
+                else next_escalation(
+                    window=window,
+                    step_at=min(accepted),
+                    step=step,
+                    total=step + 1 + len(pending),
+                    acknowledged=False,
+                    now=now,
+                )
             )
             if nxt is not None and pending:
                 await _notify(session, inc, pending[0], nxt, now)

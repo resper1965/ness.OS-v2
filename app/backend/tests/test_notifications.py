@@ -404,14 +404,14 @@ async def test_window_counts_from_provider_accept_not_from_failed_attempts(
 ):
     Channels(monkeypatch, email_ok=False, push_ok=False)
     await _seed(maker)
-    for minutes in (0, 6, 12, 20, 25):  # >15 min com os dois canais falhando
+    for minutes in (0, 6, 12, 20):  # >15 min com os dois canais falhando
         out = await svc.sweep(MON + timedelta(minutes=minutes))
         assert out["escalated"] == 0
     rows = await _rows(maker)
     assert len(rows) == 2 and all(r.sent_at is None for r in rows)
     assert all(r.provider_result.startswith("error:") for r in rows)
     ch = Channels(monkeypatch)  # provedor volta
-    t = MON + timedelta(minutes=40)
+    t = MON + timedelta(minutes=40)  # 5ª e última tentativa do slot
     await svc.sweep(t)
     assert len(ch.emails) == 1
     assert (await svc.sweep(t + timedelta(minutes=14)))["escalated"] == 0
@@ -493,3 +493,64 @@ async def test_incident_status_ack_stamps_notifications(maker, monkeypatch):
     assert all(x.acknowledged_at and x.ack_type == "incident_status" for x in rows)
     assert all(x.resolved_at is None for x in rows)
     assert (await svc.sweep(MON + timedelta(hours=1)))["escalated"] == 0
+
+
+@pg
+@pytest.mark.asyncio
+async def test_tiny_push_timeout_never_breaks_the_session_or_the_other_channel(
+    maker, monkeypatch
+):
+    ch = Channels(monkeypatch)
+
+    async def slow_push(sub, payload):
+        await asyncio.sleep(1)
+
+    monkeypatch.setattr(svc, "send_web_push", slow_push)
+    monkeypatch.setattr(svc, "_CHANNEL_TIMEOUT_SECONDS", 0.001)
+    iid, _ = await _seed(maker)
+    async with maker() as s:
+        inc = await s.get(Incident, iid)
+        user = (await s.execute(select(User).limit(1))).scalar_one()
+        for step in range(30):  # cancelamento é corrida: repete até cobrir o SELECT
+            await svc._notify(s, inc, user, step, MON)
+    rows = await _rows(maker)
+    assert len(ch.emails) == 30 and len(rows) == 60
+    assert all(r.sent_at for r in rows if r.channel == "email")
+    assert all(not r.sent_at for r in rows if r.channel == "push")
+
+
+@pg
+@pytest.mark.asyncio
+async def test_attempts_are_capped_and_no_subscription_is_not_retried(
+    maker, monkeypatch
+):
+    ch = Channels(monkeypatch, email_ok=False)
+    iid, (uid,) = await _seed(maker, users=1)
+    async with maker() as s:
+        for sub in (await s.execute(select(PushSubscription))).scalars():
+            await s.delete(sub)
+        await s.commit()
+    for i in range(10):
+        await svc.sweep(MON + timedelta(minutes=6 * i))
+    rows = {r.channel: r for r in await _rows(maker)}
+    assert rows["email"].attempts == 5 and rows["email"].sent_at is None
+    assert rows["push"].attempts == 1
+    assert rows["push"].provider_result == "error:no_subscription"
+    assert not ch.pushes
+
+
+@pg
+@pytest.mark.asyncio
+async def test_inactive_holder_without_accept_escalates_to_next(maker, monkeypatch):
+    Channels(monkeypatch, email_ok=False, push_ok=False)
+    iid, (first, second) = await _seed(maker)
+    await svc.sweep(MON)  # titular 0 falha nos dois canais
+    async with maker() as s:
+        (await s.get(User, first)).is_active = False
+        await s.commit()
+    Channels(monkeypatch)
+    out = await svc.sweep(MON + timedelta(minutes=1))
+    assert out["escalated"] == 1
+    rows = await _rows(maker)
+    assert {(r.user_id, r.step) for r in rows} == {(first, 0), (second, 1)}
+    assert all(r.sent_at for r in rows if r.step == 1)
