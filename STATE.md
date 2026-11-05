@@ -42,6 +42,8 @@ Tasks do [plano de execução](docs/superpowers/plans/2026-10-26-ness-os-executi
 ### Em andamento
 - Zabbix sem vínculo em `n_infraops_tenant_mappings`: fica `pendente_de_modalidade` até o Ricardo decidir o mapeamento cliente ↔ Zabbix
 
+- Identidade, acesso e perímetro (Entra ID no Authentik, Cloudflare Access/Túnel): [desenho](docs/superpowers/specs/2026-11-05-identity-access-perimeter-design.md), só desenho, nada implantado e fora do P0–P7. Não executar antes do gate da Fase 0 e da UAT da Fase 1; sem mexer em Authentik, DNS, firewall nem Caddy por causa dele
+
 ### Pronto para começar
 - 2.5 T06 do plano GLPI (reconciliar todo o inventário)
 
