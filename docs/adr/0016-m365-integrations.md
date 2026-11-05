@@ -46,7 +46,7 @@ Este ADR cataloga o que está disponível, o que está fora e as regras para con
 
 - **Magic WAN, Magic Transit, WAF:** já avaliados no desenho de identidade e perímetro.
 - **Intune, Defender e Purview:** exigem licença não contratada.
-- **Qualquer feature que exija Entra ID P1 ou P2.** O tenant está em **Entra ID Free** (confirmado pelo Ricardo no centro de administração em 05/11/2026). Sem P1: Acesso Condicional, grupos dinâmicos, Proxy de Aplicativo, relatórios avançados, redefinição de senha com write-back. Sem P2: Identity Protection, PIM, revisões de acesso, gerenciamento de direitos. O que o plano gratuito entrega: SSO ilimitado, convidados B2B, gerenciamento de usuários e grupos, MFA para funções de administrador e *security defaults*. O ADR 0015 prevê P1 para operadores, ainda não contratado.
+- **Qualquer feature que exija Entra ID P1 ou P2.** O tenant está em **Entra ID Free** (confirmado pelo Ricardo no centro de administração em 05/11/2026). Sem P1: Acesso Condicional, grupos dinâmicos, Proxy de Aplicativo, relatórios avançados, redefinição de senha com write-back. Sem P2: Identity Protection, PIM, revisões de acesso, gerenciamento de direitos. O que o plano gratuito entrega: SSO ilimitado, convidados B2B, gerenciamento de usuários e grupos, MFA para funções de administrador e *security defaults*. Decisão do Ricardo (ADR 0015, 05/11/2026): P1 e P2 não serão contratados; o MFA vigente são os *security defaults*.
 
 ## Consequências
 
