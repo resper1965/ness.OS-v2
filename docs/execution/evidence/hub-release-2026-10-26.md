@@ -89,3 +89,13 @@ Rollback: release `c16471d` (`docker compose -p app -f /opt/n-infraops/releases/
 `aiops-promote-hub-api.sh`: `promotion=PASS`. Verificado: `ready=200`, API e workers saudáveis, 0 erros na API; 17 incidentes novos em 15 min, todos com ticket. Tickets GLPI dos últimos 40 min: 68 com urgência/impacto 3 e 1 com 2/2, ou seja, a severidade chega ao GLPI. Seis `ReadTimeout` do GLPI no worker, todos reagendados em 900 s pela idempotência (sem ticket duplicado). Nenhuma integração Wazuh → Hub ativada.
 
 Rollback: release `56c4659` (`docker compose -p app -f /opt/n-infraops/releases/56c46594deea281392cfcc39a30ab20d6faeff19/app/docker-compose.yml -f …/docker-compose.tickets.yml up -d --no-deps --force-recreate api`, mais workers).
+
+## Promoção de `3b7e7cb` (05/11) — modalidade por cliente e frescor por fonte
+
+#164 (decisão SOC vinculada ao incidente na linha do tempo), #166 (frescor e cobertura por fonte em `pipeline-status`), #167/#168 (`modality` e `operator` em `n_infraops_tenant_mappings`, nomes `managed`, `onsite`, `shared`). API e workers em `ghcr.io/resper1965/ninf-api@sha256:bb7a3800fb3d08d0caf9b9a347b9739c2ba2244ece1377845de3dea5fbe38fb6` (`publish-hub-images` run 42018737432). Frontend inalterado. Migrações aditivas: `incident_id`, `modality`, `operator`, índices `ix_soc_decisions_created` e `ix_soc_decisions_incident`, `CHECK ck_tenant_mappings_modality` com os nomes novos. Uma promoção intermediária (`fa4f2a9`) criou o `CHECK` com os nomes antigos; a migração de `3b7e7cb` o recriou sem linhas afetadas.
+
+`aiops-promote-hub-api.sh`: `promotion=PASS`. Verificado: `ready=200`, API e workers saudáveis, 0 erros nos logs.
+
+Registro (OK do Ricardo em 05/11): `UPDATE n_infraops_tenant_mappings SET modality='managed'` nos 9 vínculos `wazuh` (ids 1–9). Rollback: `UPDATE ... SET modality=NULL WHERE id BETWEEN 1 AND 9`. Efeito em `pipeline-status`: Wazuh passa a `coverage_declared=true`; Zabbix continua `pendente_de_modalidade` porque não há vínculo dele em `n_infraops_tenant_mappings`. O Wazuh aparece com `stale=true` e `reason=sem_dados` (nenhuma decisão SOC gravada), o que é o estado real: nada chama `/secops/triage` em produção.
+
+Rollback da API: release `fa4f2a9` (`docker compose -p app -f /opt/n-infraops/releases/fa4f2a9ba9b0b74fbdeb7d8c26a5f00aeaf7be8d/app/docker-compose.yml -f …/docker-compose.tickets.yml up -d --no-deps --force-recreate api`, mais workers).
