@@ -21,7 +21,7 @@ Simplificar identidade e perímetro: um provedor de identidade que a ness. já p
 
 1. Entra ID como único provedor de identidade (operadores e clientes).
 2. Autorização local no Hub: papel e tenant no banco, sem depender de claims de grupo.
-3. MFA garantido em todo login de operador (P1 + Acesso Condicional).
+3. MFA em todo login via *security defaults* do Entra (sem licença adicional).
 4. GLPI e n8n atrás do Cloudflare Access; 443 fechada na VPS AIOps.
 5. Desligar o Authentik.
 
@@ -55,9 +55,9 @@ Emergência ──► SSH (chave + origem restrita) ──port forward──► 
 
 | População | Como entra | MFA |
 |---|---|---|
-| Operadores | Membro `@ness.com.br` | P1 + Acesso Condicional "MFA sempre" |
-| Clientes | Convidado B2B (Microsoft, Google ou código por e-mail) | Política de Acesso Condicional para convidados (MFA); *security defaults* não coexistem com Acesso Condicional. Licença e custo a decidir antes da Fase B |
-| Emergência | 2 contas no Entra fora do Acesso Condicional + contas locais por app | Senha longa em cofre; uso auditado |
+| Operadores | Membro `@ness.com.br` | *Security defaults* (MFA para todos) |
+| Clientes | Convidado B2B (Microsoft, Google ou código por e-mail) | *Security defaults*; sem Acesso Condicional (decisão de 05/11: sem licenciamento). MFA forte por contrato fica fora do escopo |
+| Emergência | 2 contas no Entra (sujeitas ao MFA; chave guardada fora do computador) + contas locais por app | Senha longa em cofre; uso auditado |
 
 Colaboração externa: restringir convidados (sem enumerar diretório; sem acesso a Teams/SharePoint por padrão). Se o volume ou a regulação exigir, mover clientes para um tenant External ID separado (grátis até 50 mil MAU).
 
@@ -104,7 +104,7 @@ Fase A — Autorização local no Hub (código; pode ser preparada antes, só en
   3. Testes: sem registro = 403; tenant cruzado = 403; desativado = 401; vínculo por oid, não por e-mail
 
 Fase B — Entra ID
-  4. App registration OIDC para o Hub; P1 + Acesso Condicional para operadores; 2 contas de emergência
+  4. App registration OIDC para o Hub; *security defaults* ligados; 2 contas de emergência
   5. Colaboração externa restrita; convidar 1 cliente piloto
   6. Zabbix SAML Entra no UAT, depois produção
 
@@ -123,7 +123,7 @@ Fase D — Desligamento
 
 | Item | Mensal |
 |---|---|
-| Entra ID P1 para operadores (4–10) | ~US$ 24–60 |
+| Entra ID (security defaults, sem P1) | US$ 0 |
 | Convidados B2B (até 50 mil MAU) | US$ 0 |
 | Cloudflare Access/Tunnel (≤50 usuários) | US$ 0 |
 | Authentik (sai) | menos operação Tier 1 |

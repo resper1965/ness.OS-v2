@@ -15,9 +15,9 @@ A ness. migrou do Google Workspace para o Microsoft 365, e o Entra ID já identi
 
 1. **Entra ID é o provedor de identidade** do ecossistema. Operadores usam a conta `@ness.com.br`. Usuários de clientes entram como convidados B2B (conta Microsoft, Google ou código por e-mail).
 2. **O provedor autentica; a aplicação autoriza.** Papel e tenant de cada usuário ficam no banco da aplicação, cadastrados previamente por `platform_admin`. O vínculo é o par `issuer` + `oid`, nunca e-mail. Não há provisionamento JIT: identidade válida sem registro prévio é recusada.
-3. **MFA:** operadores recebem Entra ID P1 com Acesso Condicional exigindo MFA em todo login. Como *security defaults* e Acesso Condicional não coexistem no mesmo diretório, os *security defaults* ficam desligados e convidados B2B passam a ser cobertos por uma política de Acesso Condicional própria (MFA para usuários convidados). O licenciamento dessa política para convidados e o custo recorrente são decisão do Ricardo antes da Fase B; até lá nenhum convidado é criado.
+3. **MFA:** sem licenciamento adicional (decisão do Ricardo em 05/11/2026: não será comprado Entra ID P1/P2). Valem os *security defaults* do Entra, gratuitos, que exigem MFA de todos os usuários, administradores incluídos. Não há Acesso Condicional. Consequências aceitas: não há política por população (operador × convidado), as contas de emergência do Entra não podem ser excluídas do MFA e a MFA forte para cliente por contrato fica fora do escopo. Se um contrato exigir mais, é nova decisão de custo.
 4. **Borda:** Cloudflare Access protege as ferramentas internas (GLPI, n8n e, quando aplicável, Zabbix web). O app ness.OS é publicado pelo túnel sem Access e autentica por conta própria, para que clientes não consumam a cota do Access.
-5. **Quebra de vidro:** contas locais em Hub, Zabbix e GLPI, alcançáveis por SSH com *port forward*, mais duas contas de emergência no Entra excluídas do Acesso Condicional. Testadas trimestralmente.
+5. **Quebra de vidro:** contas locais em Hub, Zabbix e GLPI, alcançáveis por SSH com *port forward*, mais duas contas de emergência no Entra, sujeitas ao MFA dos *security defaults* (registrar chave FIDO2 ou autenticador, guardados fora do computador). Testadas trimestralmente.
 6. **O Authentik será desligado** ao fim da migração. Até lá, continua sendo o caminho de login vigente e a UAT da Fase 1 é executada sobre ele.
 
 ## Sequência
@@ -33,7 +33,7 @@ Desenho detalhado: [`../superpowers/specs/2026-11-05-identity-access-perimeter-d
 ## Consequências
 
 - O Authentik deixa de ser serviço Tier 1 após o desligamento; sai backup, runbook e rotação desse serviço.
-- Custo recorrente novo: P1 para operadores (~US$ 6 por usuário/mês). Cloudflare Free cobre até 50 usuários do Access.
+- Sem custo recorrente novo: *security defaults* e Cloudflare Free (até 50 usuários do Access) bastam; sai o custo do Authentik Tier 1.
 - Dependência da Microsoft para login; mitigada pela quebra de vidro local.
 - Convidados de clientes existem no diretório corporativo da ness.: a colaboração externa deve restringir o acesso de convidados. Se o volume ou a regulação exigir, os clientes migram para um tenant External ID separado.
 - Permanecem do ADR 0007: homologação por aplicação com testes negativos, MFA para administradores, menor privilégio e remoção de fluxos duplicados.
