@@ -40,9 +40,7 @@ Tasks do [plano de execução](docs/superpowers/plans/2026-10-26-ness-os-executi
 - Recuperação Zabbix → Hub ligada em 03/11 (ação 7 e media type 72): antes nenhum incidente era marcado como recuperado. Frontend com o contador novo promovido em 04/11 (#149) — [evidência](docs/execution/evidence/zabbix-hub-recovery-2026-11-03.md)
 
 ### Em andamento
-- Cobertura e frescor por fonte (P2): backend em `pipeline-status` (`sources`), PR em revisão; modalidade por cliente pendente de decisão do Ricardo
-- Modalidade por cliente × origem (P2): colunas nulas `modality`/`operator` em `n_infraops_tenant_mappings` e `sources` com `mappings_total`/`coverage_declared`; nenhum valor preenchido, pendente de decisão do Ricardo por grupo
-- Nomes das modalidades (P2): `managed`/`onsite`/`shared` no CHECK, migração idempotente converte nomes antigos; PR em revisão
+- Zabbix sem vínculo em `n_infraops_tenant_mappings`: fica `pendente_de_modalidade` até o Ricardo decidir o mapeamento cliente ↔ Zabbix
 
 ### Pronto para começar
 - 2.5 T06 do plano GLPI (reconciliar todo o inventário)
