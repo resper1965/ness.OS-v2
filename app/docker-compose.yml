@@ -41,6 +41,8 @@ services:
       celery -A app.workers.celery_app worker
       --queues=alerts.primary,alerts.deferred
       --concurrency=4
+      --beat
+      --schedule=/tmp/celerybeat-schedule
       --loglevel=info
       --hostname=alerts@%h
     env_file:

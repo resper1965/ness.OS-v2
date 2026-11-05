@@ -18,6 +18,7 @@ from sqlalchemy import (
     SmallInteger,
     String,
     Text,
+    UniqueConstraint,
     func,
 )
 from sqlalchemy.dialects.postgresql import INET, JSONB
@@ -220,6 +221,48 @@ class IncidentAction(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
+
+
+class Notification(Base):
+    """Uma tentativa de aviso (incidente x destinatário x canal x degrau).
+
+    `provider_result` é só o aceite do provedor; leitura/reconhecimento é
+    `acknowledged_at`; resolução é `resolved_at` (estados distintos).
+    """
+
+    __tablename__ = "n_infraops_notifications"
+    __table_args__ = (
+        UniqueConstraint(
+            "incident_id", "user_id", "channel", "step", name="uq_notifications_slot"
+        ),
+        CheckConstraint(
+            "channel IN ('email', 'push')", name="ck_notifications_channel"
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    incident_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("n_infraops_incidents.id"), nullable=False
+    )
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("n_infraops_users.id"), nullable=False
+    )
+    channel: Mapped[str] = mapped_column(String(16), nullable=False)
+    step: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    # Lease da tentativa: `claimed_at` + sem resultado de provedor = pendente/abandonada.
+    claimed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    attempts: Mapped[int] = mapped_column(
+        SmallInteger, nullable=False, default=0, server_default="0"
+    )
+    sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    provider_result: Mapped[str | None] = mapped_column(Text)
+    acknowledged_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    ack_type: Mapped[str | None] = mapped_column(String(16))
+    acknowledged_by_user_id: Mapped[int | None] = mapped_column(BigInteger)
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class IncidentReport(Base):

@@ -15,7 +15,7 @@ def _norm(s):
 
 def test_soc_decisions_columns_from_migrate_exist_in_bootstrap():
     body = re.search(rf"CREATE TABLE {TABLE} \((.*?)\n\);", SQL, re.S).group(1)
-    cols = re.findall(rf"ADD COLUMN IF NOT EXISTS (\w+) ([\w()]+);", MIGRATE)
+    cols = re.findall(r"ADD COLUMN IF NOT EXISTS (\w+) ([\w()]+);", MIGRATE)
     soc = {"dedup_key", "freq_key", "incident_id"}
     assert soc <= {c for c, _ in cols}
     for name, typ in cols:
@@ -61,3 +61,20 @@ def test_tenant_mappings_modality_from_migrate_exist_in_bootstrap():
         "ck_tenant_mappings_modality" in MIGRATE
         and "ck_tenant_mappings_modality" in body
     )
+
+
+def test_notifications_table_matches_between_migrate_and_bootstrap():
+    pat = r"CREATE TABLE IF NOT EXISTS n_infraops_notifications \((.*?)\n\s*\);"
+    bodies = [
+        {
+            m.group(1)
+            for m in re.finditer(
+                r"(\w+) [A-Z]", _norm(re.search(pat, t, re.S).group(1))
+            )
+        }
+        for t in (MIGRATE, SQL)
+    ]
+    assert bodies[0] == bodies[1]
+    assert {"provider_result", "acknowledged_at", "ack_type", "resolved_at"} <= bodies[
+        0
+    ]
