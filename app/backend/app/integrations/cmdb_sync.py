@@ -59,11 +59,8 @@ def scoped_hosts(hostids):
 
 async def reconcile(apply=False, hostids=None):
     hostids = scoped_hosts(hostids)
-    from app.workers.alerts import (
-        customer_from_hostgroups,
-        resolve_customer_name,
-        resolve_glpi_entity_id,
-    )
+    from app.services.customers import resolve_glpi_entity_id
+    from app.workers.alerts import customer_from_hostgroups, resolve_customer_name
 
     hosts = await ZabbixClient()._call(
         "host.get",
@@ -112,10 +109,11 @@ async def reconcile(apply=False, hostids=None):
     for host in hosts:
         source_tags = {t["tag"]: t["value"] for t in host.get("tags", [])}
         try:
-            customer = customer_from_hostgroups(
-                host["hostgroups"]
-            ) or resolve_customer_name(host["host"], source_tags)
-            entity = resolve_glpi_entity_id(customer)
+            async with SessionLocal() as session:
+                customer = await customer_from_hostgroups(
+                    session, host["hostgroups"]
+                ) or resolve_customer_name(host["host"], source_tags)
+                entity = await resolve_glpi_entity_id(session, customer)
         except ValueError:
             gaps.append({"host_id": host["hostid"], "reason": "unmapped_customer"})
             continue

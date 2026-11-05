@@ -4,42 +4,55 @@ import httpx
 import pytest
 
 from app.integrations.glpi import GLPIClient, GLPIPermanentError
-from app.workers.alerts import customer_from_hostgroups, resolve_glpi_entity_id
+from app.services.customers import resolve_glpi_entity_id
+from app.workers.alerts import customer_from_hostgroups
 
 
 @pytest.mark.parametrize(
     "name,entity",
     [("Cavan", 8), ("Alupar PE", 5), ("Alupar CO", 6), ("Ness", 0), ("Unimed", 12)],
 )
-def test_explicit_entity_mapping(name, entity):
-    assert resolve_glpi_entity_id(name) == entity
+@pytest.mark.asyncio
+async def test_explicit_entity_mapping(customers_maker, name, entity):
+    async with customers_maker() as s:
+        assert await resolve_glpi_entity_id(s, name) == entity
 
 
 @pytest.mark.parametrize("name", ["Outros", "unknown", "not-cavan", "fake-alupar"])
-def test_unmapped_customer_cannot_write_to_root(name):
-    with pytest.raises(ValueError, match="entidade"):
-        resolve_glpi_entity_id(name)
+@pytest.mark.asyncio
+async def test_unmapped_customer_cannot_write_to_root(customers_maker, name):
+    async with customers_maker() as s:
+        with pytest.raises(ValueError, match="entidade"):
+            await resolve_glpi_entity_id(s, name)
 
 
-def test_authoritative_groups_select_child_entity():
-    assert (
-        customer_from_hostgroups(
-            [{"name": "[ Alupar ]"}, {"name": "[ Alupar PE ] [ Lima ]"}]
+@pytest.mark.asyncio
+async def test_authoritative_groups_select_child_entity(customers_maker):
+    async with customers_maker() as s:
+        assert (
+            await customer_from_hostgroups(
+                s, [{"name": "[ Alupar ]"}, {"name": "[ Alupar PE ] [ Lima ]"}]
+            )
+            == "Alupar PE"
         )
-        == "Alupar PE"
-    )
 
 
-def test_unimed_hostgroup_resolves_to_entity_12():
-    customer = customer_from_hostgroups(
-        [{"name": "[ Unimed ]"}, {"name": "[ Unimed ] [ Itu ]"}]
-    )
-    assert customer == "Unimed" and resolve_glpi_entity_id(customer) == 12
+@pytest.mark.asyncio
+async def test_unimed_hostgroup_resolves_to_entity_12(customers_maker):
+    async with customers_maker() as s:
+        customer = await customer_from_hostgroups(
+            s, [{"name": "[ Unimed ]"}, {"name": "[ Unimed ] [ Itu ]"}]
+        )
+        assert customer == "Unimed" and await resolve_glpi_entity_id(s, customer) == 12
 
 
-def test_conflicting_customer_groups_are_rejected():
-    with pytest.raises(ValueError, match="distintos"):
-        customer_from_hostgroups([{"name": "[ Cavan ]"}, {"name": "[ TBE ]"}])
+@pytest.mark.asyncio
+async def test_conflicting_customer_groups_are_rejected(customers_maker):
+    async with customers_maker() as s:
+        with pytest.raises(ValueError, match="distintos"):
+            await customer_from_hostgroups(
+                s, [{"name": "[ Cavan ]"}, {"name": "[ TBE ]"}]
+            )
 
 
 def test_alert_task_is_explicitly_loaded_and_resolution_is_routed():
@@ -72,13 +85,21 @@ def test_new_problem_event_gets_new_ticket_identity():
     assert first.timestamp.tzinfo is UTC
 
 
-def test_generic_zabbix_group_does_not_override_customer():
-    assert (
-        customer_from_hostgroups(
-            [{"name": "Zabbix servers"}, {"name": "[ Alupar PE ]"}]
+@pytest.mark.asyncio
+async def test_generic_zabbix_group_does_not_override_customer(customers_maker):
+    async with customers_maker() as s:
+        assert (
+            await customer_from_hostgroups(
+                s, [{"name": "Zabbix servers"}, {"name": "[ Alupar PE ]"}]
+            )
+            == "Alupar PE"
         )
-        == "Alupar PE"
-    )
+
+
+@pytest.mark.asyncio
+async def test_no_matching_group_returns_none(customers_maker):
+    async with customers_maker() as s:
+        assert await customer_from_hostgroups(s, [{"name": "Linux servers"}]) is None
 
 
 @pytest.mark.asyncio

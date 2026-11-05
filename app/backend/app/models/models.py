@@ -10,6 +10,7 @@ from typing import Any
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     CheckConstraint,
     DateTime,
     Enum,
@@ -436,6 +437,42 @@ class TenantMapping(Base):
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class Customer(Base):
+    """Cadastro do cliente: identidade e entidade GLPI (nenhum contato aqui)."""
+
+    __tablename__ = "n_infraops_customers"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    key: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    display_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    glpi_entity_id: Mapped[int | None] = mapped_column(Integer)
+    active: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default="true"
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    # Sem FK, como o resto do projeto.
+    updated_by_user_id: Mapped[int | None] = mapped_column(BigInteger)
+
+
+class CustomerAlias(Base):
+    """Apelido normalizado (`lower().strip()`); único entre todos os clientes."""
+
+    __tablename__ = "n_infraops_customer_aliases"
+
+    alias_norm: Mapped[str] = mapped_column(Text, primary_key=True)
+    customer_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("n_infraops_customers.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
 
 

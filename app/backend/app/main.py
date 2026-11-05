@@ -38,6 +38,7 @@ from app.api.routers.assets import router as assets_router
 from app.api.routers.atera import router as atera_router
 from app.api.routers.auth import router as auth_router
 from app.api.routers.core import router as core_router
+from app.api.routers.customers import router as customers_router
 from app.api.routers.dashboard import router as dashboard_router
 from app.api.routers.incidents import router as incidents_router
 from app.api.routers.pipeline import router as pipeline_router
@@ -131,6 +132,7 @@ if _has_contabo and contabo_router is not None:
 app.include_router(dashboard_router, tags=["infraops-dashboard"])
 app.include_router(pipeline_router, tags=["infraops-pipeline"])
 app.include_router(incidents_router, tags=["infraops-incidents"])
+app.include_router(customers_router)  # prefix: /api/customers
 app.include_router(tenants_router, prefix="/api/tenants", tags=["infraops-tenants"])
 app.include_router(assets_router, prefix="/api/assets", tags=["infraops-assets"])
 app.include_router(atera_router)  # prefix: /api/rmm/atera
