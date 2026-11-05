@@ -41,14 +41,17 @@ MON = datetime(2026, 11, 2, 13, 0, tzinfo=UTC)
     [
         ("critical", MON, MON + timedelta(minutes=15)),
         ("elevated", MON, MON + timedelta(hours=1)),
-        ("standard", MON, MON + timedelta(hours=4)),
-        # sexta 16:00 BRT + 4 h comerciais = segunda 10:00 BRT
-        ("standard", datetime(2026, 11, 6, 19, 0, tzinfo=UTC), MON + timedelta(days=7)),
-        # sábado 12:00 BRT: conta a partir de segunda 08:00 BRT
+        # sexta 16:00 BRT + 10 h comerciais = segunda 16:00 BRT
         (
-            "standard",
+            "no_client",
+            datetime(2026, 11, 6, 19, 0, tzinfo=UTC),
+            MON + timedelta(days=7, hours=6),
+        ),
+        # sábado 12:00 BRT: conta a partir de segunda 08:00 BRT (10 h = até 18:00)
+        (
+            "no_client",
             datetime(2026, 11, 7, 15, 0, tzinfo=UTC),
-            MON + timedelta(days=7, hours=2),
+            MON + timedelta(days=7, hours=8),
         ),
         # 1 dia útil = 10 h comerciais: seg 10:00 -> ter 10:00 BRT
         ("no_client", MON, MON + timedelta(days=1)),
@@ -58,10 +61,10 @@ def test_response_deadline_table(window, start, expected):
     assert svc.response_deadline(window, start) == expected
 
 
-def test_critical_is_24x7_and_standard_is_business_hours():
+def test_critical_is_24x7_and_no_client_is_business_hours():
     sat = datetime(2026, 11, 7, 15, 0, tzinfo=UTC)
     assert svc.response_deadline("critical", sat) == sat + timedelta(minutes=15)
-    assert svc.response_deadline("standard", sat) > sat + timedelta(days=1)
+    assert svc.response_deadline("no_client", sat) > sat + timedelta(days=1)
 
 
 def test_next_escalation_only_after_window_without_ack():
@@ -82,7 +85,7 @@ def test_next_escalation_only_after_window_without_ack():
 def test_severity_window_map():
     assert svc.severity_window(5, True) == "critical"
     assert svc.severity_window(4, True) == "elevated"
-    assert svc.severity_window(3, True) == "standard"
+    assert svc.severity_window(3, True) is None  # corte em 4 (decisão de 05/11)
     assert svc.severity_window(5, False) == "no_client"
     assert svc.severity_window(2, True) is None
 
@@ -578,7 +581,7 @@ async def test_one_channel_exhausted_but_other_accepted_does_not_escalate(
     maker, monkeypatch
 ):
     Channels(monkeypatch, email_ok=False)  # e-mail sempre falha, push aceita
-    await _seed(maker, severity=3)  # janela de 4 h comerciais: não vence em 1 h
+    await _seed(maker, tenant="")  # sem cliente: 1 dia útil, não vence em 1 h
     for i in range(11):
         out = await svc.sweep(MON + timedelta(minutes=6 * i))
         assert out["escalated"] == 0
@@ -586,3 +589,12 @@ async def test_one_channel_exhausted_but_other_accepted_does_not_escalate(
     email = [r for r in rows if r.channel == "email"][0]
     assert email.attempts == 5 and email.sent_at is None
     assert {r.user_id for r in rows} == {rows[0].user_id}
+
+
+@pg
+@pytest.mark.asyncio
+async def test_severity_3_open_incident_is_not_notified(maker, monkeypatch):
+    ch = Channels(monkeypatch)
+    await _seed(maker, severity=3)
+    assert await svc.sweep(MON) == {"notified": 0, "escalated": 0}
+    assert not ch.emails and not ch.pushes and not await _rows(maker)

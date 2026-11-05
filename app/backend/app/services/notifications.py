@@ -54,12 +54,15 @@ _NO_SUBSCRIPTION = "error:no_subscription"  # não retenta: nada a reenviar
 _WINDOWS = {
     "critical": (timedelta(minutes=15), False),  # nível >= 12
     "elevated": (timedelta(hours=1), False),  # nível <= 6 com score >= 75
-    "standard": (timedelta(hours=4), True),  # 7-11 e demais
     "no_client": (timedelta(hours=10), True),  # sem cliente: 1 dia útil
 }
 # Papéis na ordem de escalonamento (o responsável designado vai antes).
 # ponytail: não existe escala de plantão no sistema; ordem fixa por papel, sem plantão
 # próprio. Upgrade path: ler a escala existente quando houver fonte (GLPI/n.360).
+# Corte por decisão do Ricardo (05/11): a severidade 3 tem ~1.731 casos abertos e geraria
+# enxurrada. Upgrade path: baixar para 3 (e recriar a janela de 4 h comerciais) quando o
+# volume de sev 3 aberto cair.
+_MIN_SEVERITY = 4
 ESCALATION_ROLES = (UserRole.soc, UserRole.noc, UserRole.operator, UserRole.admin)
 
 
@@ -67,14 +70,15 @@ def severity_window(severity: int, has_tenant: bool) -> str | None:
     """Classe de janela do incidente; None = abaixo do piso de aviso.
 
     ponytail: o Incident traz severidade Zabbix 0-5, que NÃO é o nível Wazuh/score da
-    política (soc-attendance-policy.md); mapa provisório 5 -> critical, 4 -> elevated,
-    3 -> standard. Precisa de confirmação do Ricardo antes de produção.
+    política (soc-attendance-policy.md); mapa provisório 5 -> critical, 4 -> elevated.
+    Corte em `_MIN_SEVERITY` (4) por decisão do Ricardo em 05/11, até a fila ser limpa.
+    Precisa de confirmação do Ricardo antes de produção.
     """
-    if severity < 3:
+    if severity < _MIN_SEVERITY:
         return None
     if not has_tenant:
         return "no_client"
-    return {5: "critical", 4: "elevated"}.get(severity, "standard")
+    return {5: "critical", 4: "elevated"}[severity]
 
 
 def _add_business(start: datetime, delta: timedelta) -> datetime:
@@ -278,7 +282,7 @@ async def sweep(now: datetime | None = None) -> dict[str, int]:
                     select(Incident)
                     .where(
                         Incident.status == "open",
-                        Incident.severity >= 3,
+                        Incident.severity >= _MIN_SEVERITY,
                         Incident.first_seen
                         >= now - timedelta(hours=_SOURCE_WINDOW_HOURS),
                     )
