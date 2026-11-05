@@ -566,6 +566,18 @@ async def act_on_incident(
                 if incident.status != "open":
                     raise HTTPException(status_code=409, detail="Estado incompatível")
                 incident.status = "acknowledged"
+                await session.execute(
+                    update(Notification)
+                    .where(
+                        Notification.incident_id == incident.id,
+                        Notification.acknowledged_at.is_(None),
+                    )
+                    .values(
+                        acknowledged_at=func.now(),
+                        ack_type="incident_status",
+                        acknowledged_by_user_id=current_user.id,
+                    )
+                )
             elif body.action == "assign_self":
                 if incident.status == "closed":
                     raise HTTPException(status_code=409, detail="Incidente encerrado")
@@ -649,13 +661,14 @@ async def ack_notifications(
                     .returning(Notification.id)
                 )
             ).all()
-            if acked:
-                session.add(
-                    IncidentAction(
-                        incident_id=incident_id,
-                        actor_user_id=current_user.id,
-                        actor_source="user",
-                        action="notification_ack",
-                    )
+            # Sempre auditado; com acked == 0 (ack antes do 1º aviso) a varredura lê esta
+            # ação e não avisa nem escala o caso.
+            session.add(
+                IncidentAction(
+                    incident_id=incident_id,
+                    actor_user_id=current_user.id,
+                    actor_source="user",
+                    action="notification_ack",
                 )
+            )
     return {"id": str(incident_id), "acknowledged": len(acked)}

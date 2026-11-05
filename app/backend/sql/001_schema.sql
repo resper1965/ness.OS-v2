@@ -338,6 +338,8 @@ CREATE TABLE IF NOT EXISTS n_infraops_notifications (
     channel                 VARCHAR(16) NOT NULL,
     step                    SMALLINT NOT NULL,
     created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    claimed_at              TIMESTAMPTZ,
+    attempts                SMALLINT NOT NULL DEFAULT 0,
     sent_at                 TIMESTAMPTZ,
     provider_result         TEXT,
     acknowledged_at         TIMESTAMPTZ,

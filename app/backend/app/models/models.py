@@ -252,6 +252,11 @@ class Notification(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
+    # Lease da tentativa: `claimed_at` + sem resultado de provedor = pendente/abandonada.
+    claimed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    attempts: Mapped[int] = mapped_column(
+        SmallInteger, nullable=False, default=0, server_default="0"
+    )
     sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     provider_result: Mapped[str | None] = mapped_column(Text)
     acknowledged_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

@@ -28,7 +28,8 @@ class FakeSession:
         yield
 
     async def execute(self, statement):
-        self.statement = statement
+        if self.statement is None:
+            self.statement = statement
         return SimpleNamespace(scalar_one_or_none=lambda: self.incident)
 
     def add(self, action):

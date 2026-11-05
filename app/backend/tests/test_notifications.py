@@ -3,6 +3,7 @@
 Ex.: NINF_TEST_PG_URL=postgresql+asyncpg://dev:dev@127.0.0.1:5439/app pytest tests/test_notifications.py
 """
 
+import asyncio
 import os
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
@@ -147,7 +148,7 @@ class Channels:
         monkeypatch.setattr(svc, "send_web_push", push)
 
 
-async def _seed(maker, *, severity=5, tenant="acme", users=2):
+async def _seed(maker, *, severity=5, tenant="acme", users=2, first_seen=MON):
     async with maker() as s:
         inc = Incident(
             fingerprint="f1",
@@ -156,7 +157,7 @@ async def _seed(maker, *, severity=5, tenant="acme", users=2):
             host_id="h",
             host_name="h",
             trigger_id="t",
-            first_seen=MON,
+            first_seen=first_seen,
             tags={"ninf_customer_name": tenant},
         )
         s.add(inc)
@@ -324,6 +325,11 @@ async def test_ack_authorized_sets_ack_not_resolution(maker, monkeypatch):
     rows = await _rows(maker)
     assert all(x.acknowledged_at and x.ack_type == "manual" for x in rows)
     assert all(x.acknowledged_by_user_id == uid and x.resolved_at is None for x in rows)
+    async with maker() as s:
+        acts = (await s.execute(select(IncidentAction))).scalars().all()
+    assert [(a.action, a.actor_user_id, a.incident_id) for a in acts] == [
+        ("notification_ack", uid, iid)
+    ]
 
 
 @pg
@@ -358,3 +364,132 @@ async def test_resolution_is_stamped_separately(maker, monkeypatch):
         await s.commit()
     await svc.sweep(MON + timedelta(minutes=1))
     assert all(r.resolved_at and r.acknowledged_at is None for r in await _rows(maker))
+
+
+@pg
+@pytest.mark.asyncio
+async def test_abandoned_claim_is_resent_only_after_lease_and_accepted_never(
+    maker, monkeypatch
+):
+    ch = Channels(monkeypatch)
+    iid, (uid,) = await _seed(maker, users=1)
+    async with maker() as s:  # worker morreu entre o claim e o envio
+        for channel in ("email", "push"):
+            s.add(
+                Notification(
+                    incident_id=iid,
+                    user_id=uid,
+                    channel=channel,
+                    step=0,
+                    created_at=MON,
+                    claimed_at=MON,
+                    attempts=1,
+                )
+            )
+        await s.commit()
+    await svc.sweep(MON + timedelta(minutes=4))
+    assert not ch.emails and not ch.pushes
+    await svc.sweep(MON + timedelta(minutes=6))
+    assert len(ch.emails) == 1 and len(ch.pushes) == 1
+    rows = await _rows(maker)
+    assert all(r.sent_at and r.attempts == 2 for r in rows)
+    await svc.sweep(MON + timedelta(hours=1))
+    assert len(ch.emails) == 1 and len(ch.pushes) == 1  # aceite nunca reenvia
+
+
+@pg
+@pytest.mark.asyncio
+async def test_window_counts_from_provider_accept_not_from_failed_attempts(
+    maker, monkeypatch
+):
+    Channels(monkeypatch, email_ok=False, push_ok=False)
+    await _seed(maker)
+    for minutes in (0, 6, 12, 20, 25):  # >15 min com os dois canais falhando
+        out = await svc.sweep(MON + timedelta(minutes=minutes))
+        assert out["escalated"] == 0
+    rows = await _rows(maker)
+    assert len(rows) == 2 and all(r.sent_at is None for r in rows)
+    assert all(r.provider_result.startswith("error:") for r in rows)
+    ch = Channels(monkeypatch)  # provedor volta
+    t = MON + timedelta(minutes=40)
+    await svc.sweep(t)
+    assert len(ch.emails) == 1
+    assert (await svc.sweep(t + timedelta(minutes=14)))["escalated"] == 0
+    assert (await svc.sweep(t + timedelta(minutes=16)))["escalated"] == 1
+
+
+@pg
+@pytest.mark.asyncio
+async def test_old_incident_is_not_notified_and_sweep_has_time_budget(
+    maker, monkeypatch
+):
+    ch = Channels(monkeypatch)
+    await _seed(maker, first_seen=MON - timedelta(days=3))
+    assert await svc.sweep(MON) == {"notified": 0, "escalated": 0}
+    assert not ch.emails and not await _rows(maker)
+    async with maker() as s:
+        (await s.execute(select(Incident))).scalar_one().first_seen = MON
+        await s.commit()
+    monkeypatch.setattr(svc, "_SWEEP_BUDGET_SECONDS", -1.0)
+    assert (await svc.sweep(MON))["notified"] == 0
+    assert not await _rows(maker)
+
+
+@pg
+@pytest.mark.asyncio
+async def test_slow_channel_times_out_without_blocking_the_other(maker, monkeypatch):
+    ch = Channels(monkeypatch)
+
+    class Slow:
+        @classmethod
+        def from_settings(cls):
+            return cls()
+
+        async def send(self, **_):
+            await asyncio.sleep(2)
+
+    monkeypatch.setattr(svc, "ResendEmailClient", Slow)
+    monkeypatch.setattr(svc, "_CHANNEL_TIMEOUT_SECONDS", 0.05)
+    await _seed(maker)
+    await svc.sweep(MON)
+    rows = {r.channel: r for r in await _rows(maker)}
+    assert (
+        rows["email"].provider_result == "error:timeout" and not rows["email"].sent_at
+    )
+    assert rows["push"].sent_at and len(ch.pushes) == 1
+
+
+@pg
+@pytest.mark.asyncio
+async def test_ack_before_first_notification_is_audited_and_stops_the_sweep(
+    maker, monkeypatch
+):
+    ch = Channels(monkeypatch)
+    iid, (uid, _) = await _seed(maker)
+    user = SimpleNamespace(id=uid, role=UserRole.noc, tenant_id=None)
+    async with _app(user) as c:
+        r = await c.post(f"/api/incidents/{iid}/notifications/ack")
+    assert r.status_code == 200 and r.json()["acknowledged"] == 0
+    async with maker() as s:
+        acts = (await s.execute(select(IncidentAction))).scalars().all()
+    assert [a.action for a in acts] == ["notification_ack"]
+    assert await svc.sweep(MON) == {"notified": 0, "escalated": 0}
+    assert not ch.emails and not ch.pushes
+
+
+@pg
+@pytest.mark.asyncio
+async def test_incident_status_ack_stamps_notifications(maker, monkeypatch):
+    Channels(monkeypatch)
+    iid, (uid, _) = await _seed(maker)
+    await svc.sweep(MON)
+    user = SimpleNamespace(id=uid, role=UserRole.noc, tenant_id=None)
+    async with _app(user) as c:
+        r = await c.post(
+            f"/api/incidents/{iid}/actions", json={"action": "acknowledge"}
+        )
+    assert r.status_code == 200
+    rows = await _rows(maker)
+    assert all(x.acknowledged_at and x.ack_type == "incident_status" for x in rows)
+    assert all(x.resolved_at is None for x in rows)
+    assert (await svc.sweep(MON + timedelta(hours=1)))["escalated"] == 0

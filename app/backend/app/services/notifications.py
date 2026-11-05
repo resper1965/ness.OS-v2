@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time as _time
 from datetime import datetime, time, timedelta, timezone
 
 from sqlalchemy import select, update
@@ -17,7 +18,14 @@ from app.core.dependencies import NOC_ROLES
 from app.database import SessionLocal
 from app.integrations.email import ResendEmailClient
 from app.integrations.webpush import send_web_push
-from app.models import Incident, Notification, PushSubscription, User, UserRole
+from app.models import (
+    Incident,
+    IncidentAction,
+    Notification,
+    PushSubscription,
+    User,
+    UserRole,
+)
 
 logger = logging.getLogger("nessops.notifications")
 
@@ -25,7 +33,15 @@ logger = logging.getLogger("nessops.notifications")
 # upgrade path: zoneinfo + calendário de feriados quando o contrato exigir.
 _BR = timezone(timedelta(hours=-3))
 _OPEN, _CLOSE = time(8), time(18)
-_SOURCE_WINDOW_DAYS = 7
+# Primeiro deploy não pode disparar rajada sobre incidentes antigos.
+_SOURCE_WINDOW_HOURS = 24
+_MAX_INCIDENTS_PER_SWEEP = 50
+# Teto abaixo do task_time_limit (120 s): para e continua no ciclo seguinte.
+_SWEEP_BUDGET_SECONDS = 90.0
+_CHANNEL_TIMEOUT_SECONDS = 15.0
+# Tentativa sem aceite do provedor volta a ser elegível após o lease (enquanto o caso
+# estiver aberto e dentro da janela de 24 h); o aceite encerra o slot.
+_LEASE = timedelta(minutes=5)
 
 # Janelas de resposta (soc-attendance-policy.md / p2-proposta-valores.md, aceitas em 04/11).
 # (prazo, conta só em horário comercial). "1 dia útil" = 10 h comerciais.
@@ -44,8 +60,9 @@ ESCALATION_ROLES = (UserRole.soc, UserRole.noc, UserRole.operator, UserRole.admi
 def severity_window(severity: int, has_tenant: bool) -> str | None:
     """Classe de janela do incidente; None = abaixo do piso de aviso.
 
-    ponytail: o Incident traz severidade Zabbix 0-5, não nível Wazuh/score; mapa
-    5 -> critical, 4 -> elevated, 3 -> standard. Ricardo confirma o mapa.
+    ponytail: o Incident traz severidade Zabbix 0-5, que NÃO é o nível Wazuh/score da
+    política (soc-attendance-policy.md); mapa provisório 5 -> critical, 4 -> elevated,
+    3 -> standard. Precisa de confirmação do Ricardo antes de produção.
     """
     if severity < 3:
         return None
@@ -166,30 +183,53 @@ async def _recipients(session, inc: Incident) -> list[User]:
     )
 
 
-async def _notify(session, inc: Incident, user: User, step: int, now: datetime) -> None:
-    """Dois canais, independentes; o slot único torna a repetição idempotente."""
-    for channel in ("email", "push"):
+async def _claim(session, inc: Incident, user: User, channel: str, step: int, now):
+    """Reivindica o slot com lease. Id da tentativa, ou None se já entregue ou em lease.
+
+    Um slot sem aceite do provedor (abandonado por morte do worker ou com erro) só é
+    reivindicado de novo depois do lease; o aceite encerra o slot.
+    """
+    slot = dict(incident_id=inc.id, user_id=user.id, channel=channel, step=step)
+    claimed = (
+        await session.execute(
+            pg_insert(Notification)
+            .values(**slot, created_at=now, claimed_at=now, attempts=1)
+            .on_conflict_do_nothing(constraint="uq_notifications_slot")
+            .returning(Notification.id)
+        )
+    ).scalar_one_or_none()
+    if claimed is None:
         claimed = (
             await session.execute(
-                pg_insert(Notification)
-                .values(
-                    incident_id=inc.id,
-                    user_id=user.id,
-                    channel=channel,
-                    step=step,
-                    created_at=now,
+                update(Notification)
+                .where(
+                    *(getattr(Notification, k) == v for k, v in slot.items()),
+                    Notification.sent_at.is_(None),
+                    Notification.claimed_at <= now - _LEASE,
                 )
-                .on_conflict_do_nothing(constraint="uq_notifications_slot")
+                .values(claimed_at=now, attempts=Notification.attempts + 1)
                 .returning(Notification.id)
             )
         ).scalar_one_or_none()
-        await session.commit()
+    await session.commit()
+    return claimed
+
+
+async def _notify(session, inc: Incident, user: User, step: int, now: datetime) -> None:
+    """Dois canais, independentes, cada um com timeout; falha ou lentidão de um não trava o outro."""
+    for channel in ("email", "push"):
+        claimed = await _claim(session, inc, user, channel, step, now)
         if claimed is None:
             continue
-        if channel == "email":
-            ok, detail = await _send_email(user, inc, step)
-        else:
-            ok, detail = await _send_push(session, user, inc, step)
+        send = (
+            _send_email(user, inc, step)
+            if channel == "email"
+            else _send_push(session, user, inc, step)
+        )
+        try:
+            ok, detail = await asyncio.wait_for(send, _CHANNEL_TIMEOUT_SECONDS)
+        except asyncio.TimeoutError:
+            ok, detail = False, "error:timeout"
         await session.execute(
             update(Notification)
             .where(Notification.id == claimed)
@@ -202,6 +242,7 @@ async def sweep(now: datetime | None = None) -> dict[str, int]:
     """Avisa incidentes novos, escala os sem reconhecimento e carimba resolução."""
     now = now or datetime.now(timezone.utc)
     stats = {"notified": 0, "escalated": 0}
+    started = _time.monotonic()
     async with SessionLocal() as session:
         await session.execute(
             update(Notification)
@@ -216,21 +257,44 @@ async def sweep(now: datetime | None = None) -> dict[str, int]:
             .values(resolved_at=now)
         )
         await session.commit()
+        # ponytail: os 50 mais novos por severidade; acima disso o excedente espera o
+        # ciclo seguinte. Upgrade path: cursor/paginação se houver mais de 50 abertos.
         incidents = (
             (
                 await session.execute(
-                    select(Incident).where(
+                    select(Incident)
+                    .where(
                         Incident.status == "open",
                         Incident.severity >= 3,
                         Incident.first_seen
-                        >= now - timedelta(days=_SOURCE_WINDOW_DAYS),
+                        >= now - timedelta(hours=_SOURCE_WINDOW_HOURS),
                     )
+                    .order_by(Incident.severity.desc(), Incident.first_seen.desc())
+                    .limit(_MAX_INCIDENTS_PER_SWEEP)
                 )
             )
             .scalars()
             .all()
         )
+        # Ack prévio (sem aviso ainda) fica só como IncidentAction; vale como reconhecido.
+        pre_acked = set(
+            (
+                await session.execute(
+                    select(IncidentAction.incident_id).where(
+                        IncidentAction.action == "notification_ack",
+                        IncidentAction.incident_id.in_([i.id for i in incidents]),
+                    )
+                )
+            ).scalars()
+        )
         for inc in incidents:
+            if _time.monotonic() - started > _SWEEP_BUDGET_SECONDS:
+                logger.warning(
+                    "Varredura parou no teto de tempo; segue no próximo ciclo"
+                )
+                break
+            if inc.id in pre_acked:
+                continue
             rows = (
                 (
                     await session.execute(
@@ -248,15 +312,26 @@ async def sweep(now: datetime | None = None) -> dict[str, int]:
                 await _notify(session, inc, people[0], 0, now)
                 stats["notified"] += 1
                 continue
+            if any(r.acknowledged_at for r in rows):
+                continue
+            step = max(r.step for r in rows)
+            current = [r for r in rows if r.step == step]
+            # Repete a entrega do degrau atual onde o provedor não aceitou (lease em _claim).
+            holder = next((u for u in people if u.id == current[0].user_id), None)
+            if holder is not None:
+                await _notify(session, inc, holder, step, now)
+            # A janela conta do primeiro aceite do provedor, não da tentativa.
+            accepted = [r.sent_at for r in current if r.sent_at]
+            if not accepted:
+                continue
             done = {r.user_id for r in rows}
             pending = [u for u in people if u.id not in done]
-            step = max(r.step for r in rows)
             nxt = next_escalation(
                 window=window,
-                step_at=max(r.created_at for r in rows if r.step == step),
+                step_at=min(accepted),
                 step=step,
                 total=step + 1 + len(pending),
-                acknowledged=any(r.acknowledged_at for r in rows),
+                acknowledged=False,
                 now=now,
             )
             if nxt is not None and pending:
