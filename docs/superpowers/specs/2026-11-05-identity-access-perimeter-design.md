@@ -1,231 +1,145 @@
-# Identity, Access and Perimeter Design — ness.OS
+# Identidade, acesso e perímetro — ness.OS
 
-- **Status:** proposta
-- **Data:** 2026-11-05
-- **Autor:** Ricardo Esper / agente
-- **Base:** ADR 0007 (Authentik como identidade central)
+- **Status:** aprovado; execução após aceite do MVP e gate da Fase 0
+- **Data:** 2026-11-05 (revisado no mesmo dia: Authentik sai)
+- **Decisão:** [ADR 0015](../../adr/0015-entra-id-identity-local-authorization.md), que substitui o ADR 0007
 
-## 1. Intent
+## 1. Intenção
 
-Redesenhar identidade, acesso e perímetro do ness.OS para:
-
-1. Substituir o Google OAuth (obsoleto pela migração Google Workspace → M365).
-2. Reduzir superfície de ataque (eliminar porta 443 pública).
-3. Adicionar MFA universal sem custo adicional.
-4. Preservar a capacidade de federar múltiplos IdPs de clientes (multi-tenant).
+Simplificar identidade e perímetro: um provedor de identidade que a ness. já paga (Entra ID), autorização dentro das aplicações, ferramentas internas atrás do Cloudflare Access e nenhuma porta 443 pública na VPS AIOps. O Authentik sai.
 
 ## 2. Contexto
 
-### Modelo de negócio
+- A ness. migrou Google Workspace → Microsoft 365. Operadores têm conta `@ness.com.br` no Entra ID (plano Free hoje).
+- A ness. é gestora da plataforma. Clientes acessam **somente o app ness.OS e os dashboards finais**. Zabbix, GLPI e n8n são só da ness.
+- Authentik (ADR 0007): nenhuma aplicação homologada, baseline `desired-not-applied`, custo Tier 1 sem benefício entregue.
+- Hub hoje: OIDC via Authentik; papel vem do claim `groups` e tenant do claim `tenant_id`, com JIT (`app/backend/app/api/routers/auth.py`).
+- GLPI e n8n: `forward_auth` do Authentik no Caddy. Zabbix: SAML do Authentik (UAT).
+- Perímetro: 443 aberta na VPS AIOps; Zabbix em outra VPS, com 10051 aberta para agentes.
 
-O ness.OS é uma plataforma multi-tenant de operação gerenciada, cobrada por UAM (Unidade de Ativo Monitorado). Cada cliente é um tenant isolado. O PricingModule (`app/frontend/src/components/PricingModule.tsx`) define ativos monitorados: endpoints, servidores, firewalls, switches, APs, workloads cloud, apps críticas, tenants M365 e identidades.
+## 3. Objetivos
 
-### Populações que autenticam
+1. Entra ID como único provedor de identidade (operadores e clientes).
+2. Autorização local no Hub: papel e tenant no banco, sem depender de claims de grupo.
+3. MFA garantido em todo login de operador (P1 + Acesso Condicional).
+4. GLPI e n8n atrás do Cloudflare Access; 443 fechada na VPS AIOps.
+5. Desligar o Authentik.
 
-| População | Quem | Tamanho | Necessidade |
-|---|---|---|---|
-| Operadores internos | Ricardo, Ismael, Rogério, Agnaldo (+ futuros) | ~4–10 | SSO, MFA, roles, break-glass |
-| Usuários de cliente | Técnicos e aprovadores do tenant | 0 hoje, cresce | SSO, isolamento por tenant |
+## 4. Fora do escopo
 
-### Estado atual
+- Federação por tenant (cada cliente com seu próprio IdP).
+- Magic WAN, Magic Transit, WAF.
+- Intune, Defender, PIM, Identity Protection.
+- Fechar a 10051 do Zabbix (o protocolo exige).
 
-- **IdP:** Authentik (ADR 0007), com Google OAuth como provedor externo para `@ness.com.br`.
-- **Perímetro:** porta 443 aberta na VPS, Caddy exposto à internet, proxy Cloudflare desligado (`proxied: false`).
-- **DNS:** zona `ness.com.br` no Cloudflare, script de cutover (`infra/scripts/cloudflare-zabbix-dns-cutover.sh`).
-- **MFA:** via Authentik — cobre todos os usuários. Google OAuth em modo testing.
-- **Migração:** ness. trocou Google Workspace pelo Microsoft 365. Login Google vai parar de funcionar.
+## 5. O que não pode acontecer
 
-## 3. Goals
+- Login sem registro prévio no Hub criar usuário ou conceder papel.
+- Cliente alcançar GLPI, n8n ou Zabbix.
+- Perder acesso administrativo quando a Microsoft ou o Cloudflare caírem.
+- Executar qualquer etapa antes do aceite do MVP e do gate da Fase 0.
 
-1. Trocar Google OAuth → Entra ID OIDC como provedor externo para `@ness.com.br`.
-2. Adicionar Cloudflare Access + Túnel como borda de autenticação ZTNA.
-3. Fechar porta 443 pública da VPS AIOps (Zabbix 10051 permanece; ver 6.1).
-4. MFA universal gratuito (Cloudflare Access).
-5. Preservar Authentik como hub de federação multi-IdP para clientes.
-6. Custo adicional: US$ 0.
-
-## 4. Non-goals
-
-- Substituir Authentik pelo Entra ID como IdP central.
-- Adicionar Conditional Access / Intune / Defender (a ness. não tem licença P1/P2).
-- Magic WAN — sem malha de sites para conectar.
-- Auditar ativos M365 da ness. ou de clientes.
-- Remover contas locais break-glass (ADR 0007 obriga).
-- Alterar ADR 0007 (Authentik permanece identidade central).
-
-## 5. Anti-goals
-
-- Adicionar custo recorrente (licenças P1, Cloudflare pago).
-- Expor porta pública após a migração.
-- Depender exclusivamente da Microsoft para recuperação administrativa.
-
-## 6. Design
-
-### Arquitetura
+## 6. Desenho
 
 ```
-                 ┌─────────────────────────────────┐
-                 │        Cloudflare Edge           │
-                 │  Access (ZTNA) + Gateway + Túnel │
-                 └──────────────┬──────────────────┘
-                                │ outbound-only (porta 7844)
-              VPS (porta 443 FECHADA no firewall)
-                                │
-                           Caddy local
-                           ┌───┼───┐
-                      Hub  Zabbix GLPI n8n
-                           │
-                      ┌────▼────┐
-                      │Authentik│  ← hub de federação multi-IdP
-                      └────┬────┘
-                           │
-              ┌────────────┼────────────┐
-              │            │            │
-         Entra ID      Google      SAML do    ...
-        (operadores   (cliente A)  cliente B
-         @ness.com.br)
+Operador ──► Cloudflare Access (allow @ness.com.br) ──► túnel ──► Caddy ──► GLPI / n8n
+Operador ┐
+Cliente  ┴─► túnel (sem Access) ──► Caddy ──► Hub ──OIDC──► Entra ID
+                                               └─► papel + tenant no banco do Hub
+Operador ──► Zabbix web ──SAML──► Entra ID
+Agentes  ──► Zabbix :10051 (inalterado)
+Emergência ──► SSH (chave + origem restrita) ──port forward──► Hub / GLPI / Zabbix (contas locais)
 ```
 
-### Componentes
+### 6.1 Identidade (Entra ID)
 
-| Componente | Função | Custo | Plano |
-|---|---|---|---|
-| **Cloudflare Access** | ZTNA — autentica na borda, exige MFA antes de alcançar a VPS | US$ 0 | Free (≤50 usuários) |
-| **Cloudflare Tunnel** (`cloudflared`) | Conecta VPS ao Cloudflare via outbound-only, elimina porta pública | US$ 0 | Binário gratuito |
-| **Cloudflare Gateway** | DNS filtering, logging de acesso | US$ 0 | Free |
-| **WARP** | Cliente ZTNA nos dispositivos dos operadores | US$ 0 | Cliente gratuito |
-| **Authentik** | Hub de federação — aceita OIDC/SAML de qualquer IdP, gerencia grupos, roles e external approval por tenant | US$ 0 | Community |
-| **Entra ID Free** | Provedor OIDC externo no Authentik para operadores `@ness.com.br` | US$ 0 | Incluso no M365 |
-| **IdP do cliente** | O que o cliente já tiver (Google, Microsoft, SAML) | US$ 0 | Custo do cliente |
-
-### Fluxo de autenticação
-
-```
-Operador (navegador ou WARP)
-  │
-  ▼
-https://hub.ness.com.br
-  │
-  ▼
-Cloudflare Access ──► MFA (OTP ou hardware key)
-  │ token válido?
-  ▼
-Túnel cloudflared ──► Caddy ──► Hub
-  │
-  ▼
-Hub redireciona para Authentik
-  │
-  ▼
-Authentik ──► Entra ID (Microsoft login)
-  │           │ @ness.com.br → login Microsoft
-  │           │ MFA do Entra ID (admin roles)
-  │
-  ▼
-Authentik emite token OIDC → Hub valida → dashboard
-```
-
-Two-factor no perímetro (Cloudflare Access) + autenticação no IdP (Entra ID via Authentik). Defesa em profundidade: mesmo se o Entra ID for comprometido, o Access ainda barra.
-
-### External approval (clientes)
-
-Mecanismo existente (`docs/execution/authentik-google-external-approval-2026-09-01.md`) é generalizado: em vez de só Google, o Authentik aceita qualquer provedor OIDC/SAML configurado por tenant. O grupo `SSO-External-Approved` autoriza entrada no Hub; grupos `APP-*` controlam acesso por aplicação.
-
-Documento de external approval será reescrito como genérico (não específico do Google).
-
-### Break-glass
-
-Contas locais no Hub e Zabbix, documentadas, testadas trimestralmente. `akadmin` no Authentik permanece como contingência. Conforme ADR 0007: "Indisponibilidade do SSO não pode impedir recuperação administrativa."
-
-## 6.1 Caminhos que o Access não pode barrar
-
-Access exige sessão de navegador (cookie ou JWT). Tráfego de máquina e chamadas servidor-a-servidor não têm isso e quebram se a política for "todo hostname, MFA". Cada item abaixo precisa de política própria (*bypass* ou *service token*) e teste negativo antes da Fase 3.
-
-| Caminho | Quem chama | Tratamento proposto |
+| População | Como entra | MFA |
 |---|---|---|
-| `POST /webhook/zabbix`, `/webhook/glpi`, `GET /webhook/health`, `POST /v1/alerts`, `/api/v1/alerts` | Zabbix, GLPI, n8n (máquina) | *Bypass* restrito a esses **paths** (o Access casa por hostname e path, não por método: o bypass vale para todos os métodos). Os métodos listados são impostos no Caddy (`method` matcher; demais métodos = 405) e o controle de identidade continua sendo o `source-key` da aplicação (`docs/security/access-control-matrix.md`). Teste negativo obrigatório: método fora da lista = 405; sem `source-key` = 401. Opcional: *service token* se a origem suportar cabeçalhos. |
-| Token exchange, JWKS e discovery OIDC (Hub → `sso.ness.com.br`) | Backend do Hub | Preferir URL interna (rede Docker) para o issuer server-side. Se o issuer público for obrigatório, *bypass* só para `/application/o/*/token`, `/jwks` e `/.well-known`. |
-| `POST /api/auth/oidc/callback` | Navegador | Passa pelo Access normalmente (sessão já existe). Validar que o redirect não cai em laço com o Authentik. |
-| `apirest.php` do GLPI (`initSession`) | AIOps (máquina) | Já recebe 302 do Authentik hoje (`gate-0-status.md`). Resolver por rota privada AIOps→GLPI, não por *bypass* público. |
-| SSE (stream de incidentes) | Navegador | Confirmar que o Access não encerra conexão longa (TTL de sessão e timeout do túnel). |
-| `GET /api/v1/push/config` e service worker da PWA | Navegador/PWA | Confirmar que a PWA instalada no celular (BYOD, ADR 0006) renova a sessão Access sem WARP. |
-| Agente/proxy Zabbix → `:10051` (TCP) | Agentes e proxies de clientes | **Fora do túnel HTTP.** A porta 10051 do servidor Zabbix (VPS separada, `144.91.72.202`) continua aberta, restrita por firewall à origem dos agentes. |
-| Evolution/WhatsApp (saída) e webhooks de provedores externos | Terceiros | Mapear antes de fechar 443; qualquer entrada de terceiro precisa de *bypass* ou fica fora do escopo. |
+| Operadores | Membro `@ness.com.br` | P1 + Acesso Condicional "MFA sempre" |
+| Clientes | Convidado B2B (Microsoft, Google ou código por e-mail) | Política de Acesso Condicional para convidados (MFA); *security defaults* não coexistem com Acesso Condicional. Licença e custo a decidir antes da Fase B |
+| Emergência | 2 contas no Entra fora do Acesso Condicional + contas locais por app | Senha longa em cofre; uso auditado |
 
-Correção ao desenho: "porta 443 fechada" vale para a VPS AIOps (Hub, GLPI, n8n, Authentik). "Zero porta pública" **não** vale para o ecossistema: o Zabbix mantém 10051 por necessidade do protocolo. O Zabbix web (`zabbix.ness.com.br`) só entra no túnel se for movido para a mesma estratégia; hoje está noutra VPS, com o registro A apontando direto para o IP.
+Colaboração externa: restringir convidados (sem enumerar diretório; sem acesso a Teams/SharePoint por padrão). Se o volume ou a regulação exigir, mover clientes para um tenant External ID separado (grátis até 50 mil MAU).
 
-## 7. O que não se aplica
+### 6.2 Autorização local no Hub
 
-| Coisa | Por quê |
+- Tabela de usuários guarda `issuer`, `oid`, papel e tenant. Vínculo por `issuer` + `oid`; e-mail é só exibição.
+- `platform_admin` cadastra o usuário (e-mail de convite, papel, tenant) antes do primeiro login. No primeiro login, o `oid` é ligado ao registro pelo e-mail do convite e o vínculo fica fixo.
+- Claim `groups` e `tenant_id` deixam de ser lidos. Sem JIT.
+- Identidade válida sem registro → 403 e log.
+- Desativar no Hub corta acesso mesmo com conta Entra ativa; `session_epoch` continua valendo.
+- Papéis e regras de tenant existentes (`operator`, `viewer`, `platform_admin` etc.) não mudam.
+
+### 6.3 Aplicações
+
+| App | Hoje | Depois |
+|---|---|---|
+| Hub | OIDC Authentik, claims de grupo, JIT | OIDC Entra, autorização local |
+| Zabbix | SAML Authentik (UAT) | SAML Entra; usuários e grupos no Zabbix, sem JIT; conta local de emergência |
+| GLPI | `forward_auth` Authentik | Cloudflare Access + login local GLPI. OIDC nativo só se houver necessidade |
+| n8n | `forward_auth` Authentik | Cloudflare Access + login local n8n |
+
+### 6.4 Borda (Cloudflare)
+
+- `cloudflared` na VPS AIOps, outbound-only. Firewall: 443 fechada após o gate de emergência.
+- Access: aplicações GLPI e n8n (e Zabbix web, se for movido para o túnel), política `@ness.com.br` via Entra. Até 50 usuários no Free.
+- Hub: pelo túnel, **sem** Access.
+
+Caminhos que não podem passar por Access (máquina ou servidor-a-servidor):
+
+| Caminho | Tratamento |
 |---|---|
-| Magic WAN | Sem malha de sites — uma VPS, sem filiais, sem VPCs para interconectar. Reavaliar quando houver múltiplos sites ou clientes com redes OT segregadas que exijam conectividade direta. |
-| Magic Transit | Sem prefixos IP próprios para anunciar. DDoS mitigation já coberta pelo plano Free do Cloudflare na borda HTTP. |
-| WAF | Caddy + aplicações não têm superfície HTTP pública após o túnel. Reavaliar se serviços forem expostos diretamente no futuro. |
-| Intune / Defender / Conditional Access | ness. não tem licenças P1/P2. |
+| `POST /webhook/zabbix`, `/webhook/glpi`, `GET /webhook/health`, `POST /v1/alerts`, `/api/v1/alerts` | Estão no host da API, sem Access. Métodos impostos no Caddy (demais = 405); `source-key` continua obrigatório. Teste negativo: método errado = 405, sem chave = 401 |
+| `apirest.php` do GLPI (AIOps → GLPI) | Rota privada na rede Docker, nunca pelo Access nem pela internet |
+| OIDC servidor-a-servidor (Hub → Entra) | Saída para a Microsoft; sem impacto do túnel |
+| SSE e PWA | Pelo túnel; testar conexão longa e renovação de sessão no celular |
+| Evolution e webhooks de terceiros | Mapear antes de fechar a 443 |
 
-### Ambientes OT
-
-O ness.OS coleta telemetria de ambientes OT via Zabbix agent/proxy — não entra diretamente na rede OT do cliente. O Cloudflare Access + Túnel protege a **plataforma** ness.OS, não a rede OT.
-
-Para clientes com ambientes OT segregados (Purdue model, IEC 62443), a borda Cloudflare é complementar a ferramentas OT-nativas (Claroty, Dragos, Nozomi), que fazem descoberta de ativos, deep packet inspection de Modbus/DNP3/S7 e detecção de anomalia de processo. O ness.OS não substitui essas ferramentas.
-
-Se no futuro um cliente precisar de conectividade direta entre o ness.OS e sua rede OT (ex.: coleta de telemetria via túnel seguro sem VPN), o Magic WAN pode ser reavaliado como conduíte entre zonas IEC 62443. Não está no escopo atual.
-
-## 8. Sequência de migração
+## 7. Sequência
 
 ```
-Fase 0 — Preparação
-  1. Criar app registration no Entra ID (OIDC) para o Authentik
-  2. Instalar cloudflared na VPS, criar túnel (outbound porta 7844)
-  3. Configurar Gateway DNS filtering (modo log, depois enforce)
+Fase A — Autorização local no Hub (código; pode ser preparada antes, só entra em produção após o MVP)
+  1. Modelo: issuer + oid, papel e tenant cadastrados; remover JIT e leitura de groups/tenant_id
+  2. Tela/API de cadastro de usuário restrita a platform_admin, com auditoria (ADR 0013)
+  3. Testes: sem registro = 403; tenant cruzado = 403; desativado = 401; vínculo por oid, não por e-mail
 
-Fase 1 — Borda (sem derrubar acesso atual)
-  4. Criar política Access: permitir @ness.com.br, exigir MFA (OTP). Access é deny-by-default:
-     usuários de cliente só entram com uma política de allow própria por tenant (grupo
-     Access ou e-mail/domínio do cliente), criada no onboarding do tenant junto com o IdP
-     no Authentik. Teste de isolamento: usuário do tenant A não alcança nada do tenant B.
-  4a. Criar políticas de bypass/service token da seção 6.1 (webhooks, OIDC server-side)
-  5. Apontar túnel para Caddy (localhost)
-  6. Testar: WARP → Access → túnel → Caddy → Hub (ainda com Google OAuth)
-  7. Validar MFA, logout, sessão, SSE e PWA
-  7a. Testes negativos: webhook sem source-key = 401; path fora da lista de bypass sem sessão = bloqueado na borda
+Fase B — Entra ID
+  4. App registration OIDC para o Hub; P1 + Acesso Condicional para operadores; 2 contas de emergência
+  5. Colaboração externa restrita; convidar 1 cliente piloto
+  6. Zabbix SAML Entra no UAT, depois produção
 
-Fase 2 — Troca de provedor externo
-  8. Adicionar Entra ID OIDC como fonte no Authentik
-  9. Migrar enrollment de @ness.com.br: Google → Entra ID
-  10. Testar login/logout/roles com conta Microsoft
-  11. Remover fonte Google do Authentik
-  12. Atualizar external-approval doc (genérico, não Google-específico)
+Fase C — Borda
+  7. cloudflared + Access em GLPI e n8n (remover forward_auth do Caddy)
+  8. Hub e API pelo túnel sem Access
+  9. Gate: emergência por SSH + port forward testada em Hub, GLPI e Zabbix
+  10. Fechar 443 na VPS AIOps
 
-Fase 3 — Fechamento
-  12a. Gate: acesso de emergência por SSH + port forward testado (seção 10)
-  13. Fechar porta 443 no firewall da VPS AIOps (só cloudflared). Zabbix 10051 permanece.
-  14. Remover registro A público do DNS (túnel dispensa)
-  15. Atualizar runbook, healthcheck
-  16. Manter Authentik, PostgreSQL, backup (Tier 1)
+Fase D — Desligamento
+  11. Desligar Authentik; backup guardado 30 dias; remover sso.ness.com.br e o bloco do Caddyfile
+  12. Remover segredos do Authentik do cofre e dos .env
 ```
 
-## 9. Custos
+## 8. Custos
 
-| Item | Antes | Depois | Delta |
-|---|---|---|---|
-| Authentik (Docker + PostgreSQL) | US$ 0 | US$ 0 | 0 |
-| Cloudflare Access + Túnel + Gateway | — | US$ 0 (Free) | 0 |
-| Entra ID | — | US$ 0 (M365) | 0 |
-| Google OAuth | US$ 0 | — | 0 |
-| **Total** | **US$ 0** | **US$ 0** | **US$ 0** |
+| Item | Mensal |
+|---|---|
+| Entra ID P1 para operadores (4–10) | ~US$ 24–60 |
+| Convidados B2B (até 50 mil MAU) | US$ 0 |
+| Cloudflare Access/Tunnel (≤50 usuários) | US$ 0 |
+| Authentik (sai) | menos operação Tier 1 |
 
-## 10. Riscos
+## 9. Riscos
 
 | Risco | Mitigação |
 |---|---|
-| Cloudflare Access/túnel fora do ar | Com a 443 fechada, contas locais do Hub e `akadmin` **não** são alcançáveis pela web e não mitigam essa falha. Caminho fora de banda obrigatório antes da Fase 3: SSH restrito por chave e origem administrativa (já exigido em `ecosystem-completion-plan.md`) com *port forward* para Caddy/Authentik, testado em exercício trimestral. Sem esse teste aprovado, a 443 não fecha. |
-| Entra ID fora do ar | `akadmin` local no Authentik. |
-| Authentik fora do ar | Backup testado (Tier 1), restore em < RTO de 4h (ADR 0004). |
-| cloudflared crash | Systemd restart. Healthcheck monitora. |
+| Microsoft fora do ar | Contas locais por SSH + port forward |
+| Cloudflare fora do ar | Idem; a 443 só fecha após esse teste |
+| Convidado vê dados do diretório da ness. | Restrição de colaboração externa; tenant External ID separado se preciso |
+| Vínculo errado de identidade | `issuer` + `oid`; e-mail só no primeiro vínculo, a partir de convite feito por `platform_admin` |
+| Regressão de isolamento por tenant | Repetir os testes negativos da Fase 1 com o novo modelo |
 
-## 11. Decisões delegadas ao builder
+## 10. Decisões deixadas ao executor
 
-- Configuração exata do túnel cloudflared (config.yml, systemd unit).
-- Políticas Access (OTP vs hardware key, sessão TTL).
-- Ordem de migração das apps (Hub primeiro, depois GLPI, n8n, Zabbix).
-- Se o WARP é obrigatório ou opcional para operadores (navegador sem WARP também funciona via túnel, mas perde ZTNA no dispositivo).
+- Forma da tela de cadastro de usuários no Hub.
+- TTL de sessão no Access e no Hub.
+- Se o Zabbix web entra no túnel ou mantém o registro A atual.

@@ -16,7 +16,7 @@ from fastapi.responses import StreamingResponse
 from fastapi.security import HTTPBearer
 from pydantic import BaseModel, Field, field_validator
 from redis.asyncio import Redis
-from sqlalchemy import desc, func, select
+from sqlalchemy import desc, func, select, update
 from sqlalchemy.orm import selectinload
 
 from app.config import get_settings
@@ -28,7 +28,7 @@ from app.core.dependencies import (
     resolve_tenant_scope,
 )
 from app.database import SessionLocal
-from app.models import Incident, IncidentAction, SocDecision
+from app.models import Incident, IncidentAction, Notification, SocDecision
 from app.models.schemas import IncidentAnalyzeRequest
 from app.models.users import User
 
@@ -566,6 +566,18 @@ async def act_on_incident(
                 if incident.status != "open":
                     raise HTTPException(status_code=409, detail="Estado incompatível")
                 incident.status = "acknowledged"
+                await session.execute(
+                    update(Notification)
+                    .where(
+                        Notification.incident_id == incident.id,
+                        Notification.acknowledged_at.is_(None),
+                    )
+                    .values(
+                        acknowledged_at=func.now(),
+                        ack_type="incident_status",
+                        acknowledged_by_user_id=current_user.id,
+                    )
+                )
             elif body.action == "assign_self":
                 if incident.status == "closed":
                     raise HTTPException(status_code=409, detail="Incidente encerrado")
@@ -613,3 +625,50 @@ async def act_on_incident(
             "status": incident.status,
             "assigned_user_id": incident.assigned_user_id,
         }
+
+
+@router.post("/api/incidents/{incident_id}/notifications/ack", tags=["incidents"])
+async def ack_notifications(
+    incident_id: int,
+    current_user: User = Depends(require_operator),
+):
+    """Reconhece o aviso do caso. Papel e tenant são revalidados aqui; o aviso não concede acesso.
+
+    Reconhecer não resolve o incidente (estado separado, `resolved_at`).
+    """
+    scope = resolve_tenant_scope(current_user, None)
+    async with SessionLocal() as session:
+        async with session.begin():
+            stmt = select(Incident.id).where(Incident.id == incident_id)
+            if scope:
+                stmt = stmt.where(
+                    func.lower(Incident.tags["ninf_customer_name"].astext) == scope
+                )
+            if (await session.execute(stmt)).first() is None:
+                raise HTTPException(status_code=404, detail="Incidente não encontrado")
+            acked = (
+                await session.execute(
+                    update(Notification)
+                    .where(
+                        Notification.incident_id == incident_id,
+                        Notification.acknowledged_at.is_(None),
+                    )
+                    .values(
+                        acknowledged_at=func.now(),
+                        ack_type="manual",
+                        acknowledged_by_user_id=current_user.id,
+                    )
+                    .returning(Notification.id)
+                )
+            ).all()
+            # Sempre auditado; com acked == 0 (ack antes do 1º aviso) a varredura lê esta
+            # ação e não avisa nem escala o caso.
+            session.add(
+                IncidentAction(
+                    incident_id=incident_id,
+                    actor_user_id=current_user.id,
+                    actor_source="user",
+                    action="notification_ack",
+                )
+            )
+    return {"id": str(incident_id), "acknowledged": len(acked)}

@@ -927,3 +927,11 @@ def process_alert_v1(
             raise self.retry(exc=exc, countdown=countdown, max_retries=12)
         logger.exception("Falha ao processar alerta v1 AIOps: %s", exc)
         raise self.retry(exc=exc)
+
+
+@celery_app.task(name="app.workers.alerts.sweep_notifications")
+def sweep_notifications() -> dict[str, int]:
+    """Varredura P3: avisa casos novos e escala os sem reconhecimento na janela."""
+    from app.services.notifications import sweep
+
+    return asyncio.run(sweep())
