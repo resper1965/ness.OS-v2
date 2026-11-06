@@ -12,6 +12,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, EmailStr, Field, StringConstraints
 from sqlalchemy import select
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import require_admin, require_noc
@@ -22,27 +23,30 @@ from app.models.users import User
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/customers/{customer_id}/contacts", tags=["customers"])
 
-NonBlank = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
+
+def _text(n: int) -> StringConstraints:
+    return StringConstraints(strip_whitespace=True, min_length=1, max_length=n)
+
+
+Name = Annotated[str, _text(255)]
+Short = Annotated[str, _text(64)]  # phone, role
+Email = Annotated[EmailStr, StringConstraints(max_length=320)]
 
 
 class ContactIn(BaseModel):
-    name: NonBlank
-    email: EmailStr
-    phone: (
-        Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] | None
-    ) = None
-    role: NonBlank
+    name: Name
+    email: Email
+    phone: Short | None = None
+    role: Short
     notify_severity_min: int = Field(ge=1, le=5)
     active: bool = True
 
 
 class ContactPatch(BaseModel):
-    name: NonBlank | None = None
-    email: EmailStr | None = None
-    phone: (
-        Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] | None
-    ) = None
-    role: NonBlank | None = None
+    name: Name | None = None
+    email: Email | None = None
+    phone: Short | None = None
+    role: Short | None = None
     notify_severity_min: int | None = Field(default=None, ge=1, le=5)
     active: bool | None = None
 
@@ -58,6 +62,18 @@ def _out(c: CustomerContact) -> dict:
         "notify_severity_min": c.notify_severity_min,
         "active": c.active,
     }
+
+
+async def _commit(session: AsyncSession, op: str) -> None:
+    """Erro de banco vira 500 genérico: a mensagem do Postgres (DETAIL) traz a linha com e-mail/telefone."""
+    try:
+        await session.commit()
+    except DBAPIError as e:
+        await session.rollback()
+        logger.error(
+            "customer_contact_db_error op=%s type=%s", op, type(e.orig).__name__
+        )
+        raise HTTPException(status_code=500, detail="Erro ao gravar contato") from None
 
 
 async def _customer(session: AsyncSession, customer_id: int) -> None:
@@ -100,7 +116,7 @@ async def create_contact(
     await _customer(session, customer_id)
     contact = CustomerContact(customer_id=customer_id, **body.model_dump())
     session.add(contact)
-    await session.commit()
+    await _commit(session, "create")
     logger.info(
         "customer_contact_created id=%s customer=%s by=%s",
         contact.id,
@@ -125,7 +141,7 @@ async def update_contact(
         if value is None and name != "phone":
             raise HTTPException(status_code=422, detail=f"{name} não pode ser nulo")
         setattr(contact, name, value)
-    await session.commit()
+    await _commit(session, "update")
     logger.info(
         "customer_contact_updated id=%s customer=%s by=%s fields=%s",
         contact.id,
@@ -145,7 +161,7 @@ async def delete_contact(
 ):
     contact = await _contact(session, customer_id, contact_id)
     await session.delete(contact)
-    await session.commit()
+    await _commit(session, "delete")
     logger.info(
         "customer_contact_deleted id=%s customer=%s by=%s",
         contact_id,

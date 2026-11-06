@@ -419,3 +419,34 @@ async def test_hostgroup_rule_edit_effective_next_call(customers_maker):
         assert (
             await alerts.customer_from_hostgroups(s, [{"name": "Grupo TBE"}]) == "TBE"
         )
+
+
+async def test_db_rejects_empty_pattern_and_self_ignore(customers_maker):
+    from sqlalchemy.exc import IntegrityError
+
+    for values in ("'  ', 8, NULL", "NULL, 8, 8", "'', 8, NULL"):
+        async with customers_maker() as s:
+            with pytest.raises(IntegrityError):
+                await s.execute(
+                    text(
+                        "INSERT INTO n_infraops_hostgroup_rules "
+                        f"(pattern, customer_id, ignore_when_with_customer_id) VALUES ({values})"
+                    )
+                )
+
+
+async def test_rule_to_inactive_customer_is_dropped_not_fallback(customers_maker):
+    async with customers_maker() as s:
+        await s.execute(
+            text("UPDATE n_infraops_customers SET active=false WHERE key='ness'")
+        )
+        await s.commit()
+        # a regra cadastrada vence o padrão: sem fallback para outro cliente
+        assert (
+            await alerts.customer_from_hostgroups(s, [{"name": "Zabbix servers"}])
+            is None
+        )
+        got = await alerts.customer_from_hostgroups(
+            s, [{"name": "Zabbix servers"}, {"name": "[ TBE ]"}]
+        )
+        assert got == "TBE"

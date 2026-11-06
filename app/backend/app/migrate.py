@@ -405,8 +405,18 @@ ON CONFLICT DO NOTHING""",
     customer_id                  BIGINT NOT NULL REFERENCES n_infraops_customers(id) ON DELETE CASCADE,
     ignore_when_with_customer_id BIGINT REFERENCES n_infraops_customers(id) ON DELETE CASCADE,
     priority                     INTEGER NOT NULL DEFAULT 0,
-    CONSTRAINT ck_hostgroup_rule_kind CHECK (pattern IS NOT NULL OR ignore_when_with_customer_id IS NOT NULL)
+    CONSTRAINT ck_hostgroup_rule_kind CHECK (pattern IS NOT NULL OR ignore_when_with_customer_id IS NOT NULL),
+    CONSTRAINT ck_hostgroup_rule_pattern CHECK (pattern IS NULL OR btrim(pattern) <> ''),
+    CONSTRAINT ck_hostgroup_rule_self CHECK (ignore_when_with_customer_id IS DISTINCT FROM customer_id)
 )""",
+            """DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_hostgroup_rule_pattern') THEN
+        ALTER TABLE n_infraops_hostgroup_rules ADD CONSTRAINT ck_hostgroup_rule_pattern CHECK (pattern IS NULL OR btrim(pattern) <> '');
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_hostgroup_rule_self') THEN
+        ALTER TABLE n_infraops_hostgroup_rules ADD CONSTRAINT ck_hostgroup_rule_self CHECK (ignore_when_with_customer_id IS DISTINCT FROM customer_id);
+    END IF;
+END $$""",
             """CREATE UNIQUE INDEX IF NOT EXISTS uq_hostgroup_rules ON n_infraops_hostgroup_rules (COALESCE(pattern, ''), customer_id, COALESCE(ignore_when_with_customer_id, 0))""",
             """INSERT INTO n_infraops_hostgroup_rules (pattern, customer_id, ignore_when_with_customer_id, priority)
 SELECT v.pattern, c.id, w.id, v.priority

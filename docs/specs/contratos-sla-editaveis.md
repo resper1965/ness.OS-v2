@@ -46,3 +46,9 @@ Fuso `America/Sao_Paulo`; 24x7 para crítica/alta; pausa de SLA só em "Pendente
 - SLM do GLPI lendo tto/ttr/calendário do contrato; níveis 50/80/100 %.
 - Fonte única da modalidade = contrato; `n_infraops_tenant_mappings.modality` (usado por `pipeline_health`) passa a derivar dele. Hoje não é tocado; `GET /contracts/modality-divergences` só sinaliza a diferença.
 - Migração: `python -m app.migrate` cria e semeia (idempotente); banco novo usa `sql/001_schema.sql` (paridade testada).
+
+## Regras de grupo de hosts e contatos do cliente
+
+- `n_infraops_hostgroup_rules(pattern, customer_id, ignore_when_with_customer_id, priority)`: regra com `pattern` mapeia o nome exato do grupo (ex.: `Zabbix servers`) para um cliente; regra sem `pattern` descarta `customer_id` quando `ignore_when_with_customer_id` também casa (par Alupar × Alupar PE/CO). O padrão `[ X ]` segue pelo cadastro de apelidos. Constraints: `pattern` não vazio e regra não aponta para si mesma. Regra que aponta para cliente inativo é ignorada (sem fallback); ambiguidade recusa o ticket.
+- **O seed das regras só roda com a tabela vazia** (`WHERE NOT EXISTS`): edição ou remoção de regra não é desfeita pela migração, mas apagar todas as regras e migrar de novo as recria.
+- `n_infraops_customer_contacts` + `/api/customers/{id}/contacts`: escrita `admin`/`platform_admin`, leitura só NOC global (`noc`/`soc`/`admin`/`platform_admin`; `operator` é escopado a tenant e recebe 403). Dado pessoal: log e trilha guardam só ids e nomes de campo; erro de banco no router vira 500 genérico e o engine usa `hide_parameters=True`. Nada consome os contatos ainda.

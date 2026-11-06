@@ -497,6 +497,13 @@ class HostgroupRule(Base):
             "pattern IS NOT NULL OR ignore_when_with_customer_id IS NOT NULL",
             name="ck_hostgroup_rule_kind",
         ),
+        CheckConstraint(
+            "pattern IS NULL OR btrim(pattern) <> ''", name="ck_hostgroup_rule_pattern"
+        ),
+        CheckConstraint(
+            "ignore_when_with_customer_id IS DISTINCT FROM customer_id",
+            name="ck_hostgroup_rule_self",
+        ),
         Index(
             "uq_hostgroup_rules",
             text("COALESCE(pattern, '')"),

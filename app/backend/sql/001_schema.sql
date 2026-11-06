@@ -433,7 +433,9 @@ CREATE TABLE IF NOT EXISTS n_infraops_hostgroup_rules (
     customer_id                  BIGINT NOT NULL REFERENCES n_infraops_customers(id) ON DELETE CASCADE,
     ignore_when_with_customer_id BIGINT REFERENCES n_infraops_customers(id) ON DELETE CASCADE,
     priority                     INTEGER NOT NULL DEFAULT 0,
-    CONSTRAINT ck_hostgroup_rule_kind CHECK (pattern IS NOT NULL OR ignore_when_with_customer_id IS NOT NULL)
+    CONSTRAINT ck_hostgroup_rule_kind CHECK (pattern IS NOT NULL OR ignore_when_with_customer_id IS NOT NULL),
+    CONSTRAINT ck_hostgroup_rule_pattern CHECK (pattern IS NULL OR btrim(pattern) <> ''),
+    CONSTRAINT ck_hostgroup_rule_self CHECK (ignore_when_with_customer_id IS DISTINCT FROM customer_id)
 );
 CREATE UNIQUE INDEX IF NOT EXISTS uq_hostgroup_rules ON n_infraops_hostgroup_rules (COALESCE(pattern, ''), customer_id, COALESCE(ignore_when_with_customer_id, 0));
 INSERT INTO n_infraops_hostgroup_rules (pattern, customer_id, ignore_when_with_customer_id, priority)
