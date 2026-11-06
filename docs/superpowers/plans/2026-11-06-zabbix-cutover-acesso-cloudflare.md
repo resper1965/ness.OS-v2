@@ -46,7 +46,7 @@ Não verificado: `ProxyOfflineBuffer`/`ConfigFrequency` dos proxies, duração r
 
 **Files:** este plano; `docs/execution/zabbix-cutover-2026-11.md` (evidência, criar na execução).
 
-- [ ] **Step 1:** Ricardo informa: hostname novo da tela (sugestão `zabbix-web.ness.com.br`; `zabbix.ness.com.br` fica só para proxies), lista dos ≤ 5 e-mails `@ness.com.br` com acesso à tela, e quem opera a janela.
+- [ ] **Step 1:** Ricardo informa: hostname da tela aprovado em 06/11: `zabbix-web.ness.com.br` (`zabbix.ness.com.br` fica só para proxies). Acesso por **grupo** do IdP já integrado ao ZTNA da ness (grupo ainda não criado; sem lista de e-mails). Informar o IdP em uso e o nome do grupo, e quem opera a janela.
 - [ ] **Step 2:** Ricardo grava como `dev` em `/srv/dev/secrets/projetos.env` um token Cloudflare com escopo mínimo (DNS da zona + Access + Tunnel). O agente só lê o arquivo.
 - [ ] **Step 3:** Ler `ProxyOfflineBuffer` e `ConfigFrequency` de 2 proxies (somente leitura, SSH autorizado) e reconciliar 18 × 19 no `monitor-zabbix-proxy-reconnect.sh`.
 - **Verifica:** buffer ≥ duração estimada da janela; contagem de proxies explicada.
@@ -68,7 +68,7 @@ Não verificado: `ProxyOfflineBuffer`/`ConfigFrequency` dos proxies, duração r
 ### Task 4: Túnel e Access na VPS nova **[FRASE]**
 
 - [ ] **Step 1:** Instalar `cloudflared`, criar o túnel e a rota `zabbix-web.ness.com.br` → `http://127.0.0.1`. Saída apenas.
-- [ ] **Step 2:** Aplicação no Access com política: e-mails da Task 1, método *One-time PIN* (não exige mudar o Entra agora), sessão curta. Na Fase B troca-se o IdP para o Entra.
+- [ ] **Step 2:** Aplicação no Access com política: **só o grupo da Task 1**, pelo IdP que o ZTNA da ness já usa (sem One-time PIN, sem lista de e-mails), sessão curta. Grupo vazio = ninguém entra; incluir 2 ou 3 técnicos só para o teste.
 - [ ] **Step 3:** Service token do Hub com política *Service Auth* só para `/api_jsonrpc.php`.
 - [ ] **Step 4:** Teste com 2 ou 3 técnicos em casa e em 4G: entram, e um e-mail fora da lista é barrado.
 - **Verifica:** login por pessoa, registro por pessoa nos logs do Access, API responde 200 ao Hub e 403 sem o token.
