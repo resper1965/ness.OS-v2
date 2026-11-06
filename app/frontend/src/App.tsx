@@ -248,6 +248,8 @@ function AppShellBody({ AUTH, logout, user }: {
   const [activeModule, setActiveModule] = useState<NessModule>(isOperator && !startOnIncidents ? 'core' : 'infraops');
   const [currentView, setCurrentView] = useState<View>(isOperator && !startOnIncidents ? 'dashboard' : 'incidents');
   const [selectedTenant, setSelectedTenant] = useState<string | null>(null);
+  // Recarrega a caixa de avisos: evento SSE de incidente ou ação no caso.
+  const [inboxVersion, setInboxVersion] = useState(0);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [problems, setProblems] = useState<Problem[]>([]);
   const [pipeline, setPipeline] = useState<any>(null);
@@ -337,6 +339,7 @@ function AppShellBody({ AUTH, logout, user }: {
         if (!access.matchesTenant(selectedTenant, eventData.tenant_id)) return;
         if (currentView === 'incidents') void fetchIncidents();
         if (isOperator) void fetchData();
+        setInboxVersion(v => v + 1);
       } catch (err) {
         console.error('Erro ao analisar dados do SSE:', err);
       }
@@ -420,7 +423,7 @@ function AppShellBody({ AUTH, logout, user }: {
         <div className="px-2 space-y-2">
           {/* Ativação do Web Push */}
           {user && <PushNotificationToggle />}
-          {user && canActOnIncidents && <NotificationInbox />}
+          {user && canActOnIncidents && <NotificationInbox version={inboxVersion} />}
 
           {/* Status de conexão */}
           <div role="status" aria-live="polite">
@@ -593,7 +596,7 @@ function AppShellBody({ AUTH, logout, user }: {
                 error={incidentsError}
                 canAct={canActOnIncidents}
                 initialActiveId={linkedIncident}
-                onChanged={() => fetchIncidents()}
+                onChanged={() => { setInboxVersion(v => v + 1); return fetchIncidents(); }}
                 onLoadMore={() => fetchIncidents(incidents.length)}
               />
             )}

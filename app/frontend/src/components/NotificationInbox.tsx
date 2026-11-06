@@ -6,8 +6,10 @@ const API_BASE = import.meta.env.VITE_API_URL ?? '';
 interface Item { incident_id: string; severity: number; sent_at: string | null; acknowledged_at: string | null }
 
 // Avisos do usuário logado. `sent_at` é só aceite do provedor; lido = `acknowledged_at`.
-export default function NotificationInbox() {
+// `version` muda a cada evento de incidente ou ação no caso; abrir a caixa também recarrega.
+export default function NotificationInbox({ version = 0 }: { version?: number }) {
   const [items, setItems] = useState<Item[]>([]);
+  const [opened, setOpened] = useState(0);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -16,11 +18,11 @@ export default function NotificationInbox() {
       .then(setItems)
       .catch(() => {});
     return () => controller.abort();
-  }, []);
+  }, [version, opened]);
 
   const pending = items.filter(i => !i.acknowledged_at).length;
   return (
-    <details className="px-3 py-2 rounded-lg bg-white/[0.03] text-xs">
+    <details className="px-3 py-2 rounded-lg bg-white/[0.03] text-xs" onToggle={e => { if (e.currentTarget.open) setOpened(n => n + 1); }}>
       <summary className="flex cursor-pointer items-center gap-2 text-[var(--color-brand-muted)]">
         <Inbox size={14} aria-hidden="true" />
         <span>Avisos</span>
