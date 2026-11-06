@@ -11,6 +11,9 @@
 Tasks do [plano de execução](docs/superpowers/plans/2026-10-26-ness-os-execution-plan.md).
 
 ### Feito
+- Promoção `1346b06` (06/11, OK do Ricardo): contratos/SLA/calendário editáveis (#198), clientes e apelidos (#199), regras de grupo de hosts e contatos (#200); `promotion=PASS`, seeds conferidos (13 clientes, 22 apelidos, 3 políticas, 4 passos). Calendário comercial padrão 08–20; "sem cliente" = 720 min. Rollback: release `1175954`.
+- Frontend com as telas Contratos e Clientes (#202) publicado em 06/11 (`ninf-frontend@sha256:c2c0953f…`); rollback pelos `.env` de `/opt/n-infraops/change-backups/frontend-20261106T135437/` (imagem anterior `f4afa04a…`).
+- Dimensionamento do Wazuh R3a (#201): opção B aprovada para contratação (Contabo Cloud VPS 12, €25/mês c/ IVA, 24 meses); IaC em revisão (#204), **nada aplicado**; `terraform apply` pede novo OK.
 - T09 GLPI (05/11): 949 incidentes abertos criados até 27/10 sem ticket marcados com a tag `sem_ticket_legado` (OK do Ricardo; `status` intacto; rollback pela lista de ids em `/opt/n-infraops/rollback/sem-ticket-legado/ids-2026-11-05.json`). Ticket automático nunca existiu para eles: sem replay
 - 0.2 Limpeza da raiz — #100; CLI Contabo única em `app/cli/contabo` (estava quebrada sem `commands/`) — #105
 - 0.1 Reconciliar estado — [evidência](docs/execution/evidence/state-reconciliation-2026-10-26.md)
