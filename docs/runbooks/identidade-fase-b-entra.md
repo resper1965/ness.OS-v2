@@ -11,17 +11,17 @@ OK do Ricardo em 06/11/2026. Escopo: login OIDC do Hub pelo Entra. GLPI, n8n e Z
 
 ## 2. Hub (`/opt/n-infraops/app/.env` e o `.env` da release ativa; backup antes)
 ```
-OIDC_ENABLED=true
-OIDC_CLIENT_ID=<id do aplicativo>
-OIDC_CLIENT_SECRET=<do Psono>
-OIDC_ISSUER=https://login.microsoftonline.com/<tenant>/v2.0
-OIDC_JWKS_URL=https://login.microsoftonline.com/<tenant>/discovery/v2.0/keys
-OIDC_TOKEN_URL=https://login.microsoftonline.com/<tenant>/oauth2/v2.0/token
-OIDC_AUTHORIZE_URL=https://login.microsoftonline.com/<tenant>/oauth2/v2.0/authorize
-OIDC_LOGOUT_URL=https://login.microsoftonline.com/<tenant>/oauth2/v2.0/logout
-OIDC_SCOPE=openid profile email
+NINF_OIDC_ENABLED=true
+NINF_OIDC_CLIENT_ID=<id do aplicativo>
+NINF_OIDC_CLIENT_SECRET=<do Psono>
+NINF_OIDC_ISSUER=https://login.microsoftonline.com/<tenant>/v2.0
+NINF_OIDC_JWKS_URL=https://login.microsoftonline.com/<tenant>/discovery/v2.0/keys
+NINF_OIDC_TOKEN_URL=https://login.microsoftonline.com/<tenant>/oauth2/v2.0/token
+NINF_OIDC_AUTHORIZE_URL=https://login.microsoftonline.com/<tenant>/oauth2/v2.0/authorize
+NINF_OIDC_LOGOUT_URL=https://login.microsoftonline.com/<tenant>/oauth2/v2.0/logout
+NINF_OIDC_SCOPE=openid profile email
 ```
-Recriar só a `api` (`up -d --no-deps --force-recreate api`). Exige a release com `GET /api/auth/oidc/config` (sem ela o botão ainda vai para o Authentik).
+As variáveis têm o prefixo `NINF_` (`env_prefix` em `app/backend/app/config.py`); sem ele são ignoradas. Recriar só a `api` (`up -d --no-deps --force-recreate api`). Exige a release com `GET /api/auth/oidc/config` (sem ela o botão ainda vai para o Authentik).
 
 ## 3. Vínculos (por operador)
 Seguir [identidade-fase-a.md](identidade-fase-a.md): a pessoa clica em **Entrar com SSO**, recebe 403, o log da API mostra `OIDC sem vínculo: iss='…' sub='…'` (o `sub` é o `oid`); o `platform_admin` cadastra com `POST /api/auth/identities`. Comece pelo Ricardo.
