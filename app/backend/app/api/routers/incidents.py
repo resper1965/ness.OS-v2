@@ -652,7 +652,9 @@ async def notifications_inbox(
         .limit(limit)
     )
     if scope:
-        stmt = stmt.where(func.lower(Incident.tags["ninf_customer_name"].astext) == scope)
+        stmt = stmt.where(
+            func.lower(Incident.tags["ninf_customer_name"].astext) == scope
+        )
     async with SessionLocal() as session:
         rows = (await session.execute(stmt)).all()
     return [

@@ -377,6 +377,7 @@ async def test_inbox_is_own_one_per_incident_and_provider_accept_is_not_read(
     async with _app(stranger) as c:
         assert (await c.get("/api/notifications/inbox")).json() == []
 
+
 @pg
 @pytest.mark.asyncio
 async def test_inbox_revalidates_tenant_on_read(maker, monkeypatch):
@@ -386,6 +387,7 @@ async def test_inbox_revalidates_tenant_on_read(maker, monkeypatch):
     moved = SimpleNamespace(id=uid, role=UserRole.operator, tenant_id="other")
     async with _app(moved) as c:
         assert (await c.get("/api/notifications/inbox")).json() == []
+
 
 @pg
 @pytest.mark.asyncio
