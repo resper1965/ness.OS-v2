@@ -399,6 +399,49 @@ FROM (VALUES
 ) AS v(alias_norm, key)
 JOIN seeded ON seeded.key = v.key
 ON CONFLICT DO NOTHING""",
+            """CREATE TABLE IF NOT EXISTS n_infraops_hostgroup_rules (
+    id                           BIGSERIAL PRIMARY KEY,
+    pattern                      TEXT,
+    customer_id                  BIGINT NOT NULL REFERENCES n_infraops_customers(id) ON DELETE CASCADE,
+    ignore_when_with_customer_id BIGINT REFERENCES n_infraops_customers(id) ON DELETE CASCADE,
+    priority                     INTEGER NOT NULL DEFAULT 0,
+    CONSTRAINT ck_hostgroup_rule_kind CHECK (pattern IS NOT NULL OR ignore_when_with_customer_id IS NOT NULL),
+    CONSTRAINT ck_hostgroup_rule_pattern CHECK (pattern IS NULL OR btrim(pattern) <> ''),
+    CONSTRAINT ck_hostgroup_rule_self CHECK (ignore_when_with_customer_id IS DISTINCT FROM customer_id)
+)""",
+            """DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_hostgroup_rule_pattern') THEN
+        ALTER TABLE n_infraops_hostgroup_rules ADD CONSTRAINT ck_hostgroup_rule_pattern CHECK (pattern IS NULL OR btrim(pattern) <> '');
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_hostgroup_rule_self') THEN
+        ALTER TABLE n_infraops_hostgroup_rules ADD CONSTRAINT ck_hostgroup_rule_self CHECK (ignore_when_with_customer_id IS DISTINCT FROM customer_id);
+    END IF;
+END $$""",
+            """CREATE UNIQUE INDEX IF NOT EXISTS uq_hostgroup_rules ON n_infraops_hostgroup_rules (COALESCE(pattern, ''), customer_id, COALESCE(ignore_when_with_customer_id, 0))""",
+            """INSERT INTO n_infraops_hostgroup_rules (pattern, customer_id, ignore_when_with_customer_id, priority)
+SELECT v.pattern, c.id, w.id, v.priority
+FROM (VALUES
+    ('Zabbix servers', 'ness', NULL, 0),
+    ('UAT sintético', 'ness', NULL, 0),
+    (NULL, 'alupar', 'alupar-pe', 10),
+    (NULL, 'alupar', 'alupar-co', 10)
+) AS v(pattern, ckey, wkey, priority)
+JOIN n_infraops_customers c ON c.key = v.ckey
+LEFT JOIN n_infraops_customers w ON w.key = v.wkey
+WHERE NOT EXISTS (SELECT 1 FROM n_infraops_hostgroup_rules)
+ON CONFLICT DO NOTHING""",
+            """CREATE TABLE IF NOT EXISTS n_infraops_customer_contacts (
+    id                  BIGSERIAL PRIMARY KEY,
+    customer_id         BIGINT NOT NULL REFERENCES n_infraops_customers(id) ON DELETE CASCADE,
+    name                VARCHAR(255) NOT NULL,
+    email               VARCHAR(320) NOT NULL,
+    phone               VARCHAR(64),
+    role                VARCHAR(64) NOT NULL,
+    notify_severity_min INTEGER NOT NULL,
+    active              BOOLEAN NOT NULL DEFAULT true,
+    CONSTRAINT ck_customer_contacts_severity CHECK (notify_severity_min BETWEEN 1 AND 5)
+)""",
+            """CREATE INDEX IF NOT EXISTS ix_n_infraops_customer_contacts_customer_id ON n_infraops_customer_contacts (customer_id)""",
         ):
             await conn.execute(text(ddl))
         await apply_sla_sql(conn)

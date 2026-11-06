@@ -14,6 +14,7 @@ settings = get_settings()
 engine = create_async_engine(
     settings.database_url,
     echo=False,
+    hide_parameters=True,  # DBAPIError não leva e-mail/telefone (contatos) ao log
     future=True,
     poolclass=NullPool,
     connect_args={"ssl": False},  # Postgres em Docker sem SSL

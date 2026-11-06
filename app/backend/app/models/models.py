@@ -488,6 +488,73 @@ class CustomerAlias(Base):
     )
 
 
+class HostgroupRule(Base):
+    """Regra de grupo de hosts: nome exato -> cliente, ou cliente descartado se outro estiver presente."""
+
+    __tablename__ = "n_infraops_hostgroup_rules"
+    __table_args__ = (
+        CheckConstraint(
+            "pattern IS NOT NULL OR ignore_when_with_customer_id IS NOT NULL",
+            name="ck_hostgroup_rule_kind",
+        ),
+        CheckConstraint(
+            "pattern IS NULL OR btrim(pattern) <> ''", name="ck_hostgroup_rule_pattern"
+        ),
+        CheckConstraint(
+            "ignore_when_with_customer_id IS DISTINCT FROM customer_id",
+            name="ck_hostgroup_rule_self",
+        ),
+        Index(
+            "uq_hostgroup_rules",
+            text("COALESCE(pattern, '')"),
+            "customer_id",
+            text("COALESCE(ignore_when_with_customer_id, 0)"),
+            unique=True,
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    pattern: Mapped[str | None] = mapped_column(Text)
+    customer_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("n_infraops_customers.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    ignore_when_with_customer_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("n_infraops_customers.id", ondelete="CASCADE")
+    )
+    priority: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+
+
+class CustomerContact(Base):
+    """Contato de aviso do cliente (dado pessoal; nada o consome ainda)."""
+
+    __tablename__ = "n_infraops_customer_contacts"
+    __table_args__ = (
+        CheckConstraint(
+            "notify_severity_min BETWEEN 1 AND 5", name="ck_customer_contacts_severity"
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    customer_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("n_infraops_customers.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    email: Mapped[str] = mapped_column(String(320), nullable=False)
+    phone: Mapped[str | None] = mapped_column(String(64))
+    role: Mapped[str] = mapped_column(String(64), nullable=False)
+    notify_severity_min: Mapped[int] = mapped_column(Integer, nullable=False)
+    active: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default="true"
+    )
+
+
 class SocDecision(Base):
     """Registro de decisões de triagem e inteligência geradas pelo Analista SOC IA."""
 
