@@ -227,3 +227,140 @@ describe('P3', () => {
     expect(host!.querySelector('[style]')).toBeNull();
   });
 });
+
+describe('round 2 P1: draft contract -> policy -> activate', () => {
+  const draft: Contract = {
+    id: 9, tenant_id: 'acme', is_default: false, contractual: true, name: 'Acme', modality: 'managed',
+    status: 'draft', starts_on: null, ends_on: null, calendar_id: 1, notes: null,
+  };
+  const cal = { id: 1, name: 'Comercial', timezone: 'America/Sao_Paulo', is_24x7: true, hours: [], holidays: [] };
+  const policy = { id: 1, key: 'critico', name: 'Crítico', min_severity: 4, severity: null, has_tenant: null, ack_minutes: 15, tto_minutes: null, ttr_minutes: 240, calendar_id: null, enabled: true };
+
+  // Servidor falso: 409 na ativação enquanto não há política habilitada, como o backend.
+  function fakeApi() {
+    let c = { ...draft };
+    const policies: unknown[] = [];
+    const calls: string[] = [];
+    const f = vi.fn(async (url: string, init?: RequestInit) => {
+      const m = init?.method ?? 'GET';
+      calls.push(`${m} ${url}`);
+      if (url.endsWith('/contracts') && m === 'POST') return json(201, c);
+      if (url.endsWith('/contracts')) return json(200, [c]);
+      if (url.endsWith('/modality-divergences')) return json(200, []);
+      if (url.endsWith('/calendars')) return json(200, [cal]);
+      if (url.includes('/policies/') && m === 'PUT') { policies.push({ ...policy, ...JSON.parse(init!.body as string) }); return json(200, policy); }
+      if (url.endsWith('/status')) {
+        if (!policies.length) return json(409, { detail: 'Ativar exige ao menos uma política habilitada' });
+        c = { ...c, status: 'active' };
+        return json(200, c);
+      }
+      if (url.endsWith('/contracts/9')) return json(200, { ...c, policies, escalation_steps: [] });
+      return json(404, { detail: 'x' });
+    });
+    vi.stubGlobal('fetch', f);
+    return { calls };
+  }
+
+  it('policy add then activation succeeds; 409 shows before the policy exists', async () => {
+    const { calls } = fakeApi();
+    const { store, actions } = createContractsStore();
+    await actions.load();
+    await actions.select(9);
+    await expect(actions.transition(9, 'active')).resolves.toBe(false);
+    expect(store.get().actionError).toBe('Ativar exige ao menos uma política habilitada');
+
+    actions.startPolicy(null);
+    await expect(actions.savePolicy({ key: 'critico', name: 'Crítico', mode: 'min', severity: '4', ack_minutes: '15', tto_minutes: '', ttr_minutes: '240', calendar_id: '', enabled: true, has_tenant: null })).resolves.toBe(true);
+    const put = calls.find((c) => c.startsWith('PUT') && c.includes('/policies/critico'))!;
+    expect(put).toBe('PUT /api/v1/sla/contracts/9/policies/critico');
+    expect(store.get().detail?.policies).toHaveLength(1);
+
+    await expect(actions.transition(9, 'active')).resolves.toBe(true);
+    expect(store.get().detail?.status).toBe('active');
+  });
+
+  it('policy body keeps has_tenant and maps the severity class', async () => {
+    const { toPolicyBody, policyToForm } = await import('./hooks/useContracts');
+    const form = policyToForm({ ...policy, has_tenant: true, severity: 3, min_severity: null });
+    expect(toPolicyBody(form)).toMatchObject({ severity: 3, min_severity: null, has_tenant: true, ack_minutes: 15, ttr_minutes: 240 });
+    expect(toPolicyBody({ ...form, mode: 'all' })).toMatchObject({ severity: null, min_severity: null });
+  });
+
+  const withPolicyUI = (canEdit: boolean) => {
+    const { store } = createContractsStore();
+    store.set({ phase: 'ready', contracts: [draft], calendars: [cal], selectedId: 9, detail: { ...draft, policies: [policy], escalation_steps: [{ id: 1, position: 1, role: 'noc', enabled: true }] } });
+    return renderToStaticMarkup(<ContractsView state={store.get()} actions={noop} canEdit={canEdit} />);
+  };
+  it('admin sees policy and step editing controls', () => {
+    const html = withPolicyUI(true);
+    expect(html).toMatch(/Nova política/);
+    expect(html).toMatch(/Novo passo/);
+    expect(html).toMatch(/Editar política Crítico/);
+    expect(html).toMatch(/Editar passo 1/);
+  });
+  it('viewer-class (read only) sees none of them', () => {
+    const html = withPolicyUI(false);
+    expect(html).not.toMatch(/Nova política|Novo passo|Editar política|Editar passo|Remover/);
+    expect(html).toContain('Crítico');
+  });
+  it('editor renders the form with labelled fields and shows the server 409', async () => {
+    const { store } = createContractsStore();
+    store.set({ phase: 'ready', contracts: [draft], calendars: [cal], selectedId: 9, detail: { ...draft, policies: [], escalation_steps: [] }, policyEditing: { key: null }, actionError: 'Contrato ativo exige ao menos uma política habilitada' });
+    await mount(<ContractsView state={store.get()} actions={noop} canEdit />);
+    const form = host!.querySelector('form[aria-label="Nova política"]')!;
+    expect(form).toBeTruthy();
+    for (const input of form.querySelectorAll('input, select')) expect(host!.querySelector(`label[for="${input.id}"]`)).toBeTruthy();
+    expect(form.textContent).toContain('exige ao menos uma política habilitada');
+  });
+  it('a real contract policy is not marked non-contractual, the default one is', () => {
+    expect(withPolicyUI(true)).not.toContain('não contratual');
+    const d = { ...draft, id: 1, tenant_id: null, is_default: true, contractual: false, status: 'active' as const };
+    const { store } = createContractsStore();
+    store.set({ phase: 'ready', contracts: [d], calendars: [cal], selectedId: 1, detail: { ...d, policies: [policy], escalation_steps: [] } });
+    const el = document.createElement('div');
+    el.innerHTML = renderToStaticMarkup(<ContractsView state={store.get()} actions={noop} canEdit />);
+    expect(el.querySelector('section[aria-label="Políticas de prazo"] .nx-badge')?.textContent).toBe('padrão interno · não contratual');
+  });
+});
+
+describe('round 2 P2: refresh button reloads the new screens', () => {
+  const fetchAll = () => {
+    const f = vi.fn(async (url: string) => json(200, url.includes('/contacts') ? [contact] : String(url).includes('/calendars') || String(url).includes('divergences') ? [] : url.endsWith('/customers') ? [customer] : []));
+    vi.stubGlobal('fetch', f);
+    return f;
+  };
+  const count = (f: ReturnType<typeof vi.fn>, part: string) => urls(f).filter((u) => u.endsWith(part)).length;
+
+  it('contracts reload when refreshKey changes, not when it stays', async () => {
+    const f = fetchAll();
+    await mount(<ContractsScreen role="admin" refreshKey={0} />);
+    const before = count(f, '/api/v1/sla/contracts');
+    await rerender(<ContractsScreen role="admin" refreshKey={0} />);
+    expect(count(f, '/api/v1/sla/contracts')).toBe(before);
+    await rerender(<ContractsScreen role="admin" refreshKey={1} />);
+    expect(count(f, '/api/v1/sla/contracts')).toBe(before + 1);
+  });
+  it('customers and the selected customer contacts reload, keeping the selection', async () => {
+    const f = fetchAll();
+    await mount(<CustomersScreen role="noc" refreshKey={0} />);
+    await act(async () => { [...host!.querySelectorAll('button')].find((b) => b.textContent === 'Acme')!.click(); });
+    await flush();
+    const c0 = count(f, '/api/customers'), k0 = count(f, '/contacts');
+    await rerender(<CustomersScreen role="noc" refreshKey={1} />);
+    expect(count(f, '/api/customers')).toBe(c0 + 1);
+    expect(count(f, '/contacts')).toBe(k0 + 1);
+    expect(host!.textContent).toContain('Contatos de aviso');
+  });
+  it('no reload while the role has no access', async () => {
+    const f = fetchAll();
+    await mount(<ContractsScreen role="viewer" refreshKey={0} />);
+    await rerender(<ContractsScreen role="viewer" refreshKey={1} />);
+    expect(f).not.toHaveBeenCalled();
+  });
+  it('App wires the header button to those screens', async () => {
+    const src = (await import('./App.tsx?raw')).default;
+    expect(src).toMatch(/currentView === 'contracts' \|\| currentView === 'customers'\) setCadastrosTick/);
+    expect(src).toMatch(/<ContractsScreen[^>]*refreshKey=\{cadastrosTick\}/);
+    expect(src).toMatch(/<CustomersScreen[^>]*refreshKey=\{cadastrosTick\}/);
+  });
+});

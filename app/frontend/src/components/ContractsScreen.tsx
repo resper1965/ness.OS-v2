@@ -4,9 +4,9 @@ import ContractsView from './contracts/ContractsView';
 import { Denied, Screen } from './ui/kit';
 
 // Contêiner: papel e dados. A apresentação mora em contracts/ContractsView.
-export default function ContractsScreen({ role }: { role?: string }) {
+export default function ContractsScreen({ role, refreshKey }: { role?: string; refreshKey?: number }) {
   const allowed = access.canReadCadastros(role as never);
-  const { state, actions } = useContracts(allowed);
+  const { state, actions } = useContracts(allowed, refreshKey);
   return (
     <Screen>
       {allowed

@@ -4,11 +4,11 @@ import CustomersView from './customers/CustomersView';
 import { Denied, Screen } from './ui/kit';
 
 // Contêiner: papel e dados. A apresentação mora em customers/CustomersView.
-export default function CustomersScreen({ role }: { role?: string }) {
+export default function CustomersScreen({ role, refreshKey }: { role?: string; refreshKey?: number }) {
   const allowed = access.canReadCadastros(role as never);
   const canReadContacts = access.canReadContacts(role as never);
-  const customers = useCustomers(allowed);
-  const contacts = useContacts(customers.state.selectedId, allowed && canReadContacts);
+  const customers = useCustomers(allowed, refreshKey);
+  const contacts = useContacts(customers.state.selectedId, allowed && canReadContacts, refreshKey);
   return (
     <Screen>
       {allowed

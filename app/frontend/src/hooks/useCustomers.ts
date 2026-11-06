@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { asApiError, describeError, request, type ApiError } from '../http';
 import { createStore, useStore } from '../store';
 
@@ -119,9 +119,13 @@ export function createCustomersStore() {
 
 export type CustomersActions = ReturnType<typeof createCustomersStore>['actions'];
 
-export function useCustomers(enabled: boolean) {
+export function useCustomers(enabled: boolean, refreshKey = 0) {
   const { store, actions } = useMemo(createCustomersStore, []);
   useEffect(() => { if (enabled) void actions.load(); }, [enabled, actions]);
+  const first = useRef(refreshKey);
+  useEffect(() => {
+    if (enabled && refreshKey !== first.current) { first.current = refreshKey; void actions.load(true); }
+  }, [enabled, refreshKey, actions]);
   return { state: useStore(store), actions };
 }
 
@@ -180,6 +184,17 @@ export function createContactsStore() {
 
   const actions = {
     load,
+    // Recarrega sem zerar a seleção nem o "revelar" do operador.
+    async refresh() {
+      if (customerId === null) return;
+      const id = customerId;
+      try {
+        const contacts = await request<Contact[]>(url());
+        if (customerId === id) store.set({ phase: 'ready', error: null, contacts });
+      } catch (e) {
+        if (customerId === id) store.set({ phase: 'error', error: asApiError(e) });
+      }
+    },
     // Troca de cliente ou perda de permissão: dado pessoal sai da memória e respostas atrasadas são descartadas.
     reset() {
       customerId = null;
@@ -217,8 +232,12 @@ export function createContactsStore() {
 
 export type ContactsActions = ReturnType<typeof createContactsStore>['actions'];
 
-export function useContacts(customerId: number | null, enabled: boolean) {
+export function useContacts(customerId: number | null, enabled: boolean, refreshKey = 0) {
   const { store, actions } = useMemo(createContactsStore, []);
+  const first = useRef(refreshKey);
+  useEffect(() => {
+    if (enabled && refreshKey !== first.current) { first.current = refreshKey; void actions.refresh(); }
+  }, [enabled, refreshKey, actions]);
   useEffect(() => {
     if (!enabled || customerId === null) return;
     void actions.load(customerId);

@@ -255,6 +255,7 @@ function AppShellBody({ AUTH, logout, user }: {
   const incidentsRequest = useRef(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [cadastrosTick, setCadastrosTick] = useState(0);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
 
   const fetchData = useCallback(async () => {
@@ -489,7 +490,11 @@ function AppShellBody({ AUTH, logout, user }: {
           </div>
 
           <button
-            onClick={() => { if (currentView === 'incidents') void fetchIncidents(); else void fetchData(); }}
+            onClick={() => {
+              if (currentView === 'contracts' || currentView === 'customers') setCadastrosTick(t => t + 1);
+              else if (currentView === 'incidents') void fetchIncidents();
+              else void fetchData();
+            }}
             aria-label="Atualizar dados"
             className="p-1.5 rounded-lg hover:bg-white/[0.06] text-[var(--color-brand-muted)] hover:text-white transition-all duration-200"
             style={{ transitionProperty: 'color, background, transform', transitionDuration: '300ms' }}
@@ -590,8 +595,8 @@ function AppShellBody({ AUTH, logout, user }: {
 
           </div>
           )} {/* /infraops */}
-          {activeModule === 'infraops' && currentView === 'contracts' && <ContractsScreen role={user?.role} />}
-          {activeModule === 'infraops' && currentView === 'customers' && <CustomersScreen role={user?.role} />}
+          {activeModule === 'infraops' && currentView === 'contracts' && <ContractsScreen role={user?.role} refreshKey={cadastrosTick} />}
+          {activeModule === 'infraops' && currentView === 'customers' && <CustomersScreen role={user?.role} refreshKey={cadastrosTick} />}
 
           {/* ── n.secops ── */}
           {activeModule === 'secops' && (

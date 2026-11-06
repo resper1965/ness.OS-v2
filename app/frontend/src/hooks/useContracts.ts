@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { asApiError, describeError, request, type ApiError } from '../http';
 import { createStore, useStore } from '../store';
 
@@ -33,6 +33,37 @@ export interface Calendar {
 }
 export interface Divergence { tenant_id: string; contract_modality: Modality; mapping_modality: Modality | null }
 
+export type Mode = 'all' | 'min' | 'exact';
+export interface PolicyForm {
+  key: string; name: string; mode: Mode; severity: string; ack_minutes: string; tto_minutes: string;
+  ttr_minutes: string; calendar_id: string; enabled: boolean; has_tenant: boolean | null;
+}
+export interface StepForm { position: string; role: string; enabled: boolean }
+export const STEP_ROLES = ['soc', 'noc', 'operator', 'admin'] as const;
+
+export const emptyPolicy: PolicyForm = {
+  key: '', name: '', mode: 'min', severity: '4', ack_minutes: '15', tto_minutes: '', ttr_minutes: '',
+  calendar_id: '', enabled: true, has_tenant: null,
+};
+export const policyToForm = (p: Policy): PolicyForm => ({
+  key: p.key, name: p.name, mode: p.severity !== null ? 'exact' : p.min_severity !== null ? 'min' : 'all',
+  severity: String(p.severity ?? p.min_severity ?? 0), ack_minutes: String(p.ack_minutes),
+  tto_minutes: p.tto_minutes === null ? '' : String(p.tto_minutes),
+  ttr_minutes: p.ttr_minutes === null ? '' : String(p.ttr_minutes),
+  calendar_id: p.calendar_id === null ? '' : String(p.calendar_id), enabled: p.enabled, has_tenant: p.has_tenant,
+});
+// PUT substitui a política inteira: has_tenant é carregado da leitura para não ser apagado em edição.
+export function toPolicyBody(f: PolicyForm) {
+  const n = (v: string) => (v.trim() === '' ? null : Number(v));
+  return {
+    key: f.key.trim(), name: f.name.trim(),
+    min_severity: f.mode === 'min' ? Number(f.severity) : null,
+    severity: f.mode === 'exact' ? Number(f.severity) : null,
+    has_tenant: f.has_tenant, ack_minutes: Number(f.ack_minutes), tto_minutes: n(f.tto_minutes),
+    ttr_minutes: n(f.ttr_minutes), calendar_id: n(f.calendar_id), enabled: f.enabled,
+  };
+}
+
 export interface ContractForm {
   tenant_id: string; name: string; modality: '' | Modality; starts_on: string; ends_on: string;
   calendar_id: string; notes: string;
@@ -56,6 +87,8 @@ export interface ContractsState {
   detailLoading: boolean;
   detailError: ApiError | null;
   editing: 'new' | 'edit' | null;
+  policyEditing: { key: string | null } | null; // key null = política nova
+  stepEditing: { position: number | null } | null;
   busy: boolean;
   actionError: string | null;
   actionField: ContractField | null;
@@ -64,7 +97,7 @@ export interface ContractsState {
 
 const INITIAL: ContractsState = {
   phase: 'loading', error: null, contracts: [], divergences: [], calendars: [], selectedId: null, detail: null,
-  detailLoading: false, detailError: null, editing: null, busy: false, actionError: null, actionField: null, notice: null,
+  detailLoading: false, detailError: null, editing: null, policyEditing: null, stepEditing: null, busy: false, actionError: null, actionField: null, notice: null,
 };
 
 export type ContractField = 'calendar_id' | 'ends_on';
@@ -167,6 +200,55 @@ export function createContractsStore() {
       await refreshSelected();
       return true;
     },
+    refresh: refreshSelected,
+    startPolicy: (key: string | null) => store.set({ policyEditing: { key }, actionError: null, actionField: null, notice: null }),
+    cancelPolicy: () => store.set({ policyEditing: null, actionError: null }),
+    startStep: (position: number | null) => store.set({ stepEditing: { position }, actionError: null, actionField: null, notice: null }),
+    cancelStep: () => store.set({ stepEditing: null, actionError: null }),
+    // Mutações de política/passo: 409 do servidor (ex.: "exige ao menos uma política habilitada") vai para actionError.
+    async savePolicy(form: PolicyForm) {
+      const id = store.get().selectedId;
+      if (id === null) return false;
+      const ok = await act(async () => {
+        await request(`${BASE}/contracts/${id}/policies/${encodeURIComponent(form.key.trim())}`, { method: 'PUT', body: toPolicyBody(form) });
+      }, 'Política salva.');
+      if (!ok) return false;
+      store.set({ policyEditing: null });
+      await refreshSelected();
+      return true;
+    },
+    async deletePolicy(key: string) {
+      const id = store.get().selectedId;
+      if (id === null) return false;
+      const ok = await act(async () => {
+        await request(`${BASE}/contracts/${id}/policies/${encodeURIComponent(key)}`, { method: 'DELETE' });
+      }, 'Política removida.');
+      if (ok) await refreshSelected();
+      return ok;
+    },
+    async saveStep(form: StepForm) {
+      const id = store.get().selectedId;
+      if (id === null) return false;
+      const position = Number(form.position);
+      const ok = await act(async () => {
+        await request(`${BASE}/contracts/${id}/escalation-steps/${position}`, {
+          method: 'PUT', body: { position, role: form.role, enabled: form.enabled },
+        });
+      }, 'Passo salvo.');
+      if (!ok) return false;
+      store.set({ stepEditing: null });
+      await refreshSelected();
+      return true;
+    },
+    async deleteStep(position: number) {
+      const id = store.get().selectedId;
+      if (id === null) return false;
+      const ok = await act(async () => {
+        await request(`${BASE}/contracts/${id}/escalation-steps/${position}`, { method: 'DELETE' });
+      }, 'Passo removido.');
+      if (ok) await refreshSelected();
+      return ok;
+    },
     async transition(id: number, status: ContractStatus) {
       const ok = await act(async () => {
         await request(`${BASE}/contracts/${id}/status`, { method: 'POST', body: { status } });
@@ -181,8 +263,13 @@ export function createContractsStore() {
 
 export type ContractsActions = ReturnType<typeof createContractsStore>['actions'];
 
-export function useContracts(enabled: boolean) {
+// refreshKey: o pai incrementa (botão "Atualizar dados") para recarregar sem perder seleção.
+export function useContracts(enabled: boolean, refreshKey = 0) {
   const { store, actions } = useMemo(createContractsStore, []);
   useEffect(() => { if (enabled) void actions.load(); }, [enabled, actions]);
+  const first = useRef(refreshKey);
+  useEffect(() => {
+    if (enabled && refreshKey !== first.current) { first.current = refreshKey; void actions.refresh(); }
+  }, [enabled, refreshKey, actions]);
   return { state: useStore(store), actions };
 }

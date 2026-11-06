@@ -5,6 +5,7 @@ import {
   isNonContractual, TRANSITIONS, type Calendar, type Contract, type ContractDetail, type ContractForm,
   type ContractField, type ContractsActions, type ContractsState, type ContractStatus,
 } from '../../hooks/useContracts';
+import { AddPolicyButton, AddStepButton, PolicyEditor, PolicyRowActions, StepEditor, StepRowActions } from './PolicyEditors';
 import {
   Alert, AreaField, Badge, Button, ConfirmButton, Empty, ErrorState, ICON, Panel, PageHeader, SelectField,
   Skeleton, TextField, type Tone,
@@ -202,11 +203,16 @@ function Detail({ detail, state, actions, canEdit }: {
         )}
       </Panel>
 
-      <Panel title="Políticas de prazo" meta={nonContractual ? <NonContractualBadge /> : undefined} flush>
-        {detail.policies.length === 0 ? <Empty title="Sem políticas." hint="Ativar exige ao menos uma política habilitada." /> : (
+      <Panel title="Políticas de prazo" meta={nonContractual ? <NonContractualBadge /> : undefined} flush={!state.policyEditing}
+        actions={editable && <AddPolicyButton state={state} actions={actions} />}>
+        {state.policyEditing && editable && (
+          <PolicyEditor key={state.policyEditing.key ?? 'new'} policy={detail.policies.find((p) => p.key === state.policyEditing?.key) ?? null}
+            calendars={state.calendars} state={state} actions={actions} />
+        )}
+        {!state.policyEditing && (detail.policies.length === 0 ? <Empty title="Sem políticas." hint={canEdit ? 'Ativar exige ao menos uma política habilitada. Use "Nova política".' : 'Ativar exige ao menos uma política habilitada.'} /> : (
           <table className="nx-table">
             <caption className="sr-only">Políticas de prazo{nonContractual ? ` — ${NON_CONTRACTUAL}` : ''}</caption>
-            <thead><tr><th scope="col">Política</th><th scope="col">Severidade</th><th scope="col">Reconhecer em</th><th scope="col">Tratar em</th><th scope="col">Resolver em</th><th scope="col">Estado</th></tr></thead>
+            <thead><tr><th scope="col">Política</th><th scope="col">Severidade</th><th scope="col">Reconhecer em</th><th scope="col">Tratar em</th><th scope="col">Resolver em</th><th scope="col">Estado</th>{editable && <th scope="col"><span className="sr-only">Ações</span></th>}</tr></thead>
             <tbody>
               {detail.policies.map((p) => (
                 <tr key={p.key}>
@@ -214,26 +220,33 @@ function Detail({ detail, state, actions, canEdit }: {
                   <td className="nx-mono">{sevText(p)}</td>
                   <td>{minutes(p.ack_minutes)}</td><td>{minutes(p.tto_minutes)}</td><td>{minutes(p.ttr_minutes)}</td>
                   <td><Badge tone={p.enabled ? 'ok' : 'neutral'}>{p.enabled ? 'Habilitada' : 'Desabilitada'}</Badge></td>
+                  {editable && <td><PolicyRowActions policy={p} state={state} actions={actions} /></td>}
                 </tr>
               ))}
             </tbody>
           </table>
-        )}
+        ))}
       </Panel>
 
-      <Panel title="Escalonamento" meta={nonContractual ? <NonContractualBadge /> : undefined} flush>
-        {detail.escalation_steps.length === 0 ? <Empty title="Sem passos próprios." hint="Sem passos habilitados, o contrato usa os do padrão interno (não contratual)." /> : (
+      <Panel title="Escalonamento" meta={nonContractual ? <NonContractualBadge /> : undefined} flush={!state.stepEditing}
+        actions={editable && <AddStepButton state={state} actions={actions} />}>
+        {state.stepEditing && editable && (
+          <StepEditor key={state.stepEditing.position ?? 'new'} step={detail.escalation_steps.find((x) => x.position === state.stepEditing?.position) ?? null}
+            nextPosition={Math.max(0, ...detail.escalation_steps.map((x) => x.position)) + 1} state={state} actions={actions} />
+        )}
+        {!state.stepEditing && (detail.escalation_steps.length === 0 ? <Empty title="Sem passos próprios." hint="Sem passos habilitados, o contrato usa os do padrão interno (não contratual)." /> : (
           <table className="nx-table">
             <caption className="sr-only">Passos de escalonamento</caption>
-            <thead><tr><th scope="col">Passo</th><th scope="col">Papel</th><th scope="col">Estado</th></tr></thead>
+            <thead><tr><th scope="col">Passo</th><th scope="col">Papel</th><th scope="col">Estado</th>{editable && <th scope="col"><span className="sr-only">Ações</span></th>}</tr></thead>
             <tbody>
-              {detail.escalation_steps.map((s) => (
-                <tr key={s.position}><td className="nx-mono">{s.position}</td><td>{ROLE[s.role] ?? s.role}</td>
-                  <td><Badge tone={s.enabled ? 'ok' : 'neutral'}>{s.enabled ? 'Habilitado' : 'Desabilitado'}</Badge></td></tr>
+              {detail.escalation_steps.map((x) => (
+                <tr key={x.position}><td className="nx-mono">{x.position}</td><td>{ROLE[x.role] ?? x.role}</td>
+                  <td><Badge tone={x.enabled ? 'ok' : 'neutral'}>{x.enabled ? 'Habilitado' : 'Desabilitado'}</Badge></td>
+                  {editable && <td><StepRowActions step={x} state={state} actions={actions} /></td>}</tr>
               ))}
             </tbody>
           </table>
-        )}
+        ))}
       </Panel>
 
       <Panel title="Calendário" meta={nonContractual ? <NonContractualBadge /> : undefined}>
@@ -254,7 +267,7 @@ export default function ContractsView({ state, actions, canEdit }: {
         actions={canEdit && <Button variant="primary" icon={Plus} disabled={state.phase !== 'ready' || state.busy} onClick={actions.startCreate}>Novo contrato</Button>}
       />
       <div role="status" aria-live="polite">{state.notice && <Alert tone="info">{state.notice}</Alert>}</div>
-      {state.actionError && !state.actionField && <Alert>{state.actionError}</Alert>}
+      {state.actionError && !state.actionField && !state.policyEditing && !state.stepEditing && <Alert>{state.actionError}</Alert>}
 
       {state.phase === 'loading' && <Skeleton rows={4} />}
       {state.phase === 'error' && state.error && <ErrorState error={state.error} onRetry={() => void actions.load()} />}
