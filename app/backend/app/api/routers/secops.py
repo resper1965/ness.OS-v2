@@ -26,7 +26,7 @@ from app.core.triage_engine import FREQUENCY_WINDOW_SECONDS, TriageAction, Triag
 from app.database import get_db
 from app.models.models import SocDecision, TenantMapping
 from app.models.users import User
-from app.services.policy_params import get_params
+from app.services.policy_params import CONTRACT_DEFAULTS, get_params
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/secops", tags=["secops"])
@@ -617,8 +617,21 @@ async def get_triage_stats(db: AsyncSession = Depends(get_db)) -> dict[str, Any]
 
 def sample_quota(archived: int, per_client: int, pct: int, threshold: int) -> int:
     """Amostra semanal (política SOC): `per_client` por cliente; acima de `threshold`
-    arquivados na janela, `pct`% do volume."""
-    return per_client if archived <= threshold else -(-archived * pct // 100)
+    arquivados na janela, `pct`% do volume. Nunca abaixo da cota com os padrões da
+    plataforma: contrato só endurece, e `threshold` alto/baixo não pode afrouxar."""
+
+    def quota(pc: int, p: int, t: int) -> int:
+        return pc if archived <= t else -(-archived * p // 100)
+
+    d = CONTRACT_DEFAULTS
+    return max(
+        quota(per_client, pct, threshold),
+        quota(
+            d["weekly_sample_per_client"],
+            d["weekly_sample_pct"],
+            d["weekly_sample_threshold"],
+        ),
+    )
 
 
 @router.get("/archived-sample")

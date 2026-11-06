@@ -106,6 +106,20 @@ def test_sample_quota(archived, expected):
     assert secops.sample_quota(archived, 20, 10, 200) == expected
 
 
+@pytest.mark.parametrize(
+    ("args", "expected"),
+    [
+        ((300, 20, 10, 1000), 30),  # threshold alto não reduz 30 -> 20
+        ((300, 20, 10, 50), 30),  # threshold baixo: 10% de 300, não menos
+        ((100, 20, 10, 50), 20),  # 10% de 100 = 10 < 20 (padrão)
+        ((100, 40, 10, 200), 40),  # endurece
+        ((300, 20, 50, 200), 150),  # endurece via pct
+    ],
+)
+def test_sample_quota_never_below_default(args, expected):
+    assert secops.sample_quota(*args) == expected
+
+
 def test_attendance_uses_effective_floor_param():
     low = {"level": 10, "level_invalid": False}
     assert secops._attendance_required(False, TriageAction.ARCHIVE, low, 12) is False
@@ -468,6 +482,20 @@ async def test_sample_10pct_above_200(maker):
     async with _sample_client(maker) as c:
         body = (await c.get("/api/secops/archived-sample?limit=5")).json()
     assert _by_customer(body["items"]) == {"cavan": 5, "target": 5}
+
+
+@pg
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("threshold", "expected"), [(1000, 30), (50, 30)])
+async def test_sample_threshold_cannot_weaken(maker, threshold, expected):
+    cid = await _contract(maker, "cavan")
+    await _archive(maker, "cavan", 300)
+    await _set(maker, cid, "weekly_sample_threshold", threshold)
+    await _set(maker, cid, "weekly_sample_per_client", 20)
+    async with _sample_client(maker) as c:
+        body = (await c.get("/api/secops/archived-sample")).json()
+    assert body["groups"]["cavan"]["quota"] == expected
+    assert _by_customer(body["items"]) == {"cavan": expected}
 
 
 @pg
