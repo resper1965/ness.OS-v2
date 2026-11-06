@@ -102,6 +102,7 @@ async def test_resolution_commits_human_solution_before_ack_and_replay_is_idempo
     session.execute.side_effect = results
     session.__aenter__.return_value = session
     monkeypatch.setattr(resolution, "SessionLocal", lambda: session)
+    monkeypatch.setattr(resolution, "resolve_glpi_entity_id", AsyncMock(return_value=8))
     g = MagicMock()
     g.ticket_resolution = AsyncMock(
         return_value={"resolved": True, "solution": "Restaurado", "solution_id": "9"}

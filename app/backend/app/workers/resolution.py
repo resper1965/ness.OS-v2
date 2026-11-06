@@ -9,11 +9,10 @@ from app.database import SessionLocal
 from app.integrations.glpi import GLPIClient
 from app.integrations.zabbix import ZabbixClient
 from app.models import Incident, IncidentAction, IncidentReport
+from app.services.customers import resolve_glpi_entity_id
 
 
 async def resolve_ticket(ticket_id: str, redis) -> dict:
-    from app.workers.alerts import resolve_glpi_entity_id
-
     async with SessionLocal() as session:
         incident = (
             await session.execute(
@@ -23,7 +22,9 @@ async def resolve_ticket(ticket_id: str, redis) -> dict:
         if incident is None:
             return {"status": "not_found", "ticket_id": ticket_id}
         tags = dict(incident.tags or {})
-        entity_id = resolve_glpi_entity_id(tags.get("ninf_customer_name", ""))
+        entity_id = await resolve_glpi_entity_id(
+            session, tags.get("ninf_customer_name", "")
+        )
         glpi = GLPIClient()
         try:
             resolution = await glpi.ticket_resolution(
