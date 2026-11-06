@@ -11,7 +11,7 @@
 | Sistema | Hoje | Alvo |
 |---|---|---|
 | Hub `hub.ness.com.br` | Login local; OIDC desligado (aponta para o Authentik) | OIDC Entra direto no app (PR `feat/hub-oidc-entra`), login local de reserva |
-| Zabbix | SAML do Authentik | Access (Entra) na frente + login local do Zabbix; segue o [plano de cutover](2026-11-06-zabbix-cutover-acesso-cloudflare.md) |
+| Zabbix | SAML do Authentik | **SAML Entra** (ADR 0015) com Access na frente; login local só como emergência; segue o [plano de cutover](2026-11-06-zabbix-cutover-acesso-cloudflare.md) |
 | n8n `n8n.ness.com.br` | `forward_auth` Authentik + login do próprio n8n | Access (Entra) na frente + login do n8n |
 | GLPI `n-ticket.ness.com.br` | `forward_auth` Authentik **e** login por `REMOTE_USER` (35 contas `authtype` 3, nenhuma usada até 29/10) | Access (Entra) na frente + login local do GLPI por pessoa |
 | `api.ness.com.br`, `waba`, `cofre` | basicauth / app próprio / Psono nativo | Sem mudança |
@@ -34,7 +34,7 @@ O Caddy de produção é `app/Caddyfile`. Hoje, sem túnel, as 80/443 da VPS AIO
 ### 2. Túnel na VPS AIOps — **[FRASE]**
 - [ ] Conferir `sha256` de `/opt/n-infraops/app/Caddyfile` contra `app/Caddyfile` da `main`; divergiu, reconciliar antes.
 - [ ] Instalar `cloudflared` (serviço systemd, só saída), túnel `aiops`, token no Psono.
-- [ ] Rotas novas **sem trocar DNS ainda**: hostnames de teste `n8n-t.ness.com.br` e `n-ticket-t.ness.com.br` → `https://127.0.0.1:443` com `originServerName` do host real.
+- [ ] Rotas novas **sem trocar DNS ainda**: hostnames de teste `n8n-t.ness.com.br` e `n-ticket-t.ness.com.br` → `https://127.0.0.1:443` com `originServerName` **e** `httpHostHeader` iguais ao host real (`n8n.ness.com.br` / `n-ticket.ness.com.br`); sem o `httpHostHeader` o Caddy não acha o bloco do site.
 - [ ] Cloudflare Zero Trust: login method **Microsoft Entra ID** (app de registro próprio, segredo no Psono); policy `ness-tecnicos` = e-mails/grupo de operadores ness.
 - Rollback: parar o `cloudflared`; nada em produção mudou.
 
@@ -54,11 +54,14 @@ O Caddy de produção é `app/Caddyfile`. Hoje, sem túnel, as 80/443 da VPS AIO
 - Rollback: Caddyfile anterior + reativar a variável de servidor + DNS de volta.
 
 ### 5. Zabbix
-- [ ] Segue o plano de cutover (Tasks 4 e 6 já pedem **[FRASE]**). Desligar o SAML do Authentik no Zabbix só depois do Access ativo e do login local testado.
+- [ ] Segue o plano de cutover (Tasks 4 e 6 já pedem **[FRASE]**), com Access na frente.
+- [ ] **[FRASE]** Trocar o SAML do Zabbix do Authentik para o Entra (app SAML próprio no Entra, usuários pré-criados no Zabbix, sem JIT); testar com 1 operador antes de trocar para todos. Login local do Zabbix testado como emergência.
 
 ### 6. Fechar a origem — **[FRASE]**
 - [ ] Testar emergência: com o túnel parado, entrar por SSH com chave e abrir cada sistema pelo login local (`ssh -L`).
-- [ ] UFW na AIOps: 80/443 só para os ranges da Cloudflare (ou fechar, se tudo estiver no túnel). Lembrar que porta publicada pelo Docker fura o UFW: conferir `docker ps` e `iptables -L DOCKER-USER`.
+- [ ] **Não use o UFW para isso:** o `app/docker-compose.yml` publica o Caddy em `80:80` e `443:443` em todas as interfaces, e o Docker desvia esse tráfego antes do UFW. Com tudo no túnel, a correção é publicar só em loopback (`127.0.0.1:443:443`, `127.0.0.1:80:80`) por PR no compose e recriar o `caddy`.
+- [ ] Se algum host precisar continuar fora do túnel: regra explícita na cadeia `DOCKER-USER` (permitir só os ranges da Cloudflare em 80/443 e `DROP` o resto), persistida.
+- [ ] Verificar de fora (outra máquina): `curl -k --resolve n-ticket.ness.com.br:443:<IP da VPS> https://n-ticket.ness.com.br/` **falha** (timeout/recusa); pelo nome, via Cloudflare, cai no login do Entra.
 
 ### 7. Desligar o Authentik — **[FRASE]**
 - [ ] 7 dias sem login no Authentik (log) e sem incidente de acesso.
@@ -67,4 +70,4 @@ O Caddy de produção é `app/Caddyfile`. Hoje, sem túnel, as 80/443 da VPS AIO
 - Rollback (até 30 dias): subir os contêineres do backup e restaurar o bloco do Caddy.
 
 ## Pronto quando
-Nenhuma referência ativa a `authentik` no `app/Caddyfile` e no compose; os quatro sistemas entram pelo Entra; login local testado em todos; Authentik parado com backup.
+Nenhuma referência ativa a `authentik` no `app/Caddyfile` e no compose; Hub por OIDC Entra, Zabbix por **SAML Entra**, GLPI e n8n por Access com Entra; acesso direto ao IP da origem falha; login local testado em todos; Authentik parado com backup.
