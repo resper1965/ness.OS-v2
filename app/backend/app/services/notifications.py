@@ -12,7 +12,7 @@ import asyncio
 import logging
 import time as _time
 from collections.abc import Coroutine
-from datetime import datetime, time, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from sqlalchemy import select, update
@@ -28,15 +28,17 @@ from app.models import (
     Notification,
     PushSubscription,
     User,
-    UserRole,
+)
+from app.services.sla import (
+    PolicyCfg,
+    add_calendar_time,
+    load_config,
+    resolve,
+    roles_for,
 )
 
 logger = logging.getLogger("nessops.notifications")
 
-# ponytail: Brasil sem horário de verão desde 2019, offset fixo evita depender de tzdata;
-# upgrade path: zoneinfo + calendário de feriados quando o contrato exigir.
-_BR = timezone(timedelta(hours=-3))
-_OPEN, _CLOSE = time(8), time(18)
 # Primeiro deploy não pode disparar rajada sobre incidentes antigos.
 _SOURCE_WINDOW_HOURS = 24
 _MAX_INCIDENTS_PER_SWEEP = 50
@@ -49,67 +51,19 @@ _LEASE = timedelta(minutes=5)
 _MAX_ATTEMPTS = 5
 _NO_SUBSCRIPTION = "error:no_subscription"  # não retenta: nada a reenviar
 
-# Janelas de resposta (soc-attendance-policy.md / p2-proposta-valores.md, aceitas em 04/11).
-# (prazo, conta só em horário comercial). "1 dia útil" = 10 h comerciais.
-_WINDOWS = {
-    "critical": (timedelta(minutes=15), False),  # nível >= 12
-    "elevated": (timedelta(hours=1), False),  # nível <= 6 com score >= 75
-    "no_client": (timedelta(hours=10), True),  # sem cliente: 1 dia útil
-}
-# Papéis na ordem de escalonamento (o responsável designado vai antes).
-# ponytail: não existe escala de plantão no sistema; ordem fixa por papel, sem plantão
-# próprio. Upgrade path: ler a escala existente quando houver fonte (GLPI/n.360).
-# Corte por decisão do Ricardo (05/11): a severidade 3 tem ~1.731 casos abertos e geraria
-# enxurrada. Upgrade path: baixar para 3 (e recriar a janela de 4 h comerciais) quando o
-# volume de sev 3 aberto cair.
-_MIN_SEVERITY = 4
-ESCALATION_ROLES = (UserRole.soc, UserRole.noc, UserRole.operator, UserRole.admin)
+# Prazos, calendários, severidade mínima e ordem de escalonamento vêm do contrato do
+# tenant (ou do padrão interno NÃO contratual): ver app/services/sla.py. Nada embutido aqui.
+# ponytail: não existe escala de plantão no sistema; a ordem é por papel (passos do
+# contrato). Upgrade path: ler a escala existente quando houver fonte (GLPI/n.360).
 
 
-def severity_window(severity: int, has_tenant: bool) -> str | None:
-    """Classe de janela do incidente; None = abaixo do piso de aviso.
-
-    ponytail: o Incident traz severidade Zabbix 0-5, que NÃO é o nível Wazuh/score da
-    política (soc-attendance-policy.md); mapa provisório 5 -> critical, 4 -> elevated.
-    Corte em `_MIN_SEVERITY` (4) por decisão do Ricardo em 05/11, até a fila ser limpa.
-    Precisa de confirmação do Ricardo antes de produção.
-    """
-    if severity < _MIN_SEVERITY:
-        return None
-    if not has_tenant:
-        return "no_client"
-    return {5: "critical", 4: "elevated"}[severity]
-
-
-def _add_business(start: datetime, delta: timedelta) -> datetime:
-    cur = start.astimezone(_BR)
-
-    def opening(d: datetime) -> datetime:
-        d = d.replace(hour=_OPEN.hour, minute=0, second=0, microsecond=0)
-        while d.weekday() >= 5:
-            d += timedelta(days=1)
-        return d
-
-    if cur.weekday() >= 5 or cur.time() >= _CLOSE:
-        cur = opening(cur + timedelta(days=1))
-    elif cur.time() < _OPEN:
-        cur = opening(cur)
-    while True:
-        avail = cur.replace(hour=_CLOSE.hour, minute=0, second=0, microsecond=0) - cur
-        if delta <= avail:
-            return cur + delta
-        delta -= avail
-        cur = opening(cur + timedelta(days=1))
-
-
-def response_deadline(window: str, start: datetime) -> datetime:
-    delta, business = _WINDOWS[window]
-    return _add_business(start, delta) if business else start + delta
+def response_deadline(policy: PolicyCfg, start: datetime) -> datetime:
+    return add_calendar_time(start, policy.ack, policy.calendar)
 
 
 def next_escalation(
     *,
-    window: str,
+    policy: PolicyCfg,
     step_at: datetime,
     step: int,
     total: int,
@@ -122,7 +76,7 @@ def next_escalation(
     """
     if acknowledged or step + 1 >= total:
         return None
-    return step + 1 if now >= response_deadline(window, step_at) else None
+    return step + 1 if now >= response_deadline(policy, step_at) else None
 
 
 def _message(inc: Incident) -> tuple[str, str]:
@@ -174,17 +128,17 @@ def _tenant(inc: Incident) -> str:
     return ((inc.tags or {}).get("ninf_customer_name") or "").lower()
 
 
-async def _recipients(session, inc: Incident) -> list[User]:
-    """Resolvidos no backend: papel + tenant do incidente; global só soc/noc/admin."""
+async def _recipients(session, inc: Incident, roles) -> list[User]:
+    """Resolvidos no backend: papel (passos do contrato) + tenant do incidente."""
     tenant = _tenant(inc)
-    stmt = select(User).where(User.is_active.is_(True), User.role.in_(ESCALATION_ROLES))
+    stmt = select(User).where(User.is_active.is_(True), User.role.in_(roles))
     users = (await session.execute(stmt)).scalars().all()
     eligible = [
         u
         for u in users
         if (u.role in NOC_ROLES) or (tenant and (u.tenant_id or "").lower() == tenant)
     ]
-    rank = {r: i for i, r in enumerate(ESCALATION_ROLES)}
+    rank = {r: i for i, r in enumerate(roles)}
     return sorted(
         eligible,
         key=lambda u: (u.id != inc.assigned_user_id, rank[u.role], u.id),
@@ -274,6 +228,12 @@ async def sweep(now: datetime | None = None) -> dict[str, int]:
             .values(resolved_at=now)
         )
         await session.commit()
+        # Uma leitura por ciclo, sem cache: editar o contrato vale no ciclo seguinte.
+        cfg = await load_config(session)
+        floor = cfg.severity_floor(now)
+        if floor is None:
+            logger.warning("Nenhuma política de SLA habilitada; varredura não avisa")
+            return stats
         # ponytail: os 50 mais novos por severidade; acima disso o excedente espera o
         # ciclo seguinte. Upgrade path: cursor/paginação se houver mais de 50 abertos.
         incidents = (
@@ -282,7 +242,7 @@ async def sweep(now: datetime | None = None) -> dict[str, int]:
                     select(Incident)
                     .where(
                         Incident.status == "open",
-                        Incident.severity >= _MIN_SEVERITY,
+                        Incident.severity >= floor,
                         Incident.first_seen
                         >= now - timedelta(hours=_SOURCE_WINDOW_HOURS),
                     )
@@ -321,9 +281,12 @@ async def sweep(now: datetime | None = None) -> dict[str, int]:
                 .scalars()
                 .all()
             )
-            people = await _recipients(session, inc)
-            window = severity_window(inc.severity, bool(_tenant(inc)))
-            if not people or window is None:
+            hit = resolve(cfg, _tenant(inc), inc.severity, now)
+            if hit is None:
+                continue
+            contract, policy = hit
+            people = await _recipients(session, inc, roles_for(cfg, contract))
+            if not people:
                 continue
             if not rows:
                 await _notify(session, inc, people[0], 0, now)
@@ -360,7 +323,7 @@ async def sweep(now: datetime | None = None) -> dict[str, int]:
                 step + 1
                 if not accepted
                 else next_escalation(
-                    window=window,
+                    policy=policy,
                     step_at=min(accepted),
                     step=step,
                     total=step + 1 + len(pending),
