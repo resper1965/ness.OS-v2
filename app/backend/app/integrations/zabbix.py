@@ -37,6 +37,15 @@ class ZabbixClient:
         self.timeout = httpx.Timeout(10.0, read=30.0)
         self.verify_ssl = settings.zabbix_verify_cert
 
+    @staticmethod
+    def _access_headers() -> dict[str, str]:
+        """Service token do Cloudflare Access: só vai se ambos estiverem definidos."""
+        cid = settings.zabbix_access_client_id
+        secret = settings.zabbix_access_client_secret
+        if cid and secret:
+            return {"CF-Access-Client-Id": cid, "CF-Access-Client-Secret": secret}
+        return {}
+
     async def _call(self, method: str, params: dict[str, Any] | list[str]) -> Any:
         """Executa uma chamada JSON-RPC para a API do Zabbix."""
         payload = {
@@ -48,7 +57,7 @@ class ZabbixClient:
 
         # Zabbix 7.0+: API tokens (criados na UI) devem usar Bearer header.
         # O campo "auth" no payload era para session tokens (user.login) — deprecado em 7.0.
-        headers = {"Content-Type": "application/json-rpc"}
+        headers = {"Content-Type": "application/json-rpc", **self._access_headers()}
         if self.token:
             headers["Authorization"] = f"Bearer {self.token}"
 
@@ -77,7 +86,7 @@ class ZabbixClient:
         *,
         authenticated: bool,
     ) -> Any:
-        headers = {"Content-Type": "application/json-rpc"}
+        headers = {"Content-Type": "application/json-rpc", **self._access_headers()}
         if authenticated:
             headers["Authorization"] = f"Bearer {self.token}"
 
