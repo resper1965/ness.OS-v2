@@ -46,7 +46,7 @@ Não verificado: `ProxyOfflineBuffer`/`ConfigFrequency` dos proxies, duração r
 
 **Files:** este plano; `docs/execution/zabbix-cutover-2026-11.md` (evidência, criar na execução).
 
-- [ ] **Step 1:** Ricardo informa: hostname da tela aprovado em 06/11: `zabbix-web.ness.com.br` (`zabbix.ness.com.br` fica só para proxies). Acesso por **grupo** do IdP já integrado ao ZTNA da ness (grupo ainda não criado; sem lista de e-mails). IdP: Entra (confirmado 06/11); grupo de segurança do Entra, sugestão `zabbix-operadores`. Informar o nome do grupo e quem opera a janela.
+- [ ] **Step 1:** Ricardo informa: hostname da tela aprovado em 06/11: `zabbix-web.ness.com.br` (`zabbix.ness.com.br` fica só para proxies). IdP: Entra (confirmado 06/11). Sem grupo na Cloudflare e sem lista de e-mails: o Access só libera quem entra (`@ness.com.br`, MFA dos security defaults do Entra); papel e permissão ficam em usuários e grupos do próprio Zabbix, cadastrados antes, sem JIT (ADR 0015). Informar quem opera a janela.
 - [ ] **Step 2:** Ricardo grava como `dev` em `/srv/dev/secrets/projetos.env` um token Cloudflare com escopo mínimo (DNS da zona + Access + Tunnel). O agente só lê o arquivo.
 - [ ] **Step 3:** Ler `ProxyOfflineBuffer` e `ConfigFrequency` de 2 proxies (somente leitura, SSH autorizado) e reconciliar 18 × 19 no `monitor-zabbix-proxy-reconnect.sh`.
 - **Verifica:** buffer ≥ duração estimada da janela; contagem de proxies explicada.
@@ -68,7 +68,7 @@ Não verificado: `ProxyOfflineBuffer`/`ConfigFrequency` dos proxies, duração r
 ### Task 4: Túnel e Access na VPS nova **[FRASE]**
 
 - [ ] **Step 1:** Instalar `cloudflared`, criar o túnel e a rota `zabbix-web.ness.com.br` → `http://127.0.0.1`. Saída apenas.
-- [ ] **Step 2:** Aplicação no Access com política: **só o grupo da Task 1**, pelo IdP que o ZTNA da ness já usa (sem One-time PIN, sem lista de e-mails), sessão curta. Grupo vazio = ninguém entra; incluir 2 ou 3 técnicos só para o teste.
+- [ ] **Step 2:** Aplicação no Access com política *allow* `@ness.com.br` via Entra, deny-by-default, sessão curta (desenho de perímetro, ADR 0015 ponto 4). Quem passa pelo Access ainda precisa de usuário cadastrado no Zabbix; cadastrar 2 ou 3 técnicos só para o teste.
 - [ ] **Step 3:** Service token do Hub com política *Service Auth* só para `/api_jsonrpc.php`.
 - [ ] **Step 4:** Teste com 2 ou 3 técnicos em casa e em 4G: entram, e um e-mail fora da lista é barrado.
 - **Verifica:** login por pessoa, registro por pessoa nos logs do Access, API responde 200 ao Hub e 403 sem o token.
