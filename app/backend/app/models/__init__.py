@@ -5,7 +5,10 @@ from app.models.models import (
     AssetType,
     Customer,
     CustomerAlias,
+    Contract,
+    ContractChange,
     CustomerCredentials,
+    EscalationStep,
     Incident,
     IncidentAction,
     IncidentReport,
@@ -13,7 +16,12 @@ from app.models.models import (
     Notification,
     PlaybookExecution,
     RmmProvider,
+    SlaCalendar,
+    SlaCalendarHours,
+    SlaHoliday,
+    SlaPolicy,
     SocDecision,
+    TenantMapping,
 )
 from app.models.push import PushSubscription
 from app.models.users import User, UserRole
@@ -36,4 +44,12 @@ __all__ = [
     "UserRole",
     "PushSubscription",
     "Notification",
+    "Contract",
+    "ContractChange",
+    "EscalationStep",
+    "SlaCalendar",
+    "SlaCalendarHours",
+    "SlaHoliday",
+    "SlaPolicy",
+    "TenantMapping",
 ]
