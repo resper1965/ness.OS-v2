@@ -448,6 +448,14 @@ class Customer(Base):
     """Cadastro do cliente: identidade e entidade GLPI (nenhum contato aqui)."""
 
     __tablename__ = "n_infraops_customers"
+    __table_args__ = (
+        Index(
+            "uq_customers_active_entity",
+            "glpi_entity_id",
+            unique=True,
+            postgresql_where=text("active"),
+        ),
+    )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     key: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)

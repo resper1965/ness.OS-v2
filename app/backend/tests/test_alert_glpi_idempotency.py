@@ -785,7 +785,9 @@ async def test_pipeline_persists_incident_and_retries_glpi_failure(
     monkeypatch.setattr(alerts, "analyze_incident", AsyncMock(return_value=analysis))
     monkeypatch.setattr(alerts, "lookup_glpi_asset", AsyncMock(return_value=None))
     monkeypatch.setattr(alerts, "SessionLocal", session_factory)
-    monkeypatch.setattr(alerts, "glpi_entity_for_customer", AsyncMock(return_value=8))
+    monkeypatch.setattr(
+        alerts, "canonical_customer", AsyncMock(return_value=("Cavan", 8))
+    )
     redis = MagicMock()
     published = []
 
@@ -1087,7 +1089,9 @@ async def test_zabbix_severity_reaches_create_ticket_through_alert_flow(monkeypa
         alerts, "resolve_alert_customer", AsyncMock(return_value="Ness")
     )
     monkeypatch.setattr(alerts, "lookup_glpi_asset", AsyncMock(return_value=None))
-    monkeypatch.setattr(alerts, "glpi_entity_for_customer", AsyncMock(return_value=0))
+    monkeypatch.setattr(
+        alerts, "canonical_customer", AsyncMock(return_value=("Ness", 0))
+    )
     monkeypatch.setattr(alerts, "analyze_incident", AsyncMock(return_value=MagicMock()))
     monkeypatch.setattr(alerts, "build_glpi_ticket_content", lambda *_: "c")
 

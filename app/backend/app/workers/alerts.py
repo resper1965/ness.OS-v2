@@ -21,7 +21,7 @@ from app.integrations.whatsapp import WhatsAppClient
 from app.integrations.zabbix import ZabbixClient
 from app.ml.analyzer import analyze_incident
 from app.models import Asset, Incident, IncidentAction
-from app.services.customers import resolve_glpi_entity_id
+from app.services.customers import AmbiguousCustomer, resolve_active_customer
 from app.workers.celery_app import celery_app
 
 logger = logging.getLogger(__name__)
@@ -133,6 +133,7 @@ def resolve_glpi_category_id(alert_data: Dict[str, Any]) -> int:
 async def customer_from_hostgroups(
     session: Any, groups: list[dict[str, str]]
 ) -> str | None:
+    """Nome canônico do cliente dos grupos `[Cliente]`; ambiguidade levanta ValueError."""
     candidates = {}
     for group in groups:
         name = group.get("name", "")
@@ -142,21 +143,27 @@ async def customer_from_hostgroups(
             customer = "Ness"
         if customer:
             try:
-                candidates[await resolve_glpi_entity_id(session, customer)] = customer
+                found = await resolve_active_customer(session, customer)
+            except AmbiguousCustomer:
+                raise
             except ValueError:
                 continue
-    if len(candidates) > 1:
-        candidates.pop(0, None)  # Generic monitoring group is not a customer.
-    if set(candidates) in ({1, 5}, {1, 6}):
-        candidates.pop(1)
+            candidates[found.id] = found
+    if len(candidates) > 1:  # Generic monitoring group is not a customer.
+        candidates = {i: c for i, c in candidates.items() if c.glpi_entity_id != 0}
+    if {c.glpi_entity_id for c in candidates.values()} in ({1, 5}, {1, 6}):
+        candidates = {i: c for i, c in candidates.items() if c.glpi_entity_id != 1}
     if len(candidates) > 1:
         raise ValueError("Host associado a clientes distintos; ticket recusado")
-    return next(iter(candidates.values()), None)
+    return next((c.display_name for c in candidates.values()), None)
 
 
-async def glpi_entity_for_customer(customer_name: str) -> int:
+async def canonical_customer(customer_name: str) -> tuple[str, int]:
+    """(nome canônico, entidade GLPI) do cliente; é o nome gravado no incidente/ativo."""
     async with SessionLocal() as session:
-        return await resolve_glpi_entity_id(session, customer_name)
+        customer = await resolve_active_customer(session, customer_name)
+    assert customer.glpi_entity_id is not None
+    return customer.display_name, customer.glpi_entity_id
 
 
 async def resolve_alert_customer(alert_data: Dict[str, Any]) -> str:
@@ -382,8 +389,9 @@ async def _async_process_alert_v1(
 
     # 1. Resolver o cliente do ativo
     host_name = alert_data.get("host_name", "")
-    customer_name = await resolve_alert_customer(alert_data)
-    entity_id = await glpi_entity_for_customer(customer_name)
+    customer_name, entity_id = await canonical_customer(
+        await resolve_alert_customer(alert_data)
+    )
     linked_item = await lookup_glpi_asset(alert_data.get("host_id", ""), customer_name)
 
     logger.info(

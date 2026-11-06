@@ -351,6 +351,7 @@ async def run_migrations():
     customer_id BIGINT NOT NULL REFERENCES n_infraops_customers(id) ON DELETE CASCADE
 )""",
             """CREATE INDEX IF NOT EXISTS ix_n_infraops_customer_aliases_customer_id ON n_infraops_customer_aliases (customer_id)""",
+            """CREATE UNIQUE INDEX IF NOT EXISTS uq_customers_active_entity ON n_infraops_customers (glpi_entity_id) WHERE active""",
             """WITH seeded AS (
     INSERT INTO n_infraops_customers (key, display_name, glpi_entity_id)
     VALUES
@@ -363,7 +364,7 @@ async def run_migrations():
         ('bichara', 'Bichara', 7),
         ('cavan', 'Cavan', 8),
         ('nova-energia', 'Nova Energia', 9),
-        ('numen', 'Numen', 10),
+        ('numen', 'Numen IT', 10),
         ('tne', 'TNE', 11),
         ('unimed', 'Unimed', 12),
         ('ness', 'Ness', 0)

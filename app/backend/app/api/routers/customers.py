@@ -12,7 +12,7 @@ from app.core.dependencies import require_admin, require_operator
 from app.database import get_db
 from app.models.models import Customer, CustomerAlias
 from app.models.users import User
-from app.services.customers import norm_alias
+from app.services.customers import matching_customers, norm_alias
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/customers", tags=["customers"])
@@ -68,6 +68,27 @@ async def _get(session: AsyncSession, customer_id: int) -> Customer:
     return customer
 
 
+async def _entity_taken(
+    session: AsyncSession, entity: int | None, active: bool, own_id: int | None
+) -> bool:
+    if entity is None or not active:
+        return False
+    other = await session.execute(
+        select(Customer.id).where(
+            Customer.glpi_entity_id == entity,
+            Customer.active,
+            Customer.id != (own_id or 0),
+        )
+    )
+    return other.first() is not None
+
+
+async def _name_taken(
+    session: AsyncSession, name: str, own_id: int | None = None
+) -> bool:
+    return any(c.id != own_id for c in await matching_customers(session, name))
+
+
 def _touch(c: Customer, user: User) -> None:
     c.updated_at = datetime.now(timezone.utc)
     c.updated_by_user_id = user.id
@@ -88,6 +109,13 @@ async def create_customer(
     session: AsyncSession = Depends(get_db),
     user: User = Depends(require_admin),
 ):
+    if await _entity_taken(session, body.glpi_entity_id, body.active, None):
+        raise HTTPException(status_code=409, detail="Entidade GLPI já em uso")
+    for name in (body.key, body.display_name, *body.aliases):
+        if await _name_taken(session, name):
+            raise HTTPException(
+                status_code=409, detail="Chave ou apelido já cadastrado"
+            )
     customer = Customer(
         key=body.key,
         display_name=body.display_name,
@@ -98,7 +126,9 @@ async def create_customer(
     try:
         session.add(customer)
         await session.flush()
-        for alias in {norm_alias(a) for a in [body.display_name, *body.aliases]}:
+        for alias in {
+            norm_alias(a) for a in [body.key, body.display_name, *body.aliases]
+        }:
             session.add(CustomerAlias(alias_norm=alias, customer_id=customer.id))
         await session.flush()
     except IntegrityError:
@@ -120,13 +150,32 @@ async def update_customer(
 ):
     customer = await _get(session, customer_id)
     before = _fields(customer)
+    after = {**before, **body.model_dump(exclude_unset=True)}
+    if await _entity_taken(
+        session, after["glpi_entity_id"], after["active"], customer.id
+    ):
+        raise HTTPException(status_code=409, detail="Entidade GLPI já em uso")
+    if body.display_name and await _name_taken(session, body.display_name, customer.id):
+        raise HTTPException(status_code=409, detail="Nome já cadastrado")
     for name in body.model_fields_set:
         value = getattr(body, name)
         if value is None and name != "glpi_entity_id":
             raise HTTPException(status_code=422, detail=f"{name} não pode ser nulo")
         setattr(customer, name, value)
     _touch(customer, user)
-    await session.commit()
+    if body.display_name and not await session.get(
+        CustomerAlias, norm_alias(customer.display_name)
+    ):  # the new canonical name must stay resolvable; the old one stays as alias
+        session.add(
+            CustomerAlias(
+                alias_norm=norm_alias(customer.display_name), customer_id=customer.id
+            )
+        )
+    try:
+        await session.commit()
+    except IntegrityError:
+        await session.rollback()
+        raise HTTPException(status_code=409, detail="Entidade GLPI ou nome já em uso")
     logger.info(
         "customer_updated id=%s by=%s before=%s after=%s",
         customer.id,
@@ -145,6 +194,8 @@ async def add_alias(
     user: User = Depends(require_admin),
 ):
     customer = await _get(session, customer_id)
+    if await _name_taken(session, body.alias, customer.id):
+        raise HTTPException(status_code=409, detail="Apelido já cadastrado")
     session.add(
         CustomerAlias(alias_norm=norm_alias(body.alias), customer_id=customer.id)
     )
@@ -172,6 +223,10 @@ async def remove_alias(
 ):
     customer = await _get(session, customer_id)
     alias_norm = norm_alias(alias)
+    if alias_norm in (norm_alias(customer.display_name), norm_alias(customer.key)):
+        raise HTTPException(
+            status_code=422, detail="Apelido canônico não pode ser removido"
+        )
     result = await session.execute(
         delete(CustomerAlias).where(
             CustomerAlias.customer_id == customer.id,
