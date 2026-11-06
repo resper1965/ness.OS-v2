@@ -31,7 +31,7 @@ Este ADR cataloga o que está disponível, o que está fora e as regras para con
 | **Purview (Audit, eDiscovery)** | Sem licença (confirmado pelo Ricardo em 05/11/2026) | Licença de conformidade |
 | **Intune** | Sem licença de MDM | Licença Intune ou EMS |
 | **Sentinel (SIEM)** | Sem licença de SIEM | Custo por GB ingerido, sem teto |
-| **Power Platform (Automate, Apps, BI)** | Sem licença | Licença premium por usuário |
+| **Power Platform (Automate, Apps, BI)** | Sem licença premium | Licença premium por usuário. O aplicativo Workflows do Teams (que substituiu os webhooks de conector, aposentados em maio de 2026) roda no Power Automate incluído no M365; a cobertura de licença dele deve ser conferida no centro de administração antes de qualquer ADR de Teams |
 | **Microsoft Copilot** | Sem licença | Licença por usuário; o custo não é previsível |
 
 ### Regras para qualquer integração com o M365
@@ -52,7 +52,7 @@ Este ADR cataloga o que está disponível, o que está fora e as regras para con
 
 - Nenhum código, conector, tipo de sinal ou tipo de saída do M365 é construído sem ADR.
 - O catálogo de disponíveis não é um backlog: é um inventário para decisão futura.
-- Se um cliente exigir Teams ou e-mail como canal, o ADR do P3 cobre.
+- Se um cliente exigir Teams ou e-mail como canal, abrir um ADR próprio da peça (regra 1); o P3 atual só implementa e-mail transacional e Web Push.
 - Se a autorização local do ADR 0015 se mostrar insuficiente, a Graph API é o próximo passo documentado.
 - Peças indisponíveis não voltam à discussão sem decisão de compra.
 - A lista de licenças é a conhecida em 05/11/2026. Entra ID Free está confirmado; Purview está confirmado como ausente. Defender segue por confirmar no centro de administração antes de qualquer decisão que dependa dele.
