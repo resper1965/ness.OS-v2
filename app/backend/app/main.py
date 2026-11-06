@@ -37,6 +37,7 @@ except ImportError:
 from app.api.routers.assets import router as assets_router
 from app.api.routers.atera import router as atera_router
 from app.api.routers.auth import router as auth_router
+from app.api.routers.contracts import router as contracts_router
 from app.api.routers.core import router as core_router
 from app.api.routers.dashboard import router as dashboard_router
 from app.api.routers.incidents import router as incidents_router
@@ -141,6 +142,7 @@ app.include_router(secops_router)  # prefix: /api/secops
 # --- Auth (compartilhado) ---
 app.include_router(auth_router)  # prefix: /api/auth
 app.include_router(push_router)  # prefix: /api/v1/push
+app.include_router(contracts_router)  # prefix: /api/v1/sla
 
 
 @app.get("/", tags=["root"])

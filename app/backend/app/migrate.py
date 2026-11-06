@@ -27,6 +27,135 @@ logging.basicConfig(
 )
 logger = logging.getLogger("nessops.migration")
 
+# Idêntico ao bloco `sla:begin/end` de sql/001_schema.sql (paridade testada).
+# Sem `;` dentro de instrução: a divisão abaixo é por `;`.
+SLA_SQL = """
+CREATE TABLE IF NOT EXISTS n_infraops_sla_calendars (
+    id        BIGSERIAL PRIMARY KEY,
+    name      VARCHAR(64) NOT NULL UNIQUE,
+    timezone  VARCHAR(64) NOT NULL DEFAULT 'America/Sao_Paulo',
+    is_24x7   BOOLEAN NOT NULL DEFAULT FALSE
+);
+CREATE TABLE IF NOT EXISTS n_infraops_sla_calendar_hours (
+    id          BIGSERIAL PRIMARY KEY,
+    calendar_id BIGINT NOT NULL REFERENCES n_infraops_sla_calendars(id) ON DELETE CASCADE,
+    weekday     SMALLINT NOT NULL,
+    start_time  TIME NOT NULL,
+    end_time    TIME NOT NULL,
+    CONSTRAINT ck_sla_hours_weekday CHECK (weekday BETWEEN 0 AND 6),
+    CONSTRAINT ck_sla_hours_range CHECK (start_time < end_time)
+);
+CREATE TABLE IF NOT EXISTS n_infraops_sla_holidays (
+    id           BIGSERIAL PRIMARY KEY,
+    calendar_id  BIGINT NOT NULL REFERENCES n_infraops_sla_calendars(id) ON DELETE CASCADE,
+    holiday_date DATE NOT NULL,
+    name         VARCHAR(128) NOT NULL,
+    CONSTRAINT uq_sla_holidays_calendar_date UNIQUE (calendar_id, holiday_date)
+);
+CREATE TABLE IF NOT EXISTS n_infraops_contracts (
+    id                 BIGSERIAL PRIMARY KEY,
+    tenant_id          VARCHAR(128),
+    is_default         BOOLEAN NOT NULL DEFAULT FALSE,
+    contractual        BOOLEAN NOT NULL DEFAULT TRUE,
+    name               VARCHAR(255) NOT NULL,
+    modality           VARCHAR(32),
+    status             VARCHAR(16) NOT NULL DEFAULT 'draft',
+    starts_on          DATE,
+    ends_on            DATE,
+    calendar_id        BIGINT REFERENCES n_infraops_sla_calendars(id),
+    notes              TEXT,
+    created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_by_user_id BIGINT,
+    CONSTRAINT ck_contracts_modality CHECK (modality IS NULL OR modality IN ('managed', 'onsite', 'shared')),
+    CONSTRAINT ck_contracts_status CHECK (status IN ('draft', 'active', 'suspended', 'ended')),
+    CONSTRAINT ck_contracts_dates CHECK (starts_on IS NULL OR ends_on IS NULL OR starts_on <= ends_on),
+    CONSTRAINT ck_contracts_default CHECK (
+        (is_default AND tenant_id IS NULL AND NOT contractual AND status = 'active')
+        OR (NOT is_default AND tenant_id IS NOT NULL AND contractual)
+    )
+);
+DROP INDEX IF EXISTS uq_contracts_tenant_active;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_contracts_tenant_active_ci ON n_infraops_contracts (lower(tenant_id)) WHERE status = 'active';
+CREATE UNIQUE INDEX IF NOT EXISTS uq_contracts_default ON n_infraops_contracts (is_default) WHERE is_default;
+CREATE TABLE IF NOT EXISTS n_infraops_sla_policies (
+    id                 BIGSERIAL PRIMARY KEY,
+    contract_id        BIGINT NOT NULL REFERENCES n_infraops_contracts(id) ON DELETE CASCADE,
+    key                VARCHAR(32) NOT NULL,
+    name               VARCHAR(128) NOT NULL,
+    min_severity       SMALLINT,
+    severity           SMALLINT,
+    has_tenant         BOOLEAN,
+    ack_minutes        INTEGER NOT NULL,
+    tto_minutes        INTEGER,
+    ttr_minutes        INTEGER,
+    calendar_id        BIGINT REFERENCES n_infraops_sla_calendars(id),
+    enabled            BOOLEAN NOT NULL DEFAULT TRUE,
+    updated_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_by_user_id BIGINT,
+    CONSTRAINT uq_sla_policies_contract_key UNIQUE (contract_id, key),
+    CONSTRAINT ck_sla_policies_ack CHECK (ack_minutes BETWEEN 1 AND 43200),
+    CONSTRAINT ck_sla_policies_tto CHECK (tto_minutes IS NULL OR tto_minutes BETWEEN 1 AND 43200),
+    CONSTRAINT ck_sla_policies_ttr CHECK (ttr_minutes IS NULL OR ttr_minutes BETWEEN 1 AND 43200)
+);
+CREATE TABLE IF NOT EXISTS n_infraops_escalation_steps (
+    id                 BIGSERIAL PRIMARY KEY,
+    contract_id        BIGINT NOT NULL REFERENCES n_infraops_contracts(id) ON DELETE CASCADE,
+    position           SMALLINT NOT NULL,
+    role               VARCHAR(32) NOT NULL,
+    enabled            BOOLEAN NOT NULL DEFAULT TRUE,
+    updated_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_by_user_id BIGINT,
+    CONSTRAINT uq_escalation_steps_contract_position UNIQUE (contract_id, position)
+);
+CREATE TABLE IF NOT EXISTS n_infraops_contract_changes (
+    id                 BIGSERIAL PRIMARY KEY,
+    contract_id        BIGINT NOT NULL REFERENCES n_infraops_contracts(id),
+    changed_by_user_id BIGINT,
+    changed_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    entity             VARCHAR(32) NOT NULL,
+    before             JSONB,
+    after              JSONB
+);
+CREATE INDEX IF NOT EXISTS ix_contract_changes_contract ON n_infraops_contract_changes (contract_id, changed_at DESC);
+WITH c AS (
+    INSERT INTO n_infraops_sla_calendars (name, is_24x7)
+    VALUES ('24x7', TRUE), ('comercial', FALSE)
+    ON CONFLICT (name) DO NOTHING
+    RETURNING id, name
+)
+INSERT INTO n_infraops_sla_calendar_hours (calendar_id, weekday, start_time, end_time)
+SELECT c.id, d, '08:00', '20:00' FROM c, generate_series(0, 4) AS d WHERE c.name = 'comercial';
+WITH cal AS (
+    SELECT (SELECT id FROM n_infraops_sla_calendars WHERE name = '24x7') AS h24,
+           (SELECT id FROM n_infraops_sla_calendars WHERE name = 'comercial') AS biz
+), c AS (
+    INSERT INTO n_infraops_contracts (is_default, contractual, name, status, calendar_id)
+    SELECT TRUE, FALSE, 'Padrão interno ness. (NÃO contratual)', 'active', biz FROM cal
+    ON CONFLICT DO NOTHING
+    RETURNING id
+), p AS (
+    INSERT INTO n_infraops_sla_policies
+        (contract_id, key, name, min_severity, severity, has_tenant, ack_minutes, tto_minutes, ttr_minutes, calendar_id)
+    SELECT c.id, v.key, v.name, v.min_sev, v.sev, v.has_tenant, v.ack, v.tto, v.ttr,
+           CASE v.calk WHEN 'h24' THEN cal.h24 ELSE cal.biz END
+    FROM c, cal, (VALUES
+        ('critical', 'Crítica', NULL::int, 5, TRUE, 15, 15, 240, 'h24'),
+        ('elevated', 'Alta', NULL, 4, TRUE, 60, 30, 480, 'h24'),
+        ('no_client', 'Sem cliente', 4, NULL, FALSE, 720, NULL, NULL, 'biz')
+    ) AS v(key, name, min_sev, sev, has_tenant, ack, tto, ttr, calk)
+    RETURNING 1
+)
+INSERT INTO n_infraops_escalation_steps (contract_id, position, role)
+SELECT c.id, v.position, v.role FROM c, (VALUES (1, 'soc'), (2, 'noc'), (3, 'operator'), (4, 'admin')) AS v(position, role);
+"""
+
+
+async def apply_sla_sql(conn):
+    for stmt in SLA_SQL.split(";"):
+        if stmt.strip():
+            await conn.execute(text(stmt))
+
 
 async def run_migrations():
     logger.info("Iniciando migração de banco de dados no Postgres...")
@@ -204,6 +333,8 @@ async def run_migrations():
             """CREATE INDEX IF NOT EXISTS ix_n_infraops_identities_user_id ON n_infraops_identities (user_id);""",
         ):
             await conn.execute(text(ddl))
+
+        await apply_sla_sql(conn)
 
     logger.info("Migração de banco de dados concluída com sucesso.")
 
