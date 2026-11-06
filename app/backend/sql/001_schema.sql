@@ -362,6 +362,70 @@ CREATE TABLE IF NOT EXISTS n_infraops_notifications (
     CONSTRAINT ck_notifications_channel CHECK (channel IN ('email', 'push'))
 );
 
+-- Cadastro de clientes e apelidos (entidade GLPI); seed só para cliente novo.
+CREATE TABLE IF NOT EXISTS n_infraops_customers (
+    id                 BIGSERIAL PRIMARY KEY,
+    key                VARCHAR(64) NOT NULL UNIQUE,
+    display_name       VARCHAR(255) NOT NULL,
+    glpi_entity_id     INTEGER,
+    active             BOOLEAN NOT NULL DEFAULT true,
+    created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_by_user_id BIGINT
+);
+CREATE TABLE IF NOT EXISTS n_infraops_customer_aliases (
+    alias_norm  TEXT PRIMARY KEY,
+    customer_id BIGINT NOT NULL REFERENCES n_infraops_customers(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS ix_n_infraops_customer_aliases_customer_id ON n_infraops_customer_aliases (customer_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_customers_active_entity ON n_infraops_customers (glpi_entity_id) WHERE active;
+WITH seeded AS (
+    INSERT INTO n_infraops_customers (key, display_name, glpi_entity_id)
+    VALUES
+        ('alupar', 'Alupar', 1),
+        ('tbe', 'TBE', 2),
+        ('target', 'Target', 3),
+        ('ltb', 'LTB', 4),
+        ('alupar-pe', 'Alupar PE', 5),
+        ('alupar-co', 'Alupar CO', 6),
+        ('bichara', 'Bichara', 7),
+        ('cavan', 'Cavan', 8),
+        ('nova-energia', 'Nova Energia', 9),
+        ('numen', 'Numen IT', 10),
+        ('tne', 'TNE', 11),
+        ('unimed', 'Unimed', 12),
+        ('ness', 'Ness', 0)
+    ON CONFLICT (key) DO NOTHING
+    RETURNING id, key
+)
+INSERT INTO n_infraops_customer_aliases (alias_norm, customer_id)
+SELECT v.alias_norm, seeded.id
+FROM (VALUES
+    ('alupar', 'alupar'),
+    ('alupar investimento s.a.', 'alupar'),
+    ('tbe', 'tbe'),
+    ('target', 'target'),
+    ('target trading', 'target'),
+    ('ltb', 'ltb'),
+    ('leite tosto', 'ltb'),
+    ('leite tosto e barros adv ass', 'ltb'),
+    ('alupar pe', 'alupar-pe'),
+    ('alupar-pe', 'alupar-pe'),
+    ('alupar co', 'alupar-co'),
+    ('alupar-co', 'alupar-co'),
+    ('bichara', 'bichara'),
+    ('cavan', 'cavan'),
+    ('nova energia', 'nova-energia'),
+    ('novaenergia', 'nova-energia'),
+    ('numen', 'numen'),
+    ('numen it', 'numen'),
+    ('tne', 'tne'),
+    ('unimed', 'unimed'),
+    ('ness', 'ness'),
+    ('ness processos e tecnologia ltda.', 'ness')
+) AS v(alias_norm, key)
+JOIN seeded ON seeded.key = v.key
+ON CONFLICT DO NOTHING;
 -- Contratos, políticas de SLA, calendários e escalonamento (editáveis; seed = padrão interno NÃO contratual).
 -- sla:begin
 CREATE TABLE IF NOT EXISTS n_infraops_sla_calendars (

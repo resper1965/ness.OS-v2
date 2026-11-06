@@ -11,7 +11,7 @@ from sqlalchemy import select
 
 from app.database import SessionLocal
 from app.models import Asset, Incident
-from app.workers.alerts import resolve_glpi_entity_id
+from app.services.customers import resolve_glpi_entity_id
 
 
 async def main():
@@ -45,7 +45,13 @@ async def main():
             findings.append({"incident": inc.id, "reason": "ticket_not_in_snapshot"})
             continue
         checked += 1
-        expected_entity = resolve_glpi_entity_id(inc.tags["ninf_customer_name"])
+        try:
+            async with SessionLocal() as session:
+                expected_entity = await resolve_glpi_entity_id(
+                    session, inc.tags["ninf_customer_name"]
+                )
+        except ValueError:
+            expected_entity = None  # unmapped customer: reported as entity_mismatch
         for bad, reason in [
             (ticket["fingerprint"] != inc.fingerprint, "fingerprint_mismatch"),
             (ticket["entity"] != expected_entity, "entity_mismatch"),

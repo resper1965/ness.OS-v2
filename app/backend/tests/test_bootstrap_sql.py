@@ -89,6 +89,16 @@ def test_identities_table_matches_between_migrate_and_bootstrap():
         assert "ix_n_infraops_identities_user_id" in t
 
 
+def test_customers_ddl_and_seed_match_between_migrate_and_bootstrap():
+    for name in ("n_infraops_customers", "n_infraops_customer_aliases"):
+        pat = rf"CREATE TABLE IF NOT EXISTS {name} \((.*?)\n\s*\)"
+        bodies = [_norm(re.search(pat, t, re.S).group(1)) for t in (MIGRATE, SQL)]
+        assert bodies[0] == bodies[1], name
+    seed = r"WITH seeded AS (.*?)ON CONFLICT DO NOTHING"
+    seeds = [_norm(re.search(seed, t, re.S).group(1)) for t in (MIGRATE, SQL)]
+    assert seeds[0] == seeds[1]
+
+
 def test_sla_block_matches_between_migrate_and_bootstrap():
     sql = re.search(r"-- sla:begin\n(.*?)-- sla:end", SQL, re.S).group(1)
     mig = re.search(r'SLA_SQL = """\n(.*?)"""', MIGRATE, re.S).group(1)

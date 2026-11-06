@@ -3,6 +3,13 @@ import asyncio
 from infra.scripts.glpi_backlog_reconcile import reconcile_page
 
 
+ENTITIES = {"Cavan": 8}
+
+async def resolve(name):
+    if name not in ENTITIES:
+        raise ValueError("Cliente sem entidade GLPI mapeada; ticket recusado")
+    return ENTITIES[name]
+
 class FakeGLPI:
     def __init__(self):
         self.entity = None
@@ -24,7 +31,7 @@ def test_reconcile_reports_remote_found_without_exposing_identifiers():
         {"id": 10, "fingerprint": "existing", "customer": "Cavan"},
         {"id": 11, "fingerprint": "missing", "customer": "Cavan"},
     ]
-    report = asyncio.run(reconcile_page(rows, FakeGLPI(), after_id=9))
+    report = asyncio.run(reconcile_page(rows, FakeGLPI(), after_id=9, resolve=resolve))
     assert report == {
         "scanned": 2,
         "counts": {"remote_found": 1, "remote_absent": 1},
@@ -36,7 +43,7 @@ def test_reconcile_reports_remote_found_without_exposing_identifiers():
 
 def test_lookup_error_keeps_cursor_for_retry_without_leaking_exception():
     rows = [{"id": 11, "fingerprint": "unavailable", "customer": "Cavan"}]
-    report = asyncio.run(reconcile_page(rows, FakeGLPI(), after_id=9))
+    report = asyncio.run(reconcile_page(rows, FakeGLPI(), after_id=9, resolve=resolve))
     assert report == {
         "scanned": 1,
         "counts": {"lookup_failed": 1},
@@ -47,7 +54,7 @@ def test_lookup_error_keeps_cursor_for_retry_without_leaking_exception():
 
 def test_unmapped_customer_is_not_treated_as_absent_ticket():
     rows = [{"id": 12, "fingerprint": "missing", "customer": None}]
-    report = asyncio.run(reconcile_page(rows, FakeGLPI(), after_id=9))
+    report = asyncio.run(reconcile_page(rows, FakeGLPI(), after_id=9, resolve=resolve))
     assert report == {
         "scanned": 1,
         "counts": {"entity_unmapped": 1},
