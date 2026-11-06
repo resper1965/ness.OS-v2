@@ -16,6 +16,7 @@ from app.integrations.glpi import GLPIClient
 from app.integrations.zabbix import ZabbixClient
 from app.models import Incident, SocDecision
 from app.models.models import TenantMapping
+from app.services.sla import vigent_contracts
 from app.workers.celery_app import celery_app
 from app.workers.telemetry import KEY
 
@@ -245,7 +246,11 @@ async def with_freshness(name, result, cache, now):
 
 
 async def source_coverage(now):
-    """Last data per ingestion source; never invents a time (null + reason instead)."""
+    """Last data per ingestion source; never invents a time (null + reason instead).
+
+    Modalidade efetiva por vínculo = a do contrato ativo vigente do cliente; sem contrato,
+    a do próprio vínculo (services.sla.effective_modality). Divergência só é sinalizada.
+    """
     queries = {
         "zabbix": select(func.max(Incident.last_seen)),
         "wazuh": select(func.max(SocDecision.created_at)),
@@ -263,20 +268,43 @@ async def source_coverage(now):
                         "source_coverage query failed: %s", name, exc_info=True
                     )
             try:
-                rows = await session.execute(
-                    select(
-                        TenantMapping.external_platform,
-                        func.count(),
-                        func.count(TenantMapping.modality),
-                        func.count(func.distinct(TenantMapping.modality)),
-                        func.min(TenantMapping.modality),
+                rows = list(
+                    await session.execute(
+                        select(
+                            TenantMapping.external_platform,
+                            TenantMapping.internal_customer_id,
+                            TenantMapping.modality,
+                        ).where(TenantMapping.external_platform.in_(queries))
                     )
-                    .where(TenantMapping.external_platform.in_(queries))
-                    .group_by(TenantMapping.external_platform)
                 )
-                modalities.update({r[0]: r[1:] for r in rows})
             except Exception:
                 logger.warning("source_coverage modality failed", exc_info=True)
+                return
+            try:
+                contract = {
+                    c.tenant: c.modality
+                    for c in await vigent_contracts(session, now)
+                    if c.modality
+                }
+            except Exception:
+                logger.warning("source_coverage contracts failed", exc_info=True)
+                contract = {}
+            per = {}
+            for platform, tenant, mapped in rows:
+                key = (tenant or "").lower().strip()
+                eff = contract.get(key) or mapped
+                per.setdefault(platform, []).append(
+                    (eff, key in contract and contract[key] != mapped)
+                )
+            for platform, items in per.items():
+                mods = [m for m, _ in items if m]
+                modalities[platform] = (
+                    len(items),
+                    len(mods),
+                    len(set(mods)),
+                    min(mods, default=None),
+                    any(d for _, d in items),
+                )
 
     # One deadline for connect + all queries + close, so the monitor (35 s) never hangs.
     try:
@@ -290,7 +318,9 @@ async def source_coverage(now):
     for name, last in seen.items():
         age = max(0, int((now - last).total_seconds())) if last else None
         # Unknown (query failed/timed out) counts as no mapping: coverage is never declared.
-        total, with_modality, distinct, only = modalities.get(name, (0, 0, 0, None))
+        total, with_modality, distinct, only, diverges = modalities.get(
+            name, (0, 0, 0, None, False)
+        )
         if total == 0 or with_modality < total:
             modality = "pendente_de_modalidade"
         else:
@@ -300,6 +330,7 @@ async def source_coverage(now):
             "age_seconds": age,
             "stale": age is None or age > MAX_SOURCE_AGE_SECONDS,
             "modality": modality,
+            "modality_divergence": diverges,
             "mappings_total": total,
             "mappings_with_modality": with_modality,
             "coverage_declared": total > 0 and with_modality == total,
