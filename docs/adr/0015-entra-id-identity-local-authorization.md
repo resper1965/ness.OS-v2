@@ -74,6 +74,8 @@ Contas locais em Hub, Zabbix e GLPI, alcançáveis por SSH + *port forward*, mai
 | Wazuh | Login local; R3a ainda não aplicado | Igual, só pela tailnet |
 | Psono | Login nativo | Igual |
 
+**Caddy:** o arquivo de produção é `app/Caddyfile` (montado de `/opt/n-infraops/app/Caddyfile`; hash comprovado igual ao do repositório em 13/10/2026). O `Caddyfile` da raiz é legado e não é usado por nenhum script, CI ou compose ativo: não editar como se fosse produção.
+
 **Até a Fase D, o Authentik continua sendo o login vigente**, e a UAT da Fase 1 roda sobre ele. Desligá-lo antes derruba o acesso a GLPI, n8n e Zabbix.
 
 ## Sequência
@@ -84,7 +86,7 @@ Nada desta sequência começa antes do aceite do MVP (UAT da Fase 1) e do gate d
 |---|---|---|
 | **A** | Autorização local no Hub (`issuer` + `oid`, sem JIT, sem claims de grupo) | **Em produção desde 05/11** |
 | **B** | App OIDC do Hub no Entra; *security defaults*; 2 contas de emergência; colaboração externa restrita; 1 cliente piloto; Zabbix SAML Entra (UAT, depois produção) | Travada |
-| **C** | `cloudflared` + Access em GLPI e n8n (remove `forward_auth`); Hub e API pelo túnel sem Access; teste da emergência; fechar a 443 | Travada |
+| **C** | Antes de tudo: conferir na VPS que o `sha256` de `/opt/n-infraops/app/Caddyfile` é o do `app/Caddyfile` da `main`; se divergir, reconciliar primeiro. Depois: `cloudflared` + Access em GLPI e n8n (remove `forward_auth`); Hub e API pelo túnel sem Access; teste da emergência; fechar a 443 | Travada |
 | **D** | Desligar o Authentik; backup guardado 30 dias; remover `sso.ness.com.br`, o bloco do Caddy e os segredos | Travada |
 
 Desenho detalhado: [`../superpowers/specs/2026-11-05-identity-access-perimeter-design.md`](../superpowers/specs/2026-11-05-identity-access-perimeter-design.md).
