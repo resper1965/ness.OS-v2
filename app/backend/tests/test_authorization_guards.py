@@ -59,6 +59,7 @@ def test_every_non_public_api_route_has_recognized_authorization():
         ("POST", "/api/auth/login"),
         ("POST", "/api/auth/logout"),
         ("POST", "/api/auth/oidc/callback"),
+        ("GET", "/api/auth/oidc/config"),
         ("POST", "/api/auth/seed"),
         ("GET", "/api/v1/push/config"),
     }
