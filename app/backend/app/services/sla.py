@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.models import (
     Contract,
@@ -22,10 +22,12 @@ from app.models import (
     SlaCalendarHours,
     SlaHoliday,
     SlaPolicy,
+    TenantMapping,
     UserRole,
 )
 
 logger = logging.getLogger("nessops.sla")
+DEFAULT_TZ = "America/Sao_Paulo"  # mesmo padrão do calendário
 _HORIZON_DAYS = 800  # guarda contra calendário sem dia útil
 
 
@@ -278,3 +280,59 @@ def modality_divergences(contracts, mappings) -> list[dict]:
         )
         if t in cm and m != cm[t]
     ]
+
+
+@dataclass(frozen=True)
+class VigentContract:
+    id: int
+    tenant: str  # minúsculas
+    modality: str | None
+
+
+async def vigent_contracts(
+    session, now: datetime | None = None
+) -> list[VigentContract]:
+    """Contratos ativos e dentro da vigência (no fuso do calendário). Padrão fica de fora.
+
+    `ended`/`draft`/`suspended` ou fora da vigência = inexistente (cai no padrão).
+    """
+    now = now or datetime.now(timezone.utc)
+    rows = await session.execute(
+        select(
+            Contract.id,
+            Contract.tenant_id,
+            Contract.modality,
+            Contract.starts_on,
+            Contract.ends_on,
+            SlaCalendar.timezone,
+        )
+        .join(SlaCalendar, SlaCalendar.id == Contract.calendar_id, isouter=True)
+        .where(Contract.status == "active", Contract.is_default.is_(False))
+    )
+    out = []
+    for cid, tenant, modality, starts, ends, tz in rows:
+        today = now.astimezone(ZoneInfo(tz or DEFAULT_TZ)).date()
+        if (starts is None or starts <= today) and (ends is None or today <= ends):
+            out.append(VigentContract(cid, (tenant or "").lower().strip(), modality))
+    return out
+
+
+async def effective_modality(session, tenant_id: str) -> str | None:
+    """Modalidade do cliente: contrato ativo vigente; senão o mapeamento; senão None.
+
+    Mapeamentos do tenant com modalidades diferentes entre si = indeterminado (None).
+    """
+    t = (tenant_id or "").lower().strip()
+    for c in await vigent_contracts(session):
+        if c.tenant == t and c.modality:
+            return c.modality
+    rows = await session.execute(
+        select(TenantMapping.modality)
+        .where(
+            func.lower(TenantMapping.internal_customer_id) == t,
+            TenantMapping.modality.is_not(None),
+        )
+        .distinct()
+    )
+    mods = {m for (m,) in rows}
+    return mods.pop() if len(mods) == 1 else None

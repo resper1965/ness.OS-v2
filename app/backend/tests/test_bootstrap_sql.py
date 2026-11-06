@@ -121,3 +121,13 @@ def test_hostgroup_rules_and_contacts_match_between_migrate_and_bootstrap():
     assert seeds[0] == seeds[1] and "Zabbix servers" in seeds[0]
     for idx in ("uq_hostgroup_rules", "ix_n_infraops_customer_contacts_customer_id"):
         assert idx in MIGRATE and idx in SQL
+
+
+def test_params_block_matches_between_migrate_and_bootstrap():
+    sql = re.search(r"-- params:begin\n(.*?)-- params:end", SQL, re.S).group(1)
+    mig = re.search(r'PARAMS_SQL = """\n(.*?)"""', MIGRATE, re.S).group(1)
+    assert sql.strip() == mig.strip()
+    for t in ("contract_policy_params", "platform_params"):
+        assert f"CREATE TABLE IF NOT EXISTS n_infraops_{t} " in sql
+    assert sql.count("ON CONFLICT") == 2  # seeds idempotentes
+    assert "value_int <= 12" in sql  # piso do SOC só pode baixar
