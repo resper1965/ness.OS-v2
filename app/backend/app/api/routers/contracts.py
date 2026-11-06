@@ -157,7 +157,9 @@ class PolicyIn(BaseModel):
 
 
 class ParamIn(BaseModel):
-    value: int = Field(ge=1)
+    value: int = Field(
+        ge=1, le=2_147_483_647
+    )  # INTEGER do banco: acima disso seria 500
 
 
 class StepIn(BaseModel):

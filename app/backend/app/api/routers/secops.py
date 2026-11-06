@@ -702,7 +702,7 @@ async def archived_sample(
             .all()
         )
         items += [dict(r) for r in rows]
-        groups[str(customer)] = {
+        groups[str(customer) if customer else "sem_cliente"] = {
             "archived": archived,
             "quota": quota,
             "sampled": len(rows),

@@ -827,6 +827,10 @@ class PlatformParam(Base):
     __tablename__ = "n_infraops_platform_params"
     __table_args__ = (
         CheckConstraint("value_int > 0", name="ck_platform_params_value"),
+        CheckConstraint(
+            "key <> 'probe_timeout_seconds' OR value_int <= 22",
+            name="ck_platform_params_probe",
+        ),
     )
 
     key: Mapped[str] = mapped_column(String(48), primary_key=True)

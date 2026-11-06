@@ -44,10 +44,10 @@ PLATFORM_DEFAULTS: dict[str, int] = {
     "worker_failure_window_seconds": 900,
     "probe_timeout_seconds": 20,
 }
-# probe + cobertura (5 s) precisam caber no monitor de 35 s.
+# load_params (5 s) + probe + cobertura (5 s) precisam caber no monitor de 35 s: 5 + 22 + 5 = 32.
 PLATFORM_MAX: dict[str, int] = {
     **{k: 86400 for k in PLATFORM_DEFAULTS},
-    "probe_timeout_seconds": 28,
+    "probe_timeout_seconds": 22,
 }
 
 

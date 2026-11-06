@@ -606,7 +606,8 @@ CREATE TABLE IF NOT EXISTS n_infraops_platform_params (
     value_int          INTEGER NOT NULL,
     updated_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_by_user_id BIGINT,
-    CONSTRAINT ck_platform_params_value CHECK (value_int > 0)
+    CONSTRAINT ck_platform_params_value CHECK (value_int > 0),
+    CONSTRAINT ck_platform_params_probe CHECK (key <> 'probe_timeout_seconds' OR value_int <= 22)
 );
 INSERT INTO n_infraops_contract_policy_params (contract_id, key, value_int)
 SELECT c.id, v.key, v.value_int

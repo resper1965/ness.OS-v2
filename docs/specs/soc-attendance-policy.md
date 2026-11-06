@@ -1,6 +1,6 @@
 # Política de atendimento SOC (03/11/2026)
 
-**Estado:** aprovada pelo Ricardo em 03/11/2026 (regras 1 a 6). O piso `NINF_SOC_ATTENDANCE_MIN_LEVEL=12` deixa de ser provisório.
+**Estado:** aprovada pelo Ricardo em 03/11/2026 (regras 1 a 6). O piso 12 (parâmetro `soc_attend_min_level`; a env `NINF_SOC_ATTENDANCE_MIN_LEVEL` foi removida) deixa de ser provisório.
 Atendimento independe do score e do modelo de IA ([contrato de sinal v0](signal-contract-v0.md), regra 3).
 
 | # | Regra |

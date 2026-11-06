@@ -217,15 +217,15 @@ async def test_param_edit_effective_next_call(maker):
 
 @pg
 @pytest.mark.asyncio
-async def test_ended_or_expired_contract_param_ignored(maker):
+@pytest.mark.parametrize("kind", ["ended", "draft", "suspended", "expired"])
+async def test_ended_or_expired_contract_param_ignored(maker, kind):
     cid = await _contract(maker, "acme")
     await _set(maker, cid, "soc_attend_min_level", 5)
     async with maker() as s:
         assert (await get_param(s, "acme", "soc_attend_min_level")).value == 5
+        change = "ends_on = '2020-01-01'" if kind == "expired" else f"status = '{kind}'"
         await s.execute(
-            text(
-                "UPDATE n_infraops_contracts SET ends_on = '2020-01-01' WHERE id = :i"
-            ),
+            text(f"UPDATE n_infraops_contracts SET {change} WHERE id = :i"),
             {"i": cid},
         )
         await s.commit()
@@ -245,6 +245,16 @@ async def test_ot_hours_over_24_rejected_422(maker, key):
         assert (await c.put(url, json={"value": limit})).status_code == 200
     async with maker() as s:
         assert (await get_param(s, "acme", key)).value == limit
+
+
+@pg
+@pytest.mark.asyncio
+@pytest.mark.parametrize("key", ["weekly_sample_threshold", "weekly_sample_per_client"])
+async def test_value_above_int4_rejected_422(maker, key):
+    cid = await _contract(maker)
+    async with _api(maker, UserRole.admin) as c:
+        url = f"{BASE}/contracts/{cid}/params/{key}"
+        assert (await c.put(url, json={"value": 3_000_000_000})).status_code == 422
 
 
 @pg
@@ -329,7 +339,7 @@ async def test_platform_params_only_platform_admin_edits(maker):
         ).status_code == 200
         assert (
             await c.put(
-                f"{BASE}/platform-params/probe_timeout_seconds", json={"value": 40}
+                f"{BASE}/platform-params/probe_timeout_seconds", json={"value": 23}
             )
         ).status_code == 422
         assert (
@@ -427,10 +437,17 @@ async def test_sample_20_per_client(maker):
     await _archive(maker, "cavan", 50)
     await _archive(maker, "target", 30)
     await _archive(maker, "unimed", 5)
+    await _archive(maker, None, 3)
     await _archive(maker, "cavan", 99, age_days=20)  # fora da janela
     async with _sample_client(maker) as c:
         body = (await c.get("/api/secops/archived-sample?days=7")).json()
-    assert _by_customer(body["items"]) == {"cavan": 20, "target": 20, "unimed": 5}
+    assert _by_customer(body["items"]) == {
+        "cavan": 20,
+        "target": 20,
+        "unimed": 5,
+        None: 3,
+    }
+    assert body["groups"]["sem_cliente"]["archived"] == 3
     assert body["groups"]["cavan"] == {
         "archived": 50,
         "quota": 20,
