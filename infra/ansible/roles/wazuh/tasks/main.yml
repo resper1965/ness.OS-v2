@@ -7,6 +7,7 @@
       - wazuh_indexer_retention_days is defined
       - wazuh_indexer_retention_days | int > 0
       - wazuh_agent_sources is defined
+      - wazuh_agent_sources is sequence and wazuh_agent_sources is not string
       - wazuh_agent_sources | length > 0
     fail_msg: >
       Defina wazuh_indexer_retention_days (dias) e wazuh_agent_sources (lista de CIDRs) com -e.
@@ -63,14 +64,32 @@
     cmd: "{{ wazuh_install_dir }}/wazuh-install.sh -a"
     chdir: "{{ wazuh_install_dir }}"
     creates: /var/ossec/bin/wazuh-control
+  register: wazuh_installer
+  failed_when: false
   no_log: true # a saída imprime a senha do admin
+  tags: [install]
+
+- name: Cauda do log do instalador (sem a senha) se a instalação falhou
+  ansible.builtin.shell: set -o pipefail; tail -n 30 /var/log/wazuh-install.log | sed -E 's/(Password:).*/\1 ***/I'
+  args:
+    executable: /bin/bash
+  register: wazuh_install_log
+  changed_when: false
+  failed_when: false
+  when: wazuh_installer.rc | default(0) != 0
+  tags: [install]
+
+- name: Falhar com a cauda do log se o instalador falhou
+  ansible.builtin.fail:
+    msg: "wazuh-install.sh falhou (rc={{ wazuh_installer.rc }}). Cauda do log:\n{{ wazuh_install_log.stdout | default('(sem log)') }}"
+  when: wazuh_installer.rc | default(0) != 0
   tags: [install]
 
 - name: Fixar a versão dos pacotes (apt upgrade não pode mexer no Wazuh)
   ansible.builtin.dpkg_selections:
     name: "{{ item }}"
     selection: hold
-  loop: [wazuh-manager, wazuh-indexer, wazuh-dashboard]
+  loop: [wazuh-manager, wazuh-indexer, wazuh-dashboard, filebeat]
   tags: [install]
 
 # --------------------------------------------------------------------------

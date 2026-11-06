@@ -28,6 +28,7 @@ infra/terraform/.terraform/
 infra/terraform/*.tfstate
 infra/terraform/*.tfstate.backup
 infra/terraform/*.tfplan
+infra/terraform/environments/wazuh-r3a.tfvars
 
 # --- Ansible ---
 infra/ansible/*.retry

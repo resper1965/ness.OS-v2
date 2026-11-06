@@ -60,13 +60,14 @@ variable "wazuh_r3a" {
     product_id: confirmar no catálogo da API antes (somente leitura; ver o runbook).
     image_id: Ubuntu 24.04 (o instalador oficial do Wazuh suporta 24.04; Debian só com aviso).
     ssh_key_ids: secretIds (números) das chaves públicas já cadastradas na Contabo.
+    period: prazo do contrato em meses, escolha deliberada (sem default); o aprovado é 24.
   EOT
   type = object({
     product_id  = string
     image_id    = string
     ssh_key_ids = list(number)
     region      = optional(string, "EU")
-    period      = optional(number, 24)
+    period      = number
   })
   default = null
 

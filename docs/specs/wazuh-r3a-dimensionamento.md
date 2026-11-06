@@ -67,3 +67,5 @@ Referência de disco grande, se a retenção for 90 d com volume de out: Storage
 ## Decisão
 
 **Autoriza contratar a VPS do Wazuh na opção B? (sim/não)**
+
+**Resposta do Ricardo, 06/11/2026: "sim".** Isso autoriza só **escrever o IaC** da opção B (PR #204, [runbook](../runbooks/wazuh-r3a-provisionamento.md)). O `terraform apply` (custo recorrente, 24 meses) e a primeira migração de agente exigem um novo OK explícito, com o plano à vista.
