@@ -1,4 +1,4 @@
-import { useId, useState, type ComponentProps, type ElementType, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ComponentProps, type ElementType, type ReactNode } from 'react';
 import { Info, Lock, RefreshCw, TriangleAlert } from 'lucide-react';
 import { type ApiError } from '../../http';
 import '../../ness-ui.css';
@@ -46,16 +46,24 @@ export function Badge({ tone = 'neutral', icon: Icon, children }: { tone?: Tone;
   return <span className={`nx-badge ${tone}`}>{Icon && <Icon size={12} strokeWidth={1.5} aria-hidden />}{children}</span>;
 }
 
-// Ação destrutiva em dois passos, operável por teclado.
+// Ação destrutiva em dois passos, operável por teclado: o foco acompanha a troca de botão.
 export function ConfirmButton({ label, confirmLabel, onConfirm, disabled, icon }: {
   label: string; confirmLabel: string; onConfirm: () => void; disabled?: boolean; icon?: ElementType;
 }) {
   const [asking, setAsking] = useState(false);
-  if (!asking) return <Button variant="danger" icon={icon} disabled={disabled} onClick={() => setAsking(true)}>{label}</Button>;
+  const confirmRef = useRef<HTMLButtonElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const moved = useRef(false);
+  useEffect(() => {
+    if (asking) confirmRef.current?.focus();
+    else if (moved.current) triggerRef.current?.focus();
+  }, [asking]);
+  const ask = (v: boolean) => { moved.current = true; setAsking(v); };
+  if (!asking) return <Button ref={triggerRef} variant="danger" icon={icon} disabled={disabled} onClick={() => ask(true)}>{label}</Button>;
   return (
     <span className="nx-actions">
-      <Button variant="danger" disabled={disabled} onClick={() => { setAsking(false); onConfirm(); }}>{confirmLabel}</Button>
-      <Button onClick={() => setAsking(false)}>Cancelar</Button>
+      <Button ref={confirmRef} variant="danger" disabled={disabled} onClick={() => { setAsking(false); onConfirm(); }}>{confirmLabel}</Button>
+      <Button onClick={() => ask(false)}>Cancelar</Button>
     </span>
   );
 }
@@ -65,25 +73,45 @@ export function Alert({ tone, children }: { tone?: 'warn' | 'info'; children: Re
   return <div role={tone === 'info' ? 'status' : 'alert'} className={`nx-alert ${tone ?? ''}`}><Icon {...ICON} />{children}</div>;
 }
 
-export function Field({ label, hint, children }: { label: string; hint?: string; children: (id: string) => ReactNode }) {
+export interface FieldProps {
+  id: string;
+  'aria-describedby'?: string;
+  'aria-invalid'?: true;
+  'aria-errormessage'?: string;
+}
+
+// Dica e erro ligados ao controle; erro só texto vindo do servidor já tratado (nunca lista de 422).
+export function Field({ label, hint, error, children }: {
+  label: string; hint?: string; error?: string | null; children: (p: FieldProps) => ReactNode;
+}) {
   const id = useId();
+  const hintId = `${id}-hint`;
+  const errId = `${id}-err`;
+  const describedBy = [error && errId, hint && hintId].filter(Boolean).join(' ');
+  const props: FieldProps = {
+    id,
+    ...(describedBy && { 'aria-describedby': describedBy }),
+    ...(error && { 'aria-invalid': true as const, 'aria-errormessage': errId }),
+  };
   return (
     <div className="nx-field">
       <label htmlFor={id}>{label}</label>
-      {children(id)}
-      {hint && <span className="nx-hint">{hint}</span>}
+      {children(props)}
+      {hint && <span id={hintId} className="nx-hint">{hint}</span>}
+      {error && <span id={errId} className="nx-error">{error}</span>}
     </div>
   );
 }
 
-export const TextField = ({ label, hint, ...p }: { label: string; hint?: string } & ComponentProps<'input'>) =>
-  <Field label={label} hint={hint}>{(id) => <input id={id} {...p} />}</Field>;
+type Extra = { label: string; hint?: string; error?: string | null };
+export const TextField = ({ label, hint, error, ...p }: Extra & ComponentProps<'input'>) =>
+  <Field label={label} hint={hint} error={error}>{(a) => <input {...a} {...p} />}</Field>;
 
-export const AreaField = ({ label, hint, ...p }: { label: string; hint?: string } & ComponentProps<'textarea'>) =>
-  <Field label={label} hint={hint}>{(id) => <textarea id={id} {...p} />}</Field>;
+export const AreaField = ({ label, hint, error, ...p }: Extra & ComponentProps<'textarea'>) =>
+  <Field label={label} hint={hint} error={error}>{(a) => <textarea {...a} {...p} />}</Field>;
 
-export const SelectField = ({ label, hint, children, ...p }: { label: string; hint?: string } & ComponentProps<'select'>) =>
-  <Field label={label} hint={hint}>{(id) => <select id={id} {...p}>{children}</select>}</Field>;
+export const SelectField = ({ label, hint, error, children, ...p }: Extra & ComponentProps<'select'>) =>
+  <Field label={label} hint={hint} error={error}>{(a) => <select {...a} {...p}>{children}</select>}</Field>;
 
 export function CheckField({ label, ...p }: { label: string } & Omit<ComponentProps<'input'>, 'type'>) {
   const id = useId();
@@ -91,7 +119,7 @@ export function CheckField({ label, ...p }: { label: string } & Omit<ComponentPr
 }
 
 export const Skeleton = ({ rows = 3 }: { rows?: number }) => (
-  <div role="status" aria-label="Carregando"><span className="sr-only" style={{ position: 'absolute', left: -9999 }}>Carregando…</span>
+  <div role="status" aria-label="Carregando"><span className="sr-only">Carregando…</span>
     {Array.from({ length: rows }, (_, i) => <div key={i} className="nx-skel" />)}
   </div>
 );

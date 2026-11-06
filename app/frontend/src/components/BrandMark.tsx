@@ -19,7 +19,7 @@ export default function BrandMark({
   return (
     <span
       className={`${SIZES[size]} leading-none tracking-[-0.03em] ${tone === 'light' ? 'text-white' : 'text-black'} ${className}`}
-      style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 500 }}
+      style={{ fontFamily: "'Montserrat Variable', 'Montserrat', sans-serif", fontWeight: 500 }}
       aria-label="ness."
     >
       ness<span style={{ color: '#00ADE8' }}>.</span>

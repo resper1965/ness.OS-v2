@@ -16,7 +16,11 @@ const KNOWN: Record<string, string> = {
   'Entidade GLPI ou nome já em uso': 'Entidade de atendimento ou nome já em uso por outro cliente',
 };
 const VENDOR = /\b(zabbix|wazuh|glpi|action1|resend|authentik)\b/gi;
-export const scrub = (text: string) => KNOWN[text] ?? text.replace(VENDOR, 'sistema externo');
+const GENERIC = 'Não foi possível concluir. Nada foi gravado.';
+const MAX_DETAIL = 200;
+// Detalhe longo pode carregar eco de dado enviado: acima do teto, só a mensagem genérica.
+export const scrub = (text: string) =>
+  KNOWN[text] ?? (text.length > MAX_DETAIL ? GENERIC : text.replace(VENDOR, 'sistema externo'));
 
 function messageFor(status: number, detail: unknown): string {
   if (status === 401) return 'Sessão expirada. Entre novamente.';

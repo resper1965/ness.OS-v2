@@ -19,6 +19,14 @@ export const isCanonicalAlias = (c: Customer, alias: string) =>
   [c.display_name, c.key].some((n) => normAlias(n) === normAlias(alias));
 
 // ---------- clientes ----------
+export type CustomerField = 'entity_id' | 'display_name' | 'key' | 'alias';
+export function customerFieldOf(message: string): CustomerField | null {
+  if (/^Entidade/.test(message)) return 'entity_id';
+  if (/^Nome já/.test(message)) return 'display_name';
+  if (/^Chave ou apelido/.test(message)) return 'key';
+  return null;
+}
+
 export interface CustomersState {
   phase: 'loading' | 'ready' | 'error';
   error: ApiError | null;
@@ -27,11 +35,12 @@ export interface CustomersState {
   editing: 'new' | 'edit' | null;
   busy: boolean;
   actionError: string | null;
+  actionField: CustomerField | null;
   notice: string | null;
 }
 
 const INITIAL: CustomersState = {
-  phase: 'loading', error: null, customers: [], selectedId: null, editing: null, busy: false, actionError: null, notice: null,
+  phase: 'loading', error: null, customers: [], selectedId: null, editing: null, busy: false, actionError: null, actionField: null, notice: null,
 };
 
 export function createCustomersStore() {
@@ -46,14 +55,15 @@ export function createCustomersStore() {
     }
   }
 
-  async function act(fn: () => Promise<void>, notice: string): Promise<boolean> {
-    store.set({ busy: true, actionError: null, notice: null });
+  async function act(fn: () => Promise<void>, notice: string, fieldOf?: (m: string) => CustomerField | null): Promise<boolean> {
+    store.set({ busy: true, actionError: null, actionField: null, notice: null });
     try {
       await fn();
       store.set({ notice });
       return true;
     } catch (e) {
-      store.set({ actionError: describeError(e) });
+      const actionError = describeError(e);
+      store.set({ actionError, actionField: fieldOf ? fieldOf(actionError) : null });
       return false;
     } finally {
       store.set({ busy: false });
@@ -85,7 +95,7 @@ export function createCustomersStore() {
               method: 'PUT',
               body: { display_name: form.display_name.trim(), glpi_entity_id: entity, active: form.active },
             });
-      }, creating ? 'Cliente criado.' : 'Cliente salvo.');
+      }, creating ? 'Cliente criado.' : 'Cliente salvo.', customerFieldOf);
       if (!ok) return false;
       store.set({ editing: null });
       await load(true);
@@ -95,7 +105,7 @@ export function createCustomersStore() {
     async addAlias(id: number, alias: string) {
       return act(async () => {
         replace(await request<Customer>(`/api/customers/${id}/aliases`, { method: 'POST', body: { alias: alias.trim() } }));
-      }, 'Apelido adicionado.');
+      }, 'Apelido adicionado.', () => 'alias');
     },
     // O apelido canônico volta 422: a mensagem do servidor é exibida como está.
     async removeAlias(id: number, alias: string) {
@@ -124,11 +134,12 @@ export interface ContactsState {
   editingId: number | 'new' | null;
   busy: boolean;
   actionError: string | null;
+  actionField: null; // erros de contato não trazem campo: o 422 do validador ecoa o valor e nunca é exibido
   notice: string | null;
 }
 
-const CONTACTS_INITIAL: ContactsState = {
-  phase: 'idle', error: null, contacts: [], revealed: [], editingId: null, busy: false, actionError: null, notice: null,
+export const CONTACTS_INITIAL: ContactsState = {
+  phase: 'idle', error: null, contacts: [], revealed: [], editingId: null, busy: false, actionError: null, actionField: null, notice: null,
 };
 
 // Dado pessoal: sem log, sem query string; o corpo só vai no JSON da requisição.
@@ -154,7 +165,7 @@ export function createContactsStore() {
   }
 
   async function act(fn: () => Promise<void>, notice: string): Promise<boolean> {
-    store.set({ busy: true, actionError: null, notice: null });
+    store.set({ busy: true, actionError: null, actionField: null, notice: null });
     try {
       await fn();
       store.set({ notice });
@@ -169,6 +180,11 @@ export function createContactsStore() {
 
   const actions = {
     load,
+    // Troca de cliente ou perda de permissão: dado pessoal sai da memória e respostas atrasadas são descartadas.
+    reset() {
+      customerId = null;
+      store.set(CONTACTS_INITIAL);
+    },
     toggleReveal(id: number) {
       const { revealed } = store.get();
       store.set({ revealed: revealed.includes(id) ? revealed.filter((x) => x !== id) : [...revealed, id] });
@@ -203,6 +219,10 @@ export type ContactsActions = ReturnType<typeof createContactsStore>['actions'];
 
 export function useContacts(customerId: number | null, enabled: boolean) {
   const { store, actions } = useMemo(createContactsStore, []);
-  useEffect(() => { if (enabled && customerId !== null) void actions.load(customerId); }, [enabled, customerId, actions]);
+  useEffect(() => {
+    if (!enabled || customerId === null) return;
+    void actions.load(customerId);
+    return actions.reset;
+  }, [enabled, customerId, actions]);
   return { state: useStore(store), actions };
 }

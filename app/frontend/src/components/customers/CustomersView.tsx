@@ -3,7 +3,7 @@ import { Eye, EyeOff, Lock, Pencil, Plus, Save, Trash2, X } from 'lucide-react';
 import { maskEmail, maskPhone } from '../../format';
 import {
   isCanonicalAlias, type Contact, type ContactForm, type ContactsActions, type ContactsState, type Customer,
-  type CustomerForm, type CustomersActions, type CustomersState,
+  type CustomerField, type CustomerForm, type CustomersActions, type CustomersState,
 } from '../../hooks/useCustomers';
 import {
   Alert, Badge, Button, CheckField, ConfirmButton, Empty, ErrorState, ICON, Panel, PageHeader, SelectField,
@@ -12,18 +12,18 @@ import {
 
 const SEVERITIES = [1, 2, 3, 4, 5];
 
-function CustomerFormView({ initial, creating, busy, onSave, onCancel }: {
-  initial: CustomerForm; creating: boolean; busy: boolean; onSave: (f: CustomerForm) => void; onCancel: () => void;
+function CustomerFormView({ initial, creating, busy, fieldError, onSave, onCancel }: {
+  initial: CustomerForm; creating: boolean; busy: boolean; fieldError: (f: CustomerField) => string | null; onSave: (f: CustomerForm) => void; onCancel: () => void;
 }) {
   const [f, setF] = useState(initial);
   return (
     <form aria-label={creating ? 'Novo cliente' : 'Editar cliente'} className="nx-stack"
       onSubmit={(e) => { e.preventDefault(); onSave(f); }}>
       <div className="nx-grid">
-        <TextField label="Chave" value={f.key} required disabled={!creating} onChange={(e) => setF({ ...f, key: e.target.value })}
+        <TextField label="Chave" error={fieldError('key')} value={f.key} required disabled={!creating} onChange={(e) => setF({ ...f, key: e.target.value })}
           hint={creating ? 'Identificador estável do cliente.' : 'Não muda depois de criado.'} />
-        <TextField label="Nome de exibição" value={f.display_name} required onChange={(e) => setF({ ...f, display_name: e.target.value })} />
-        <TextField label="Entidade de atendimento (ID)" type="number" min={0} inputMode="numeric" value={f.entity_id}
+        <TextField label="Nome de exibição" error={fieldError('display_name')} value={f.display_name} required onChange={(e) => setF({ ...f, display_name: e.target.value })} />
+        <TextField label="Entidade de atendimento (ID)" error={fieldError('entity_id')} type="number" min={0} inputMode="numeric" value={f.entity_id}
           onChange={(e) => setF({ ...f, entity_id: e.target.value })} hint="Um ID só pode estar em um cliente ativo." />
       </div>
       <CheckField label="Cliente ativo" checked={f.active} onChange={(e) => setF({ ...f, active: e.target.checked })} />
@@ -59,7 +59,7 @@ function Aliases({ customer, state, actions, canEdit }: {
       {canEdit && (
         <form className="nx-actions" style={{ marginTop: 16, alignItems: 'flex-end' }} aria-label="Adicionar apelido"
           onSubmit={async (e) => { e.preventDefault(); if (await actions.addAlias(customer.id, alias)) setAlias(''); }}>
-          <TextField label="Novo apelido" value={alias} required onChange={(e) => setAlias(e.target.value)} />
+          <TextField label="Novo apelido" error={state.actionField === 'alias' ? state.actionError : null} value={alias} required onChange={(e) => setAlias(e.target.value)} />
           <Button type="submit" icon={Plus} disabled={state.busy || !alias.trim()}>Adicionar</Button>
         </form>
       )}
@@ -160,6 +160,7 @@ export default function CustomersView({ state, actions, canEdit, contacts, conta
   state: CustomersState; actions: CustomersActions; canEdit: boolean;
   contacts: ContactsState; contactsActions: ContactsActions; canReadContacts: boolean;
 }) {
+  const fieldError = (f: CustomerField) => (state.actionField === f ? state.actionError : null);
   const selected = state.customers.find((c) => c.id === state.selectedId) ?? null;
   return (
     <>
@@ -167,7 +168,7 @@ export default function CustomersView({ state, actions, canEdit, contacts, conta
         <Button variant="primary" icon={Plus} disabled={state.phase !== 'ready' || state.busy} onClick={actions.startCreate}>Novo cliente</Button>
       )} />
       <div role="status" aria-live="polite">{state.notice && <Alert tone="info">{state.notice}</Alert>}</div>
-      {state.actionError && <Alert>{state.actionError}</Alert>}
+      {state.actionError && !state.actionField && <Alert>{state.actionError}</Alert>}
 
       {state.phase === 'loading' && <Skeleton rows={4} />}
       {state.phase === 'error' && state.error && <ErrorState error={state.error} onRetry={() => void actions.load()} />}
@@ -175,7 +176,7 @@ export default function CustomersView({ state, actions, canEdit, contacts, conta
         <>
           {canEdit && state.editing === 'new' && (
             <Panel title="Novo cliente">
-              <CustomerFormView initial={emptyCustomer} creating busy={state.busy} onSave={(f) => void actions.save(f)} onCancel={actions.cancelEdit} />
+              <CustomerFormView initial={emptyCustomer} creating busy={state.busy} fieldError={fieldError} onSave={(f) => void actions.save(f)} onCancel={actions.cancelEdit} />
             </Panel>
           )}
           <Panel title="Clientes" meta={<Badge>{state.customers.length}</Badge>} flush>
@@ -201,7 +202,7 @@ export default function CustomersView({ state, actions, canEdit, contacts, conta
               <Panel title={selected.display_name} meta={<Badge tone={selected.active ? 'ok' : 'neutral'}>{selected.active ? 'Ativo' : 'Inativo'}</Badge>}
                 actions={canEdit && state.editing !== 'edit' && <Button icon={Pencil} onClick={actions.startEdit}>Editar</Button>}>
                 {state.editing === 'edit' && canEdit
-                  ? <CustomerFormView key={selected.id} initial={toCustomerForm(selected)} creating={false} busy={state.busy} onSave={(f) => void actions.save(f)} onCancel={actions.cancelEdit} />
+                  ? <CustomerFormView key={selected.id} initial={toCustomerForm(selected)} creating={false} busy={state.busy} fieldError={fieldError} onSave={(f) => void actions.save(f)} onCancel={actions.cancelEdit} />
                   : (
                     <dl className="nx-grid" style={{ margin: 0 }}>
                       <div><dt className="nx-meta">Chave</dt><dd className="nx-mono" style={{ margin: 0 }}>{selected.key}</dd></div>

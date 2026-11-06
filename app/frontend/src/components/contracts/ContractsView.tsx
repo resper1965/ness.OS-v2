@@ -3,7 +3,7 @@ import { CircleCheck, CircleDashed, CirclePause, CircleX, Pencil, Plus, ScrollTe
 import { fmtDate, fmtDateTime, fmtTime, MODALITY, ROLE, STATUS, WEEKDAY } from '../../format';
 import {
   isNonContractual, TRANSITIONS, type Calendar, type Contract, type ContractDetail, type ContractForm,
-  type ContractsActions, type ContractsState, type ContractStatus,
+  type ContractField, type ContractsActions, type ContractsState, type ContractStatus,
 } from '../../hooks/useContracts';
 import {
   Alert, AreaField, Badge, Button, ConfirmButton, Empty, ErrorState, ICON, Panel, PageHeader, SelectField,
@@ -90,8 +90,8 @@ function List({ state, actions }: { state: ContractsState; actions: ContractsAct
   );
 }
 
-function Form({ initial, creating, calendars, busy, onSave, onCancel }: {
-  initial: ContractForm; creating: boolean; calendars: Calendar[]; busy: boolean;
+function Form({ initial, creating, calendars, busy, fieldError, onSave, onCancel }: {
+  initial: ContractForm; creating: boolean; calendars: Calendar[]; busy: boolean; fieldError: { field: ContractField | null; message: string | null };
   onSave: (f: ContractForm) => void; onCancel: () => void;
 }) {
   const [f, setF] = useState(initial);
@@ -110,12 +110,12 @@ function Form({ initial, creating, calendars, busy, onSave, onCancel }: {
           <option value="">Não definida</option>
           {Object.entries(MODALITY).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
         </SelectField>
-        <SelectField label="Calendário" value={f.calendar_id} onChange={(e) => set('calendar_id', e.target.value)} hint="Obrigatório para ativar.">
+        <SelectField label="Calendário" value={f.calendar_id} onChange={(e) => set('calendar_id', e.target.value)} hint="Obrigatório para ativar." error={fieldError.field === 'calendar_id' ? fieldError.message : null}>
           <option value="">Nenhum</option>
           {calendars.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </SelectField>
         <TextField label="Início da vigência" type="date" value={f.starts_on} onChange={(e) => set('starts_on', e.target.value)} />
-        <TextField label="Fim da vigência" type="date" value={f.ends_on} min={f.starts_on || undefined} onChange={(e) => set('ends_on', e.target.value)} />
+        <TextField label="Fim da vigência" type="date" value={f.ends_on} min={f.starts_on || undefined} error={fieldError.field === 'ends_on' ? fieldError.message : null} onChange={(e) => set('ends_on', e.target.value)} />
       </div>
       <AreaField label="Observações" value={f.notes} maxLength={4000} onChange={(e) => set('notes', e.target.value)} />
       <div className="nx-actions">
@@ -189,7 +189,7 @@ function Detail({ detail, state, actions, canEdit }: {
         )}
         {detail.status === 'ended' && <Alert tone="info">Contrato encerrado é imutável.</Alert>}
         {state.editing === 'edit' ? (
-          <Form key={detail.id} initial={toForm(detail)} creating={false} calendars={state.calendars} busy={state.busy}
+          <Form key={detail.id} initial={toForm(detail)} creating={false} calendars={state.calendars} busy={state.busy} fieldError={{ field: state.actionField, message: state.actionError }}
             onSave={(f) => void actions.save(f)} onCancel={actions.cancelEdit} />
         ) : (
           <dl className="nx-grid" style={{ margin: 0 }}>
@@ -254,7 +254,7 @@ export default function ContractsView({ state, actions, canEdit }: {
         actions={canEdit && <Button variant="primary" icon={Plus} disabled={state.phase !== 'ready' || state.busy} onClick={actions.startCreate}>Novo contrato</Button>}
       />
       <div role="status" aria-live="polite">{state.notice && <Alert tone="info">{state.notice}</Alert>}</div>
-      {state.actionError && <Alert>{state.actionError}</Alert>}
+      {state.actionError && !state.actionField && <Alert>{state.actionError}</Alert>}
 
       {state.phase === 'loading' && <Skeleton rows={4} />}
       {state.phase === 'error' && state.error && <ErrorState error={state.error} onRetry={() => void actions.load()} />}
@@ -263,7 +263,7 @@ export default function ContractsView({ state, actions, canEdit }: {
           <Divergences state={state} />
           {canEdit && state.editing === 'new' && (
             <Panel title="Novo contrato">
-              <Form initial={emptyForm} creating calendars={state.calendars} busy={state.busy}
+              <Form initial={emptyForm} creating calendars={state.calendars} busy={state.busy} fieldError={{ field: state.actionField, message: state.actionError }}
                 onSave={(f) => void actions.save(f)} onCancel={actions.cancelEdit} />
             </Panel>
           )}

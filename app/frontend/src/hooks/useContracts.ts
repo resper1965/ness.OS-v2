@@ -58,13 +58,22 @@ export interface ContractsState {
   editing: 'new' | 'edit' | null;
   busy: boolean;
   actionError: string | null;
+  actionField: ContractField | null;
   notice: string | null;
 }
 
 const INITIAL: ContractsState = {
   phase: 'loading', error: null, contracts: [], divergences: [], calendars: [], selectedId: null, detail: null,
-  detailLoading: false, detailError: null, editing: null, busy: false, actionError: null, notice: null,
+  detailLoading: false, detailError: null, editing: null, busy: false, actionError: null, actionField: null, notice: null,
 };
+
+export type ContractField = 'calendar_id' | 'ends_on';
+// Mensagens conhecidas do servidor ligadas a um campo; o resto fica no alerta geral.
+export function contractFieldOf(message: string): ContractField | null {
+  if (/calendário/i.test(message)) return 'calendar_id';
+  if (/starts_on deve ser/.test(message)) return 'ends_on';
+  return null;
+}
 
 const BASE = '/api/v1/sla';
 const orNull = (v: string) => (v.trim() === '' ? null : v.trim());
@@ -111,14 +120,15 @@ export function createContractsStore() {
   }
 
   // 409/422 do servidor chegam como mensagem pronta em `actionError`.
-  async function act(fn: () => Promise<void>, notice: string): Promise<boolean> {
-    store.set({ busy: true, actionError: null, notice: null });
+  async function act(fn: () => Promise<void>, notice: string, fieldOf?: (m: string) => ContractField | null): Promise<boolean> {
+    store.set({ busy: true, actionError: null, actionField: null, notice: null });
     try {
       await fn();
       store.set({ notice });
       return true;
     } catch (e) {
-      store.set({ actionError: describeError(e) });
+      const actionError = describeError(e);
+      store.set({ actionError, actionField: fieldOf ? fieldOf(actionError) : null });
       return false;
     } finally {
       store.set({ busy: false });
@@ -150,7 +160,7 @@ export function createContractsStore() {
         } else {
           await request(`${BASE}/contracts/${id}`, { method: 'PUT', body: toPayload(form, false) });
         }
-      }, creating ? 'Contrato criado como rascunho.' : 'Contrato salvo.');
+      }, creating ? 'Contrato criado como rascunho.' : 'Contrato salvo.', contractFieldOf);
       if (!ok) return false;
       store.set({ editing: null });
       if (created) store.set({ selectedId: (created as Contract).id });

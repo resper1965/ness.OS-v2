@@ -7,9 +7,9 @@
   --nx-ink: #f1f5f9; --nx-ink-2: #cbd5e1; --nx-ink-3: #94a3b8; --nx-ink-4: #8fa0b6;
   --nx-accent: #00ade8; --nx-accent-ink: #04121c;
   --nx-ok: #10b981; --nx-warn: #f59e0b; --nx-bad: #ef4444;
-  --nx-head: "Montserrat", system-ui, sans-serif;
-  --nx-body: "Inter", system-ui, sans-serif;
-  --nx-mono: "JetBrains Mono", ui-monospace, monospace;
+  --nx-head: "Montserrat Variable", "Montserrat", system-ui, sans-serif;
+  --nx-body: "Inter Variable", "Inter", system-ui, sans-serif;
+  --nx-mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, monospace;
   min-height: 100%; padding: 24px 32px 48px; background: var(--nx-paper); color: var(--nx-ink);
   font: 400 13px/1.5 var(--nx-body);
 }
@@ -44,6 +44,8 @@
 .nx-field input, .nx-field select, .nx-field textarea { height: 34px; padding: 0 10px; background: var(--nx-paper); color: var(--nx-ink); border: 1px solid var(--nx-line); font: 400 13px/1.5 var(--nx-body); width: 100%; }
 .nx-field textarea { height: auto; padding: 8px 10px; min-height: 72px; }
 .nx-field input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--nx-accent); }
+.nx-field .nx-error { font-weight: 500; color: #fca5a5; }
+.nx-field [aria-invalid="true"] { border-color: var(--nx-bad); }
 .nx-field .nx-hint { font-weight: 400; color: var(--nx-ink-4); }
 .nx-check { flex-direction: row; display: flex; align-items: center; gap: 8px; }
 .nx-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
