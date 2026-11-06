@@ -48,7 +48,7 @@ Não verificado: `ProxyOfflineBuffer`/`ConfigFrequency` dos proxies, duração r
 
 - [ ] **Step 1:** Ricardo informa: hostname da tela aprovado em 06/11: `zabbix-web.ness.com.br` (`zabbix.ness.com.br` fica só para proxies). IdP: Entra (confirmado 06/11). Sem grupo na Cloudflare e sem lista de e-mails: o Access só libera quem entra (`@ness.com.br`, MFA dos security defaults do Entra); papel e permissão ficam em usuários e grupos do próprio Zabbix, cadastrados antes, sem JIT (ADR 0015). Informar quem opera a janela.
 - [ ] **Step 2:** Ricardo grava como `dev` em `/srv/dev/secrets/projetos.env` um token Cloudflare com escopo mínimo (DNS da zona + Access + Tunnel). O agente só lê o arquivo.
-- [ ] **Step 3:** Ler `ProxyOfflineBuffer` e `ConfigFrequency` de 2 proxies (somente leitura, SSH autorizado) e reconciliar 18 × 19 no `monitor-zabbix-proxy-reconnect.sh`.
+- [ ] **Step 3:** Ler `ProxyOfflineBuffer` e `ConfigFrequency` de 2 proxies (somente leitura, SSH autorizado) e reconciliar 18 × 19 no `monitor-zabbix-proxy-reconnect.sh`. **Resolvido em 06/11:** o 19º é o `stacavprx` (Cavan, Santa Lucia), máquina já migrada e sem acesso desde 11/09; fica fora do critério de sucesso e o monitor continua em 18/18. Seus 4 hosts e 5 problemas antigos seguem ativos no Zabbix; limpeza (desativar, não apagar) é decisão à parte.
 - **Verifica:** buffer ≥ duração estimada da janela; contagem de proxies explicada.
 
 ### Task 2: Restore atual na VPS nova, isolado e medido
