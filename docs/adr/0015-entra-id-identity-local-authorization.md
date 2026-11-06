@@ -31,7 +31,7 @@ A ness. migrou do Google Workspace para o Microsoft 365, e o Entra ID já identi
 
 | Sistema | Quem acessa | Como entra | Onde ficam papel e grupos | Emergência |
 |---|---|---|---|---|
-| **ness.OS (Hub)** | Operadores e clientes | OIDC Entra, direto no app, pelo túnel **sem** Access | Banco do Hub: papel e tenant cadastrados antes por `platform_admin`, vínculo `issuer` + `oid` | Conta local do Hub, por SSH + *port forward* |
+| **ness.OS (Hub)** | Operadores e clientes | OIDC Entra, direto no app, pelo túnel **sem** Access | Banco do Hub: papel, tenant e vínculo `issuer` + `oid` cadastrados à mão por `platform_admin` antes do primeiro login | Conta local do Hub, por SSH + *port forward* |
 | **Zabbix** | Só operadores | SAML Entra | No Zabbix: usuários e grupos criados nele, sem JIT | Conta local do Zabbix |
 | **GLPI** | Só operadores | Cloudflare Access (Entra) **e depois** login local do GLPI | No GLPI: perfis e entidades | Conta local do GLPI |
 | **n8n / Node-RED** | Só operadores | Cloudflare Access (Entra) e login local | Na ferramenta | Conta local |
@@ -42,7 +42,7 @@ A ness. migrou do Google Workspace para o Microsoft 365, e o Entra ID já identi
 Regras sem exceção:
 
 1. **O provedor autentica; o sistema autoriza.** Identidade válida sem cadastro prévio no sistema é **recusada** (403 e log). Não há provisionamento JIT em nenhum sistema.
-2. **O vínculo é `issuer` + `oid`, nunca e-mail.** O e-mail serve só para o primeiro vínculo, a partir de convite feito por `platform_admin`.
+2. **O vínculo é `issuer` + `oid` (ou `sub`), nunca e-mail, nem no primeiro acesso.** O `platform_admin` cadastra o vínculo à mão antes do primeiro login (`POST /api/auth/identities`, [runbook](../runbooks/identidade-fase-a.md)): a pessoa tenta entrar, recebe 403, o `iss` e o `oid` ficam no log, e o admin os cadastra. Ligar o vínculo pelo e-mail do convite **não existe**; se a Fase B quiser isso, é mudança de código com teste próprio.
 3. **Desativar no sistema corta o acesso**, mesmo com a conta Entra ativa.
 4. **`platform_admin` é atribuído no banco do Hub** (ADR 0013), não em grupo do provedor.
 5. **Clientes só entram no ness.OS.** Nunca recebem acesso a Zabbix, GLPI, Wazuh, Psono ou n8n/Node-RED.
@@ -80,12 +80,12 @@ Contas locais em Hub, Zabbix e GLPI, alcançáveis por SSH + *port forward*, mai
 
 ## Sequência
 
-Nada desta sequência começa antes do aceite do MVP (UAT da Fase 1) e do gate da Fase 0.
+A Fase A já está em produção e **permanece** (não reverter). As Fases **B, C e D** não começam antes do aceite do MVP (UAT da Fase 1) e do gate da Fase 0.
 
 | Fase | O que acontece | Estado |
 |---|---|---|
 | **A** | Autorização local no Hub (`issuer` + `oid`, sem JIT, sem claims de grupo) | **Em produção desde 05/11** |
-| **B** | App OIDC do Hub no Entra; *security defaults*; 2 contas de emergência; colaboração externa restrita; 1 cliente piloto; Zabbix SAML Entra (UAT, depois produção) | Travada |
+| **B** | App OIDC do Hub no Entra; *security defaults*; 2 contas de emergência; colaboração externa restrita; 1 cliente piloto **com o vínculo `issuer` + `oid` pré-cadastrado pelo runbook**; Zabbix SAML Entra (UAT, depois produção) | Travada |
 | **C** | Antes de tudo: conferir na VPS que o `sha256` de `/opt/n-infraops/app/Caddyfile` é o do `app/Caddyfile` da `main`; se divergir, reconciliar primeiro. Depois: `cloudflared` + Access em GLPI e n8n (remove `forward_auth`); Hub e API pelo túnel sem Access; teste da emergência; fechar a 443 | Travada |
 | **D** | Desligar o Authentik; backup guardado 30 dias; remover `sso.ness.com.br`, o bloco do Caddy e os segredos | Travada |
 
