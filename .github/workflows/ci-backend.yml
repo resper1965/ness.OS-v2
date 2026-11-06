@@ -39,6 +39,8 @@ on:
       - 'infra/tests/test-aiops-runtime-readiness.sh'
       - 'infra/scripts/aiops-runtime-preflight.sh'
       - 'infra/tests/test-aiops-runtime-preflight.sh'
+      - 'infra/tests/test-wazuh-ufw-stale.py'
+      - 'infra/ansible/roles/wazuh/files/ufw_stale.py'
       - '.github/workflows/ci-backend.yml'
   pull_request:
     branches: [ "main" ]
@@ -112,6 +114,7 @@ jobs:
         python -m pytest -q infra/tests/test-psono-custodian-readiness.py
         python -m pytest -q infra/tests/test-zabbix-quality-wave.py
         python -m pytest -q infra/tests/test-hub-zabbix-backfill.py
+        python3 infra/tests/test-wazuh-ufw-stale.py
         pip install jsonschema
         python -m pytest -q infra/tests/test-signal-contract-v1.py
         python -m pytest -q infra/tests/test-signal-contract-v1-consumer.py

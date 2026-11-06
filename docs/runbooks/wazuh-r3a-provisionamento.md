@@ -30,6 +30,14 @@ Base: [dimensionamento](../specs/wazuh-r3a-dimensionamento.md) (opção B aprova
 - `GET _plugins/_ism/policies/ness-wazuh-retention` devolve os dias decididos.
 - Agente piloto aparece em `agent_control -l` e gera alerta; regras de `infra/wazuh/local_rules_noise.xml` aplicadas pelo [runbook Wazuh](../../infra/docs/runbooks/wazuh.md).
 
+## Instalação que falhou no meio
+
+O instalador só é pulado quando existe `/var/lib/wazuh-r3a/install.done`, gravado depois de `wazuh-install.sh -a` retornar sucesso **e** `wazuh-manager`, `wazuh-indexer` e `wazuh-dashboard` estarem ativos. Instalação parcial não tem marcador. Depois de uma falha, na VPS: `sudo /root/wazuh-install/wazuh-install.sh -u` (apaga só o Wazuh dela) e só então repetir o playbook; rodar `-a` por cima de uma instalação parcial não é suportado.
+
+## Firewall: regras obsoletas
+
+Cada regra do Wazuh tem o comentário `wazuh-r3a:<tipo>:<porta>:<origem>`. A cada execução, as regras com esse prefixo que não estão mais em `wazuh_agent_sources` (ou nas portas da tailnet) são apagadas; SSH e regras sem o prefixo nunca são tocadas. Teste: `python3 infra/tests/test-wazuh-ufw-stale.py`.
+
 ## Atualizar pacotes em hold
 
 `wazuh-manager`, `wazuh-indexer`, `wazuh-dashboard` e `filebeat` ficam em `hold`, para o `apt upgrade` não mexer no Wazuh. Para subir de versão: ler as notas da versão, fazer snapshot/backup, `sudo apt-mark unhold <pacotes>`, `sudo apt-get install --only-upgrade <pacotes>` (ordem: indexer, manager, filebeat, dashboard) e `apt-mark hold` de novo. Atualizar também `wazuh_version`/`wazuh_install_sha256` no código, em PR.
