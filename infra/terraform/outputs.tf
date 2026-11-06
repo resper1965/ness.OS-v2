@@ -17,6 +17,11 @@ output "instances" {
   }
 }
 
+output "wazuh_r3a_ipv4" {
+  description = "IPv4 público da VPS do Wazuh R3a (null enquanto não criada)"
+  value       = one(contabo_instance.wazuh_r3a[*].ip_config[0].v4[0].ip)
+}
+
 # ---------------------------------------------------------------------------
 # Outputs do Object Storage
 # ---------------------------------------------------------------------------

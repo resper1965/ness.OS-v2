@@ -1,0 +1,20 @@
+---
+# Wazuh R3a single-node (manager + indexer + dashboard) via the official assistant.
+# Versão fixada pelo sha256 do instalador: o script 4.14 embute a versão que instala; se a Wazuh
+# republicar o script, o checksum falha e alguém confere antes de trocar (pin consciente).
+wazuh_version: "4.14.10"
+wazuh_install_url: "https://packages.wazuh.com/4.14/wazuh-install.sh"
+wazuh_install_sha256: "db5f8d37703b3673ec0e6b30834499756cbd093d828fc24d7f5b276980ea1bf6" # conferido em 06/11/2026; reconferir na execução
+wazuh_install_dir: /root/wazuh-install
+wazuh_install_marker: /var/lib/wazuh-r3a/install.done # gravado só com o instalador OK e os 3 serviços ativos
+
+# Rede de gestão (tailnet). API 55000 e dashboard 443 só daqui; o indexer (9200) escuta só em 127.0.0.1.
+wazuh_admin_cidr: "100.64.0.0/10"
+
+# SEM DEFAULT, decisões pendentes do Ricardo (docs/specs/wazuh-r3a-dimensionamento.md §6):
+#   wazuh_indexer_retention_days  retenção pesquisável do indexer, em dias (30, 90 ou outra)
+#   wazuh_agent_sources           origens permitidas em 1514/1515: lista de CIDRs (ou ["any"]); depende
+#                                 de como os agentes dos clientes chegam (internet, VPN, sonda)
+# OT (janela retrospectiva, banda, capacidade) não entra aqui: ainda sem dimensionamento.
+
+wazuh_ism_url: "https://127.0.0.1:9200/_plugins/_ism/policies/ness-wazuh-retention"

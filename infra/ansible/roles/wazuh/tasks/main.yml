@@ -1,0 +1,207 @@
+---
+# Wazuh R3a single-node (manager + indexer + dashboard) com o assistente oficial.
+# Tags: preflight (sempre), firewall, install, retention (precisa de WAZUH_ADMIN_PASSWORD no ambiente).
+- name: Exigir as decisões pendentes (sem default)
+  ansible.builtin.assert:
+    that:
+      - wazuh_indexer_retention_days is defined
+      - wazuh_indexer_retention_days | int > 0
+      - wazuh_agent_sources is defined
+      - wazuh_agent_sources is sequence and wazuh_agent_sources is not string
+      - wazuh_agent_sources | length > 0
+    fail_msg: >
+      Defina wazuh_indexer_retention_days (dias) e wazuh_agent_sources (lista de CIDRs) com -e.
+      Ambas são decisões do Ricardo, ver docs/specs/wazuh-r3a-dimensionamento.md §6.
+  tags: [always, preflight]
+
+# --------------------------------------------------------------------------
+# Firewall: SSH já vem da role common (default deny). Aqui só o que o Wazuh precisa.
+# O indexer (9200) escuta só em 127.0.0.1 e não ganha regra.
+# Toda regra gerenciada leva o comentário `wazuh-r3a:<tipo>:<porta>:<origem>`. Regras com esse prefixo
+# que saíram da lista desejada são apagadas (files/ufw_stale.py; teste: infra/tests/test-wazuh-ufw-stale.py).
+# Nunca toca SSH nem regras sem o prefixo.
+# --------------------------------------------------------------------------
+- name: Agentes (1514 conexão, 1515 registro) só das origens aprovadas
+  community.general.ufw:
+    rule: allow
+    port: "{{ item.1 }}"
+    proto: tcp
+    from_ip: "{{ item.0 }}"
+    comment: "wazuh-r3a:agent:{{ item.1 }}:{{ item.0 }}"
+  loop: "{{ wazuh_agent_sources | product([1514, 1515]) | list }}"
+  tags: [firewall]
+
+- name: API (55000) e dashboard (443) só da tailnet
+  community.general.ufw:
+    rule: allow
+    port: "{{ item }}"
+    proto: tcp
+    from_ip: "{{ wazuh_admin_cidr }}"
+    comment: "wazuh-r3a:admin:{{ item }}:{{ wazuh_admin_cidr }}"
+  loop: [55000, 443]
+  tags: [firewall]
+
+- name: Copiar o localizador de regras UFW obsoletas
+  ansible.builtin.copy:
+    src: ufw_stale.py
+    dest: /usr/local/sbin/wazuh-r3a-ufw-stale
+    owner: root
+    group: root
+    mode: "0750"
+  tags: [firewall]
+
+- name: Achar regras wazuh-r3a que saíram da lista desejada
+  ansible.builtin.command:
+    argv:
+      - /usr/local/sbin/wazuh-r3a-ufw-stale
+      - --desired
+      - "{{ (wazuh_agent_sources | product([1514, 1515]) | map('reverse') | map('join', ':') | map('regex_replace', '^', 'wazuh-r3a:agent:') | list
+             + ['wazuh-r3a:admin:55000:' ~ wazuh_admin_cidr, 'wazuh-r3a:admin:443:' ~ wazuh_admin_cidr]) | to_json }}"
+  register: wazuh_ufw_stale
+  changed_when: false
+  check_mode: false
+  tags: [firewall]
+
+# Do maior número para o menor: apagar uma regra renumera as seguintes.
+- name: Apagar as regras obsoletas
+  ansible.builtin.command: ufw --force delete {{ item }}
+  loop: "{{ wazuh_ufw_stale.stdout_lines }}"
+  changed_when: true
+  tags: [firewall]
+
+# --------------------------------------------------------------------------
+# Instalação. Nunca usa -o (apagaria dados); o marcador de conclusão impede rodar sobre instalação já concluída.
+# O assistente gera as senhas e as grava em wazuh-install-files.tar (root, 0600); nada vai ao log.
+# --------------------------------------------------------------------------
+- name: Diretório de trabalho do instalador
+  ansible.builtin.file:
+    path: "{{ wazuh_install_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  tags: [install]
+
+- name: Diretório do marcador de instalação
+  ansible.builtin.file:
+    path: "{{ wazuh_install_marker | dirname }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  tags: [install]
+
+- name: Baixar o instalador oficial com checksum fixado
+  ansible.builtin.get_url:
+    url: "{{ wazuh_install_url }}"
+    dest: "{{ wazuh_install_dir }}/wazuh-install.sh"
+    checksum: "sha256:{{ wazuh_install_sha256 }}"
+    mode: "0700"
+  tags: [install]
+
+# Marcador de conclusão: o instalador só é pulado se o marcador existir. Um /var/ossec parcial
+# (instalação que caiu no meio) não conta como pronto; ver o runbook (wazuh-install.sh -u antes de repetir).
+- name: Ler o marcador de instalação concluída
+  ansible.builtin.stat:
+    path: "{{ wazuh_install_marker }}"
+  register: wazuh_marker
+  tags: [install]
+
+- name: Instalar manager + indexer + dashboard (all-in-one)
+  ansible.builtin.command:
+    cmd: "{{ wazuh_install_dir }}/wazuh-install.sh -a"
+    chdir: "{{ wazuh_install_dir }}"
+  register: wazuh_installer
+  failed_when: false
+  changed_when: wazuh_installer.rc == 0
+  no_log: true # a saída imprime a senha do admin
+  when: not wazuh_marker.stat.exists
+  tags: [install]
+
+- name: Cauda do log do instalador (sem a senha) se a instalação falhou
+  ansible.builtin.shell: set -o pipefail; tail -n 30 /var/log/wazuh-install.log | sed -E 's/(Password:).*/\1 ***/I'
+  args:
+    executable: /bin/bash
+  register: wazuh_install_log
+  changed_when: false
+  failed_when: false
+  when: wazuh_installer.rc | default(0) != 0
+  tags: [install]
+
+- name: Falhar com a cauda do log se o instalador falhou
+  ansible.builtin.fail:
+    msg: "wazuh-install.sh falhou (rc={{ wazuh_installer.rc }}). Cauda do log:\n{{ wazuh_install_log.stdout | default('(sem log)') }}"
+  when: wazuh_installer.rc | default(0) != 0
+  tags: [install]
+
+- name: Ler o estado dos três serviços
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+  loop: [wazuh-manager, wazuh-indexer, wazuh-dashboard]
+  register: wazuh_services
+  when: not wazuh_marker.stat.exists
+  tags: [install]
+
+- name: Gravar o marcador só com instalador OK e os três serviços ativos
+  ansible.builtin.copy:
+    dest: "{{ wazuh_install_marker }}"
+    content: "wazuh {{ wazuh_version }} instalado\n"
+    owner: root
+    group: root
+    mode: "0644"
+  when:
+    - not wazuh_marker.stat.exists
+    - wazuh_installer.rc == 0
+    - wazuh_services.results | map(attribute='status.ActiveState') | unique | list == ['active']
+  tags: [install]
+
+- name: Falhar se os serviços não ficaram ativos (sem marcador, o próximo run tenta de novo)
+  ansible.builtin.fail:
+    msg: "Instalador terminou, mas wazuh-manager/indexer/dashboard não estão todos ativos; marcador não gravado."
+  when:
+    - not wazuh_marker.stat.exists
+    - wazuh_services.results | map(attribute='status.ActiveState') | unique | list != ['active']
+  tags: [install]
+
+- name: Fixar a versão dos pacotes (apt upgrade não pode mexer no Wazuh)
+  ansible.builtin.dpkg_selections:
+    name: "{{ item }}"
+    selection: hold
+  loop: [wazuh-manager, wazuh-indexer, wazuh-dashboard, filebeat]
+  tags: [install]
+
+# --------------------------------------------------------------------------
+# Retenção do indexer: política ISM apaga wazuh-alerts-* após N dias.
+# Senha do admin vem do ambiente na hora da execução (WAZUH_ADMIN_PASSWORD), nunca do repositório.
+# --------------------------------------------------------------------------
+- name: Ler a política de retenção atual
+  ansible.builtin.uri:
+    url: "{{ wazuh_ism_url }}"
+    url_username: admin
+    url_password: "{{ lookup('ansible.builtin.env', 'WAZUH_ADMIN_PASSWORD') | mandatory }}"
+    force_basic_auth: true
+    ca_path: /etc/wazuh-indexer/certs/root-ca.pem
+    status_code: [200, 404]
+  register: wazuh_ism_current
+  no_log: true
+  check_mode: false
+  tags: [retention]
+
+- name: Aplicar a política de retenção
+  ansible.builtin.uri:
+    url: >-
+      {{ wazuh_ism_url }}{{ ('?if_seq_no=' ~ wazuh_ism_current.json._seq_no ~ '&if_primary_term=' ~ wazuh_ism_current.json._primary_term)
+      if wazuh_ism_current.status == 200 else '' }}
+    method: PUT
+    url_username: admin
+    url_password: "{{ lookup('ansible.builtin.env', 'WAZUH_ADMIN_PASSWORD') | mandatory }}"
+    force_basic_auth: true
+    ca_path: /etc/wazuh-indexer/certs/root-ca.pem
+    body_format: json
+    body: "{{ lookup('ansible.builtin.template', 'ism-retention.json.j2') | from_json }}"
+    status_code: [200, 201]
+  changed_when: true
+  no_log: true
+  tags: [retention]
+  # ponytail: a política só vale para índices novos (ism_template); índices já existentes
+  # precisam de POST _plugins/_ism/add/<índice>. Upgrade path: fazer isso na migração dos agentes, se necessário.
