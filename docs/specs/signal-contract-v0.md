@@ -35,7 +35,7 @@ Lote (OT): acrescenta `batch_id` estável, `rules_version`, intervalo coberto e 
    a lê em produção ainda. Grupo novo precisa de vínculo antes de enviar alertas.
 3. **Atendimento independe do score e do modelo.** A política SOC decide quais sinais
    exigem atendimento ([política aprovada em 03/11](soc-attendance-policy.md)): severidade de
-   origem ≥ 12 (`NINF_SOC_ATTENDANCE_MIN_LEVEL`). Abaixo do piso,
+   origem ≥ 12 (parâmetro `soc_attend_min_level` (padrão 12, só baixa por contrato; ver [contratos e SLA](contratos-sla-editaveis.md))). Abaixo do piso,
    o score continua decidindo, como antes. Severidade ausente ou não numérica não é
    rebaixada: o sinal é atendido. Falha da IA não bloqueia o despacho.
 4. **Idempotência:** chave inclui `tenant_id`, `source_id` e identificador do evento.

@@ -429,9 +429,11 @@ def test_archived_sample_returns_projected_rows_for_soc(
         "created_at": datetime.now(UTC),
         "raw_alert": {"rule": {"id": "1"}},
     }
-    result = MagicMock()
-    result.mappings.return_value.all.return_value = [row]
-    persisted_triage_stats_database.execute.return_value = result
+    counts = MagicMock()
+    counts.all.return_value = [("cavan", 1)]
+    sample = MagicMock()
+    sample.mappings.return_value.all.return_value = [row]
+    persisted_triage_stats_database.execute.side_effect = [counts, sample]
 
     data = client.get(
         "/api/secops/archived-sample?days=7&limit=20&customer_id=cavan"
@@ -439,8 +441,10 @@ def test_archived_sample_returns_projected_rows_for_soc(
 
     assert data["total"] == 1 and data["items"][0]["id"] == 5
     assert data["items"][0]["raw_alert"] == {"rule": {"id": "1"}}
-    stmt = persisted_triage_stats_database.execute.call_args.args[0]
-    compiled = stmt.compile()
+    assert data["groups"]["cavan"]["quota"] == 20  # padrão 20; limit=20 é só teto
+    # get_params falha no mock (savepoint) e cai nos padrões; as 2 consultas da amostra:
+    stmts = [c.args[0] for c in persisted_triage_stats_database.execute.call_args_list]
+    compiled = stmts[-1].compile()
     assert "ARCHIVE_NO_LLM" in compiled.params.values()  # só arquivados
     assert "cavan" in compiled.params.values()  # escopo do cliente pedido
 

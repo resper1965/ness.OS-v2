@@ -20,14 +20,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import (
     require_admin,
+    require_noc,
     require_operator,
+    require_platform_admin,
     resolve_tenant_scope,
 )
 from app.database import get_db
 from app.models import (
     Contract,
     ContractChange,
+    ContractPolicyParam,
     EscalationStep,
+    PlatformParam,
     SlaCalendar,
     SlaCalendarHours,
     SlaHoliday,
@@ -35,6 +39,14 @@ from app.models import (
     TenantMapping,
     User,
     UserRole,
+)
+from app.services.policy_params import (
+    CEILINGS,
+    CONTRACT_DEFAULTS,
+    FLOORS,
+    PLATFORM_DEFAULTS,
+    PLATFORM_MAX,
+    clamp,
 )
 from app.services.sla import modality_divergences
 
@@ -142,6 +154,12 @@ class PolicyIn(BaseModel):
     ttr_minutes: int | None = Field(default=None, ge=1, le=43200)
     calendar_id: int | None = None
     enabled: bool = True
+
+
+class ParamIn(BaseModel):
+    value: int = Field(
+        ge=1, le=2_147_483_647
+    )  # INTEGER do banco: acima disso seria 500
 
 
 class StepIn(BaseModel):
@@ -536,6 +554,137 @@ async def delete_policy(
         )
     await _audit(db, c, user, "policy", before, None)
     await _commit(db)
+
+
+# ---------- parâmetros da política de atendimento ----------
+
+
+def _param_key(key: str) -> str:
+    if key not in CONTRACT_DEFAULTS:
+        raise HTTPException(404, "Parâmetro desconhecido")
+    return key
+
+
+@router.get("/contracts/{contract_id}/params")
+async def list_params(
+    contract_id: int,
+    user: User = Depends(require_operator),
+    db: AsyncSession = Depends(get_db),
+):
+    """Valores gravados no contrato + efetivos (com o teto da política aplicado)."""
+    c = await _visible(db, user, contract_id)
+    stored = {
+        k: v
+        for k, v in await db.execute(
+            select(ContractPolicyParam.key, ContractPolicyParam.value_int).where(
+                ContractPolicyParam.contract_id == c.id
+            )
+        )
+    }
+    return {
+        "contractual": bool(c.contractual),
+        "params": {
+            k: {
+                "value": stored.get(k),
+                "effective": clamp(k, stored.get(k, d)),
+                "default": d,
+                "ceiling": CEILINGS.get(k),
+                "floor": FLOORS.get(k),
+            }
+            for k, d in CONTRACT_DEFAULTS.items()
+        },
+    }
+
+
+@router.put("/contracts/{contract_id}/params/{key}")
+async def put_param(
+    contract_id: int,
+    key: str,
+    body: ParamIn,
+    user: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Contrato só endurece a política SOC: acima do teto (ex.: piso > 12) = 422."""
+    c = await _mutable(db, contract_id)
+    _param_key(key)
+    if key in CEILINGS and body.value > CEILINGS[key]:
+        raise HTTPException(422, f"{key} não pode exceder {CEILINGS[key]}")
+    if key in FLOORS and body.value < FLOORS[key]:
+        raise HTTPException(422, f"{key} não pode ser menor que {FLOORS[key]}")
+    row = await db.get(ContractPolicyParam, (c.id, key))
+    before = {"key": key, "value": row.value_int} if row else None
+    if row is None:
+        row = ContractPolicyParam(contract_id=c.id, key=key)
+        db.add(row)
+    row.value_int = body.value
+    row.updated_by_user_id = user.id
+    await db.flush()
+    await _audit(db, c, user, "policy_param", before, {"key": key, "value": body.value})
+    await _commit(db)
+    return {"key": key, "value": body.value}
+
+
+@router.delete("/contracts/{contract_id}/params/{key}", status_code=204)
+async def delete_param(
+    contract_id: int,
+    key: str,
+    user: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    c = await _mutable(db, contract_id)
+    _param_key(key)
+    row = await db.get(ContractPolicyParam, (c.id, key))
+    if row is None:
+        raise HTTPException(404, "Parâmetro não definido no contrato")
+    before = {"key": key, "value": row.value_int}
+    await db.delete(row)
+    await db.flush()
+    await _audit(db, c, user, "policy_param", before, None)
+    await _commit(db)
+
+
+# ---------- parâmetros globais da plataforma ----------
+
+
+@router.get("/platform-params")
+async def list_platform_params(
+    user: User = Depends(require_noc), db: AsyncSession = Depends(get_db)
+):
+    """Frescor/fila/sonda são globais (sem tenant): leitura NOC, escrita platform_admin."""
+    stored = {
+        k: v
+        for k, v in await db.execute(select(PlatformParam.key, PlatformParam.value_int))
+    }
+    return {
+        k: {"value": stored.get(k, d), "default": d, "max": PLATFORM_MAX[k]}
+        for k, d in PLATFORM_DEFAULTS.items()
+    }
+
+
+@router.put("/platform-params/{key}")
+async def put_platform_param(
+    key: str,
+    body: ParamIn,
+    user: User = Depends(require_platform_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    if key not in PLATFORM_DEFAULTS:
+        raise HTTPException(404, "Parâmetro desconhecido")
+    if body.value > PLATFORM_MAX[key]:
+        raise HTTPException(422, f"{key} não pode exceder {PLATFORM_MAX[key]}")
+    row = await db.get(PlatformParam, key)
+    before = row.value_int if row else None
+    if row is None:
+        row = PlatformParam(key=key)
+        db.add(row)
+    row.value_int = body.value
+    row.updated_by_user_id = user.id
+    await _commit(db)
+    logger.info(
+        "platform_param_change",
+        extra={"key": key, "user_id": user.id, "before": before, "after": body.value},
+    )
+    return {"key": key, "value": body.value}
 
 
 # ---------- passos de escalonamento ----------

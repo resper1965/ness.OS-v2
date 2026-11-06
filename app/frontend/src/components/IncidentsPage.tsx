@@ -110,12 +110,14 @@ const ACTION_LABEL: Record<Action, string> = {
   resolve: 'Resolveu',
   close: 'Encerrou',
 };
-interface Props { incidents: Incident[]; total: number; loading: boolean; loadingMore: boolean; error: string | null; canAct: boolean; onChanged: () => void | Promise<void>; onLoadMore: () => void | Promise<void>; }
+interface Props { incidents: Incident[]; total: number; loading: boolean; loadingMore: boolean; error: string | null; canAct: boolean; onChanged: () => void | Promise<void>; onLoadMore: () => void | Promise<void>; initialActiveId?: string | null; }
 
-export default function IncidentsPage({ incidents, total, loading, loadingMore, error, canAct, onChanged, onLoadMore }: Props) {
+export default function IncidentsPage({ incidents, total, loading, loadingMore, error, canAct, onChanged, onLoadMore, initialActiveId = null }: Props) {
   // "Aberto de verdade": o status só muda pelo GLPI; o Zabbix já recuperado não conta.
   const openCount = incidents.filter(i => i.status === 'open' && i.source_status !== 'resolved').length;
-  const [activeId, setActiveId] = React.useState<string | null>(null);
+  // ponytail: o caso do link da notificação só expande se estiver entre os carregados da lista;
+  // upgrade path: buscar o caso por id quando faltar na página atual.
+  const [activeId, setActiveId] = React.useState<string | null>(initialActiveId);
   const [detail, setDetail] = React.useState<IncidentDetail | null>(null);
   const [detailLoading, setDetailLoading] = React.useState(false);
   const [detailError, setDetailError] = React.useState<string | null>(null);
