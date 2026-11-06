@@ -1,0 +1,110 @@
+---
+# Wazuh R3a single-node (manager + indexer + dashboard) com o assistente oficial.
+# Tags: preflight (sempre), firewall, install, retention (precisa de WAZUH_ADMIN_PASSWORD no ambiente).
+- name: Exigir as decisões pendentes (sem default)
+  ansible.builtin.assert:
+    that:
+      - wazuh_indexer_retention_days is defined
+      - wazuh_indexer_retention_days | int > 0
+      - wazuh_agent_sources is defined
+      - wazuh_agent_sources | length > 0
+    fail_msg: >
+      Defina wazuh_indexer_retention_days (dias) e wazuh_agent_sources (lista de CIDRs) com -e.
+      Ambas são decisões do Ricardo, ver docs/specs/wazuh-r3a-dimensionamento.md §6.
+  tags: [always, preflight]
+
+# --------------------------------------------------------------------------
+# Firewall: SSH já vem da role common (default deny). Aqui só o que o Wazuh precisa.
+# O indexer (9200) escuta só em 127.0.0.1 e não ganha regra.
+# --------------------------------------------------------------------------
+- name: Agentes (1514 conexão, 1515 registro) só das origens aprovadas
+  community.general.ufw:
+    rule: allow
+    port: "{{ item.1 }}"
+    proto: tcp
+    from_ip: "{{ item.0 }}"
+    comment: "Wazuh agentes"
+  loop: "{{ wazuh_agent_sources | product([1514, 1515]) | list }}"
+  tags: [firewall]
+
+- name: API (55000) e dashboard (443) só da tailnet
+  community.general.ufw:
+    rule: allow
+    port: "{{ item }}"
+    proto: tcp
+    from_ip: "{{ wazuh_admin_cidr }}"
+    comment: "Wazuh admin via tailnet"
+  loop: [55000, 443]
+  tags: [firewall]
+
+# --------------------------------------------------------------------------
+# Instalação. Nunca usa -o (apagaria dados); o creates impede rodar sobre instalação existente.
+# O assistente gera as senhas e as grava em wazuh-install-files.tar (root, 0600); nada vai ao log.
+# --------------------------------------------------------------------------
+- name: Diretório de trabalho do instalador
+  ansible.builtin.file:
+    path: "{{ wazuh_install_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  tags: [install]
+
+- name: Baixar o instalador oficial com checksum fixado
+  ansible.builtin.get_url:
+    url: "{{ wazuh_install_url }}"
+    dest: "{{ wazuh_install_dir }}/wazuh-install.sh"
+    checksum: "sha256:{{ wazuh_install_sha256 }}"
+    mode: "0700"
+  tags: [install]
+
+- name: Instalar manager + indexer + dashboard (all-in-one)
+  ansible.builtin.command:
+    cmd: "{{ wazuh_install_dir }}/wazuh-install.sh -a"
+    chdir: "{{ wazuh_install_dir }}"
+    creates: /var/ossec/bin/wazuh-control
+  no_log: true # a saída imprime a senha do admin
+  tags: [install]
+
+- name: Fixar a versão dos pacotes (apt upgrade não pode mexer no Wazuh)
+  ansible.builtin.dpkg_selections:
+    name: "{{ item }}"
+    selection: hold
+  loop: [wazuh-manager, wazuh-indexer, wazuh-dashboard]
+  tags: [install]
+
+# --------------------------------------------------------------------------
+# Retenção do indexer: política ISM apaga wazuh-alerts-* após N dias.
+# Senha do admin vem do ambiente na hora da execução (WAZUH_ADMIN_PASSWORD), nunca do repositório.
+# --------------------------------------------------------------------------
+- name: Ler a política de retenção atual
+  ansible.builtin.uri:
+    url: "{{ wazuh_ism_url }}"
+    url_username: admin
+    url_password: "{{ lookup('ansible.builtin.env', 'WAZUH_ADMIN_PASSWORD') | mandatory }}"
+    force_basic_auth: true
+    ca_path: /etc/wazuh-indexer/certs/root-ca.pem
+    status_code: [200, 404]
+  register: wazuh_ism_current
+  no_log: true
+  check_mode: false
+  tags: [retention]
+
+- name: Aplicar a política de retenção
+  ansible.builtin.uri:
+    url: >-
+      {{ wazuh_ism_url }}{{ ('?if_seq_no=' ~ wazuh_ism_current.json._seq_no ~ '&if_primary_term=' ~ wazuh_ism_current.json._primary_term)
+      if wazuh_ism_current.status == 200 else '' }}
+    method: PUT
+    url_username: admin
+    url_password: "{{ lookup('ansible.builtin.env', 'WAZUH_ADMIN_PASSWORD') | mandatory }}"
+    force_basic_auth: true
+    ca_path: /etc/wazuh-indexer/certs/root-ca.pem
+    body_format: json
+    body: "{{ lookup('ansible.builtin.template', 'ism-retention.json.j2') | from_json }}"
+    status_code: [200, 201]
+  changed_when: true
+  no_log: true
+  tags: [retention]
+  # ponytail: a política só vale para índices novos (ism_template); índices já existentes
+  # precisam de POST _plugins/_ism/add/<índice>. Upgrade path: fazer isso na migração dos agentes, se necessário.

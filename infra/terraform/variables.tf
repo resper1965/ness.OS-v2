@@ -52,6 +52,31 @@ variable "instances" {
 }
 
 # ---------------------------------------------------------------------------
+# Wazuh R3a - sem default de propósito: product_id, image_id e ssh_key_ids não são adivinhados
+# ---------------------------------------------------------------------------
+variable "wazuh_r3a" {
+  description = <<-EOT
+    VPS do Wazuh R3a (opção B: Cloud VPS 12, 12 vCPU / 48 GB / 400 GB, 24 meses). null = não cria nada.
+    product_id: confirmar no catálogo da API antes (somente leitura; ver o runbook).
+    image_id: Ubuntu 24.04 (o instalador oficial do Wazuh suporta 24.04; Debian só com aviso).
+    ssh_key_ids: secretIds (números) das chaves públicas já cadastradas na Contabo.
+  EOT
+  type = object({
+    product_id  = string
+    image_id    = string
+    ssh_key_ids = list(number)
+    region      = optional(string, "EU")
+    period      = optional(number, 24)
+  })
+  default = null
+
+  validation {
+    condition     = var.wazuh_r3a == null ? true : length(var.wazuh_r3a.ssh_key_ids) > 0 && contains([1, 12, 24], var.wazuh_r3a.period)
+    error_message = "wazuh_r3a: informe ao menos uma ssh_key_ids e period em 1, 12 ou 24."
+  }
+}
+
+# ---------------------------------------------------------------------------
 # Configurações do Object Storage (S3-compatível)
 # ---------------------------------------------------------------------------
 
