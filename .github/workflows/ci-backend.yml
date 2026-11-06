@@ -28,6 +28,10 @@ on:
       - 'infra/tests/signal_v1_consumer.py'
       - 'infra/scripts/glpi_t03_functional_probe.py'
       - 'infra/tests/test_glpi_t03_prod_tooling.py'
+      - 'infra/scripts/glpi_backlog_reconcile.py'
+      - 'infra/tests/test_glpi_backlog_reconcile.py'
+      - 'infra/scripts/hub-glpi-integrity-check.py'
+      - 'infra/tests/test_hub_glpi_integrity_check.py'
       - 'infra/scripts/glpi-t07-inventory-prepare.php'
       - 'infra/tests/test-glpi-write-guards.py'
       - 'infra/tests/test-ness-release-manifest.py'
@@ -115,6 +119,8 @@ jobs:
         python -m pytest -q infra/tests/test_glpi_t03_prod_tooling.py
         python -m pytest -q infra/tests/test-glpi-write-guards.py
         python -m pytest -q infra/tests/test_glpi_ticket_replay.py
+        python -m pytest -q infra/tests/test_glpi_backlog_reconcile.py
+        PYTHONPATH=app/backend python -m pytest -q infra/tests/test_hub_glpi_integrity_check.py
         bash infra/tests/test-aiops-runtime-readiness.sh
 
     - name: Validate merged AIOps Compose without starting services

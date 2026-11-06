@@ -4,22 +4,27 @@
 from __future__ import annotations
 
 import enum
-from datetime import datetime
+from datetime import date, datetime, time
 from typing import Any
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     CheckConstraint,
+    Date,
     DateTime,
     Enum,
     ForeignKey,
+    Index,
     Integer,
     SmallInteger,
     String,
     Text,
+    Time,
     UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import INET, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -439,6 +444,50 @@ class TenantMapping(Base):
     )
 
 
+class Customer(Base):
+    """Cadastro do cliente: identidade e entidade GLPI (nenhum contato aqui)."""
+
+    __tablename__ = "n_infraops_customers"
+    __table_args__ = (
+        Index(
+            "uq_customers_active_entity",
+            "glpi_entity_id",
+            unique=True,
+            postgresql_where=text("active"),
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    key: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    display_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    glpi_entity_id: Mapped[int | None] = mapped_column(Integer)
+    active: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default="true"
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    # Sem FK, como o resto do projeto.
+    updated_by_user_id: Mapped[int | None] = mapped_column(BigInteger)
+
+
+class CustomerAlias(Base):
+    """Apelido normalizado (`lower().strip()`); único entre todos os clientes."""
+
+    __tablename__ = "n_infraops_customer_aliases"
+
+    alias_norm: Mapped[str] = mapped_column(Text, primary_key=True)
+    customer_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("n_infraops_customers.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+
 class SocDecision(Base):
     """Registro de decisões de triagem e inteligência geradas pelo Analista SOC IA."""
 
@@ -471,3 +520,224 @@ class SocDecision(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
+
+
+# --- Contratos e políticas de SLA (editáveis; sem valor embutido no código) ---
+
+
+class SlaCalendar(Base):
+    __tablename__ = "n_infraops_sla_calendars"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    timezone: Mapped[str] = mapped_column(
+        String(64),
+        nullable=False,
+        default="America/Sao_Paulo",
+        server_default="America/Sao_Paulo",
+    )
+    is_24x7: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+
+
+class SlaCalendarHours(Base):
+    __tablename__ = "n_infraops_sla_calendar_hours"
+    __table_args__ = (
+        CheckConstraint("weekday BETWEEN 0 AND 6", name="ck_sla_hours_weekday"),
+        CheckConstraint("start_time < end_time", name="ck_sla_hours_range"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    calendar_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("n_infraops_sla_calendars.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    weekday: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    start_time: Mapped[time] = mapped_column(Time, nullable=False)
+    end_time: Mapped[time] = mapped_column(Time, nullable=False)
+
+
+class SlaHoliday(Base):
+    __tablename__ = "n_infraops_sla_holidays"
+    __table_args__ = (
+        UniqueConstraint(
+            "calendar_id", "holiday_date", name="uq_sla_holidays_calendar_date"
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    calendar_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("n_infraops_sla_calendars.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    holiday_date: Mapped[date] = mapped_column(Date, nullable=False)
+    name: Mapped[str] = mapped_column(String(128), nullable=False)
+
+
+class Contract(Base):
+    """Contrato de um cliente; `is_default` = padrão interno ness., NÃO contratual."""
+
+    __tablename__ = "n_infraops_contracts"
+    __mapper_args__ = {"eager_defaults": True}  # updated_at lido sem lazy load
+    __table_args__ = (
+        CheckConstraint(
+            "modality IS NULL OR modality IN ('managed', 'onsite', 'shared')",
+            name="ck_contracts_modality",
+        ),
+        CheckConstraint(
+            "status IN ('draft', 'active', 'suspended', 'ended')",
+            name="ck_contracts_status",
+        ),
+        CheckConstraint(
+            "starts_on IS NULL OR ends_on IS NULL OR starts_on <= ends_on",
+            name="ck_contracts_dates",
+        ),
+        CheckConstraint(
+            "(is_default AND tenant_id IS NULL AND NOT contractual AND status = 'active')"
+            " OR (NOT is_default AND tenant_id IS NOT NULL AND contractual)",
+            name="ck_contracts_default",
+        ),
+        Index(
+            "uq_contracts_tenant_active_ci",
+            func.lower(text("tenant_id")),
+            unique=True,
+            postgresql_where=text("status = 'active'"),
+        ),
+        Index(
+            "uq_contracts_default",
+            "is_default",
+            unique=True,
+            postgresql_where=text("is_default"),
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    tenant_id: Mapped[str | None] = mapped_column(String(128))
+    is_default: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+    contractual: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default="true"
+    )
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    modality: Mapped[str | None] = mapped_column(String(32))
+    status: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="draft", server_default="draft"
+    )
+    starts_on: Mapped[date | None] = mapped_column(Date)
+    ends_on: Mapped[date | None] = mapped_column(Date)
+    calendar_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("n_infraops_sla_calendars.id")
+    )
+    notes: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+    updated_by_user_id: Mapped[int | None] = mapped_column(BigInteger)
+
+
+class SlaPolicy(Base):
+    """Política de prazo do contrato.
+
+    ponytail: `tto_minutes`/`ttr_minutes` só são armazenados e editáveis; nada os lê
+    ainda. Upgrade path: o SLM do GLPI passa a lê-los do contrato.
+    """
+
+    __tablename__ = "n_infraops_sla_policies"
+    __mapper_args__ = {"eager_defaults": True}  # updated_at lido sem lazy load
+    __table_args__ = (
+        UniqueConstraint("contract_id", "key", name="uq_sla_policies_contract_key"),
+        CheckConstraint("ack_minutes BETWEEN 1 AND 43200", name="ck_sla_policies_ack"),
+        CheckConstraint(
+            "tto_minutes IS NULL OR tto_minutes BETWEEN 1 AND 43200",
+            name="ck_sla_policies_tto",
+        ),
+        CheckConstraint(
+            "ttr_minutes IS NULL OR ttr_minutes BETWEEN 1 AND 43200",
+            name="ck_sla_policies_ttr",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    contract_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("n_infraops_contracts.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    key: Mapped[str] = mapped_column(String(32), nullable=False)
+    name: Mapped[str] = mapped_column(String(128), nullable=False)
+    min_severity: Mapped[int | None] = mapped_column(SmallInteger)
+    severity: Mapped[int | None] = mapped_column(SmallInteger)
+    has_tenant: Mapped[bool | None] = mapped_column(Boolean)
+    ack_minutes: Mapped[int] = mapped_column(Integer, nullable=False)
+    tto_minutes: Mapped[int | None] = mapped_column(Integer)
+    ttr_minutes: Mapped[int | None] = mapped_column(Integer)
+    calendar_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("n_infraops_sla_calendars.id")
+    )
+    enabled: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default="true"
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+    updated_by_user_id: Mapped[int | None] = mapped_column(BigInteger)
+
+
+class EscalationStep(Base):
+    __tablename__ = "n_infraops_escalation_steps"
+    __mapper_args__ = {"eager_defaults": True}  # updated_at lido sem lazy load
+    __table_args__ = (
+        UniqueConstraint(
+            "contract_id", "position", name="uq_escalation_steps_contract_position"
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    contract_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("n_infraops_contracts.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    position: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    role: Mapped[str] = mapped_column(String(32), nullable=False)
+    enabled: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default="true"
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+    updated_by_user_id: Mapped[int | None] = mapped_column(BigInteger)
+
+
+class ContractChange(Base):
+    """Trilha de mudança de SLA em contrato ativo."""
+
+    __tablename__ = "n_infraops_contract_changes"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    contract_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("n_infraops_contracts.id"), nullable=False
+    )
+    changed_by_user_id: Mapped[int | None] = mapped_column(BigInteger)
+    changed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    entity: Mapped[str] = mapped_column(String(32), nullable=False)
+    before: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    after: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
