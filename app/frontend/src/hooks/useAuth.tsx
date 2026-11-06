@@ -14,6 +14,20 @@ function base64Url(bytes: Uint8Array): string {
   return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
+interface OidcConfig {
+  enabled: boolean;
+  client_id: string;
+  authorize_url: string;
+  logout_url: string;
+  scope: string;
+}
+
+async function getOidcConfig(): Promise<OidcConfig> {
+  const r = await fetch(`${API_BASE}/api/auth/oidc/config`, { credentials: 'include' });
+  if (!r.ok) throw new Error('Configuração de SSO indisponível');
+  return r.json();
+}
+
 async function createPkce(): Promise<{ verifier: string; challenge: string }> {
   const verifier = base64Url(crypto.getRandomValues(new Uint8Array(64)));
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier));
@@ -76,16 +90,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const loginWithSSO = useCallback(async () => {
-    const clientId = "hub-ness";
-    const redirectUri = encodeURIComponent(`${window.location.origin}/callback`);
+    const cfg = await getOidcConfig();
+    if (!cfg.enabled) throw new Error('Login por SSO desativado no servidor.');
     const stateBytes = crypto.getRandomValues(new Uint8Array(32));
     const oidcState = Array.from(stateBytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
     const { verifier, challenge } = await createPkce();
     sessionStorage.setItem(OIDC_STATE_KEY, oidcState);
     sessionStorage.setItem(OIDC_VERIFIER_KEY, verifier);
     
-    const authorizeUrl = `https://sso.ness.com.br/application/o/authorize/?client_id=${clientId}&response_type=code&redirect_uri=${redirectUri}&scope=openid+profile+email+groups&state=${oidcState}&code_challenge=${challenge}&code_challenge_method=S256`;
-    window.location.href = authorizeUrl;
+    const q = new URLSearchParams({
+      client_id: cfg.client_id,
+      response_type: 'code',
+      redirect_uri: `${window.location.origin}/callback`,
+      scope: cfg.scope,
+      state: oidcState,
+      code_challenge: challenge,
+      code_challenge_method: 'S256',
+    });
+    window.location.href = `${cfg.authorize_url}?${q}`;
   }, []);
 
   const exchangeCodeForToken = useCallback(async (code: string, returnedState: string) => {
@@ -122,9 +144,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       if (!response.ok) throw new Error('Falha ao encerrar a sessão no Hub. Tente novamente.');
       setState({ user: null, loading: false });
-      const clientId = "hub-ness";
-      const postLogoutRedirectUri = encodeURIComponent(window.location.origin);
-      window.location.href = `https://sso.ness.com.br/application/o/hub/end-session/?client_id=${clientId}&post_logout_redirect_uri=${postLogoutRedirectUri}`;
+      // Sessão local já encerrada; sem config do IdP, só volta ao login local.
+      const cfg = await getOidcConfig().catch(() => null);
+      if (!cfg?.enabled) return;
+      const q = new URLSearchParams({ client_id: cfg.client_id, post_logout_redirect_uri: window.location.origin });
+      window.location.href = `${cfg.logout_url}?${q}`;
     } catch {
       window.alert('Não foi possível encerrar a sessão no Hub. Tente novamente.');
     }

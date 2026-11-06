@@ -118,6 +118,10 @@ class Settings(BaseSettings):
     oidc_client_id: str = "nessops-client-id"
     oidc_client_secret: str = ""
     oidc_issuer: str = "https://sso.ness.com.br/application/o/nessops/"
+    # Entra: https://login.microsoftonline.com/<tenant>/oauth2/v2.0/authorize e .../logout
+    oidc_authorize_url: str = "https://sso.ness.com.br/application/o/authorize/"
+    oidc_logout_url: str = "https://sso.ness.com.br/application/o/hub/end-session/"
+    oidc_scope: str = "openid profile email"
 
     @model_validator(mode="after")
     def load_vapid_keys(self) -> "Settings":

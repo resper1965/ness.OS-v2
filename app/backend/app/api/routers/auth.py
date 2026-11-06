@@ -142,6 +142,30 @@ async def login(
     )
 
 
+class OidcConfigOut(BaseModel):
+    enabled: bool
+    client_id: str
+    authorize_url: str
+    logout_url: str
+    scope: str
+
+
+@router.get(
+    "/oidc/config",
+    response_model=OidcConfigOut,
+    summary="Parâmetros públicos do IdP para o navegador (sem segredo)",
+)
+async def oidc_config() -> OidcConfigOut:
+    s = get_settings()
+    return OidcConfigOut(
+        enabled=s.oidc_enabled,
+        client_id=s.oidc_client_id,
+        authorize_url=s.oidc_authorize_url,
+        logout_url=s.oidc_logout_url,
+        scope=s.oidc_scope,
+    )
+
+
 @router.get(
     "/me", response_model=MeResponse, summary="Retorna dados do usuário autenticado"
 )
