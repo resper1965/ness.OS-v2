@@ -1,0 +1,58 @@
+# ADR 0016 — Integrações com o Microsoft 365
+
+- Status: aceita
+- Data: 05/11/2026
+- Decisor: Ricardo Esper
+- Relaciona: [ADR 0015](0015-entra-id-identity-local-authorization.md) (Entra ID como identidade)
+
+## Contexto
+
+A ness. migrou do Google Workspace para o Microsoft 365. O ADR 0015 decidiu usar o Entra ID como provedor de identidade e desligar o Authentik. O M365 entrega mais peças além da identidade, e algumas podem servir ao ness.OS sem custo adicional. Outras exigem licença não contratada e não estão disponíveis.
+
+Este ADR cataloga o que está disponível, o que está fora e as regras para construir qualquer integração.
+
+## Decisão
+
+### O que está disponível (custo adicional zero)
+
+| Peça | O que entrega | Uso possível no ness.OS | Quando |
+|---|---|---|---|
+| **Entra ID** | Identidade, OIDC, MFA, convidados B2B | Identidade central dos operadores e clientes | Decidido no ADR 0015; pós-gate da Fase 0 |
+| **Microsoft Graph API** | API REST unificada do M365 | Consultar identidade, validar MFA, ler convidados | Bloqueado até a Fase B do ADR 0015 |
+| **Microsoft Teams** | Webhooks de entrada | Canal 2 do atendimento SOC | P3, se o cliente aceitar Teams como canal |
+| **Exchange Online** | E-mail | Notificação de backup, relatório automático | Após os dois canais principais do P3 |
+
+### O que está indisponível (licença não contratada)
+
+| Peça | Por quê | O que exigiria |
+|---|---|---|
+| **Defender for Endpoint** | Sem licença de EDR | Licença Defender for Business ou P2 |
+| **Defender for Office 365** | Sem licença | Licença Defender for Office 365 |
+| **Purview (Audit, eDiscovery)** | Sem licença (confirmado pelo Ricardo em 05/11/2026) | Licença de conformidade |
+| **Intune** | Sem licença de MDM | Licença Intune ou EMS |
+| **Sentinel (SIEM)** | Sem licença de SIEM | Custo por GB ingerido, sem teto |
+| **Power Platform (Automate, Apps, BI)** | Sem licença premium | Licença premium por usuário. O aplicativo Workflows do Teams (que substituiu os webhooks de conector, aposentados em maio de 2026) roda no Power Automate incluído no M365; a cobertura de licença dele deve ser conferida no centro de administração antes de qualquer ADR de Teams |
+| **Microsoft Copilot** | Sem licença | Licença por usuário; o custo não é previsível |
+
+### Regras para qualquer integração com o M365
+
+1. **Nenhuma integração nova sem ADR específica.** Este catálogo não autoriza construir nada. Cada peça exige um ADR próprio que defina escopo, custo, dependência e rollback.
+2. **Custo adicional zero.** A integração usa o que o M365 atual da ness. já entrega. Se exigir licença nova, entra como decisão de compra, não como decisão de arquitetura.
+3. **Conector só com contrato fechado.** Nenhum conector do M365 é construído sem o contrato de sinal ou o contrato de saída fechado com o consumidor.
+4. **Identidade primeiro.** As integrações que dependem do Entra ID como identidade (Graph API, convidados B2B) só entram depois da Fase B do ADR 0015 — nunca antes.
+5. **Sem dependência circular.** Uma integração não pode depender de outra que ainda não existe. Teams e Exchange são independentes entre si e independentes da identidade; Graph API depende da identidade.
+
+### O que não se aplica
+
+- **Magic WAN, Magic Transit, WAF:** já avaliados no desenho de identidade e perímetro.
+- **Intune, Defender e Purview:** exigem licença não contratada.
+- **Qualquer feature que exija Entra ID P1 ou P2.** O tenant está em **Entra ID Free** (confirmado pelo Ricardo no centro de administração em 05/11/2026). Sem P1: Acesso Condicional, grupos dinâmicos, Proxy de Aplicativo, relatórios avançados, redefinição de senha com write-back. Sem P2: Identity Protection, PIM, revisões de acesso, gerenciamento de direitos. O que o plano gratuito entrega: SSO ilimitado, convidados B2B, gerenciamento de usuários e grupos, MFA para funções de administrador e *security defaults*. Decisão do Ricardo (ADR 0015, 05/11/2026): P1 e P2 não serão contratados; o MFA vigente são os *security defaults*.
+
+## Consequências
+
+- Nenhum código, conector, tipo de sinal ou tipo de saída do M365 é construído sem ADR.
+- O catálogo de disponíveis não é um backlog: é um inventário para decisão futura.
+- Se um cliente exigir Teams ou e-mail como canal, abrir um ADR próprio da peça (regra 1); o P3 atual só implementa e-mail transacional e Web Push.
+- Se a autorização local do ADR 0015 se mostrar insuficiente, a Graph API é o próximo passo documentado.
+- Peças indisponíveis não voltam à discussão sem decisão de compra.
+- A lista de licenças é a conhecida em 05/11/2026. Entra ID Free está confirmado; Purview está confirmado como ausente. Defender segue por confirmar no centro de administração antes de qualquer decisão que dependa dele.
