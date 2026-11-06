@@ -59,11 +59,8 @@ def scoped_hosts(hostids):
 
 async def reconcile(apply=False, hostids=None):
     hostids = scoped_hosts(hostids)
-    from app.workers.alerts import (
-        customer_from_hostgroups,
-        resolve_customer_name,
-        resolve_glpi_entity_id,
-    )
+    from app.services.customers import resolve_active_customer
+    from app.workers.alerts import customer_from_hostgroups, resolve_customer_name
 
     hosts = await ZabbixClient()._call(
         "host.get",
@@ -109,16 +106,25 @@ async def reconcile(apply=False, hostids=None):
     finally:
         await glpi.kill_session()
     rows, gaps = [], []
+    resolved = {}
+    # Uma sessão de leitura para todos os hosts; falha de banco propaga (nunca entidade 0).
+    async with SessionLocal() as session:
+        for host in hosts:
+            tags = {t["tag"]: t["value"] for t in host.get("tags", [])}
+            try:
+                name = await customer_from_hostgroups(
+                    session, host["hostgroups"]
+                ) or resolve_customer_name(host["host"], tags)
+                found = await resolve_active_customer(session, name)
+                resolved[host["hostid"]] = (found.display_name, found.glpi_entity_id)
+            except ValueError:
+                resolved[host["hostid"]] = None
     for host in hosts:
         source_tags = {t["tag"]: t["value"] for t in host.get("tags", [])}
-        try:
-            customer = customer_from_hostgroups(
-                host["hostgroups"]
-            ) or resolve_customer_name(host["host"], source_tags)
-            entity = resolve_glpi_entity_id(customer)
-        except ValueError:
+        if resolved[host["hostid"]] is None:
             gaps.append({"host_id": host["hostid"], "reason": "unmapped_customer"})
             continue
+        customer, entity = resolved[host["hostid"]]
         if source_tags.get("scope") == "uat":
             gaps.append(
                 {"host_id": host["hostid"], "reason": "synthetic_check_not_equipment"}
