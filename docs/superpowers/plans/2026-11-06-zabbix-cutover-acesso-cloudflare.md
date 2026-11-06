@@ -46,7 +46,7 @@ Não verificado: `ProxyOfflineBuffer`/`ConfigFrequency` dos proxies, duração r
 
 **Files:** este plano; `docs/execution/zabbix-cutover-2026-11.md` (evidência, criar na execução).
 
-- [ ] **Step 1:** Ricardo informa: hostname da tela aprovado em 06/11: `zabbix-web.ness.com.br` (`zabbix.ness.com.br` fica só para proxies). Acesso por **grupo** do IdP já integrado ao ZTNA da ness (grupo ainda não criado; sem lista de e-mails). Informar o IdP em uso e o nome do grupo, e quem opera a janela.
+- [ ] **Step 1:** Ricardo informa: hostname da tela aprovado em 06/11: `zabbix-web.ness.com.br` (`zabbix.ness.com.br` fica só para proxies). Acesso por **grupo** do IdP já integrado ao ZTNA da ness (grupo ainda não criado; sem lista de e-mails). IdP: Entra (confirmado 06/11); grupo de segurança do Entra, sugestão `zabbix-operadores`. Informar o nome do grupo e quem opera a janela.
 - [ ] **Step 2:** Ricardo grava como `dev` em `/srv/dev/secrets/projetos.env` um token Cloudflare com escopo mínimo (DNS da zona + Access + Tunnel). O agente só lê o arquivo.
 - [ ] **Step 3:** Ler `ProxyOfflineBuffer` e `ConfigFrequency` de 2 proxies (somente leitura, SSH autorizado) e reconciliar 18 × 19 no `monitor-zabbix-proxy-reconnect.sh`.
 - **Verifica:** buffer ≥ duração estimada da janela; contagem de proxies explicada.
