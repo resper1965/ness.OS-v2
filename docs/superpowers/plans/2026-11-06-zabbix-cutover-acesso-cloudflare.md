@@ -76,10 +76,10 @@ Não verificado: `ProxyOfflineBuffer`/`ConfigFrequency` dos proxies, duração r
 
 ### Task 5: Hub chama a API pelo Access (código)
 
-**Files:** `app/backend/app/integrations/zabbix.py`, `app/backend/app/config.py`, `app/.env.example`, `app/backend/tests/`.
+**Files:** `app/backend/app/integrations/zabbix.py`, `app/backend/app/api/routers/secops.py` (`_zabbix()`, linhas ~200–218, chamador separado), `app/backend/app/config.py`, `app/.env.example`, `app/backend/tests/`.
 
 - [ ] **Step 1: Teste que falha** `test_zabbix_client_sends_access_headers`: com `NINF_ZABBIX_ACCESS_CLIENT_ID/SECRET` definidos, o cliente envia `CF-Access-Client-Id` e `CF-Access-Client-Secret`; sem eles, nenhum header extra; nenhum valor aparece em log.
-- [ ] **Step 2: Implementar** os dois campos opcionais em `Settings` e os headers em `zabbix.py` (linhas ~49–56 e ~80). Sem abstração nova.
+- [ ] **Step 2: Implementar** os dois campos opcionais em `Settings` e os headers em `zabbix.py` (linhas ~49–56 e ~80). Migrar `_zabbix()` do `secops.py` para o `ZabbixClient` (um só ponto de chamada) e cobrir com teste: `test_secops_zabbix_call_sends_access_headers`. Sem abstração nova.
 - [ ] **Step 3:** CI verde, revisor Sonnet e Codex tratados; **promoção só com [FRASE]**. Os valores vão no `.env` da produção pelo procedimento já usado (backup do `.env`, recriar `api` e workers).
 - **Verifica:** `pytest` passa; em produção, `zabbix_readiness` continua `ok` com a URL nova.
 - **Rollback:** voltar `NINF_ZABBIX_URL` ao nome antigo e recriar os serviços.
@@ -87,7 +87,7 @@ Não verificado: `ProxyOfflineBuffer`/`ConfigFrequency` dos proxies, duração r
 ### Task 6: Separar os nomes de DNS **[FRASE]**
 
 - [ ] **Step 1:** Criar `zabbix-web.ness.com.br` (Task 4) e reduzir o TTL de `zabbix.ness.com.br` ao mínimo, 24 h antes da janela.
-- [ ] **Step 2:** Apontar o Hub e os técnicos para `zabbix-web`. Conferir nos logs da origem que a API deixou de ser chamada por `zabbix.ness.com.br` pela rota do Hub.
+- [ ] **Step 2:** Até a Task 7 terminar, `zabbix-web` aponta para a **origem** (`144.91.72.202`) ou o Hub continua nela: o destino ainda é um restore isolado e descartável, e escritas do Hub (ex.: `acknowledge_resolution_once()`) lá seriam perdidas pelo dump final. A tela e o Hub só passam a `zabbix-web` no destino dentro da Task 7 (Step 5), depois do restore final.
 - **Verifica:** `zabbix.ness.com.br` só recebe proxies; `check` do `cloudflare-zabbix-dns-cutover.sh` passa.
 
 ### Task 7: Janela de cutover **[FRASE]** (hora marcada)
@@ -96,7 +96,7 @@ Não verificado: `ProxyOfflineBuffer`/`ConfigFrequency` dos proxies, duração r
 - [ ] **Step 2:** Parar a coleta na origem, dump final, `gzip -t` + SHA-256, transferir por canal autenticado.
 - [ ] **Step 3:** Restaurar na VPS nova; repetir as contagens da Task 2; confirmar actions/media/connectors = 0.
 - [ ] **Step 4:** Ligar o `zabbix-server` na VPS nova com **notificações ainda desligadas**.
-- [ ] **Step 5:** `cloudflare-zabbix-dns-cutover.sh cutover`; ajustar o allowlist da 10051 (já com os 19 IPs) e remover a regra da ponte.
+- [ ] **Step 5:** `cloudflare-zabbix-dns-cutover.sh cutover`; apontar o Hub (`NINF_ZABBIX_URL`) e `zabbix-web` para o destino; ajustar o allowlist da 10051 (já com os 19 IPs) e remover a regra da ponte.
 - [ ] **Step 6:** Acompanhar `monitor-zabbix-proxy-reconnect.sh` até todos os proxies; checar fila, hosts recentes e a ingestão do Hub (`n_infraops_incidents`).
 - [ ] **Step 7:** Após coleta estável, ligar actions por lote, observando flood. Observar 2 h.
 - **Aborta se:** hash/schema falhar, > 20% dos hosts sem dados em 4 h, fila crescendo, ou notificação não autorizada.
@@ -104,7 +104,7 @@ Não verificado: `ProxyOfflineBuffer`/`ConfigFrequency` dos proxies, duração r
 
 ### Task 8: Rollback
 
-- [ ] Parar `zabbix-server` do destino; `cloudflare-zabbix-dns-cutover.sh rollback`; iniciar a origem; confirmar proxies, Hub e fila; comunicar e registrar a causa. A origem segue intacta.
+- [ ] Voltar `NINF_ZABBIX_URL` do Hub à origem (rollback da Task 5) e recriar `api` e workers; apontar `zabbix-web` de volta à origem (ou desligar o túnel do destino); parar `zabbix-server` do destino; `cloudflare-zabbix-dns-cutover.sh rollback`; iniciar a origem; confirmar proxies, Hub e fila; comunicar e registrar a causa. A origem segue intacta.
 
 ### Task 9: Depois do corte
 
