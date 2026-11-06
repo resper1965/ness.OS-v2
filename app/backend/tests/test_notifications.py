@@ -5,7 +5,7 @@ Ex.: NINF_TEST_PG_URL=postgresql+asyncpg://dev:dev@127.0.0.1:5439/app pytest tes
 
 import asyncio
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, time, timedelta, timezone
 from types import SimpleNamespace
 
 import pytest
@@ -18,16 +18,25 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from app.api.routers import incidents as incidents_router
 from app.core.dependencies import get_current_user
 from app.database import Base
+from app.migrate import apply_sla_sql
 from app.models import (
     Asset,
+    Contract,
+    ContractChange,
+    EscalationStep,
     Incident,
     IncidentAction,
     Notification,
     PushSubscription,
+    SlaCalendar,
+    SlaCalendarHours,
+    SlaHoliday,
+    SlaPolicy,
     User,
     UserRole,
 )
 from app.services import notifications as svc
+from app.services.sla import CalendarCfg, PolicyCfg
 
 UTC = timezone.utc
 # segunda-feira 10:00 em Brasília
@@ -35,40 +44,52 @@ MON = datetime(2026, 11, 2, 13, 0, tzinfo=UTC)
 
 # ---------- função pura ----------
 
+ROLES = (UserRole.soc, UserRole.noc, UserRole.operator, UserRole.admin)
+BR = "America/Sao_Paulo"
+H24 = CalendarCfg(BR, True, {}, frozenset())
+BIZ = CalendarCfg(BR, False, {d: ((time(8), time(18)),) for d in range(5)}, frozenset())
+
+
+def _pol(minutes, cal):
+    return PolicyCfg(1, "k", None, None, None, timedelta(minutes=minutes), cal)
+
+
+CRIT, ELEV, NOCLIENT = _pol(15, H24), _pol(60, H24), _pol(600, BIZ)
+
 
 @pytest.mark.parametrize(
-    "window,start,expected",
+    "policy,start,expected",
     [
-        ("critical", MON, MON + timedelta(minutes=15)),
-        ("elevated", MON, MON + timedelta(hours=1)),
+        (CRIT, MON, MON + timedelta(minutes=15)),
+        (ELEV, MON, MON + timedelta(hours=1)),
         # sexta 16:00 BRT + 10 h comerciais = segunda 16:00 BRT
         (
-            "no_client",
+            NOCLIENT,
             datetime(2026, 11, 6, 19, 0, tzinfo=UTC),
             MON + timedelta(days=7, hours=6),
         ),
         # sábado 12:00 BRT: conta a partir de segunda 08:00 BRT (10 h = até 18:00)
         (
-            "no_client",
+            NOCLIENT,
             datetime(2026, 11, 7, 15, 0, tzinfo=UTC),
             MON + timedelta(days=7, hours=8),
         ),
         # 1 dia útil = 10 h comerciais: seg 10:00 -> ter 10:00 BRT
-        ("no_client", MON, MON + timedelta(days=1)),
+        (NOCLIENT, MON, MON + timedelta(days=1)),
     ],
 )
-def test_response_deadline_table(window, start, expected):
-    assert svc.response_deadline(window, start) == expected
+def test_response_deadline_table(policy, start, expected):
+    assert svc.response_deadline(policy, start) == expected
 
 
 def test_critical_is_24x7_and_no_client_is_business_hours():
     sat = datetime(2026, 11, 7, 15, 0, tzinfo=UTC)
-    assert svc.response_deadline("critical", sat) == sat + timedelta(minutes=15)
-    assert svc.response_deadline("no_client", sat) > sat + timedelta(days=1)
+    assert svc.response_deadline(CRIT, sat) == sat + timedelta(minutes=15)
+    assert svc.response_deadline(NOCLIENT, sat) > sat + timedelta(days=1)
 
 
 def test_next_escalation_only_after_window_without_ack():
-    kw = dict(window="critical", step_at=MON, step=0, total=3, acknowledged=False)
+    kw = dict(policy=CRIT, step_at=MON, step=0, total=3, acknowledged=False)
     assert svc.next_escalation(now=MON + timedelta(minutes=14), **kw) is None
     assert svc.next_escalation(now=MON + timedelta(minutes=15), **kw) == 1
     assert (
@@ -80,14 +101,6 @@ def test_next_escalation_only_after_window_without_ack():
     assert (
         svc.next_escalation(now=MON + timedelta(hours=9), **{**kw, "step": 2}) is None
     )
-
-
-def test_severity_window_map():
-    assert svc.severity_window(5, True) == "critical"
-    assert svc.severity_window(4, True) == "elevated"
-    assert svc.severity_window(3, True) is None  # corte em 4 (decisão de 05/11)
-    assert svc.severity_window(5, False) == "no_client"
-    assert svc.severity_window(2, True) is None
 
 
 # ---------- Postgres ----------
@@ -108,11 +121,19 @@ async def maker(monkeypatch):
             User,
             PushSubscription,
             Notification,
+            SlaCalendar,
+            SlaCalendarHours,
+            SlaHoliday,
+            Contract,
+            SlaPolicy,
+            EscalationStep,
+            ContractChange,
         )
     ]
     async with engine.begin() as c:
         await c.run_sync(lambda sc: Base.metadata.drop_all(sc, tables=tabs))
         await c.run_sync(lambda sc: Base.metadata.create_all(sc, tables=tabs))
+        await apply_sla_sql(c)  # seed = padrão interno (valores de hoje)
     m = async_sessionmaker(engine, expire_on_commit=False)
     monkeypatch.setattr(svc, "SessionLocal", m)
     monkeypatch.setattr(incidents_router, "SessionLocal", m)
@@ -304,7 +325,7 @@ async def test_recipients_respect_tenant_and_role(maker, monkeypatch):
             trigger_id="t",
             tags={"ninf_customer_name": "acme"},
         )
-        got = [u.email for u in await svc._recipients(s, inc)]
+        got = [u.email for u in await svc._recipients(s, inc, ROLES)]
     assert got == ["a@example.invalid"]
 
 

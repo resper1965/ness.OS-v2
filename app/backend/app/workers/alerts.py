@@ -20,7 +20,8 @@ from app.integrations.loki import LokiClient
 from app.integrations.whatsapp import WhatsAppClient
 from app.integrations.zabbix import ZabbixClient
 from app.ml.analyzer import analyze_incident
-from app.models import Asset, Incident, IncidentAction
+from app.models import Asset, Customer, HostgroupRule, Incident, IncidentAction
+from app.services.customers import AmbiguousCustomer, resolve_active_customer
 from app.workers.celery_app import celery_app
 
 logger = logging.getLogger(__name__)
@@ -63,38 +64,6 @@ def resolve_customer_name(h_name: str, tags_dict: dict[str, str]) -> str:
             ):
                 return first.upper()
     return "Outros"
-
-
-def resolve_glpi_entity_id(customer_name: str) -> int:
-    """Mapeia o nome do cliente para o ID da entidade GLPI."""
-    name_lower = customer_name.lower().strip()
-    if name_lower in ("alupar pe", "alupar-pe"):
-        return 5
-    if name_lower in ("alupar co", "alupar-co"):
-        return 6
-    if name_lower in ("alupar", "alupar investimento s.a."):
-        return 1
-    if name_lower == "tbe":
-        return 2
-    if name_lower in ("target", "target trading"):
-        return 3
-    if name_lower in ("ltb", "leite tosto", "leite tosto e barros adv ass"):
-        return 4
-    if name_lower == "bichara":
-        return 7
-    if name_lower == "cavan":
-        return 8
-    if name_lower in ("nova energia", "novaenergia"):
-        return 9
-    if name_lower in ("numen", "numen it"):
-        return 10
-    if name_lower == "tne":
-        return 11
-    if name_lower == "unimed":
-        return 12
-    if name_lower in ("ness", "ness processos e tecnologia ltda."):
-        return 0
-    raise ValueError("Cliente sem entidade GLPI mapeada; ticket recusado")
 
 
 def glpi_urgency(severity: Any = None) -> int:
@@ -161,26 +130,62 @@ def resolve_glpi_category_id(alert_data: Dict[str, Any]) -> int:
     return settings.glpi_infra_category_id
 
 
-def customer_from_hostgroups(groups: list[dict[str, str]]) -> str | None:
+async def customer_from_hostgroups(
+    session: Any, groups: list[dict[str, str]]
+) -> str | None:
+    """Nome canônico do cliente dos grupos `[Cliente]`; ambiguidade levanta ValueError."""
+    rules = list(
+        (
+            await session.execute(
+                select(HostgroupRule).order_by(HostgroupRule.priority, HostgroupRule.id)
+            )
+        ).scalars()
+    )
+    by_name: dict[str, list[int]] = {}
+    for rule in rules:
+        if rule.pattern is not None:
+            by_name.setdefault(rule.pattern, []).append(rule.customer_id)
     candidates = {}
     for group in groups:
         name = group.get("name", "")
-        match = re.match(r"^\[\s*([^\]]+?)\s*\]", name)
-        customer = match.group(1).strip() if match else None
-        if name in ("Zabbix servers", "UAT sintético"):
-            customer = "Ness"
-        if customer:
-            try:
-                candidates[resolve_glpi_entity_id(customer)] = customer
-            except ValueError:
-                continue
-    if len(candidates) > 1:
-        candidates.pop(0, None)  # Generic monitoring group is not a customer.
-    if set(candidates) in ({1, 5}, {1, 6}):
-        candidates.pop(1)
+        if name in by_name:  # regra cadastrada vence o padrão `[Cliente]`
+            names = [await session.get(Customer, i) for i in by_name[name]]
+            found_all = [
+                c for c in names if c and c.active and c.glpi_entity_id is not None
+            ]
+        else:
+            found_all = []
+            match = re.match(r"^\[\s*([^\]]+?)\s*\]", name)
+            if match:
+                try:
+                    found_all.append(
+                        await resolve_active_customer(session, match.group(1).strip())
+                    )
+                except AmbiguousCustomer:
+                    raise
+                except ValueError:
+                    pass
+        for found in found_all:
+            candidates[found.id] = found
+    if len(candidates) > 1:  # Generic monitoring group is not a customer.
+        candidates = {i: c for i, c in candidates.items() if c.glpi_entity_id != 0}
+    for rule in rules:  # `customer` é descartado quando `ignore_when_with` também casa
+        if (
+            rule.ignore_when_with_customer_id in candidates
+            and rule.customer_id in candidates
+        ):
+            del candidates[rule.customer_id]
     if len(candidates) > 1:
         raise ValueError("Host associado a clientes distintos; ticket recusado")
-    return next(iter(candidates.values()), None)
+    return next((c.display_name for c in candidates.values()), None)
+
+
+async def canonical_customer(customer_name: str) -> tuple[str, int]:
+    """(nome canônico, entidade GLPI) do cliente; é o nome gravado no incidente/ativo."""
+    async with SessionLocal() as session:
+        customer = await resolve_active_customer(session, customer_name)
+    assert customer.glpi_entity_id is not None
+    return customer.display_name, customer.glpi_entity_id
 
 
 async def resolve_alert_customer(alert_data: Dict[str, Any]) -> str:
@@ -192,7 +197,10 @@ async def resolve_alert_customer(alert_data: Dict[str, Any]) -> str:
         )
         if len(hosts) != 1:
             raise ValueError("Host Zabbix não encontrado ou não autorizado")
-        customer = customer_from_hostgroups(hosts[0].get("hostgroups", []))
+        async with SessionLocal() as session:
+            customer = await customer_from_hostgroups(
+                session, hosts[0].get("hostgroups", [])
+            )
         if customer:
             return customer
     return resolve_customer_name(
@@ -403,8 +411,9 @@ async def _async_process_alert_v1(
 
     # 1. Resolver o cliente do ativo
     host_name = alert_data.get("host_name", "")
-    customer_name = await resolve_alert_customer(alert_data)
-    entity_id = resolve_glpi_entity_id(customer_name)
+    customer_name, entity_id = await canonical_customer(
+        await resolve_alert_customer(alert_data)
+    )
     linked_item = await lookup_glpi_asset(alert_data.get("host_id", ""), customer_name)
 
     logger.info(

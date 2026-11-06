@@ -41,6 +41,26 @@ resource "contabo_instance" "vps" {
   }
 }
 
+# Wazuh R3a (single-node). Nothing is created until var.wazuh_r3a is set; the default (null)
+# leaves existing plans unchanged. Cost is recurring (24-month term): apply only with the Ricardo's explicit OK.
+# Runbook: docs/runbooks/wazuh-r3a-provisionamento.md. Passwords never go here: no root_password, no user_data.
+resource "contabo_instance" "wazuh_r3a" {
+  count = var.wazuh_r3a == null ? 0 : 1
+
+  display_name = "ness-os-wazuh-r3a"
+  product_id   = var.wazuh_r3a.product_id
+  image_id     = var.wazuh_r3a.image_id
+  region       = var.wazuh_r3a.region
+  period       = var.wazuh_r3a.period
+  ssh_keys     = var.wazuh_r3a.ssh_key_ids
+  default_user = "admin" # first Ansible run connects as admin; the common role then creates ness_admin
+
+  lifecycle {
+    prevent_destroy = true
+    ignore_changes  = [image_id, ssh_keys, default_user, region] # provider reinstalls the server on change
+  }
+}
+
 # ---------------------------------------------------------------------------
 # Object Storage S3-Compatível - Armazenamento de Dados
 # ---------------------------------------------------------------------------

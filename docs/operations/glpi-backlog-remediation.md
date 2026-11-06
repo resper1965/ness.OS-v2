@@ -68,3 +68,19 @@ migração e reconciliação real.
 
 Nenhuma contagem baixa por exclusão/encerramento em massa. A operação aprova
 separadamente a política de transições de tickets históricos.
+
+## Leitura de 05/11/2026 (somente leitura, nenhuma escrita)
+
+`glpi_backlog_classify.py` em páginas de 500 sobre `deskmanager_ticket_id IS NULL`: 949 incidentes, todos `open`, criados entre 10/07 e 27/10/2026. Nenhum incidente novo sem ticket apareceu depois de 27/10, mas isso **não prova** que a integração está saudável: `glpi_backlog_classify.py` lê `created_at` do incidente, não a data da última ação, e uma nova falha de um fingerprint antigo apenas acrescentaria um `ticket_failed`. A saúde atual se verifica pelas ações recentes, não por este número.
+
+| Classe | Qtde | Origem |
+|---|---|---|
+| `failed_unclassified` | 819 | Último evento `ticket_failed` com `error=RuntimeError` genérico, todos criados em outubro (período da falha de isolamento e da identidade técnica 106 desativada). Causa ainda não determinada |
+| `historical_unclassified` | 115 | Marcadores históricos não encontrados nas entidades mapeadas (igual à leitura de 13/10) |
+| `source_id_missing` | 15 | Legados sem identificador de evento; permanecem em quarentena |
+
+Reconciliação de 05/11 (somente leitura, 1ª página de 5): `remote_absent` = 5. **Limite da amostra:** `glpi_backlog_reconcile.py` só examina incidentes sem nenhuma linha em `n_infraops_incident_actions` (`NOT EXISTS`), e os 819 `failed_unclassified` têm por definição um `ticket_failed`. Os 5 examinados não vêm desse grupo, então a amostra não cobre os 819; a conclusão sobre eles vem da decisão abaixo, não da reconciliação. **Decisão do Ricardo (05/11): nunca existiu ticket para esses incidentes; a criação automática de ticket é recurso novo.** Logo, os 949 não são tickets perdidos nem "backlog a reparar": são incidentes anteriores ao recurso. Não há reprocessamento a fazer; o `RuntimeError` dos 819 de outubro fica como histórico de tentativas da fase de teste. Replay (POST retroativo) segue fora: abrir 949 tickets antigos geraria ruído e SLA falso. Tratar como saneamento de ciclo de vida (decisão de operação: arquivar/marcar como `sem_ticket_legado`), sem apagar histórico.
+
+Inventário sem ativo: dos 510 incidentes do manifesto T06 de 03/11, hoje 11 incidentes do Hub (de 110.075) estão sem `asset_id`, em 7 `host_id` de teste ou sintéticos (10001, 50001, 50004–50006, 10978 e 1 sem host); não há ativo real a cadastrar. O restante foi ligado.
+
+**Aplicado em 05/11 (OK do Ricardo: "aplica sem_ticket_legado"):** os 949 incidentes ganharam a tag `sem_ticket_legado`; `status` e demais campos intactos. Rollback: remover a tag pelos ids de `/opt/n-infraops/rollback/sem-ticket-legado/ids-2026-11-05.json`.

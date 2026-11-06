@@ -10,16 +10,14 @@ import json
 from collections import Counter
 
 
-async def reconcile_page(rows, glpi, after_id):
-    from app.workers.alerts import resolve_glpi_entity_id
-
+async def reconcile_page(rows, glpi, after_id, resolve):
     counts = Counter()
     retry_page = False
     for row in rows:
         try:
             if not row["customer"]:
                 raise ValueError("No verified customer")
-            entity_id = resolve_glpi_entity_id(row["customer"])
+            entity_id = await resolve(row["customer"])
         except ValueError:
             counts["entity_unmapped"] += 1
             retry_page = True
@@ -45,7 +43,12 @@ async def reconcile_page(rows, glpi, after_id):
 async def report(after_id, limit):
     from app.database import SessionLocal
     from app.integrations.glpi import GLPIClient
+    from app.services.customers import resolve_glpi_entity_id
     from sqlalchemy import text
+
+    async def resolve(name):
+        async with SessionLocal() as session:
+            return await resolve_glpi_entity_id(session, name)
 
     query = text("""
         SELECT i.id, i.fingerprint,
@@ -71,7 +74,7 @@ async def report(after_id, limit):
     glpi = GLPIClient()
     try:
         await glpi.init_session()
-        result = await reconcile_page(rows, glpi, after_id)
+        result = await reconcile_page(rows, glpi, after_id, resolve)
     finally:
         await glpi.kill_session()
     return {

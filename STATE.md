@@ -11,6 +11,10 @@
 Tasks do [plano de execução](docs/superpowers/plans/2026-10-26-ness-os-execution-plan.md).
 
 ### Feito
+- Promoção `1346b06` (06/11, OK do Ricardo): contratos/SLA/calendário editáveis (#198), clientes e apelidos (#199), regras de grupo de hosts e contatos (#200); `promotion=PASS`, seeds conferidos (13 clientes, 22 apelidos, 3 políticas, 4 passos). Calendário comercial padrão 08–20; "sem cliente" = 720 min. Rollback: release `1175954`.
+- Frontend com as telas Contratos e Clientes (#202) publicado em 06/11 (`ninf-frontend@sha256:c2c0953f…`); rollback pelos `.env` de `/opt/n-infraops/change-backups/frontend-20261106T135437/` (imagem anterior `f4afa04a…`).
+- Dimensionamento do Wazuh R3a (#201): opção B aprovada para contratação (Contabo Cloud VPS 12, €25/mês c/ IVA, 24 meses); IaC em revisão (#204), **nada aplicado**; `terraform apply` pede novo OK.
+- T09 GLPI (05/11): 949 incidentes abertos criados até 27/10 sem ticket marcados com a tag `sem_ticket_legado` (OK do Ricardo; `status` intacto; rollback pela lista de ids em `/opt/n-infraops/rollback/sem-ticket-legado/ids-2026-11-05.json`). Ticket automático nunca existiu para eles: sem replay
 - 0.2 Limpeza da raiz — #100; CLI Contabo única em `app/cli/contabo` (estava quebrada sem `commands/`) — #105
 - 0.1 Reconciliar estado — [evidência](docs/execution/evidence/state-reconciliation-2026-10-26.md)
 - 0.3 CI — Actions religado; #81, #64 e #85 na `main`
@@ -30,6 +34,7 @@ Tasks do [plano de execução](docs/superpowers/plans/2026-10-26-ness-os-executi
 - Fundação SOC (A1/A2/A5/A6 + [contrato de sinal v1](docs/specs/signal-contract-v1.md), #153; diagnóstico de agentes GLPI em #152) e idempotência de `/secops/triage` — #122, #125; em produção na release `521247b` (30/10, `promotion=PASS`, migração aplicada: `dedup_key`, índice único parcial, `customer_id` anulável). Não ativa Wazuh em produção; `n_infraops_tenant_mappings` ganhou os 9 vínculos `wazuh` em 03/11 (nada chama `/secops/triage` em produção ainda). Também: playbook do override do GLPI T03 — #124; `_resolve_tenant`, dedup concorrente e `pg_advisory_xact_lock` testados em Postgres real (service no CI) — #130
 - Vínculos Wazuh → cliente cadastrados em 03/11 (9 grupos: `RZK-*` → `rzk`, `TARGET-*` → `target`, `TESTES-HARDENING` → `ness`) — [roteiro](infra/docs/runbooks/wazuh.md)
 - T06 onda 1 (03/11): 5 ativos criados no GLPI (Computers 111–114, NetworkEquipment 157) — [evidência](docs/execution/evidence/glpi-t06-assets-2026-11-03.md); 498 vínculos de ticket criados nos mesmos 5 ativos (OK do Ricardo, readback ok, rollback pela lista de ids); 10997 → NetworkEquipment 158 (Nova Energia, entidade 9) com 11 vínculos. Pendente: modelo um-ativo-por-aparelho vs. por-link (158 duplica o 131). Seriais dos 2 Fortigates (157, 158) já gravados no GLPI
+- Contratos e SLA editáveis (#198, em produção desde 06/11 e com tela no #202): prazos/calendários/escalonamento do P3 vêm de tabelas por contrato, com padrão interno NÃO contratual e API admin — [spec](docs/specs/contratos-sla-editaveis.md)
 - 2.5 T05 GLPI: Computers 108–110 (entidade 1) criados e 1419 vínculos de ticket reparados (874 / 560 / 30), readback igual ao Hub, segunda aplicação 0; duas exceções `callAsSystem` aprovadas pelo Ricardo, só neste lote — [evidência](docs/execution/evidence/glpi-t05-assets-2026-11-02.md)
 - 2.3b Isolamento Hub ↔ GLPI aplicado em 03/11 (#140): senhas do banco fora do `.env` do Hub (`/etc/ness-os/glpi-{db,app}.env`), `glpi-db` em rede interna própria, senhas rotacionadas; Hub sem a variável e sem resolver `glpi-db`. [Evidência](docs/execution/evidence/glpi-hub-isolation-2026-11-03.md)
 - P0 Fundação SOC (03/11): atendimento por função própria, `pendente_de_cliente`, validação com campo/valor/sinal no log, prazo de 45 s no modelo, frequência persistida por tenant+cluster (`freq_key`). Em produção na release `56c4659` (04/11, `promotion=PASS`), coluna `freq_key` criada
@@ -40,11 +45,13 @@ Tasks do [plano de execução](docs/superpowers/plans/2026-10-26-ness-os-executi
 - Recuperação Zabbix → Hub ligada em 03/11 (ação 7 e media type 72): antes nenhum incidente era marcado como recuperado. Frontend com o contador novo promovido em 04/11 (#149) — [evidência](docs/execution/evidence/zabbix-hub-recovery-2026-11-03.md)
 
 ### Em andamento
+- Dados por cliente editáveis (plano #195): Tasks 1, 2 e 5 em produção (#199, #200); faltam T3 (escalonamento por cliente), T4 (calendário por cliente) e T6; ordem em série, pois tocam `migrate.py`/`001_schema.sql`
 - Identidade Fase A (#190, ADR 0015) em produção desde 05/11 (`1175954`): autorização local no Hub (vínculo iss+oid, sem JIT); OIDC só entra após cadastrar identidades ([runbook](docs/runbooks/identidade-fase-a.md)); sem uso real do SSO hoje
 - P3 backend em produção desde 05/11 (`1175954`, #186 + #191): e-mail (ligado) + Web Push, ack e escalonamento; aviso só a partir da severidade Zabbix 4 (`_MIN_SEVERITY`); falta UI/PWA (push exige assinatura), escala de plantão real e remetente já verificado no Resend
 - Zabbix sem vínculo em `n_infraops_tenant_mappings`: fica `pendente_de_modalidade` até o Ricardo decidir o mapeamento cliente ↔ Zabbix
 
 - Identidade: ADR 0015 (Entra ID único IdP, Authentik sai; sem licença: MFA por *security defaults*). Fase A em produção desde 05/11 (`1175954`, aceita pelo Ricardo; sem uso real de OIDC). Fase B (Entra, Cloudflare Access, desligar Authentik) só após o aceite do MVP e o gate da Fase 0; UAT da Fase 1 segue sobre o Authentik atual. Não mexer em Authentik, Entra, DNS, firewall, Caddy nem Cloudflare até lá. Desenho: [identity-access-perimeter](docs/superpowers/specs/2026-11-05-identity-access-perimeter-design.md)
+- Integrações M365: ADR 0016 (aceita 05/11). Disponíveis sem custo extra: Entra ID, Graph API, Teams (webhook), Exchange. Fora, sem licença: Defender, Purview, Intune, Sentinel, Power Platform, Copilot. Nenhuma integração nova sem ADR próprio.
 
 ### Pronto para começar
 - 2.5 T06 do plano GLPI (reconciliar todo o inventário)
