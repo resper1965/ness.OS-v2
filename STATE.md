@@ -11,6 +11,7 @@
 Tasks do [plano de execução](docs/superpowers/plans/2026-10-26-ness-os-execution-plan.md).
 
 ### Feito
+- T09 GLPI (05/11): 949 incidentes abertos criados até 27/10 sem ticket marcados com a tag `sem_ticket_legado` (OK do Ricardo; `status` intacto; rollback pela lista de ids em `/opt/n-infraops/rollback/sem-ticket-legado/ids-2026-11-05.json`). Ticket automático nunca existiu para eles: sem replay
 - 0.2 Limpeza da raiz — #100; CLI Contabo única em `app/cli/contabo` (estava quebrada sem `commands/`) — #105
 - 0.1 Reconciliar estado — [evidência](docs/execution/evidence/state-reconciliation-2026-10-26.md)
 - 0.3 CI — Actions religado; #81, #64 e #85 na `main`
@@ -41,6 +42,7 @@ Tasks do [plano de execução](docs/superpowers/plans/2026-10-26-ness-os-executi
 - Recuperação Zabbix → Hub ligada em 03/11 (ação 7 e media type 72): antes nenhum incidente era marcado como recuperado. Frontend com o contador novo promovido em 04/11 (#149) — [evidência](docs/execution/evidence/zabbix-hub-recovery-2026-11-03.md)
 
 ### Em andamento
+- Dados por cliente editáveis (plano #195, 05/11): Task 1 (cadastro de clientes e apelidos) com autor Sonnet; contratos/SLA em `feat/sla-politica-editavel` (autor ativo, PR ainda não aberto); ordem T1 → T2 → T5 → T3 → T4 → T6, em série (tocam `migrate.py`/`001_schema.sql`)
 - Identidade Fase A (#190, ADR 0015) em produção desde 05/11 (`1175954`): autorização local no Hub (vínculo iss+oid, sem JIT); OIDC só entra após cadastrar identidades ([runbook](docs/runbooks/identidade-fase-a.md)); sem uso real do SSO hoje
 - P3 backend em produção desde 05/11 (`1175954`, #186 + #191): e-mail (ligado) + Web Push, ack e escalonamento; aviso só a partir da severidade Zabbix 4 (`_MIN_SEVERITY`); falta UI/PWA (push exige assinatura), escala de plantão real e remetente já verificado no Resend
 - Zabbix sem vínculo em `n_infraops_tenant_mappings`: fica `pendente_de_modalidade` até o Ricardo decidir o mapeamento cliente ↔ Zabbix
