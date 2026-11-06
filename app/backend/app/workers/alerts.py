@@ -20,7 +20,7 @@ from app.integrations.loki import LokiClient
 from app.integrations.whatsapp import WhatsAppClient
 from app.integrations.zabbix import ZabbixClient
 from app.ml.analyzer import analyze_incident
-from app.models import Asset, Incident, IncidentAction
+from app.models import Asset, Customer, HostgroupRule, Incident, IncidentAction
 from app.services.customers import AmbiguousCustomer, resolve_active_customer
 from app.workers.celery_app import celery_app
 
@@ -134,25 +134,47 @@ async def customer_from_hostgroups(
     session: Any, groups: list[dict[str, str]]
 ) -> str | None:
     """Nome canônico do cliente dos grupos `[Cliente]`; ambiguidade levanta ValueError."""
+    rules = list(
+        (
+            await session.execute(
+                select(HostgroupRule).order_by(HostgroupRule.priority, HostgroupRule.id)
+            )
+        ).scalars()
+    )
+    by_name: dict[str, list[int]] = {}
+    for rule in rules:
+        if rule.pattern is not None:
+            by_name.setdefault(rule.pattern, []).append(rule.customer_id)
     candidates = {}
     for group in groups:
         name = group.get("name", "")
-        match = re.match(r"^\[\s*([^\]]+?)\s*\]", name)
-        customer = match.group(1).strip() if match else None
-        if name in ("Zabbix servers", "UAT sintético"):
-            customer = "Ness"
-        if customer:
-            try:
-                found = await resolve_active_customer(session, customer)
-            except AmbiguousCustomer:
-                raise
-            except ValueError:
-                continue
+        if name in by_name:  # regra cadastrada vence o padrão `[Cliente]`
+            names = [await session.get(Customer, i) for i in by_name[name]]
+            found_all = [
+                c for c in names if c and c.active and c.glpi_entity_id is not None
+            ]
+        else:
+            found_all = []
+            match = re.match(r"^\[\s*([^\]]+?)\s*\]", name)
+            if match:
+                try:
+                    found_all.append(
+                        await resolve_active_customer(session, match.group(1).strip())
+                    )
+                except AmbiguousCustomer:
+                    raise
+                except ValueError:
+                    pass
+        for found in found_all:
             candidates[found.id] = found
     if len(candidates) > 1:  # Generic monitoring group is not a customer.
         candidates = {i: c for i, c in candidates.items() if c.glpi_entity_id != 0}
-    if {c.glpi_entity_id for c in candidates.values()} in ({1, 5}, {1, 6}):
-        candidates = {i: c for i, c in candidates.items() if c.glpi_entity_id != 1}
+    for rule in rules:  # `customer` é descartado quando `ignore_when_with` também casa
+        if (
+            rule.ignore_when_with_customer_id in candidates
+            and rule.customer_id in candidates
+        ):
+            del candidates[rule.customer_id]
     if len(candidates) > 1:
         raise ValueError("Host associado a clientes distintos; ticket recusado")
     return next((c.display_name for c in candidates.values()), None)

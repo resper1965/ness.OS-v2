@@ -109,3 +109,15 @@ def test_sla_block_matches_between_migrate_and_bootstrap():
     ):  # fmt: skip
         assert f"CREATE TABLE IF NOT EXISTS n_infraops_{t} " in sql
     assert "ON CONFLICT" in sql
+
+
+def test_hostgroup_rules_and_contacts_match_between_migrate_and_bootstrap():
+    for name in ("n_infraops_hostgroup_rules", "n_infraops_customer_contacts"):
+        pat = rf"CREATE TABLE IF NOT EXISTS {name} \((.*?)\n\s*\)"
+        bodies = [_norm(re.search(pat, t, re.S).group(1)) for t in (MIGRATE, SQL)]
+        assert bodies[0] == bodies[1], name
+    pat = r"INSERT INTO n_infraops_hostgroup_rules (.*?)ON CONFLICT DO NOTHING"
+    seeds = [_norm(re.search(pat, t, re.S).group(1)) for t in (MIGRATE, SQL)]
+    assert seeds[0] == seeds[1] and "Zabbix servers" in seeds[0]
+    for idx in ("uq_hostgroup_rules", "ix_n_infraops_customer_contacts_customer_id"):
+        assert idx in MIGRATE and idx in SQL

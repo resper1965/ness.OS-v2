@@ -328,7 +328,9 @@ async def test_db_rejects_two_active_customers_on_same_entity(customers_maker):
             )
 
 
-async def test_hostgroups_same_entity_different_customers_is_ambiguous(monkeypatch):
+async def test_hostgroups_same_entity_different_customers_is_ambiguous(
+    monkeypatch, customers_maker
+):
     fakes = {
         "[ A ]": SimpleNamespace(id=1, glpi_entity_id=5, display_name="A"),
         "[ B ]": SimpleNamespace(id=2, glpi_entity_id=5, display_name="B"),
@@ -338,10 +340,11 @@ async def test_hostgroups_same_entity_different_customers_is_ambiguous(monkeypat
         return fakes[f"[ {name} ]"]
 
     monkeypatch.setattr(alerts, "resolve_active_customer", fake)
-    with pytest.raises(ValueError, match="distintos"):
-        await alerts.customer_from_hostgroups(
-            None, [{"name": "[ A ]"}, {"name": "[ B ]"}]
-        )
+    async with customers_maker() as s:
+        with pytest.raises(ValueError, match="distintos"):
+            await alerts.customer_from_hostgroups(
+                s, [{"name": "[ A ]"}, {"name": "[ B ]"}]
+            )
 
 
 async def test_resolve_active_customer_returns_canonical(customers_maker):
@@ -357,3 +360,62 @@ async def test_rename_keeps_old_and_new_name_resolving(api, customers_maker):
         async with customers_maker() as s:
             assert await resolve_glpi_entity_id(s, "Cavan") == 8
             assert await resolve_glpi_entity_id(s, "cavan sa") == 8
+
+
+async def test_hostgroup_bracket_resolves(customers_maker):
+    async with customers_maker() as s:
+        assert (
+            await alerts.customer_from_hostgroups(s, [{"name": "[ TBE ] [ X ]"}])
+            == "TBE"
+        )
+
+
+async def test_zabbix_servers_is_ness(customers_maker):
+    async with customers_maker() as s:
+        for name in ("Zabbix servers", "UAT sintético"):
+            assert await alerts.customer_from_hostgroups(s, [{"name": name}]) == "Ness"
+
+
+async def test_alupar_with_pe_prefers_pe(customers_maker):
+    async with customers_maker() as s:
+        for child in ("Alupar PE", "Alupar CO"):
+            got = await alerts.customer_from_hostgroups(
+                s, [{"name": "[ Alupar ]"}, {"name": f"[ {child} ]"}]
+            )
+            assert got == child
+        assert (
+            await alerts.customer_from_hostgroups(s, [{"name": "[ Alupar ]"}])
+            == "Alupar"
+        )
+
+
+async def test_ambiguous_raises(customers_maker):
+    async with customers_maker() as s:
+        msg = "Host associado a clientes distintos; ticket recusado"
+        for groups in (
+            [{"name": "[ Cavan ]"}, {"name": "[ TBE ]"}],
+            [{"name": "[ Alupar PE ]"}, {"name": "[ Alupar CO ]"}],
+            [{"name": "[ Alupar ]"}, {"name": "[ Alupar PE ]"}, {"name": "[ TBE ]"}],
+        ):
+            with pytest.raises(ValueError) as e:
+                await alerts.customer_from_hostgroups(s, groups)
+            assert str(e.value) == msg
+        assert (
+            await alerts.customer_from_hostgroups(s, [{"name": "Linux servers"}])
+            is None
+        )
+
+
+async def test_hostgroup_rule_edit_effective_next_call(customers_maker):
+    async with customers_maker() as s:
+        assert await alerts.customer_from_hostgroups(s, [{"name": "Grupo TBE"}]) is None
+        await s.execute(
+            text(
+                "INSERT INTO n_infraops_hostgroup_rules (pattern, customer_id) "
+                "SELECT 'Grupo TBE', id FROM n_infraops_customers WHERE key='tbe'"
+            )
+        )
+        await s.commit()
+        assert (
+            await alerts.customer_from_hostgroups(s, [{"name": "Grupo TBE"}]) == "TBE"
+        )
