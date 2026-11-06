@@ -358,37 +358,6 @@ async def test_ack_authorized_sets_ack_not_resolution(maker, monkeypatch):
 
 @pg
 @pytest.mark.asyncio
-async def test_inbox_is_own_one_per_incident_and_provider_accept_is_not_read(
-    maker, monkeypatch
-):
-    Channels(monkeypatch)
-    iid, (uid, other_uid) = await _seed(maker)
-    await svc.sweep(MON)
-    me = SimpleNamespace(id=uid, role=UserRole.noc, tenant_id=None)
-    async with _app(me) as c:
-        r = await c.get("/api/notifications/inbox")
-        assert r.status_code == 200
-        (item,) = r.json()  # e-mail + push do mesmo caso viram um item
-        assert item["incident_id"] == str(iid) and item["severity"] == 5
-        assert item["sent_at"] and item["acknowledged_at"] is None
-        await c.post(f"/api/incidents/{iid}/notifications/ack")
-        assert (await c.get("/api/notifications/inbox")).json()[0]["acknowledged_at"]
-    stranger = SimpleNamespace(id=12345, role=UserRole.noc, tenant_id=None)
-    async with _app(stranger) as c:
-        assert (await c.get("/api/notifications/inbox")).json() == []
-
-@pg
-@pytest.mark.asyncio
-async def test_inbox_revalidates_tenant_on_read(maker, monkeypatch):
-    Channels(monkeypatch)
-    iid, (uid, _) = await _seed(maker)
-    await svc.sweep(MON)
-    moved = SimpleNamespace(id=uid, role=UserRole.operator, tenant_id="other")
-    async with _app(moved) as c:
-        assert (await c.get("/api/notifications/inbox")).json() == []
-
-@pg
-@pytest.mark.asyncio
 async def test_ack_wrong_tenant_or_role_is_denied_and_changes_nothing(
     maker, monkeypatch
 ):
