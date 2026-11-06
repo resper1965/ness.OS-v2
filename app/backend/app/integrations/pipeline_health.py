@@ -16,18 +16,20 @@ from app.integrations.glpi import GLPIClient
 from app.integrations.zabbix import ZabbixClient
 from app.models import Incident, SocDecision
 from app.models.models import TenantMapping
+from app.services.policy_params import PLATFORM_DEFAULTS, platform_params
 from app.services.sla import vigent_contracts
 from app.workers.celery_app import celery_app
 from app.workers.telemetry import KEY
 
 logger = logging.getLogger(__name__)
 
-PROBE_TIMEOUT_SECONDS = 20
-MAX_QUEUE_AGE_SECONDS = 300
-MAX_SOURCE_AGE_SECONDS = 900
+# Padrões globais; os valores vigentes vêm de n_infraops_platform_params (lidos a cada ciclo).
+PROBE_TIMEOUT_SECONDS = PLATFORM_DEFAULTS["probe_timeout_seconds"]
+MAX_QUEUE_AGE_SECONDS = PLATFORM_DEFAULTS["queue_max_age_seconds"]
+MAX_SOURCE_AGE_SECONDS = PLATFORM_DEFAULTS["source_max_age_seconds"]
 SOURCE_COVERAGE_TIMEOUT_SECONDS = 5
 # Only recent delivery trouble is actionable; older entries are history, not alerts.
-WORKER_FAILURE_WINDOW_SECONDS = 900
+WORKER_FAILURE_WINDOW_SECONDS = PLATFORM_DEFAULTS["worker_failure_window_seconds"]
 MISSING_TICKET_MIN_AGE = timedelta(minutes=5)
 MISSING_TICKET_MAX_AGE = timedelta(minutes=60)
 
@@ -48,10 +50,26 @@ def _oldest_message_age(raw_message, now):
         return None
 
 
-async def probe(call, *, readiness=True):
+async def load_params():
+    """Parâmetros globais deste ciclo; banco lento ou fora = padrões, nunca trava a sonda."""
+    try:
+
+        async def read():
+            async with SessionLocal() as session:
+                return await platform_params(session)
+
+        return await asyncio.wait_for(read(), timeout=SOURCE_COVERAGE_TIMEOUT_SECONDS)
+    except Exception:
+        logger.warning("platform_params unavailable; using defaults", exc_info=True)
+        return dict(PLATFORM_DEFAULTS)
+
+
+async def probe(call, *, readiness=True, timeout=None):
     started = monotonic()
     try:
-        result = await asyncio.wait_for(call(), timeout=PROBE_TIMEOUT_SECONDS)
+        result = await asyncio.wait_for(
+            call(), timeout=timeout or PROBE_TIMEOUT_SECONDS
+        )
         if not isinstance(result, dict):
             raise ValueError("Invalid probe response")
         if readiness:
@@ -65,7 +83,7 @@ async def probe(call, *, readiness=True):
     return {**result, "duration_ms": round((monotonic() - started) * 1000, 1)}
 
 
-async def workers_health():
+async def workers_health(max_queue_age=None, failure_window=None):
     clients = []
     checked = datetime.now(timezone.utc)
     checked_at = checked.isoformat()
@@ -116,7 +134,7 @@ async def workers_health():
             queue for queue, count in workers_by_queue.items() if not count
         )
         # The ledger is cumulative (kept 30 days, capped at 1000), so count only recent entries.
-        since = checked.timestamp() - WORKER_FAILURE_WINDOW_SECONDS
+        since = checked.timestamp() - (failure_window or WORKER_FAILURE_WINDOW_SECONDS)
         recent = [r for r in records if r.get("at", 0) >= since]
         failed = sum(r["state"] == "failed" for r in recent)
         retrying = sum(r["state"] == "retrying" for r in recent)
@@ -131,7 +149,7 @@ async def workers_health():
                 status, error = "degraded", "queue_backlog_high"
             elif depth and age is None:
                 status, error = "degraded", "publish_timestamp_missing"
-            elif age is not None and age > MAX_QUEUE_AGE_SECONDS:
+            elif age is not None and age > (max_queue_age or MAX_QUEUE_AGE_SECONDS):
                 status, error = "degraded", "oldest_message_too_old"
             queue_health.append(
                 {
@@ -222,7 +240,7 @@ async def incident_health():
         return {"status": "error", "detail": type(exc).__name__}
 
 
-async def with_freshness(name, result, cache, now):
+async def with_freshness(name, result, cache, now, max_age=None):
     """Add scope, last success, age and last error; only a healthy probe counts as success."""
     key = f"ninf:pipeline:last-success:{name}"
     last = now if result["status"] == "ok" else None
@@ -240,17 +258,18 @@ async def with_freshness(name, result, cache, now):
         "scope": "global",
         "last_success_at": last.isoformat() if last else None,
         "freshness_seconds": age,
-        "stale": age is None or age > MAX_SOURCE_AGE_SECONDS,
+        "stale": age is None or age > (max_age or MAX_SOURCE_AGE_SECONDS),
         "last_error": None if result["status"] == "ok" else result.get("detail"),
     }
 
 
-async def source_coverage(now):
+async def source_coverage(now, max_age=None):
     """Last data per ingestion source; never invents a time (null + reason instead).
 
     Modalidade efetiva por vínculo = a do contrato ativo vigente do cliente; sem contrato,
     a do próprio vínculo (services.sla.effective_modality). Divergência só é sinalizada.
     """
+    max_age = max_age or MAX_SOURCE_AGE_SECONDS
     queries = {
         "zabbix": select(func.max(Incident.last_seen)),
         "wazuh": select(func.max(SocDecision.created_at)),
@@ -328,7 +347,7 @@ async def source_coverage(now):
         out[name] = {
             "last_data_at": last.isoformat() if last else None,
             "age_seconds": age,
-            "stale": age is None or age > MAX_SOURCE_AGE_SECONDS,
+            "stale": age is None or age > max_age,
             "modality": modality,
             "modality_divergence": diverges,
             "mappings_total": total,
@@ -341,13 +360,23 @@ async def source_coverage(now):
 
 async def pipeline_health():
     started = monotonic()
+    params = await load_params()
+    timeout = params["probe_timeout_seconds"]
     zabbix, glpi, workers, delivery = await asyncio.gather(
-        probe(ZabbixClient().readiness_probe),
-        probe(GLPIClient().readiness_probe),
-        probe(workers_health, readiness=False),
-        probe(incident_health, readiness=False),
+        probe(ZabbixClient().readiness_probe, timeout=timeout),
+        probe(GLPIClient().readiness_probe, timeout=timeout),
+        probe(
+            lambda: workers_health(
+                params["queue_max_age_seconds"],
+                params["worker_failure_window_seconds"],
+            ),
+            readiness=False,
+            timeout=timeout,
+        ),
+        probe(incident_health, readiness=False, timeout=timeout),
     )
     now = datetime.now(timezone.utc)
+    max_age = params["source_max_age_seconds"]
     cache = Redis.from_url(
         get_settings().redis_url,
         decode_responses=True,
@@ -356,10 +385,10 @@ async def pipeline_health():
     )
     try:
         zabbix, glpi, workers, delivery = await asyncio.gather(
-            with_freshness("zabbix", zabbix, cache, now),
-            with_freshness("glpi", glpi, cache, now),
-            with_freshness("workers", workers, cache, now),
-            with_freshness("delivery", delivery, cache, now),
+            with_freshness("zabbix", zabbix, cache, now, max_age),
+            with_freshness("glpi", glpi, cache, now, max_age),
+            with_freshness("workers", workers, cache, now, max_age),
+            with_freshness("delivery", delivery, cache, now, max_age),
         )
     finally:
         await cache.aclose()
@@ -378,7 +407,7 @@ async def pipeline_health():
         "workers": workers,
         "delivery": delivery,
         # Informational only: not part of status/ready/exit code.
-        "sources": await source_coverage(now),
+        "sources": await source_coverage(now, max_age),
     }
 
 

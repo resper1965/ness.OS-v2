@@ -26,6 +26,7 @@ from app.core.triage_engine import FREQUENCY_WINDOW_SECONDS, TriageAction, Triag
 from app.database import get_db
 from app.models.models import SocDecision, TenantMapping
 from app.models.users import User
+from app.services.policy_params import get_params
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/secops", tags=["secops"])
@@ -614,43 +615,100 @@ async def get_triage_stats(db: AsyncSession = Depends(get_db)) -> dict[str, Any]
     }
 
 
+def sample_quota(archived: int, per_client: int, pct: int, threshold: int) -> int:
+    """Amostra semanal (política SOC): `per_client` por cliente; acima de `threshold`
+    arquivados na janela, `pct`% do volume."""
+    return per_client if archived <= threshold else -(-archived * pct // 100)
+
+
 @router.get("/archived-sample")
 async def archived_sample(
     days: int = Query(7, ge=1, le=31),
-    limit: int = Query(20, ge=1, le=100),
+    limit: int | None = Query(None, ge=1, le=1000),
     customer_id: str | None = Query(None),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_noc),
 ) -> dict[str, Any]:
     """Amostra aleatória dos alertas arquivados sem LLM, para a revisão semanal da política SOC.
 
-    Inclui `raw_alert` (evidência original) para o analista julgar o arquivamento; por isso
-    é restrito a NOC/SOC.
+    Agrupa por cliente: a cota de cada um vem de `weekly_sample_per_client` (20) ou, acima
+    de `weekly_sample_threshold` (200) arquivados na janela, `weekly_sample_pct` (10%),
+    do contrato do cliente ou do padrão (policy_params). `limit`, se informado, é teto por
+    cliente, não regra. Inclui `raw_alert` (evidência original) para o analista julgar o
+    arquivamento; por isso é restrito a NOC/SOC.
 
     ponytail: ORDER BY random() varre a janela; ok no volume semanal. Se a tabela
     passar de alguns milhões de linhas, amostrar por id aleatório dentro da janela.
     """
-    stmt = (
-        select(
-            SocDecision.id,
-            SocDecision.wazuh_rule_id,
-            SocDecision.agent_name,
-            SocDecision.customer_id,
-            SocDecision.summary,
-            SocDecision.created_at,
-            SocDecision.raw_alert,
-        )
-        .where(
-            SocDecision.action_taken == "ARCHIVE_NO_LLM",
-            SocDecision.created_at >= datetime.now(UTC) - timedelta(days=days),
-        )
-        .order_by(func.random())
-        .limit(limit)
-    )
+    where = [
+        SocDecision.action_taken == "ARCHIVE_NO_LLM",
+        SocDecision.created_at >= datetime.now(UTC) - timedelta(days=days),
+    ]
     if scope := resolve_tenant_scope(current_user, customer_id):
-        stmt = stmt.where(SocDecision.customer_id == scope)
-    rows = (await db.execute(stmt)).mappings().all()
-    return {"days": days, "total": len(rows), "items": [dict(r) for r in rows]}
+        where.append(SocDecision.customer_id == scope)
+    counts = (
+        await db.execute(
+            select(SocDecision.customer_id, func.count())
+            .where(*where)
+            .group_by(SocDecision.customer_id)
+            .order_by(SocDecision.customer_id)
+        )
+    ).all()
+    items: list[dict[str, Any]] = []
+    groups: dict[str, dict[str, Any]] = {}
+    for customer, archived in counts:
+        p = await get_params(
+            db,
+            customer,
+            (
+                "weekly_sample_per_client",
+                "weekly_sample_pct",
+                "weekly_sample_threshold",
+            ),
+        )
+        quota = sample_quota(
+            archived,
+            p["weekly_sample_per_client"].value,
+            p["weekly_sample_pct"].value,
+            p["weekly_sample_threshold"].value,
+        )
+        if limit:
+            quota = min(quota, limit)
+        rows = (
+            (
+                await db.execute(
+                    select(
+                        SocDecision.id,
+                        SocDecision.wazuh_rule_id,
+                        SocDecision.agent_name,
+                        SocDecision.customer_id,
+                        SocDecision.summary,
+                        SocDecision.created_at,
+                        SocDecision.raw_alert,
+                    )
+                    .where(
+                        *where,
+                        (
+                            SocDecision.customer_id.is_(None)
+                            if customer is None
+                            else SocDecision.customer_id == customer
+                        ),
+                    )
+                    .order_by(func.random())
+                    .limit(quota)
+                )
+            )
+            .mappings()
+            .all()
+        )
+        items += [dict(r) for r in rows]
+        groups[str(customer)] = {
+            "archived": archived,
+            "quota": quota,
+            "sampled": len(rows),
+            "contractual": all(v.contractual for v in p.values()),
+        }
+    return {"days": days, "total": len(items), "groups": groups, "items": items}
 
 
 @router.post("/triage", dependencies=[Depends(require_noc)])
@@ -715,19 +773,30 @@ async def triage_alert(
         )
     recent = await _recent_count(db, freq_key)
 
+    # Piso de atendimento e limiar de score vêm do contrato do cliente (ou do padrão).
+    params = await get_params(
+        db, tenant, ("soc_attend_min_level", "soc_archive_score_floor")
+    )
+    score_floor = params["soc_archive_score_floor"].value
     alert_data, threat_intel = _triage_input(payload, enriched_data)
     eval_result = _triage_engine.evaluate_alert(
         alert_data=alert_data,
         threat_intel=threat_intel,
         fingerprint=fingerprint,
         frequency_count=recent + 1,
+        threshold_l1=score_floor,
     )
 
     # 4. Atendimento é decidido aqui, independente do score e do modelo (política SOC
     # de 03/11): sem cliente, nível inválido ou nível >= piso atende. Abaixo do piso o
     # score decide; arquivado guarda o evento bruto (raw_alert) e entra na amostra
     # semanal (/archived-sample). Score alto (ex.: IOC) nunca é arquivado em silêncio.
-    must_attend = _attendance_required(pending, eval_result.action, alert_data)
+    must_attend = _attendance_required(
+        pending,
+        eval_result.action,
+        alert_data,
+        params["soc_attend_min_level"].value,
+    )
 
     if tenant is None:
         triage_result: dict[str, Any] = {
@@ -744,7 +813,7 @@ async def triage_alert(
         }
     elif not must_attend:
         summary = (
-            f"Arquivado por Triage Worker (Risk Score: {eval_result.risk_score}/100 < 75). "
+            f"Arquivado por Triage Worker (Risk Score: {eval_result.risk_score}/100 < {score_floor}). "
             f"Motivos: {', '.join(eval_result.reasons)}."
         )
         triage_result = {
@@ -756,9 +825,10 @@ async def triage_alert(
             "llm_bypassed": True,
         }
         logger.info(
-            "Alerta %s arquivado sem LLM (Risk Score %d < 75)",
+            "Alerta %s arquivado sem LLM (Risk Score %d < %d)",
             fingerprint,
             eval_result.risk_score,
+            score_floor,
         )
     else:
         # Falha do modelo devolve fallback manual; o despacho não depende dele
@@ -845,14 +915,16 @@ async def triage_alert(
 
 
 def _attendance_required(
-    pending: bool, action: TriageAction, alert_data: dict[str, Any]
+    pending: bool, action: TriageAction, alert_data: dict[str, Any], min_level: int
 ) -> bool:
-    """Decisão de atendimento: só regra e score determinísticos; o modelo não entra."""
+    """Decisão de atendimento: só regra e score determinísticos; o modelo não entra.
+
+    `min_level` = piso efetivo (policy_params: min(contrato, 12))."""
     return (
         pending
         or action != TriageAction.ARCHIVE
         or alert_data["level_invalid"]
-        or alert_data["level"] >= settings.soc_attendance_min_level
+        or alert_data["level"] >= min_level
     )
 
 

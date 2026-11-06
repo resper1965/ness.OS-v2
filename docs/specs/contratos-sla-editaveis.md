@@ -44,7 +44,6 @@ Fuso `America/Sao_Paulo`; 24x7 para crítica/alta; pausa de SLA só em "Pendente
 
 - Tela de configuração de contratos (espera o redesenho).
 - SLM do GLPI lendo tto/ttr/calendário do contrato; níveis 50/80/100 %.
-- Fonte única da modalidade = contrato; `n_infraops_tenant_mappings.modality` (usado por `pipeline_health`) passa a derivar dele. Hoje não é tocado; `GET /contracts/modality-divergences` só sinaliza a diferença.
 - Migração: `python -m app.migrate` cria e semeia (idempotente); banco novo usa `sql/001_schema.sql` (paridade testada).
 
 ## Regras de grupo de hosts e contatos do cliente
@@ -52,3 +51,28 @@ Fuso `America/Sao_Paulo`; 24x7 para crítica/alta; pausa de SLA só em "Pendente
 - `n_infraops_hostgroup_rules(pattern, customer_id, ignore_when_with_customer_id, priority)`: regra com `pattern` mapeia o nome exato do grupo (ex.: `Zabbix servers`) para um cliente; regra sem `pattern` descarta `customer_id` quando `ignore_when_with_customer_id` também casa (par Alupar × Alupar PE/CO). O padrão `[ X ]` segue pelo cadastro de apelidos. Constraints: `pattern` não vazio e regra não aponta para si mesma. Regra que aponta para cliente inativo é ignorada (sem fallback); ambiguidade recusa o ticket.
 - **O seed das regras só roda com a tabela vazia** (`WHERE NOT EXISTS`): edição ou remoção de regra não é desfeita pela migração, mas apagar todas as regras e migrar de novo as recria.
 - `n_infraops_customer_contacts` + `/api/customers/{id}/contacts`: escrita `admin`/`platform_admin`, leitura só NOC global (`noc`/`soc`/`admin`/`platform_admin`; `operator` é escopado a tenant e recebe 403). Dado pessoal: log e trilha guardam só ids e nomes de campo; erro de banco no router vira 500 genérico e o engine usa `hide_parameters=True`. Nada consome os contatos ainda.
+
+## Modalidade efetiva e parâmetros da política de atendimento
+
+**Modalidade.** `services.sla.effective_modality(session, tenant)` = modalidade do contrato `active` e vigente (no fuso do calendário); senão a do mapeamento (`n_infraops_tenant_mappings`); senão `None`. Contrato `draft`/`suspended`/`ended` ou fora da vigência é inexistente. `pipeline_health.source_coverage` usa essa regra por vínculo (a cobertura declarada continua só para valor não nulo) e devolve `modality_divergence` por fonte; nada é escrito no mapeamento. `GET /contracts/modality-divergences` segue disponível.
+
+**Parâmetros por contrato** (`n_infraops_contract_policy_params`, `(contract_id, key)`; `GET/PUT/DELETE /api/v1/sla/contracts/{id}/params[/{key}]`, escrita `admin`/`platform_admin`, leitura `operator`+ com o mesmo isolamento de tenant dos contratos; trilha em `contract_changes`, entidade `policy_param`). Resolução a cada chamada, sem cache: contrato ativo vigente do tenant → linha do contrato padrão (**não contratual**) → constante de código. `get_param(session, tenant, key) -> ParamValue(value, contractual)`.
+
+| chave | padrão | limite | uso |
+|---|---|---|---|
+| `soc_attend_min_level` | 12 | **máx. 12** (422 acima) | piso de atendimento do Wazuh; efetivo = `min(contrato, 12)` |
+| `soc_archive_score_floor` | 75 | máx. 75 | limiar de score abaixo do qual arquiva |
+| `ot_retrospective_hours` | 24 | máx. 24 (422 acima) | janela retrospectiva OT (ainda sem consumidor: regra 6 não existe) |
+| `weekly_sample_per_client` | 20 | mín. 20 | amostra semanal por cliente |
+| `weekly_sample_pct` | 10 | 10..100 | % do volume quando passa do limiar |
+| `weekly_sample_threshold` | 200 | — | arquivados/semana a partir dos quais vale o % |
+
+O contrato só pode **endurecer** a política (política SOC, "O contrato do cliente prevalece quando é mais exigente"): nível/score menor atende mais, janela menor revisa mais, amostra maior revisa mais. O banco repete o teto num `CHECK`. Valor de teto/piso não é contratual, é a política aprovada de 03/11. `GET …/params` mostra gravado, efetivo, padrão e limite; `contractual=false` quando o contrato é o padrão interno. Leitura que falha (tabela ausente, banco) cai nos padrões com WARNING, em SAVEPOINT, sem abortar a triagem.
+
+`NINF_SOC_ATTENDANCE_MIN_LEVEL` foi removida: o padrão agora é a linha semeada do contrato padrão (12), editável.
+
+**Amostra semanal.** `GET /api/secops/archived-sample` agrupa por cliente: cota = `weekly_sample_per_client` (20) ou, acima de `weekly_sample_threshold` (200) arquivados na janela, `ceil(weekly_sample_pct %)` do volume. `limit` (opcional) é teto por cliente, não regra. A resposta ganha `groups` (arquivados, cota, amostrados e `contractual` por cliente); `items` mantém o formato.
+
+**Parâmetros globais** (`n_infraops_platform_params`; `GET/PUT /api/v1/sla/platform-params`, leitura NOC, **escrita só `platform_admin`**; a medição é `scope: global`, sem tenant): `source_max_age_seconds` 900, `queue_max_age_seconds` 300, `worker_failure_window_seconds` 900, `probe_timeout_seconds` 20 (máx. 28: precisa caber no monitor de 35 s com a cobertura de 5 s). Lidos a cada ciclo de `pipeline_health`; banco indisponível = padrões. Mudança só registrada em log estruturado (sem tabela de trilha: não pertence a contrato).
+
+Parâmetros não são dado pessoal do cliente. Fora: tela, consumo de `ot_retrospective_hours`, SLM do GLPI.

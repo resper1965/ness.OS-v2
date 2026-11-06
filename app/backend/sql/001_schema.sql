@@ -584,3 +584,47 @@ WITH cal AS (
 INSERT INTO n_infraops_escalation_steps (contract_id, position, role)
 SELECT c.id, v.position, v.role FROM c, (VALUES (1, 'soc'), (2, 'noc'), (3, 'operator'), (4, 'admin')) AS v(position, role);
 -- sla:end
+-- params:begin
+CREATE TABLE IF NOT EXISTS n_infraops_contract_policy_params (
+    contract_id        BIGINT NOT NULL REFERENCES n_infraops_contracts(id) ON DELETE CASCADE,
+    key                VARCHAR(48) NOT NULL,
+    value_int          INTEGER NOT NULL,
+    updated_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_by_user_id BIGINT,
+    PRIMARY KEY (contract_id, key),
+    CONSTRAINT ck_policy_params_value CHECK (value_int > 0),
+    CONSTRAINT ck_policy_params_ceiling CHECK (
+        (key <> 'soc_attend_min_level' OR value_int <= 12)
+        AND (key <> 'soc_archive_score_floor' OR value_int <= 75)
+        AND (key <> 'ot_retrospective_hours' OR value_int <= 24)
+        AND (key <> 'weekly_sample_pct' OR value_int BETWEEN 10 AND 100)
+        AND (key <> 'weekly_sample_per_client' OR value_int >= 20)
+    )
+);
+CREATE TABLE IF NOT EXISTS n_infraops_platform_params (
+    key                VARCHAR(48) PRIMARY KEY,
+    value_int          INTEGER NOT NULL,
+    updated_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_by_user_id BIGINT,
+    CONSTRAINT ck_platform_params_value CHECK (value_int > 0)
+);
+INSERT INTO n_infraops_contract_policy_params (contract_id, key, value_int)
+SELECT c.id, v.key, v.value_int
+FROM n_infraops_contracts c, (VALUES
+    ('soc_attend_min_level', 12),
+    ('soc_archive_score_floor', 75),
+    ('ot_retrospective_hours', 24),
+    ('weekly_sample_per_client', 20),
+    ('weekly_sample_pct', 10),
+    ('weekly_sample_threshold', 200)
+) AS v(key, value_int)
+WHERE c.is_default
+ON CONFLICT (contract_id, key) DO NOTHING;
+INSERT INTO n_infraops_platform_params (key, value_int)
+VALUES
+    ('source_max_age_seconds', 900),
+    ('queue_max_age_seconds', 300),
+    ('worker_failure_window_seconds', 900),
+    ('probe_timeout_seconds', 20)
+ON CONFLICT (key) DO NOTHING;
+-- params:end
