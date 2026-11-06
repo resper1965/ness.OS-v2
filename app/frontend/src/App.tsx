@@ -1,6 +1,6 @@
 import { Activity, ShieldAlert, Settings, Cloud, RefreshCw,
          WifiOff, Monitor, AlertTriangle, CheckCircle, BarChart3,
-         Cpu, LogOut, BookOpen } from 'lucide-react';
+         Cpu, LogOut, BookOpen, FileText, Users } from 'lucide-react';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import CloudManagement from './components/CloudManagement';
 import PipelineStrip from './components/PipelineStrip';
@@ -16,6 +16,8 @@ import PushNotificationToggle from './components/PushNotificationToggle';
 import * as access from './access';
 import BrandMark from './components/BrandMark';
 import PricingModule from './components/PricingModule';
+import ContractsScreen from './components/ContractsScreen';
+import CustomersScreen from './components/CustomersScreen';
 
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
@@ -43,7 +45,7 @@ const SEVERITY_LABEL: Record<string, string> = {
   warning: 'Aviso', info: 'Info', not_classified: 'N/C',
 };
 
-type View = 'dashboard' | 'cloud' | 'incidents';
+type View = 'dashboard' | 'cloud' | 'incidents' | 'contracts' | 'customers';
 
 interface Summary {
   hosts_active: number;
@@ -354,6 +356,7 @@ function AppShellBody({ AUTH, logout, user }: {
 
   const hasCritical = summary && summary.problems_critical > 0;
   const canAccessPricing = access.canAccessPricing(user?.role);
+  const canReadCadastros = access.canReadCadastros(user?.role);
   const connectionError = isOperator ? error : incidentsError;
 
   return (
@@ -402,6 +405,8 @@ function AppShellBody({ AUTH, logout, user }: {
             <span>Plataforma</span>
             <span className="ml-auto text-[9px] text-white/20">↗</span>
           </a>
+          {canReadCadastros && <SidebarItem icon={FileText} label="Contratos" active={activeModule === 'infraops' && currentView === 'contracts'} onClick={() => { setActiveModule('infraops'); setCurrentView('contracts'); }} />}
+          {canReadCadastros && <SidebarItem icon={Users} label="Clientes" active={activeModule === 'infraops' && currentView === 'customers'} onClick={() => { setActiveModule('infraops'); setCurrentView('customers'); }} />}
           <SidebarItem icon={Settings} label="Configurações" disabled />
         </nav>
 
@@ -505,7 +510,7 @@ function AppShellBody({ AUTH, logout, user }: {
           )}
 
           {/* ── n.infraops ── */}
-          {activeModule === 'infraops' && (
+          {activeModule === 'infraops' && currentView !== 'contracts' && currentView !== 'customers' && (
           <div className="p-8 max-w-6xl space-y-5 animate-fade-in">
 
             {currentView === 'dashboard' && (
@@ -585,6 +590,8 @@ function AppShellBody({ AUTH, logout, user }: {
 
           </div>
           )} {/* /infraops */}
+          {activeModule === 'infraops' && currentView === 'contracts' && <ContractsScreen role={user?.role} />}
+          {activeModule === 'infraops' && currentView === 'customers' && <CustomersScreen role={user?.role} />}
 
           {/* ── n.secops ── */}
           {activeModule === 'secops' && (

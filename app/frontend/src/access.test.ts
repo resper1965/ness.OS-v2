@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canAccessPricing, canActOnIncidents, isOperator, matchesTenant, tenantScope, timeAgo } from './access';
+import { canAccessPricing, canEditCadastros, canReadCadastros, canReadContacts, canActOnIncidents, isOperator, matchesTenant, tenantScope, timeAgo } from './access';
 
 describe('role gating', () => {
   it.each(['platform_admin', 'admin', 'noc', 'soc'] as const)('%s is a global operator', (r) => {
@@ -16,6 +16,20 @@ describe('role gating', () => {
   it('pricing is limited to admin/gestao', () => {
     expect(['platform_admin', 'admin', 'gestao'].every((r) => canAccessPricing(r as never))).toBe(true);
     expect(['noc', 'soc', 'cliente', 'operator', undefined].some((r) => canAccessPricing(r as never))).toBe(false);
+  });
+});
+
+describe('cadastros (contratos e clientes)', () => {
+  it('viewer, cliente and others never read', () => {
+    for (const r of ['viewer', 'cliente', 'gestao', 'helpdesk', undefined] as const) expect(canReadCadastros(r)).toBe(false);
+  });
+  it('operator reads but cannot edit or read contacts', () => {
+    expect([canReadCadastros('operator'), canEditCadastros('operator'), canReadContacts('operator')]).toEqual([true, false, false]);
+  });
+  it('only admin/platform_admin edit; noc/soc read contacts', () => {
+    expect(['admin', 'platform_admin'].every((r) => canEditCadastros(r as never))).toBe(true);
+    expect(canEditCadastros('noc')).toBe(false);
+    expect(canReadContacts('noc')).toBe(true);
   });
 });
 

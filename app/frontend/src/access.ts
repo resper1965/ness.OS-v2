@@ -4,6 +4,11 @@ type Role = User['role'] | undefined;
 
 export const isOperator = (role: Role) => ['platform_admin', 'admin', 'noc', 'soc'].includes(role ?? '');
 export const canActOnIncidents = (role: Role) => isOperator(role) || role === 'operator';
+// Contratos e clientes: leitura como a API (operator tenant-scoped incluso); escrita só admin.
+export const canReadCadastros = (role: Role) => isOperator(role) || role === 'operator';
+export const canEditCadastros = (role: Role) => ['platform_admin', 'admin'].includes(role ?? '');
+// Contatos são dado pessoal: a API só lê para papéis NOC globais.
+export const canReadContacts = isOperator;
 export const canAccessPricing = (role: Role) => ['platform_admin', 'admin', 'gestao'].includes(role ?? '');
 
 // Tenant filter sent to the API: only global operators may pick one; scoped users are pinned by the backend.
