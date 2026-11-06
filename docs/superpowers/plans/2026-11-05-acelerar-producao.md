@@ -80,7 +80,7 @@
 
 - [ ] **Step 1:** Conferir em produção, só leitura, se `NINF_VAPID_PUBLIC_KEY`/`PRIVATE` estão definidas no `.env` (sem imprimir o valor) e se `/manifest.json` e `/sw.js` respondem 200 em `hub.ness.com.br`.
 - [ ] **Step 2:** Pedir ao Ricardo **uma ação**: abrir `hub.ness.com.br`, ativar o aviso no navegador e responder "ativado". Conferir só a contagem em `n_infraops_push_subscriptions`.
-- [ ] **Step 3:** Com assinatura existente, pedir a frase para enviar **um** push de teste a ela e provar a chegada. Resultado esperado: `sent_at` preenchido e o Ricardo confirma o recebimento.
+- [ ] **Step 3:** `sweep_notifications` não serve para um push isolado: seleciona até 50 incidentes abertos e envia e-mail e push a cada destinatário (`services/notifications.py:228,279-290`). Por isso, antes do teste, criar um caminho dirigido: `python -m app.services.push_test --user <id>` (ou endpoint `platform_admin` `POST /api/push/test`) que envia **uma** mensagem fixa ao próprio usuário autenticado, sem tocar incidentes nem e-mail. Teste: `test_push_test_sends_single_message_and_no_email`. Só então pedir a frase para executá-lo uma vez; esperado: o Ricardo confirma o recebimento.
 - [ ] **Step 4:** Se o toggle falhar, teste `test_toggle_reports_failure_when_vapid_missing` (mostra erro visível em vez de silêncio) e correção mínima. Commit `fix: toggle de push mostra falha`.
 
 ### Task 4: UI sem esperar o HTML (condicionada à liberação)
@@ -105,7 +105,7 @@
 **Interfaces:**
 - Produces: rotina de uma promoção por dia com um lote de PRs, backup pré-aquecido.
 
-- [ ] **Step 1:** Documentar a rotina: às 09:00 BRT disparar `systemctl start ness-aiops-backup.service` (script exige backup com menos de 30 min); lote de PRs mergeados até 14:00 vai numa só promoção; resultado e rollback registrados em `hub-release-2026-10-26.md`.
+- [ ] **Step 1:** Documentar a rotina: o script exige backup com **menos de 30 min** (`aiops-promote-hub-api.sh:23-33`) e inicia outro se não houver, então não existe pré-aquecimento antecipado: o ganho real é **escolher o horário** (fora do backup noturno) e **juntar o lote**. Lote de PRs mergeados até 14:00 vai numa só promoção, disparada logo depois do corte; resultado e rollback registrados em `hub-release-2026-10-26.md`.
 - [ ] **Step 2:** Cada promoção do dia continua pedindo a frase do Ricardo dita com o efeito. Mensagem-modelo: "Promover `<sha>` (tabelas aditivas X, API Y). Rollback `<release>`. Diga **promove**".
 - [ ] **Step 3:** Verificação: duas promoções consecutivas em dias diferentes com `promotion=PASS` e `ready=200`.
 
