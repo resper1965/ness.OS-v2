@@ -1,15 +1,23 @@
 import asyncio
 import json
+import os
 import time
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 
 import pytest
+import pytest_asyncio
+from sqlalchemy import select, update
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.api.routers import pipeline
+from app.database import Base
 from app.integrations import pipeline_health as health
 from app.integrations.glpi import GLPIClient
+from app.migrate import apply_sla_sql
+from app.models import Contract, SlaCalendar, TenantMapping
+from app.services.sla import effective_modality
 from app.workers.celery_app import add_publish_timestamp
 
 
@@ -546,3 +554,125 @@ async def test_coverage_one_query_failing_keeps_the_other(monkeypatch):
     src = await health.source_coverage(now)
     assert src["zabbix"]["stale"] is False
     assert src["wazuh"]["reason"] == "erro_consulta"
+
+
+# ---------- modalidade efetiva (contrato > mapeamento) — Postgres real ----------
+
+PG = os.environ.get("NINF_TEST_PG_URL")
+pg = pytest.mark.skipif(not PG, reason="NINF_TEST_PG_URL não definido")
+
+
+@pytest_asyncio.fixture
+async def mk(monkeypatch):
+    from app.models import (
+        Asset,
+        ContractChange,
+        EscalationStep,
+        Incident,
+        IncidentAction,
+        SlaCalendarHours,
+        SlaHoliday,
+        SlaPolicy,
+        SocDecision,
+    )  # fmt: skip
+
+    engine = create_async_engine(PG)
+    tabs = [
+        t.__table__
+        for t in (
+            Asset, Incident, IncidentAction, SocDecision, TenantMapping, SlaCalendar,
+            SlaCalendarHours, SlaHoliday, Contract, SlaPolicy, EscalationStep,
+            ContractChange,
+        )
+    ]  # fmt: skip
+    async with engine.begin() as c:
+        await c.run_sync(lambda sc: Base.metadata.drop_all(sc, tables=tabs))
+        await c.run_sync(lambda sc: Base.metadata.create_all(sc, tables=tabs))
+        await apply_sla_sql(c)
+    maker = async_sessionmaker(engine, expire_on_commit=False)
+    monkeypatch.setattr(health, "SessionLocal", maker)
+    yield maker
+    async with engine.begin() as c:
+        await c.run_sync(lambda sc: Base.metadata.drop_all(sc, tables=tabs))
+    await engine.dispose()
+
+
+async def _contract(mk, tenant, modality, status="active", **kw):
+    async with mk() as s:
+        cal = await s.scalar(select(SlaCalendar.id).where(SlaCalendar.name == "24x7"))
+        s.add(
+            Contract(
+                tenant_id=tenant, name="c", modality=modality, status=status,
+                calendar_id=cal, **kw,
+            )
+        )  # fmt: skip
+        await s.commit()
+
+
+async def _mapping(mk, tenant, modality, platform="wazuh", ext="g1"):
+    async with mk() as s:
+        s.add(
+            TenantMapping(
+                internal_customer_id=tenant, external_platform=platform,
+                external_customer_id=ext, modality=modality,
+            )
+        )  # fmt: skip
+        await s.commit()
+
+
+@pg
+@pytest.mark.asyncio
+async def test_modality_from_active_contract(mk):
+    await _mapping(mk, "Acme", "shared")
+    await _contract(mk, "acme", "managed")
+    async with mk() as s:
+        assert await effective_modality(s, "ACME") == "managed"
+    wazuh = (await health.source_coverage(datetime.now(timezone.utc)))["wazuh"]
+    assert wazuh["modality"] == "managed" and wazuh["coverage_declared"] is True
+
+
+@pg
+@pytest.mark.asyncio
+async def test_modality_falls_back_to_mapping(mk):
+    await _mapping(mk, "acme", "onsite")
+    async with mk() as s:
+        assert await effective_modality(s, "acme") == "onsite"
+        assert await effective_modality(s, "ninguem") is None
+    await _contract(mk, "acme", None)  # contrato sem modalidade não decide
+    async with mk() as s:
+        assert await effective_modality(s, "acme") == "onsite"
+
+
+@pg
+@pytest.mark.asyncio
+@pytest.mark.parametrize("kind", ["ended", "draft", "suspended", "expired", "future"])
+async def test_ended_contract_ignored(mk, kind):
+    from datetime import date
+
+    kw = {
+        "expired": {"status": "active", "ends_on": date(2020, 1, 1)},
+        "future": {"status": "active", "starts_on": date(2999, 1, 1)},
+    }.get(kind, {"status": kind})
+    await _mapping(mk, "acme", "onsite")
+    await _contract(mk, "acme", "managed", **kw)
+    async with mk() as s:
+        assert await effective_modality(s, "acme") == "onsite"
+    w = (await health.source_coverage(datetime.now(timezone.utc)))["wazuh"]
+    assert w["modality"] == "onsite" and w["modality_divergence"] is False
+
+
+@pg
+@pytest.mark.asyncio
+async def test_divergence_flagged(mk):
+    await _mapping(mk, "acme", "shared")
+    await _contract(mk, "acme", "managed")
+    now = datetime.now(timezone.utc)
+    w = (await health.source_coverage(now))["wazuh"]
+    assert w["modality_divergence"] is True
+    async with mk() as s:  # sem escrita: o mapeamento continua como estava
+        assert await s.scalar(select(TenantMapping.modality)) == "shared"
+    await _mapping(mk, "other", "managed", ext="g2")
+    async with mk() as s:
+        await s.execute(update(TenantMapping).values(modality="managed"))
+        await s.commit()
+    assert (await health.source_coverage(now))["wazuh"]["modality_divergence"] is False
