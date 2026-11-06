@@ -68,6 +68,7 @@ class TriageEngine:
         threat_intel: dict[str, Any] | None = None,
         fingerprint: str = "default_fp",
         frequency_count: int = 1,
+        threshold_l1: int | None = None,
     ) -> TriageResult:
         """Calcula o score de risco (0-100) multifatorial.
 
@@ -79,6 +80,8 @@ class TriageEngine:
         """
         reasons: list[str] = []
         score = 0
+        # limiar de arquivamento por contrato (policy_params); sem valor, o do motor
+        floor = self.threshold_l1 if threshold_l1 is None else threshold_l1
 
         # 1. Wazuh Level (0 a 15) -> Base score (até 60 pontos)
         wazuh_level = int(alert_data.get("level", alert_data.get("rule_level", 0)))
@@ -151,7 +154,7 @@ class TriageEngine:
         final_score = max(0, min(100, score))
 
         # Determinar Ação
-        if final_score < self.threshold_l1:
+        if final_score < floor:
             action = TriageAction.ARCHIVE
             llm_bypassed = True
         elif final_score < self.threshold_l2:

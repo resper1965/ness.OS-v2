@@ -64,7 +64,7 @@ Colaboração externa: restringir convidados (sem enumerar diretório; sem acess
 ### 6.2 Autorização local no Hub
 
 - Tabela de usuários guarda `issuer`, `oid`, papel e tenant. Vínculo por `issuer` + `oid`; e-mail é só exibição.
-- `platform_admin` cadastra o usuário (e-mail de convite, papel, tenant) antes do primeiro login. No primeiro login, o `oid` é ligado ao registro pelo e-mail do convite e o vínculo fica fixo.
+- `platform_admin` cadastra o usuário (papel, tenant) e o vínculo `issuer` + `oid` antes do primeiro login, à mão (`POST /api/auth/identities`, `docs/runbooks/identidade-fase-a.md`). O e-mail nunca liga o vínculo, nem no primeiro acesso.
 - Claim `groups` e `tenant_id` deixam de ser lidos. Sem JIT.
 - Identidade válida sem registro → 403 e log.
 - Desativar no Hub corta acesso mesmo com conta Entra ativa; `session_epoch` continua valendo.
@@ -135,7 +135,7 @@ Fase D — Desligamento
 | Microsoft fora do ar | Contas locais por SSH + port forward |
 | Cloudflare fora do ar | Idem; a 443 só fecha após esse teste |
 | Convidado vê dados do diretório da ness. | Restrição de colaboração externa; tenant External ID separado se preciso |
-| Vínculo errado de identidade | `issuer` + `oid`; e-mail só no primeiro vínculo, a partir de convite feito por `platform_admin` |
+| Vínculo errado de identidade | `issuer` + `oid` cadastrados à mão por `platform_admin`; e-mail nunca liga o vínculo |
 | Regressão de isolamento por tenant | Repetir os testes negativos da Fase 1 com o novo modelo |
 
 ## 10. Decisões deixadas ao executor
