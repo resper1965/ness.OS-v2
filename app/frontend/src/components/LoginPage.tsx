@@ -209,10 +209,10 @@ export default function LoginPage() {
                 </span>
               </div>
 
-              {/* Botão Authentik SSO */}
+              {/* Botão SSO (IdP vem de /api/auth/oidc/config) */}
               <button
                 type="button"
-                onClick={loginWithSSO}
+                onClick={() => { Promise.resolve(loginWithSSO()).catch(err => setError(err instanceof Error ? err.message : 'Falha no SSO')); }}
                 className="
                   w-full py-3 rounded-xl text-sm font-semibold text-white
                   bg-white/[0.04] border border-white/10 hover:bg-white/[0.08]
