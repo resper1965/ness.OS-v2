@@ -50,7 +50,7 @@ Tasks do [plano de execução](docs/superpowers/plans/2026-10-26-ness-os-executi
 - P3 backend em produção desde 05/11 (`1175954`, #186 + #191): e-mail (ligado) + Web Push, ack e escalonamento; aviso só a partir da severidade Zabbix 4 (`_MIN_SEVERITY`); falta UI/PWA (push exige assinatura), escala de plantão real e remetente já verificado no Resend
 - Zabbix sem vínculo em `n_infraops_tenant_mappings`: fica `pendente_de_modalidade` até o Ricardo decidir o mapeamento cliente ↔ Zabbix
 
-- Identidade: ADR 0015 (Entra ID único IdP, Authentik sai; sem licença: MFA por *security defaults*). Fase A em produção desde 05/11 (`1175954`, aceita pelo Ricardo; sem uso real de OIDC). Fase B (Entra, Cloudflare Access, desligar Authentik) só após o aceite do MVP e o gate da Fase 0; UAT da Fase 1 segue sobre o Authentik atual. Não mexer em Authentik, Entra, DNS, firewall, Caddy nem Cloudflare até lá. Desenho: [identity-access-perimeter](docs/superpowers/specs/2026-11-05-identity-access-perimeter-design.md)
+- Identidade: ADR 0015 (Entra ID único IdP, Authentik sai; sem licença: MFA por *security defaults*). Fase A em produção desde 05/11 (`1175954`). **Fases B–D antecipadas pelo Ricardo em 06/11:** não esperam mais UAT/Gate 0; cada passo em Entra, DNS, Cloudflare, Caddy, firewall ou Authentik exige frase explícita dele — [plano](docs/superpowers/plans/2026-11-06-authentik-saida-antecipada.md).
 - Integrações M365: ADR 0016 (aceita 05/11). Disponíveis sem custo extra: Entra ID, Graph API, Teams (webhook), Exchange. Fora, sem licença: Defender, Purview, Intune, Sentinel, Power Platform, Copilot. Nenhuma integração nova sem ADR próprio.
 
 ### Pronto para começar
