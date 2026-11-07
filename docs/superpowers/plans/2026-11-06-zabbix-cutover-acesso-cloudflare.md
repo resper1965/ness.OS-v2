@@ -53,7 +53,7 @@ Não verificado: `ProxyOfflineBuffer`/`ConfigFrequency` dos proxies, duração r
 
 ### Task 2: Restore atual na VPS nova, isolado e medido **[FRASE]**
 
-**Fatos (leitura 06/11):** o dump noturno da origem (`/var/backups/zabbix/nightly/20261105T220005-0300`, `COMPLETED`, SHA256SUMS) tem **5,3 GB** e leva ~32 min para ser gerado; o backup é copiado todo dia 05:30 para o Object Storage (restic, `verified`). A VPS nova tem 180 GB livres e já traz `ness-zabbix-object-storage-stage-restore SNAPSHOT_ID` (traz o snapshot para `/var/lib/ness-os/restore-input/restic-<id>`) e `ness-zabbix-native-restore restore DUMP SHA256`. Não é preciso abrir SSH entre as máquinas.
+**Fatos (leitura 06/11):** o dump noturno da origem (`/var/backups/zabbix/nightly/20261105T220005-0300`, `COMPLETED`, SHA256SUMS) tem **5,3 GB** e leva ~32 min para ser gerado; o backup é copiado todo dia 05:30 para o Object Storage (restic, `verified`). A VPS nova tem 180 GB livres e já traz `ness-zabbix-object-storage-stage-restore SNAPSHOT_ID` (traz o snapshot para `/var/lib/ness-os/restore-input/restic-<id>`) e `ness-zabbix-native-restore restore DUMP SHA256` (nomes **como instalados na VPS nova**, conferidos em `/usr/local/sbin`; o repositório traz `infra/scripts/zabbix-kvm8-native-restore.sh` e o checklist cita `ness-zabbix-kvm8-native-restore`; `ness-zabbix-post-restore-verify` também só existe instalado, não no repositório — conferir o nome na máquina antes de rodar e, se divergir, o que vale é o instalado). Não é preciso abrir SSH entre as máquinas.
 
 - [ ] **Step 1:** Listar o snapshot mais recente do restic (`restic snapshots`, leitura) e anotar id e SHA-256 do dump no `backup-set-manifest.json`.
 - [ ] **Step 2:** Na VPS nova, como root: `ness-zabbix-object-storage-stage-restore <snapshot_id>`; conferir SHA-256 contra o manifesto e `gzip -t`.
@@ -97,13 +97,13 @@ Não verificado: `ProxyOfflineBuffer`/`ConfigFrequency` dos proxies, duração r
 ### Task 7: Janela de cutover **[FRASE]** (hora marcada)
 
 - [ ] **Step 1:** Congelar mudanças; avisar; registrar hora-limite do rollback. Medir a fila dos proxies antes.
-- [ ] **Step 2:** Parar a coleta na origem (`systemctl stop zabbix-server`), rodar `ness-zabbix-nightly-backup` (~32 min, exige `zabbix-server` ativo: rodar **antes** de parar, e depois parar), `gzip -t` + SHA-256, enviar ao Object Storage (`ness-object-storage-restic`) e buscar na VPS nova com `ness-zabbix-object-storage-stage-restore`. A coleta fica parada do dump até a Task 7 Step 6; os proxies seguram o buffer nesse intervalo (meça com a resposta do dev).
+- [ ] **Step 2:** **Parar a coleta antes do dump** (`systemctl stop zabbix-server`; `mariadb` e `apache2` continuam, nada escreve em `history`). O dump noturno **não serve** para isso: `zabbix-nightly-backup.sh` exige `zabbix-server` ativo (linha 34) e usa `--single-transaction`, então o que os proxies enviassem durante os ~32 min ficaria fora e não seria reenviado. Pré-requisito (PR próprio com revisor, antes da janela): variante `zabbix-cutover-backup.sh` que exige o server **parado**, tira o dump com `mariadb-dump` e gera `SHA256SUMS`/manifesto como o noturno. Depois: `gzip -t` + SHA-256; enviar ao Object Storage com `ness-object-storage-restic backup zabbix` (o script exige `{init|backup} {zabbix|aiops}`), **anotar o snapshot id** impresso (`backup_set_id=`) e buscar na VPS nova com `ness-zabbix-object-storage-stage-restore <snapshot_id>`. A coleta fica parada do dump até a Step 6; os proxies seguram o buffer nesse intervalo (meça com a resposta do dev).
 - [ ] **Step 3:** Restaurar na VPS nova; repetir as contagens da Task 2; confirmar actions/media/connectors = 0.
 - [ ] **Step 4:** Ligar o `zabbix-server` na VPS nova com **notificações ainda desligadas**, sem abrir 80/443 (ver aviso da Task 3).
 - [ ] **Step 5:** `cloudflare-zabbix-dns-cutover.sh cutover`; apontar o Hub (`NINF_ZABBIX_URL`) e `zabbix-web` para o destino; ajustar o allowlist da 10051 (já com os 19 IPs) e remover a regra da ponte.
 - [ ] **Step 6:** Acompanhar `monitor-zabbix-proxy-reconnect.sh` até todos os proxies; checar fila, hosts recentes e a ingestão do Hub (`n_infraops_incidents`).
 - [ ] **Step 7:** Após coleta estável, ligar actions por lote, observando flood. Observar 2 h.
-- **Janela estimada:** dump ~32 min + envio + restore (medido na Task 2) + religar; a meta é caber no buffer dos proxies. Se não couber, subir `ProxyOfflineBuffer` antes (role `zabbix-proxy`), nunca estender a janela.
+- **Janela estimada (com a coleta parada desde o início do dump):** dump ~32 min + envio + restore (medido na Task 2) + religar; a meta é caber no buffer dos proxies. Se não couber, subir `ProxyOfflineBuffer` antes (role `zabbix-proxy`), nunca estender a janela.
 - **Aborta se:** hash/schema falhar, > 20% dos hosts sem dados em 4 h, fila crescendo, ou notificação não autorizada.
 - **Verifica:** `ready` do Hub, proxies reportando sem duplicar, tela acessível só pelo Access.
 
