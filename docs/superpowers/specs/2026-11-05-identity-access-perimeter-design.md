@@ -70,6 +70,42 @@ Colaboração externa: restringir convidados (sem enumerar diretório; sem acess
 - Desativar no Hub corta acesso mesmo com conta Entra ativa; `session_epoch` continua valendo.
 - Papéis e regras de tenant existentes (`operator`, `viewer`, `platform_admin` etc.) não mudam.
 
+#### 6.2.1 Grupos e papéis
+
+Os grupos deixam de existir no provedor de identidade. O Entra ID só prova quem é a pessoa, e o grupo vira o **papel** gravado no registro do usuário no Hub. Motivos: o Entra Free não atribui grupos a aplicações (exige P1), manda grupos como GUID e não tem claim de tenant.
+
+Cada usuário tem **um** papel e, se o papel for de cliente, **um** tenant. Os papéis são os do enum `UserRole` (`app/backend/app/models/users.py`), e o antigo grupo do Authentik vira o papel de mesmo nome:
+
+| Papel (grupo Authentik antigo) | Quem | Escopo | Acesso no Hub |
+|---|---|---|---|
+| `platform_admin` (`platform_admin`, `ness-os-platform-admin`) | Gestor da plataforma (ness.) | Global | Plano de controle: cadastra usuários, papéis e tenants, com auditoria (ADR 0013) |
+| `admin` (`admin`) | Operador sênior (ness.) | Global | Administração delegada e todas as rotas `noc` |
+| `noc` (`noc`) | Operação de disponibilidade (ness.) | Global; pode selecionar o tenant | Painéis, ativos, triagem, incidentes de todos os tenants |
+| `soc` (`soc`) | Operação de segurança (ness.) | Global | Igual a `noc` (gate `noc` aceita `soc`) |
+| `helpdesk` (`helpdesk`) | Operação ITSM (ness.) | Hoje exige tenant (fora de `NOC_ROLES`) | A definir na matriz de acesso antes da Fase A |
+| `gestao` (`gestao`) | Gestão e indicadores (ness.) | Hoje exige tenant (fora de `NOC_ROLES`) | A definir na matriz de acesso antes da Fase A |
+| `operator` (`operator`) | Usuário do cliente que age | Um tenant | Incidentes do próprio tenant: ler e agir. Outro tenant = 404 |
+| `viewer` (`viewer`) | Usuário do cliente só leitura | Um tenant | Incidentes do próprio tenant, só leitura. Ação = 403 |
+| `cliente` (`usuarios`) | Usuário final do cliente | Um tenant | Dashboards finais do próprio tenant |
+
+Regras:
+- Papéis globais (`NOC_ROLES` em `app/backend/app/core/dependencies.py`: `platform_admin`, `admin`, `noc`, `soc`) só para membros `@ness.com.br`. Convidado B2B só recebe `operator`, `viewer` ou `cliente`, e sempre com tenant. O Hub recusa a combinação errada ao cadastrar e ao logar.
+- Papel de tenant sem tenant = cadastro recusado. Papel global com tenant = tenant ignorado.
+- MFA segue a seção 6.1 (*security defaults*). Eles não garantem MFA em todo login de `platform_admin`/`admin` do Hub, porque só valem para papéis de administrador do próprio Entra. Se isso for exigido, é preciso P1 só para esses usuários.
+- Mudar papel ou tenant incrementa o `session_epoch`, e as sessões abertas caem.
+- Só `platform_admin` muda papéis. Ninguém altera o próprio papel.
+- A matriz de acesso (`docs/security/access-control-matrix.md`) continua sendo a fonte das permissões por rota. Esta tabela só resume.
+- Na Fase A, `map_authentik_role` e `_AUTHENTIK_GROUP_ROLE_PRIORITY` (`app/backend/app/api/routers/auth.py`) são removidos. Para migrar os usuários, o papel atual de cada um é copiado para o banco uma vez.
+
+Fora do Hub, cada ferramenta usa os próprios grupos, mantidos à mão porque só operadores da ness. as acessam:
+
+| Ferramenta | Onde fica o grupo |
+|---|---|
+| Zabbix | Grupos de usuário do Zabbix. O SAML Entra só autentica, e o usuário é criado antes no Zabbix (sem JIT) |
+| GLPI | Perfis do GLPI |
+| n8n | Papéis do n8n |
+| Cloudflare Access | Lista de e-mails `@ness.com.br` por aplicação, sem grupos do Entra |
+
 ### 6.3 Aplicações
 
 | App | Hoje | Depois |
