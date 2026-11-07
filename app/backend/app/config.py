@@ -30,6 +30,9 @@ class Settings(BaseSettings):
     zabbix_url: str = "https://zabbix.ness.com.br/api_jsonrpc.php"
     zabbix_api_token: str = ""
     zabbix_verify_cert: bool = True
+    # Cloudflare Access service token; enviado só se ambos estiverem definidos.
+    zabbix_access_client_id: str = ""
+    zabbix_access_client_secret: str = ""
 
     # --- LLM (OpenAI-compatible; OpenRouter) ---
     llm_api_key: str = ""

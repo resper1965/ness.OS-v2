@@ -37,6 +37,7 @@ snapshot() {
   chmod 0600 "${output}"
 }
 
+# Roda no host do Zabbix: chama a API por loopback (--resolve), sem passar pelo Cloudflare Access.
 api_call() {
   local request=${1:?request is required}
   local response

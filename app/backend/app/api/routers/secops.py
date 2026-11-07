@@ -10,7 +10,6 @@ import logging
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select, text
 from sqlalchemy.exc import IntegrityError
@@ -24,6 +23,7 @@ from app.core.dependencies import (
 )
 from app.core.triage_engine import FREQUENCY_WINDOW_SECONDS, TriageAction, TriageEngine
 from app.database import get_db
+from app.integrations.zabbix import ZabbixClient
 from app.models.models import SocDecision, TenantMapping
 from app.models.users import User
 from app.services.policy_params import CONTRACT_DEFAULTS, get_params
@@ -190,7 +190,6 @@ CVE_DATABASE = [
 ]
 
 settings = get_settings()
-ZABBIX_URL = settings.zabbix_url
 
 
 def _affected_clients(cve: dict[str, object]) -> list[object]:
@@ -202,21 +201,7 @@ async def _zabbix(method: str, params: dict) -> Any:
     """Faz chamada à API do Zabbix Contabo."""
     if not settings.zabbix_api_token:
         raise RuntimeError("NINF_ZABBIX_API_TOKEN is not configured")
-    async with httpx.AsyncClient(verify=False, timeout=15) as client:
-        resp = await client.post(
-            ZABBIX_URL,
-            headers={"Authorization": f"Bearer {settings.zabbix_api_token}"},
-            json={
-                "jsonrpc": "2.0",
-                "method": method,
-                "params": params,
-                "id": 1,
-            },
-        )
-        data = resp.json()
-        if "error" in data:
-            raise Exception(data["error"].get("data", data["error"]))
-        return data["result"]
+    return await ZabbixClient()._call(method, params)
 
 
 # ── Endpoints operacionais autenticados ──────────────────────────────────────

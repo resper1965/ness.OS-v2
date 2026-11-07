@@ -206,3 +206,132 @@ async def test_call_hides_json_rpc_provider_details(monkeypatch, caplog):
 
     assert "provider-secret" not in str(error.value)
     assert "provider-secret" not in caplog.text
+
+
+ACCESS_ID = "access-id.access"
+ACCESS_SECRET = "access-secret-value"
+
+
+def _set_access(monkeypatch, client_id, secret):
+    from app.integrations import zabbix
+
+    monkeypatch.setattr(zabbix.settings, "zabbix_access_client_id", client_id)
+    monkeypatch.setattr(zabbix.settings, "zabbix_access_client_secret", secret)
+
+
+def _ok_handler(seen):
+    def handler(request):
+        seen.append(request.headers)
+        payload = request.read().decode()
+        result = "7.0.18" if "apiinfo.version" in payload else []
+        return httpx.Response(
+            200,
+            json={
+                "jsonrpc": "2.0",
+                "result": result,
+                "id": 1 if "apiinfo" in payload else 2,
+            },
+        )
+
+    return handler
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("client_id", "secret", "expected"),
+    (
+        (ACCESS_ID, ACCESS_SECRET, True),
+        ("", "", False),
+        (ACCESS_ID, "", False),
+        ("", ACCESS_SECRET, False),
+    ),
+)
+async def test_zabbix_client_sends_access_headers(
+    monkeypatch, client_id, secret, expected
+):
+    _set_access(monkeypatch, client_id, secret)
+    seen = []
+    client = _client(monkeypatch, _ok_handler(seen))
+
+    await client._call("host.get", {})
+    await client.readiness_probe()
+
+    assert len(seen) == 3  # _call + 2 chamadas do probe
+    for headers in seen:
+        assert ("cf-access-client-id" in headers) is expected
+        assert ("cf-access-client-secret" in headers) is expected
+        if expected:
+            assert headers["cf-access-client-id"] == ACCESS_ID
+            assert headers["cf-access-client-secret"] == ACCESS_SECRET
+
+
+@pytest.mark.asyncio
+async def test_secops_zabbix_call_sends_access_headers(monkeypatch):
+    from app.api.routers import secops
+    from app.integrations import zabbix
+
+    _set_access(monkeypatch, ACCESS_ID, ACCESS_SECRET)
+    monkeypatch.setattr(zabbix.settings, "zabbix_api_token", "secret-token")
+    seen = []
+    _client(monkeypatch, _ok_handler(seen))
+
+    assert await secops._zabbix("host.get", {}) == []
+
+    assert seen[0]["cf-access-client-id"] == ACCESS_ID
+    assert seen[0]["cf-access-client-secret"] == ACCESS_SECRET
+    assert seen[0]["authorization"] == "Bearer secret-token"
+
+
+@pytest.mark.asyncio
+async def test_access_secret_not_logged_on_failure(monkeypatch, caplog):
+    _set_access(monkeypatch, ACCESS_ID, ACCESS_SECRET)
+
+    def handler(request):
+        return httpx.Response(403, text="denied")
+
+    client = _client(monkeypatch, handler)
+    with caplog.at_level("DEBUG"), pytest.raises(RuntimeError) as exc:
+        await client._call("host.get", {})
+    with caplog.at_level("DEBUG"), pytest.raises(RuntimeError):
+        await client.readiness_probe()
+
+    assert ACCESS_SECRET not in caplog.text
+    assert ACCESS_SECRET not in str(exc.value)
+
+
+@pytest.mark.asyncio
+async def test_call_refuses_redirect_without_following(monkeypatch, caplog):
+    _set_access(monkeypatch, ACCESS_ID, ACCESS_SECRET)
+    requests = []
+
+    def handler(request):
+        requests.append(request)
+        return httpx.Response(302, headers={"location": "https://idp.example/login"})
+
+    with (
+        caplog.at_level("DEBUG"),
+        pytest.raises(RuntimeError, match="redirecionamento recusado"),
+    ):
+        await _client(monkeypatch, handler)._call("host.get", {})
+
+    assert len(requests) == 1
+    assert "idp.example" not in caplog.text
+    assert ACCESS_SECRET not in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_partial_access_config_warns_once_without_values(monkeypatch, caplog):
+    monkeypatch.setattr(ZabbixClient, "_partial_warned", False)
+    _set_access(monkeypatch, ACCESS_ID, "")
+    seen = []
+    client = _client(monkeypatch, _ok_handler(seen))
+
+    with caplog.at_level("WARNING"):
+        await client._call("host.get", {})
+        await client._call("host.get", {})
+
+    warnings = [r for r in caplog.records if r.levelname == "WARNING"]
+    assert len(warnings) == 1
+    assert "NINF_ZABBIX_ACCESS_CLIENT_SECRET" in warnings[0].getMessage()
+    assert ACCESS_ID not in caplog.text
+    assert all("cf-access-client-id" not in h for h in seen)
