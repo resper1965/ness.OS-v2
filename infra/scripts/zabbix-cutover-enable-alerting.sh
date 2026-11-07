@@ -25,6 +25,7 @@ proxy_fresh="$(mariadb --protocol=socket -NBe "SELECT COUNT(*) FROM ${db_name}.p
 token="$(sed -n 's/^ZABBIX_API_TOKEN=//p' "${env_file}" | tail -1)"
 [[ ${#token} -ge 32 ]]
 
+# Roda no host do Zabbix: chama a API por loopback (--resolve), sem passar pelo Cloudflare Access.
 api_call() {
   local request=${1:?request is required}
   local response

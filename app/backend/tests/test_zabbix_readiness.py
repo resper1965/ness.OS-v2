@@ -297,3 +297,41 @@ async def test_access_secret_not_logged_on_failure(monkeypatch, caplog):
 
     assert ACCESS_SECRET not in caplog.text
     assert ACCESS_SECRET not in str(exc.value)
+
+
+@pytest.mark.asyncio
+async def test_call_refuses_redirect_without_following(monkeypatch, caplog):
+    _set_access(monkeypatch, ACCESS_ID, ACCESS_SECRET)
+    requests = []
+
+    def handler(request):
+        requests.append(request)
+        return httpx.Response(302, headers={"location": "https://idp.example/login"})
+
+    with (
+        caplog.at_level("DEBUG"),
+        pytest.raises(RuntimeError, match="redirecionamento recusado"),
+    ):
+        await _client(monkeypatch, handler)._call("host.get", {})
+
+    assert len(requests) == 1
+    assert "idp.example" not in caplog.text
+    assert ACCESS_SECRET not in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_partial_access_config_warns_once_without_values(monkeypatch, caplog):
+    monkeypatch.setattr(ZabbixClient, "_partial_warned", False)
+    _set_access(monkeypatch, ACCESS_ID, "")
+    seen = []
+    client = _client(monkeypatch, _ok_handler(seen))
+
+    with caplog.at_level("WARNING"):
+        await client._call("host.get", {})
+        await client._call("host.get", {})
+
+    warnings = [r for r in caplog.records if r.levelname == "WARNING"]
+    assert len(warnings) == 1
+    assert "NINF_ZABBIX_ACCESS_CLIENT_SECRET" in warnings[0].getMessage()
+    assert ACCESS_ID not in caplog.text
+    assert all("cf-access-client-id" not in h for h in seen)

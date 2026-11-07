@@ -31,6 +31,8 @@ def is_zabbix_api_url(url: str) -> bool:
 class ZabbixClient:
     """Cliente JSON-RPC assíncrono para a API do Zabbix 7.0 LTS."""
 
+    _partial_warned = False
+
     def __init__(self, url: str | None = None, token: str | None = None):
         self.url = (settings.zabbix_url if url is None else url).rstrip("/")
         self.token = settings.zabbix_api_token if token is None else token
@@ -44,6 +46,12 @@ class ZabbixClient:
         secret = settings.zabbix_access_client_secret
         if cid and secret:
             return {"CF-Access-Client-Id": cid, "CF-Access-Client-Secret": secret}
+        if (cid or secret) and not ZabbixClient._partial_warned:
+            ZabbixClient._partial_warned = True
+            logger.warning(
+                "NINF_ZABBIX_ACCESS_CLIENT_ID e NINF_ZABBIX_ACCESS_CLIENT_SECRET "
+                "devem ser definidos juntos; nenhum header do Access será enviado"
+            )
         return {}
 
     async def _call(self, method: str, params: dict[str, Any] | list[str]) -> Any:
@@ -66,8 +74,13 @@ class ZabbixClient:
         ) as client:
             try:
                 response = await client.post(self.url, json=payload, headers=headers)
+                if response.is_redirect:
+                    logger.error("Zabbix API %s redirect refused", method)
+                    raise RuntimeError("Zabbix API: redirecionamento recusado")
                 response.raise_for_status()
                 res_data = response.json()
+            except RuntimeError:
+                raise
             except Exception as exc:
                 logger.error("Zabbix API %s failed: %s", method, type(exc).__name__)
                 raise RuntimeError("Zabbix API indisponível") from exc
