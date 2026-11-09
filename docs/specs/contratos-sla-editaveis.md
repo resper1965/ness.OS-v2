@@ -76,3 +76,63 @@ O contrato só pode **endurecer** a política (política SOC, "O contrato do cli
 **Parâmetros globais** (`n_infraops_platform_params`; `GET/PUT /api/v1/sla/platform-params`, leitura NOC, **escrita só `platform_admin`**; a medição é `scope: global`, sem tenant): `source_max_age_seconds` 900, `queue_max_age_seconds` 300, `worker_failure_window_seconds` 900, `probe_timeout_seconds` 20 (máx. 22, também em `CHECK`: leitura dos parâmetros (5 s) + sonda + cobertura (5 s) precisam caber nos 35 s do `hub-integration-monitor.sh`). Lidos a cada ciclo de `pipeline_health`; banco indisponível = padrões. Mudança só registrada em log estruturado (sem tabela de trilha: não pertence a contrato).
 
 Valor acima de 2147483647 (INTEGER) = 422. Parâmetros não são dado pessoal do cliente. Fora: tela, consumo de `ot_retrospective_hours`, SLM do GLPI.
+
+## Fechamento do plano de dados por cliente (Task 6, 09/11/2026)
+
+### Modelo final
+
+| tabela | propósito | constraints principais |
+|---|---|---|
+| `n_infraops_customers` | identidade do cliente, glpi_entity_id, active | `key` UNIQUE |
+| `n_infraops_customer_aliases` | apelidos normalizados (`lower().strip()`) | `alias_norm` UNIQUE, FK cascade |
+| `n_infraops_hostgroup_rules` | regra `[Cliente]` como dado (pattern, ignore_when_with) | `pattern` não vazio, não aponta para si |
+| `n_infraops_customer_contacts` | e-mail/telefone do plantão do cliente | `notify_severity_min` 1–5, dado pessoal não em log |
+| `n_infraops_contracts` | contrato por tenant (modalidade, vigência, status) | 1 ativo por `lower(tenant_id)`, `is_default` sem tenant |
+| `n_infraops_sla_policies` | prazos por classe/severidade | UNIQUE `(contract_id, key)` |
+| `n_infraops_escalation_steps` | ordem de escalonamento por papel | posição única |
+| `n_infraops_sla_calendars` / `_hours` / `_holidays` | calendários compartilhados com timezone | intervalos não se sobrepõem |
+| `n_infraops_contract_changes` | trilha de toda mudança em contrato ativo | JSONB antes/depois, entidade `policy_param`, `customer`, `hostgroup_rule` |
+| `n_infraops_contract_policy_params` | parâmetros SOC por contrato | `value_int > 0`, teto por chave (12/75/24/20/10-100) |
+| `n_infraops_platform_params` | parâmetros globais (frescor, fila, probe) | `value_int > 0`, probe ≤ 22 |
+
+### Chaves de policy_params
+
+| chave | padrão | teto/piso | CHECK |
+|---|---|---|---|
+| `soc_attend_min_level` | 12 | ≤ 12 | `value_int <= 12` |
+| `soc_archive_score_floor` | 75 | ≤ 75 | `value_int <= 75` |
+| `ot_retrospective_hours` | 24 | ≤ 24 | `value_int <= 24` |
+| `weekly_sample_per_client` | 20 | ≥ 20 | `value_int >= 20` |
+| `weekly_sample_pct` | 10 | 10–100 | `value_int BETWEEN 10 AND 100` |
+| `weekly_sample_threshold` | 200 | — | `value_int > 0` |
+
+### Chaves de platform_params
+
+| chave | padrão | CHECK |
+|---|---|---|
+| `source_max_age_seconds` | 900 | `value_int > 0` |
+| `queue_max_age_seconds` | 300 | `value_int > 0` |
+| `worker_failure_window_seconds` | 900 | `value_int > 0` |
+| `probe_timeout_seconds` | 20 | `value_int <= 22` |
+
+### O que continua fora
+
+- Tela de configuração de contratos (espera o redesenho, Task 4 do plano de aceleração).
+- SLM do GLPI (tto/ttr/calendário do contrato, níveis 50/80/100 %).
+- Consumo dos contatos do cliente (tabela existe, API existe, nada chama).
+- Consumo de `ot_retrospective_hours` (regra 6 do SOC ainda não existe).
+- Revisão semanal automatizada (quem revisa a amostra, quando).
+- Remoção dos cards de exemplo do SecOps (`secops.py:41-185`; conteúdo de demonstração).
+
+### Checklist de promoção
+
+- [x] Migração aditiva idempotente (`migrate.py` + `sql/001_schema.sql`, paridade testada).
+- [x] Seeds com `ON CONFLICT DO NOTHING`: 13 clientes, 22 apelidos, 3 políticas, 4 passos.
+- [x] Regras de grupo de hosts semeadas (comportamento idêntico ao código antigo).
+- [x] Comportamento atual idêntico ao antigo: suíte `test_alert_glpi_idempotency.py` verde.
+- [x] `resolve_glpi_entity_id` assíncrono, chama `services.customers`.
+- [x] `customer_from_hostgroups` consulta tabela, não dicionário em código.
+- [x] `effective_modality` contrato → mapeamento → None.
+- [x] `get_param` contrato ativo → padrão → constante; `contractual=false` no padrão.
+- [x] `archived_sample` agrupado por cliente, maior cota entre contrato e padrão.
+- [ ] Sem tela de contratos (espera redesenho).
