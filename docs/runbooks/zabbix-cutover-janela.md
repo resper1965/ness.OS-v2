@@ -93,7 +93,7 @@ cloudflare-zabbix-dns-cutover.sh cutover      # zabbix.ness.com.br: 144.91.72.20
 - Allowlist da 10051 no destino: já tem os IPs dos proxies; remover a regra da ponte quando todos migrarem.
 
 ### Passo 8: ~01:05 Hub e tela
-- Hub (aiops): gravar `NINF_ZABBIX_URL=https://zabbix-web.ness.com.br`, `NINF_ZABBIX_ACCESS_CLIENT_ID` e `NINF_ZABBIX_ACCESS_CLIENT_SECRET` no `.env` (release atual e `/opt/n-infraops/app`), **com backup antes** em `/opt/n-infraops/change-backups/<nome>-<data>/`. Recriar `api` e workers com `docker compose -p app ... up -d --no-deps --force-recreate`.
+- Hub (aiops): gravar `NINF_ZABBIX_URL=https://zabbix-web.ness.com.br/api_jsonrpc.php` (o cliente posta direto nessa URL e a sonda de readiness recusa caminho diferente), `NINF_ZABBIX_ACCESS_CLIENT_ID` e `NINF_ZABBIX_ACCESS_CLIENT_SECRET` no `.env` (release atual e `/opt/n-infraops/app`), **com backup antes** em `/opt/n-infraops/change-backups/<nome>-<data>/`. Recriar `api` e workers com `docker compose -p app ... up -d --no-deps --force-recreate`.
 - Decidir o link `tr_events.php` (`incidents.py:394` usa `settings.zabbix_url`).
 - Conferir `/zabbix-health`, `/pipeline-health` e `zabbix_readiness`.
 
@@ -101,7 +101,7 @@ cloudflare-zabbix-dns-cutover.sh cutover      # zabbix.ness.com.br: 144.91.72.20
 `monitor-zabbix-proxy-reconnect.sh` até **18 de 18 frescos** (`stacavprx` fora do critério), fila dos proxies drenando, hosts recentes e a ingestão do Hub (`n_infraops_incidents`). Pelo menos 1 técnico entra pelo M365; a senha antiga é barrada.
 
 ### Passo 10: ~01:30 Alertas (só depois da coleta estável)
-`ness-zabbix-cutover-enable-alerting` liga as ações por lote, observando flood. **Notificações só com a coleta estável e os 18 proxies frescos.** Observar 2 h.
+`ness-zabbix-cutover-enable-alerting` (exige 18 proxies frescos, sem contar o `stacavprx`; chama a API em `127.0.0.1:8080`) liga as ações por lote, observando flood. **Notificações só com a coleta estável e os 18 proxies frescos.** Observar 2 h.
 
 ---
 
@@ -117,7 +117,7 @@ cloudflare-zabbix-dns-cutover.sh cutover      # zabbix.ness.com.br: 144.91.72.20
 
 1. Hub: `NINF_ZABBIX_URL` de volta à origem; apagar os headers do Access do `.env`; recriar `api` e workers.
 2. `cloudflare-zabbix-dns-cutover.sh rollback` (`zabbix.ness.com.br` volta para `144.91.72.202`).
-3. Parar o `zabbix-server` do destino (`systemctl stop`) e a ponte da origem (`systemctl stop ness-zabbix-cutover-bridge`).
+3. **Tela:** desligar o túnel do destino (`systemctl stop cloudflared` na VPS nova) ou apontar a rota `zabbix-web` de volta para a origem. Sem isso, `zabbix-web.ness.com.br` continua mostrando e aceitando escrita no banco restaurado do destino. Depois: parar o `zabbix-server` do destino (`systemctl stop`) e a ponte da origem (`systemctl stop ness-zabbix-cutover-bridge`).
 4. Na origem: `sudo systemctl start zabbix-server`.
 5. Conferir proxies, Hub e fila. Os proxies enviam o buffer acumulado (24 h cobre a janela).
 6. Comunicar e registrar a causa.
