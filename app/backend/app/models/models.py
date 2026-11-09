@@ -792,6 +792,55 @@ class EscalationStep(Base):
     updated_by_user_id: Mapped[int | None] = mapped_column(BigInteger)
 
 
+class ContractPolicyParam(Base):
+    """Parâmetro inteiro da política de atendimento SOC por contrato (ver services/policy_params)."""
+
+    __tablename__ = "n_infraops_contract_policy_params"
+    __table_args__ = (
+        CheckConstraint("value_int > 0", name="ck_policy_params_value"),
+        CheckConstraint(
+            "(key <> 'soc_attend_min_level' OR value_int <= 12)"
+            " AND (key <> 'soc_archive_score_floor' OR value_int <= 75)"
+            " AND (key <> 'ot_retrospective_hours' OR value_int <= 24)"
+            " AND (key <> 'weekly_sample_pct' OR value_int BETWEEN 10 AND 100)"
+            " AND (key <> 'weekly_sample_per_client' OR value_int >= 20)",
+            name="ck_policy_params_ceiling",
+        ),
+    )
+
+    contract_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("n_infraops_contracts.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    key: Mapped[str] = mapped_column(String(48), primary_key=True)
+    value_int: Mapped[int] = mapped_column(Integer, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_by_user_id: Mapped[int | None] = mapped_column(BigInteger)
+
+
+class PlatformParam(Base):
+    """Parâmetro global da plataforma (frescor, fila); só platform_admin edita."""
+
+    __tablename__ = "n_infraops_platform_params"
+    __table_args__ = (
+        CheckConstraint("value_int > 0", name="ck_platform_params_value"),
+        CheckConstraint(
+            "key <> 'probe_timeout_seconds' OR value_int <= 22",
+            name="ck_platform_params_probe",
+        ),
+    )
+
+    key: Mapped[str] = mapped_column(String(48), primary_key=True)
+    value_int: Mapped[int] = mapped_column(Integer, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_by_user_id: Mapped[int | None] = mapped_column(BigInteger)
+
+
 class ContractChange(Base):
     """Trilha de mudança de SLA em contrato ativo."""
 

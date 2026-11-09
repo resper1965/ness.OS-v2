@@ -30,16 +30,14 @@ class Settings(BaseSettings):
     zabbix_url: str = "https://zabbix.ness.com.br/api_jsonrpc.php"
     zabbix_api_token: str = ""
     zabbix_verify_cert: bool = True
+    # Cloudflare Access service token; enviado só se ambos estiverem definidos.
+    zabbix_access_client_id: str = ""
+    zabbix_access_client_secret: str = ""
 
     # --- LLM (OpenAI-compatible; OpenRouter) ---
     llm_api_key: str = ""
     llm_model: str = "google/gemini-2.5-flash"
     llm_base_url: str = "https://openrouter.ai/api/v1"
-
-    # --- SOC ---
-    # Política SOC aprovada em 03/11 (docs/specs/soc-attendance-policy-proposal.md).
-    # ponytail: nível global; upgrade path: tabela de política por tenant/regra.
-    soc_attendance_min_level: int = 12  # >= atende sempre; abaixo, o score decide
 
     # --- Gemini API (embeddings only) ---
     gemini_api_key: str = ""
@@ -123,6 +121,10 @@ class Settings(BaseSettings):
     oidc_client_id: str = "nessops-client-id"
     oidc_client_secret: str = ""
     oidc_issuer: str = "https://sso.ness.com.br/application/o/nessops/"
+    # Entra: https://login.microsoftonline.com/<tenant>/oauth2/v2.0/authorize e .../logout
+    oidc_authorize_url: str = "https://sso.ness.com.br/application/o/authorize/"
+    oidc_logout_url: str = "https://sso.ness.com.br/application/o/hub/end-session/"
+    oidc_scope: str = "openid profile email"
 
     @model_validator(mode="after")
     def load_vapid_keys(self) -> "Settings":

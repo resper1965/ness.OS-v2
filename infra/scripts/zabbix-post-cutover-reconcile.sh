@@ -5,6 +5,11 @@ umask 077
 
 [[ ${EUID} -eq 0 ]] || { echo 'must run as root' >&2; exit 1; }
 
+# OBSOLETO desde 09/11/2026: este script grava o SAML do Authentik (sso.ness.com.br) e o
+# sp_entityid zabbix.ness.com.br. O SAML do Zabbix agora é o Entra (ness-zabbix-saml-entra-apply);
+# rodar isto depois do corte DESFAZ o login pelo M365. Só roda com ZBX_ALLOW_LEGACY_AUTHENTIK=1.
+[[ ${ZBX_ALLOW_LEGACY_AUTHENTIK:-} == 1 ]] || { echo 'obsoleto: SAML agora e Entra (ness-zabbix-saml-entra-apply)' >&2; exit 3; }
+
 readonly db_name=dbzabbix
 readonly env_file=/etc/ness-os/zabbix-cutover-bootstrap.env
 readonly evidence_root=/var/lib/ness-os/restore-evidence
@@ -37,6 +42,7 @@ snapshot() {
   chmod 0600 "${output}"
 }
 
+# Roda no host do Zabbix: chama a API por loopback (--resolve), sem passar pelo Cloudflare Access.
 api_call() {
   local request=${1:?request is required}
   local response

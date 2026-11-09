@@ -15,18 +15,25 @@ readonly dataset="${2:-}"
 readonly env_file="${NESS_RESTIC_ENV_FILE:-/etc/ness-os/backup-s3.env}"
 
 [[ "${action}" == "init" || "${action}" == "backup" ]] || \
-  fail "usage: $0 {init|backup} {zabbix|aiops}"
+  fail "usage: $0 {init|backup} {zabbix|zabbix-cutover|aiops}"
 
 case "${dataset}" in
   zabbix)
     readonly backup_root="/var/backups/zabbix/nightly"
     readonly local_lock="/run/lock/ness-zabbix-backup.lock"
     ;;
+  zabbix-cutover)
+    # Final dump taken with collection stopped (zabbix-cutover-backup.sh). Same
+    # repository as `zabbix` so the installed stage-restore finds it by snapshot
+    # id; a distinct tag keeps it out of the nightly forget/verify groups.
+    readonly backup_root="/var/backups/zabbix/cutover"
+    readonly local_lock="/run/lock/ness-zabbix-backup.lock"
+    ;;
   aiops)
     readonly backup_root="/opt/n-infraops/backups/nightly"
     readonly local_lock="/run/lock/ness-aiops-backup.lock"
     ;;
-  *) fail "dataset must be zabbix or aiops" ;;
+  *) fail "dataset must be zabbix, zabbix-cutover or aiops" ;;
 esac
 
 for command in find flock install restic sha256sum sort stat; do
@@ -63,6 +70,7 @@ set +a
 [[ "${NESS_BACKUP_HOST_ID}" =~ ^[a-z0-9][a-z0-9-]{0,62}$ ]] || \
   fail "NESS_BACKUP_HOST_ID must be a stable lowercase host identifier"
 
+readonly repo_dataset="${dataset%-cutover}"
 readonly keep_last="${RESTIC_KEEP_LAST:-14}"
 readonly check_percent="${RESTIC_CHECK_PERCENT:-5}"
 [[ "${keep_last}" =~ ^[1-9][0-9]*$ ]] || \
@@ -70,7 +78,7 @@ readonly check_percent="${RESTIC_CHECK_PERCENT:-5}"
 [[ "${check_percent}" =~ ^[1-9][0-9]?$|^100$ ]] || \
   fail "RESTIC_CHECK_PERCENT must be between 1 and 100"
 
-export RESTIC_REPOSITORY="s3:${CONTABO_S3_ENDPOINT%/}/${CONTABO_S3_BUCKET}/ness-os/${NESS_BACKUP_HOST_ID}/${dataset}"
+export RESTIC_REPOSITORY="s3:${CONTABO_S3_ENDPOINT%/}/${CONTABO_S3_BUCKET}/ness-os/${NESS_BACKUP_HOST_ID}/${repo_dataset}"
 export RESTIC_CACHE_DIR="${RESTIC_CACHE_DIR:-/var/cache/ness-os-restic}"
 readonly snapshot_tag="ness-dataset-${dataset}"
 
