@@ -20,8 +20,7 @@ grep -q "SET username='alice@ex.com' WHERE username='alice'" "$d/out"
 grep -q "SET passwd='FAKEHASH' WHERE username='bob@ex.com'" "$d/out"
 grep -q "passwd='FAKEHASH' WHERE username='alice@ex.com'" "$d/out" && { echo "alice nao devia ser bloqueada" >&2; exit 1; }
 grep -q "WHERE username='akadmin'" "$d/out"
-# shellcheck disable=SC2016  # $SSO[ e texto literal de PHP
-S --apply >/dev/null; [[ $(grep -cF '$SSO[' "$d/web.php") == 1 ]] || { echo "SSO duplicado" >&2; exit 1; }
+S --apply >/dev/null; [[ $(grep -c 'SSO\[' "$d/web.php") == 1 ]] || { echo "SSO duplicado" >&2; exit 1; }
 w "x" "alice" "alice"; S --apply >/dev/null 2>&1 && { echo "aceitou tenant ruim" >&2; exit 1; }
 w "$T" "a'b" "a'b"; S --apply >/dev/null 2>&1 && { echo "aceitou usuario com aspas" >&2; exit 1; }
 w "$T" "alice" "bob"; S --apply >/dev/null 2>&1 && { echo "aceitou LOCK fora de SSO" >&2; exit 1; }
