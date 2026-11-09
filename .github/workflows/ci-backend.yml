@@ -40,6 +40,10 @@ on:
       - 'infra/scripts/aiops-runtime-preflight.sh'
       - 'infra/tests/test-aiops-runtime-preflight.sh'
       - 'infra/tests/test-wazuh-ufw-stale.py'
+      - 'infra/scripts/zabbix-cutover-backup.sh'
+      - 'infra/tests/test-zabbix-cutover-backup.sh'
+      - 'infra/scripts/ness-object-storage-restic.sh'
+      - 'infra/tests/test-object-storage-restic-datasets.sh'
       - 'infra/ansible/roles/wazuh/files/ufw_stale.py'
       - '.github/workflows/ci-backend.yml'
   pull_request:
@@ -125,6 +129,8 @@ jobs:
         python -m pytest -q infra/tests/test_glpi_backlog_reconcile.py
         PYTHONPATH=app/backend python -m pytest -q infra/tests/test_hub_glpi_integrity_check.py
         bash infra/tests/test-aiops-runtime-readiness.sh
+        bash infra/tests/test-zabbix-cutover-backup.sh
+        bash infra/tests/test-object-storage-restic-datasets.sh
 
     - name: Validate merged AIOps Compose without starting services
       working-directory: .
