@@ -42,22 +42,25 @@ run env ZBX_WEB_EXPOSURE=public
 grep -q 'ufw allow 80/tcp' "${tmp}/ufw.log"
 grep -q 'ufw allow 443/tcp' "${tmp}/ufw.log"
 
-# closed with a pre-existing public rule: warn, never delete
-run env ZBX_WEB_EXPOSURE=closed UFW_STATUS=$'443/tcp                     ALLOW       Anywhere\n443/tcp                     ALLOW       173.245.48.0/20\n'
-grep -q 'WARNING' "${tmp}/out"
+# closed with a pre-existing public rule: abort naming the rule, never delete
+if run env ZBX_WEB_EXPOSURE=closed UFW_STATUS=$'443/tcp                     ALLOW       Anywhere\n443/tcp                     ALLOW       173.245.48.0/20\n'; then
+  echo 'closed did not abort on public 443 rule' >&2; exit 1
+fi
+grep -q '^443/tcp .*Anywhere' "${tmp}/out"
+no grep -q '173.245' "${tmp}/out"
 no grep -Eq 'ufw (allow (80|443)|delete)' "${tmp}/ufw.log"
 run env ZBX_WEB_EXPOSURE=closed UFW_STATUS=$'443/tcp                     ALLOW       173.245.48.0/20\n'
-no grep -q 'WARNING' "${tmp}/out"
+no grep -q 'Anywhere' "${tmp}/out"
 
-# broader warning coverage; Cloudflare-only rules stay silent
+# broader coverage (aborts); Cloudflare-only rules stay silent
 for line in '80,443/tcp                  ALLOW       Anywhere' 'Apache Full                 ALLOW       Anywhere' \
   'Nginx Full (v6)             ALLOW       Anywhere (v6)' '443/tcp on eth0             ALLOW       Anywhere' \
   '443/tcp (v6)                ALLOW       Anywhere (v6)'; do
-  run env ZBX_WEB_EXPOSURE=closed UFW_STATUS="${line}"$'\n'
-  grep -q 'WARNING' "${tmp}/out" || { echo "no warning for: ${line}" >&2; exit 1; }
+  if run env ZBX_WEB_EXPOSURE=closed UFW_STATUS="${line}"$'\n'; then echo "no abort for: ${line}" >&2; exit 1; fi
+  no grep -Eq 'ufw (allow|delete)' "${tmp}/ufw.log"
 done
 run env ZBX_WEB_EXPOSURE=closed UFW_STATUS=$'80,443/tcp                  ALLOW       173.245.48.0/20\n443/tcp on eth0             ALLOW       2400:cb00::/32\n'
-no grep -q 'WARNING' "${tmp}/out"
+no grep -q 'Anywhere' "${tmp}/out"
 
 # 10051 open to Anywhere (v4/v6, with interface) aborts; restricted passes
 for line in '10051/tcp                   ALLOW       Anywhere' '10051/tcp (v6)              ALLOW       Anywhere (v6)' \
@@ -65,6 +68,9 @@ for line in '10051/tcp                   ALLOW       Anywhere' '10051/tcp (v6)  
   if run env FN=assert_10051_restricted UFW_STATUS="${line}"$'\n'; then echo "10051 not aborted: ${line}" >&2; exit 1; fi
 done
 run env FN=assert_10051_restricted UFW_STATUS=$'10051/tcp                   ALLOW       203.0.113.10\n10051/tcp                   ALLOW       203.0.113.11\n'
+
+# public mode does no pre-check: existing public rules do not abort
+run env ZBX_WEB_EXPOSURE=public UFW_STATUS=$'443/tcp                     ALLOW       Anywhere\n'
 
 # invalid value fails before any firewall change
 if run env ZBX_WEB_EXPOSURE=open; then echo 'invalid mode accepted' >&2; exit 1; fi

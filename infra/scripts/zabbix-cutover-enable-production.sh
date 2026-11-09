@@ -26,10 +26,14 @@ configure_web_exposure() {
     return
   fi
   echo 'ZBX_WEB_EXPOSURE=closed: web UI only through the Cloudflare tunnel; 80/443 not opened'
-  # Cloudflare ranges (from <cidr>) do not match: only Anywhere/profile rules warn.
-  if ufw status | grep -Eq -e '^([0-9]+,)*(80|443)(,[0-9]+)*(/tcp)?( on [^[:space:]]+)?( \(v6\))?[[:space:]]+ALLOW( IN)?[[:space:]]+Anywhere' \
-    -e '^(Apache|Nginx) Full( \(v6\))?[[:space:]]+ALLOW( IN)?[[:space:]]+Anywhere'; then
-    echo 'WARNING: ufw already allows 80/443 from Anywhere; review and remove manually' >&2
+  # Cloudflare ranges (from <cidr>) do not match: only Anywhere/profile rules abort.
+  # The script never deletes rules; the operator removes them and reruns.
+  public_rules="$(ufw status | grep -E -e '^([0-9]+,)*(80|443)(,[0-9]+)*(/tcp)?( on [^[:space:]]+)?( \(v6\))?[[:space:]]+ALLOW( IN)?[[:space:]]+Anywhere' \
+    -e '^(Apache|Nginx) Full( \(v6\))?[[:space:]]+ALLOW( IN)?[[:space:]]+Anywhere' || true)"
+  if [[ -n ${public_rules} ]]; then
+    printf 'ufw already allows 80/443 from Anywhere (tunnel-only would be false); remove these rules and rerun:\n%s\n' \
+      "${public_rules}" >&2
+    exit 1
   fi
 }
 
