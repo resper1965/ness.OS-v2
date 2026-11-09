@@ -4,6 +4,9 @@ set -Eeuo pipefail
 readonly target_host="${TARGET_HOST:-169.58.234.9}"
 readonly target_user="${TARGET_USER:-ness_admin}"
 readonly target_key="${TARGET_KEY:-/home/resper/.ssh/ness_os_zbx_prd_01}"
+# Máquina migrada, parado desde 2026-09-11: fora do critério 18/18 (ver plano zabbix-cutover-acesso-cloudflare).
+readonly retired_proxy="${RETIRED_PROXY:-stacavprx}"
+[[ ${retired_proxy} =~ ^[A-Za-z0-9._-]+$ ]] || { echo 'RETIRED_PROXY inválido' >&2; exit 2; }
 readonly timeout_seconds="${TIMEOUT_SECONDS:-900}"
 readonly started="$(date +%s)"
 
@@ -13,9 +16,9 @@ target_ssh=(ssh -i "${target_key}" -o IdentitiesOnly=yes -o BatchMode=yes \
 while (( $(date +%s) - started < timeout_seconds )); do
   now="$(date --iso-8601=seconds)"
   fresh="$("${target_ssh[@]}" \
-    "sudo mariadb --protocol=socket --batch --skip-column-names dbzabbix -e \"SELECT CONCAT(COALESCE(SUM(r.lastaccess>UNIX_TIMESTAMP()-300),0),'/',COUNT(*)) FROM proxy p LEFT JOIN proxy_rtdata r ON r.proxyid=p.proxyid;\"")"
+    "sudo mariadb --protocol=socket --batch --skip-column-names dbzabbix -e \"SELECT CONCAT(COALESCE(SUM(r.lastaccess>UNIX_TIMESTAMP()-300),0),'/',COUNT(*)) FROM proxy p LEFT JOIN proxy_rtdata r ON r.proxyid=p.proxyid WHERE p.name <> '${retired_proxy}';\"")"
   printf '%s proxies_fresh_5m=%s\n' "${now}" "${fresh}"
-  [[ ${fresh} == 18/18 ]] && exit 0
+  [[ ${fresh} =~ ^([0-9]+)/([0-9]+)$ && ${BASH_REMATCH[1]} == "${BASH_REMATCH[2]}" && ${BASH_REMATCH[2]} -gt 0 ]] && exit 0
   sleep 30
 done
 
