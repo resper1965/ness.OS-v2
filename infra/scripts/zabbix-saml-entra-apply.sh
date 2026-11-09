@@ -52,7 +52,7 @@ mkdir -p "$BACKUP"; chmod 700 "$BACKUP"
 echo "SELECT * FROM userdirectory; SELECT * FROM userdirectory_saml; SELECT userid,username,passwd FROM users;" | $MYSQL >"$BACKUP/antes.tsv"
 chmod 600 "$BACKUP/antes.tsv"
 [[ -f $CERT_DST ]] && cp -p "$CERT_DST" "$BACKUP/idp.crt"
-install -m 640 "$CERT_SRC" "$CERT_DST"
+install -m 640 -g "${ZBX_WEB_GROUP:-www-data}" "$CERT_SRC" "$CERT_DST"
 echo "$sql" | $MYSQL
 # shellcheck disable=SC2016  # $SSO[ e texto literal de PHP
 grep -qF '$SSO[' "$WEBCONF" || echo "\$SSO['SETTINGS'] = ['use_proxy_headers' => true];" >>"$WEBCONF"
