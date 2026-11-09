@@ -17,7 +17,7 @@ Se qualquer item falhar, **o corte não acontece** e a nova data é combinada.
 | # | Verificação | Como | Esperado |
 |---|---|---|---|
 | A1 | Buffer dos proxies | saídas do script `zabbix-proxy-set-offline-buffer.sh` do Ismael, 18 proxies | `ProxyOfflineBuffer=24` em todos (mínimo aceito: 3 h) |
-| A2 | Proxies reportando | `proxy.get` pela API, `lastaccess` | 18 de 19 frescos (`stacavprx` parado desde 11/09, fora do critério) |
+| A2 | Proxies reportando | `proxy.get` pela API, `lastaccess` | 18 de 18 frescos, sem contar o `stacavprx` (19ª linha, parado desde 11/09) |
 | A3 | Dump noturno da origem | `ls /var/backups/zabbix/nightly` | dump de 13/11 22:00 com `COMPLETED` (é só reserva; o dump do corte é novo) |
 | A4 | Disco | origem e destino | origem > 100 GB livres; destino > 80 GB livres (hoje 158 GB) |
 | A5 | Scripts novos | **destino:** `ness-zabbix-cutover-enable-production` (#218) e `ness-zabbix-saml-entra-apply` (#223, já instalado). **Origem:** `zabbix-cutover-backup` (#219) copiado para `/usr/local/sbin` (hoje não está lá). | versão da `main`, modo 755 root |
@@ -104,6 +104,8 @@ cloudflare-zabbix-dns-cutover.sh cutover      # zabbix.ness.com.br: 144.91.72.20
 `ness-zabbix-cutover-enable-alerting` (exige 18 proxies frescos, sem contar o `stacavprx`; chama a API em `127.0.0.1:8080`) liga as ações por lote, observando flood. **Notificações só com a coleta estável e os 18 proxies frescos.** Observar 2 h.
 
 ---
+
+**Não rodar** `zabbix-post-cutover-reconcile`: grava o SAML do Authentik por cima do Entra e desfaz o login pelo M365. O script agora recusa sem `ZBX_ALLOW_LEGACY_AUTHENTIK=1`.
 
 ## Aborta se (decidir até 02:00)
 
