@@ -69,14 +69,17 @@ Não verificado: `ProxyOfflineBuffer`/`ConfigFrequency` dos proxies, duração r
 - **Verifica:** `curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1/` = 200 na própria VPS; `ss -ltn` sem 80/443 públicos.
 - **Atenção:** `ness-zabbix-cutover-enable-production` (já na VPS) executa `ufw allow 80` e `443` e `ListenIP=0.0.0.0`. Com o Access, **não** pode rodar como está: a 80/443 ficam fechadas e a tela só sai pelo túnel. O fonte (`infra/scripts/zabbix-cutover-enable-production.sh`) agora tem `ZBX_WEB_EXPOSURE` (default `closed`: não abre 80/443 e aborta se já houver regra pública para 80/443; `public` = comportamento antigo) — reinstalar na VPS antes da Task 7 e **não** definir `public`.
 
-### Task 4: Túnel e Access na VPS nova **[FRASE]**
+### Task 4: Túnel e Access na VPS nova **[FRASE dada em 09/11]**
 
-- [ ] **Step 1:** Instalar `cloudflared`, criar o túnel e a rota `zabbix-web.ness.com.br` → `http://127.0.0.1`. Saída apenas.
-- [ ] **Step 2:** Aplicação no Access com política *allow* `@ness.com.br` via Entra, deny-by-default, sessão curta (desenho de perímetro, ADR 0015 ponto 4). Quem passa pelo Access ainda precisa de usuário cadastrado no Zabbix; cadastrar 2 ou 3 técnicos só para o teste.
-- [ ] **Step 3:** Service token do Hub com política *Service Auth* só para `/api_jsonrpc.php`.
-- [ ] **Step 4:** Teste com 2 ou 3 técnicos em casa e em 4G: entram, e um e-mail fora da lista é barrado.
-- **Verifica:** login por pessoa, registro por pessoa nos logs do Access, API responde 200 ao Hub e 403 sem o token.
-- **Rollback:** desligar o túnel e apagar a aplicação do Access; nada de produção usa o nome novo.
+**Feito em 09/11 (sem tráfego real):**
+- Túnel `zabbix-web` (id em `~/.local/zbx/tunnel.id` do agente), rota `zabbix-web.ness.com.br` → origem local; DNS `zabbix-web` (CNAME proxied) apontando para o túnel; `cloudflared` instalado na VPS nova e **ainda não conectado**.
+- App `zabbix-web` no Access: *allow* `@ness.com.br` via Entra, sessão 8 h, deny-by-default. Sem login: 302 para o Access.
+- App `zabbix-web API (Hub)` só no caminho `/api_jsonrpc.php`, política *Service Auth* com o service token `hub-zabbix-api` (validade 1 ano; **renovar antes de 09/11/2027**). Com o token: passa o Access (hoje 530, porque a origem ainda não está conectada). Sem o token: 302.
+- Segredos do túnel e do service token: `~/.local/zbx/` do agente (modo 600), nunca no repositório; ao ligar o Hub, gravar `NINF_ZABBIX_ACCESS_CLIENT_ID/SECRET` no `.env` da produção.
+
+- [ ] **Falta:** conectar o `cloudflared` (`cloudflared service install <token>`) depois do Apache em loopback (Task 3); ajustar a rota para a porta do vhost; teste com 2–3 técnicos em casa e em 4G (e-mail fora do domínio barrado).
+- **Verifica:** login por pessoa, registro no log do Access, API 200 ao Hub e 302/403 sem o token.
+- **Rollback:** `cloudflared service uninstall`, apagar as duas apps do Access, o CNAME `zabbix-web` e o túnel; nada de produção usa o nome novo.
 
 ### Task 5: Hub chama a API pelo Access (código)
 
