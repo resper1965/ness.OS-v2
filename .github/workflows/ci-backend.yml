@@ -48,6 +48,8 @@ on:
       - 'infra/tests/test-zabbix-proxy-reconnect.sh'
       - 'infra/scripts/zabbix-proxy-set-offline-buffer.sh'
       - 'infra/tests/test-zabbix-proxy-offline-buffer.sh'
+      - 'infra/scripts/zabbix-saml-entra-apply.sh'
+      - 'infra/tests/test-zabbix-saml-entra-apply.sh'
       - 'infra/ansible/roles/wazuh/files/ufw_stale.py'
       - '.github/workflows/ci-backend.yml'
   pull_request:
@@ -137,6 +139,7 @@ jobs:
         bash infra/tests/test-object-storage-restic-datasets.sh
         bash infra/tests/test-zabbix-proxy-reconnect.sh
         bash infra/tests/test-zabbix-proxy-offline-buffer.sh
+        bash infra/tests/test-zabbix-saml-entra-apply.sh
 
     - name: Validate merged AIOps Compose without starting services
       working-directory: .
