@@ -10,6 +10,28 @@ readonly isolation_dropin=/etc/systemd/system/zabbix-server.service.d/10-staging
 readonly evidence_root=/var/lib/ness-os/restore-evidence
 readonly db_name=dbzabbix
 
+# web-exposure:begin
+# closed (default): web UI only through the Cloudflare Access tunnel; 80/443 stay closed.
+# public: legacy behavior, opens 80/443 for ACME and HTTPS.
+web_exposure="${ZBX_WEB_EXPOSURE:-closed}"
+case "${web_exposure}" in
+  closed | public) ;;
+  *) printf 'invalid ZBX_WEB_EXPOSURE=%s (closed|public)\n' "${web_exposure}" >&2; exit 2 ;;
+esac
+
+configure_web_exposure() {
+  if [[ ${web_exposure} == public ]]; then
+    ufw allow 80/tcp comment 'Zabbix production ACME and HTTPS redirect'
+    ufw allow 443/tcp comment 'Zabbix production HTTPS'
+    return
+  fi
+  echo 'ZBX_WEB_EXPOSURE=closed: web UI only through the Cloudflare tunnel; 80/443 not opened'
+  if ufw status | grep -Eq '^(80|443)(/tcp)?( \(v6\))?[[:space:]]+ALLOW[[:space:]]+Anywhere'; then
+    echo 'WARNING: ufw already allows 80/443 from Anywhere; review and remove manually' >&2
+  fi
+}
+# web-exposure:end
+
 systemctl is-active --quiet mariadb
 server_state="$(systemctl is-active zabbix-server 2>/dev/null || true)"
 server_enabled="$(systemctl is-enabled zabbix-server 2>/dev/null || true)"
@@ -63,8 +85,7 @@ sudo -u zabbix /usr/bin/fping -q -c1 127.0.0.1 >/dev/null
 /usr/sbin/zabbix_server -T -c "${server_conf}"
 systemctl daemon-reload
 
-ufw allow 80/tcp comment 'Zabbix production ACME and HTTPS redirect'
-ufw allow 443/tcp comment 'Zabbix production HTTPS'
+configure_web_exposure
 ! ufw status | grep -Eq '^10051/tcp[[:space:]]+ALLOW[[:space:]]+Anywhere([[:space:]]|$)'
 
 if [[ ${activation_mode} == initial ]]; then
@@ -82,7 +103,7 @@ evidence="${evidence_root}/zabbix-production-enable-${stamp}.txt"
   printf 'enabled_at=%s\n' "$(date --iso-8601=seconds)"
   printf 'listen_ip=0.0.0.0\n'
   printf 'fping_capability=pass\n'
-  printf 'production_http_firewall=enabled\n'
+  printf 'production_http_firewall=%s\n' "$([[ ${web_exposure} == public ]] && echo enabled || echo tunnel-only)"
   printf 'proxy_firewall=allowlist-only\n'
   printf 'active_actions=%s\n' "${active_actions}"
   printf 'active_media=%s\n' "${active_media}"
