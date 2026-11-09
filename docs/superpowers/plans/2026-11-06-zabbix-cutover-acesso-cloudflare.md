@@ -25,7 +25,7 @@ Não verificado: `ProxyOfflineBuffer`/`ConfigFrequency` dos proxies, duração r
 
 ## Restrições globais
 
-- ADR 0015: o provedor autentica e o Zabbix autoriza (sem JIT); cliente nunca alcança o Zabbix; conta local de emergência e SSH com chave e origem restrita ficam; **Entra e SAML só na Fase B**.
+- ADR 0015: o provedor autentica e o Zabbix autoriza (sem JIT); cliente nunca alcança o Zabbix; conta local de emergência e SSH com chave e origem restrita ficam; **Entra e SAML só na Fase B, com uma exceção decidida pelo Ricardo em 09/11 ("antecipa o SAML do Zabbix"): o SAML do Entra no Zabbix é antecipado para este cutover, porque a segunda senha é o elo fraco do alvo do alerta PHP2Shell.** Seguem na Fase B o Entra no Hub, o Access em GLPI/n8n e o desligamento do Authentik. Validado em UAT na VPS nova (login de técnico pelo M365 em 09/11, antes do corte); a ADR 0015 continua valendo para o resto.
 - Custo: Cloudflare Free (≤ 50 usuários; hoje ≤ 5 técnicos). Sem licença nova.
 - Contraria o ADR 0015 ("não mexer em Cloudflare/DNS antes do aceite do MVP"): Tasks 4 e 6 em diante pedem **[FRASE]** do Ricardo.
 - Segredos só em `projetos.env` (gravados pelo Ricardo) ou Psono; nada em log nem em arquivo versionado. Actions, media types e connectors desligados no restore; `EnableGlobalScripts=0`.
@@ -96,6 +96,7 @@ Não verificado: `ProxyOfflineBuffer`/`ConfigFrequency` dos proxies, duração r
 - [ ] **Step 1:** Congelar mudanças; avisar; registrar hora-limite do rollback. Medir a fila dos proxies antes.
 - [ ] **Step 2:** **Parar a coleta antes do dump** (`systemctl stop zabbix-server`; `mariadb` e `apache2` continuam, nada escreve em `history`). O dump noturno **não serve** para isso: `zabbix-nightly-backup.sh` exige `zabbix-server` ativo (linha 34) e usa `--single-transaction`, então o que os proxies enviassem durante os ~32 min ficaria fora e não seria reenviado. Pré-requisito (PR próprio com revisor, antes da janela): variante `zabbix-cutover-backup.sh` que exige o server **parado**, tira o dump com `mariadb-dump` e gera `SHA256SUMS`/manifesto como o noturno. Depois: `gzip -t` + SHA-256; **enviar por pipe SSH direto da origem para a VPS nova** (como na Task 2: `ssh origem 'sudo cat <dump>' | ssh destino 'sudo tee /var/lib/ness-os/restore-input/<dir>/dbzabbix.sql.gz'`, ~15 min), **sem restic**: a senha do `backup-s3.env` da VPS nova não abre o repositório `zabbix-prod`. Conferir o SHA-256 do arquivo recebido contra o `SHA256SUMS` do cutover e o `-- Dump completed`; o restore usa `ness-zabbix-native-restore restore <dump> <sha256>` (não o stage-restore). O dataset `zabbix-cutover` do restic (#219) fica disponível como cópia de segurança fora da máquina, a enviar depois, se a senha for corrigida. A coleta fica parada do dump até a Step 6; os proxies seguram o buffer nesse intervalo (meça com a resposta do dev).
 - [ ] **Step 3:** Restaurar na VPS nova; repetir as contagens da Task 2; confirmar actions/media/connectors = 0.
+- [ ] **Step 3b (SAML, obrigatório):** o restore apaga o SAML do Entra, os usernames com e-mail e o bloqueio da senha local. Logo após o restore, na VPS nova: `ness-zabbix-saml-entra-apply` (simulação) e depois `--apply`. Lê `/etc/ness-os/zabbix-saml.env` (tenant, 15 usuários SSO, 14 bloqueados; `resper` e `akadmin` ficam com senha local, quebra de vidro), `/etc/ness-os/entra-saml.crt` e `/etc/ness-os/akadmin.pass`, todos já instalados em 09/11. Conferir: um técnico entra pelo M365 e a senha antiga é barrada.
 - [ ] **Step 4:** Ligar o `zabbix-server` na VPS nova com **notificações ainda desligadas**, sem abrir 80/443 (ver aviso da Task 3).
 - [ ] **Step 5:** `cloudflare-zabbix-dns-cutover.sh cutover`; apontar o Hub (`NINF_ZABBIX_URL`) e `zabbix-web` para o destino; ajustar o allowlist da 10051 (já com os 19 IPs) e remover a regra da ponte.
 - [ ] **Step 6:** Acompanhar `monitor-zabbix-proxy-reconnect.sh` até todos os proxies; checar fila, hosts recentes e a ingestão do Hub (`n_infraops_incidents`).
@@ -113,7 +114,7 @@ Não verificado: `ProxyOfflineBuffer`/`ConfigFrequency` dos proxies, duração r
 - [ ] **Step 1:** Fechar 80/443/2222 só na VPS nova (já nasce assim) e confirmar que a origem não recebe mais proxies. Testar a conta de emergência (SSH com chave + port forward).
 - [ ] **Step 2:** PSK nos 19 proxies, em ondas, com `zabbix_proxy_tls_connect: psk` e `reconnect-proxies.yml --limit`; só depois fechar `noencryption`. Exige o inventário sem `PLACEHOLDER_IP` (17 hoje).
 - [ ] **Step 3:** Kernel da origem e forense antes de reaproveitar a máquina; observação D+1, D+3, D+7.
-- [ ] **Step 4 (Fase B):** trocar o IdP do Access para o Entra e ligar SAML no Zabbix, sem JIT.
+- [ ] **Step 4 (Fase B):** trocar o IdP do Access para o Entra (o SAML do Zabbix já foi antecipado no Step 3b da Task 7).
 
 ## Autocheck
 
