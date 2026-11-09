@@ -10,6 +10,42 @@ readonly isolation_dropin=/etc/systemd/system/zabbix-server.service.d/10-staging
 readonly evidence_root=/var/lib/ness-os/restore-evidence
 readonly db_name=dbzabbix
 
+# web-exposure:begin
+# closed (default): web UI only through the Cloudflare Access tunnel; 80/443 stay closed.
+# public: legacy behavior, opens 80/443 for ACME and HTTPS.
+web_exposure="${ZBX_WEB_EXPOSURE:-closed}"
+case "${web_exposure}" in
+  closed | public) ;;
+  *) printf 'invalid ZBX_WEB_EXPOSURE=%s (closed|public)\n' "${web_exposure}" >&2; exit 2 ;;
+esac
+
+configure_web_exposure() {
+  if [[ ${web_exposure} == public ]]; then
+    ufw allow 80/tcp comment 'Zabbix production ACME and HTTPS redirect'
+    ufw allow 443/tcp comment 'Zabbix production HTTPS'
+    return
+  fi
+  echo 'ZBX_WEB_EXPOSURE=closed: web UI only through the Cloudflare tunnel; 80/443 not opened'
+  # Cloudflare ranges (from <cidr>) do not match: only Anywhere/profile rules abort.
+  # The script never deletes rules; the operator removes them and reruns.
+  public_rules="$(ufw status | grep -E -e '^([0-9]+,)*(80|443)(,[0-9]+)*(/tcp)?( on [^[:space:]]+)?( \(v6\))?[[:space:]]+ALLOW( IN)?[[:space:]]+Anywhere' \
+    -e '^(Apache|Nginx) Full( \(v6\))?[[:space:]]+ALLOW( IN)?[[:space:]]+Anywhere' || true)"
+  if [[ -n ${public_rules} ]]; then
+    printf 'ufw already allows 80/443 from Anywhere (tunnel-only would be false); remove these rules and rerun:\n%s\n' \
+      "${public_rules}" >&2
+    exit 1
+  fi
+}
+
+# TCP/10051 must stay restricted to the proxy allowlist; Anywhere (v4/v6) aborts.
+assert_10051_restricted() {
+  if ufw status | grep -Eq '^10051(/tcp)?( on [^[:space:]]+)?( \(v6\))?[[:space:]]+ALLOW( IN)?[[:space:]]+Anywhere'; then
+    echo 'ufw allows 10051/tcp from Anywhere; restrict it to the proxy allowlist' >&2
+    exit 1
+  fi
+}
+# web-exposure:end
+
 systemctl is-active --quiet mariadb
 server_state="$(systemctl is-active zabbix-server 2>/dev/null || true)"
 server_enabled="$(systemctl is-enabled zabbix-server 2>/dev/null || true)"
@@ -56,16 +92,18 @@ grep -qx 'ListenIP=0.0.0.0' "${server_conf}"
 grep -qx 'FpingLocation=/usr/bin/fping' "${server_conf}"
 grep -qx 'Fping6Location=/usr/bin/fping6' "${server_conf}"
 grep -qx 'NoNewPrivileges=false' "${isolation_dropin}"
-! grep -q '^IPAddress' "${isolation_dropin}"
+if grep -q '^IPAddress' "${isolation_dropin}"; then
+  echo 'IPAddress* directives still present in isolation drop-in' >&2
+  exit 1
+fi
 getcap /usr/bin/fping | grep -q 'cap_net_raw=ep'
 sudo -u zabbix /usr/bin/fping -q -c1 127.0.0.1 >/dev/null
 
 /usr/sbin/zabbix_server -T -c "${server_conf}"
 systemctl daemon-reload
 
-ufw allow 80/tcp comment 'Zabbix production ACME and HTTPS redirect'
-ufw allow 443/tcp comment 'Zabbix production HTTPS'
-! ufw status | grep -Eq '^10051/tcp[[:space:]]+ALLOW[[:space:]]+Anywhere([[:space:]]|$)'
+configure_web_exposure
+assert_10051_restricted
 
 if [[ ${activation_mode} == initial ]]; then
   systemctl unmask zabbix-server
@@ -82,7 +120,7 @@ evidence="${evidence_root}/zabbix-production-enable-${stamp}.txt"
   printf 'enabled_at=%s\n' "$(date --iso-8601=seconds)"
   printf 'listen_ip=0.0.0.0\n'
   printf 'fping_capability=pass\n'
-  printf 'production_http_firewall=enabled\n'
+  printf 'production_http_firewall=%s\n' "$([[ ${web_exposure} == public ]] && echo enabled || echo tunnel-only)"
   printf 'proxy_firewall=allowlist-only\n'
   printf 'active_actions=%s\n' "${active_actions}"
   printf 'active_media=%s\n' "${active_media}"

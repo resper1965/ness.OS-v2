@@ -177,6 +177,7 @@ jobs:
         bash -n infra/scripts/hub-integration-monitor.sh
         bash infra/tests/test-hub-alert-mail.sh
         bash infra/tests/test-hub-integration-readiness-report.sh
+        bash infra/tests/test-zabbix-web-exposure.sh
 
     - name: Set up Node.js 20 for n8n workflow checks
       uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
