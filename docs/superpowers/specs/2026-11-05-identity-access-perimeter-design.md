@@ -86,7 +86,7 @@ Cada usuário tem **um** papel e, se o papel for de cliente, **um** tenant. Os p
 | `gestao` (`gestao`) | Gestão e indicadores (ness.) | Hoje exige tenant (fora de `NOC_ROLES`) | A definir na matriz de acesso antes da Fase A |
 | `operator` (`operator`) | Usuário do cliente que age | Um tenant | Incidentes do próprio tenant: ler e agir. Outro tenant = 404 |
 | `viewer` (`viewer`) | Usuário do cliente só leitura | Um tenant | Incidentes do próprio tenant, só leitura. Ação = 403 |
-| `cliente` (`usuarios`) | Usuário final do cliente | Um tenant | Dashboards finais do próprio tenant |
+| `cliente` (`usuarios`) | Usuário final do cliente | Um tenant | Incidentes do próprio tenant, só leitura. Os dashboards (`/api/dashboard/*`) exigem `require_noc` e **não** estão disponíveis a `cliente` hoje; abrir isso é decisão de produto |
 
 Regras:
 - Papéis globais (`NOC_ROLES` em `app/backend/app/core/dependencies.py`: `platform_admin`, `admin`, `noc`, `soc`) só para membros `@ness.com.br`. Convidado B2B só recebe `operator`, `viewer` ou `cliente`, e sempre com tenant. O Hub recusa a combinação errada ao cadastrar e ao logar.
