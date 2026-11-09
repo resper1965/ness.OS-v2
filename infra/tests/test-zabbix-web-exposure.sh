@@ -24,8 +24,8 @@ no() { if "$@"; then echo "unexpected: $*" >&2; exit 1; fi; }
 
 run() { # run env [VAR=value ...]; FN selects the function (default configure_web_exposure)
   : >"${tmp}/ufw.log"
+  # shellcheck disable=SC2016 # expanded by the inner shell
   env -u ZBX_WEB_EXPOSURE PATH="${tmp}/bin:${PATH}" UFW_LOG="${tmp}/ufw.log" "${@}" \
-    # shellcheck disable=SC2016 # expanded by the inner shell
     bash -c 'set -Eeuo pipefail; source "$1"; "${FN:-configure_web_exposure}"' _ "${tmp}/block.sh" >"${tmp}/out" 2>&1
 }
 
