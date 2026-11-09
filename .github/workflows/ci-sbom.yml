@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Test SBOM generator
@@ -45,7 +45,7 @@ jobs:
       - name: Generate CycloneDX inventories with image identities
         run: bash infra/scripts/generate-image-sbom.sh sbom ness-backend:ci ness-frontend:ci
       - name: Retain SBOMs and checksums
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: image-sbom-${{ github.sha }}
           path: sbom/
