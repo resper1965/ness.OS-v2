@@ -7,15 +7,18 @@ umask 077
 
 readonly db_name=dbzabbix
 readonly env_file=/etc/ness-os/zabbix-cutover-bootstrap.env
-readonly api_url=https://zabbix.ness.com.br/api_jsonrpc.php
+# Web só em loopback atrás do túnel (Task 3): sem TLS, porta do vhost ness-zabbix-tunnel.
+readonly api_url=http://127.0.0.1:8080/api_jsonrpc.php
+# Máquina migrada, parada desde 2026-09-11: fora do critério (como o monitor de proxies).
+readonly retired_proxy=stacavprx
 readonly evidence_root=/var/lib/ness-os/restore-evidence
 
 [[ -r ${env_file} ]]
 systemctl is-active --quiet zabbix-server apache2 mariadb
 [[ "$(systemctl --failed --no-legend | wc -l)" == 0 ]]
 
-proxy_total="$(mariadb --protocol=socket -NBe "SELECT COUNT(*) FROM ${db_name}.proxy;")"
-proxy_fresh="$(mariadb --protocol=socket -NBe "SELECT COUNT(*) FROM ${db_name}.proxy p JOIN ${db_name}.proxy_rtdata r USING(proxyid) WHERE r.lastaccess>=UNIX_TIMESTAMP()-300 AND r.compatibility=1;")"
+proxy_total="$(mariadb --protocol=socket -NBe "SELECT COUNT(*) FROM ${db_name}.proxy WHERE name<>'${retired_proxy}';")"
+proxy_fresh="$(mariadb --protocol=socket -NBe "SELECT COUNT(*) FROM ${db_name}.proxy p JOIN ${db_name}.proxy_rtdata r USING(proxyid) WHERE p.name<>'${retired_proxy}' AND r.lastaccess>=UNIX_TIMESTAMP()-300 AND r.compatibility=1;")"
 [[ ${proxy_total} == 18 && ${proxy_fresh} == 18 ]]
 
 [[ "$(mariadb --protocol=socket -NBe "SELECT COUNT(*) FROM ${db_name}.actions WHERE status=0;")" == 0 ]]
@@ -25,12 +28,11 @@ proxy_fresh="$(mariadb --protocol=socket -NBe "SELECT COUNT(*) FROM ${db_name}.p
 token="$(sed -n 's/^ZABBIX_API_TOKEN=//p' "${env_file}" | tail -1)"
 [[ ${#token} -ge 32 ]]
 
-# Roda no host do Zabbix: chama a API por loopback (--resolve), sem passar pelo Cloudflare Access.
+# Roda no host do Zabbix: chama a API por loopback, sem passar pelo Cloudflare Access.
 api_call() {
   local request=${1:?request is required}
   local response
   response="$(curl --fail --silent --show-error \
-    --resolve zabbix.ness.com.br:443:127.0.0.1 \
     --header 'Content-Type: application/json-rpc' \
     --header "Authorization: Bearer ${token}" \
     --data-binary "${request}" \
