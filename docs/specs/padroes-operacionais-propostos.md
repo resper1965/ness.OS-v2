@@ -19,6 +19,6 @@
 - **Escalonamento:** 4 passos no contrato padrão (1), `soc` → `noc` → `operator` → `admin`, todos ativos.
 - **Pendentes, não cadastrados:** revisor e dia da amostra semanal, feriados, pausa de SLA no GLPI, fechamento automático (valor do GLPI não verificado) e fonte de escala de plantão real. Sem resposta, nenhum vai a produção como valor definitivo.
 
-## Pergunta ao Ricardo
+## Aceite
 
-> Aceita estes padrões internos, editáveis depois por contrato? (sim/não por linha)
+Em 09/11/2026 o Ricardo aceitou os 7 itens ("sim para todos"), como padrão interno, `contractual=false`, editável depois por contrato. O aceite não é promoção: o item 5 mexe em configuração do GLPI e só se aplica com frase própria; os itens 1, 4 e 7 ainda não têm campo cadastrado no banco.
