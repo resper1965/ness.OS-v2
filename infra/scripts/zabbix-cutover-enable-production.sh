@@ -26,8 +26,18 @@ configure_web_exposure() {
     return
   fi
   echo 'ZBX_WEB_EXPOSURE=closed: web UI only through the Cloudflare tunnel; 80/443 not opened'
-  if ufw status | grep -Eq '^(80|443)(/tcp)?( \(v6\))?[[:space:]]+ALLOW[[:space:]]+Anywhere'; then
+  # Cloudflare ranges (from <cidr>) do not match: only Anywhere/profile rules warn.
+  if ufw status | grep -Eq -e '^([0-9]+,)*(80|443)(,[0-9]+)*(/tcp)?( on [^[:space:]]+)?( \(v6\))?[[:space:]]+ALLOW( IN)?[[:space:]]+Anywhere' \
+    -e '^(Apache|Nginx) Full( \(v6\))?[[:space:]]+ALLOW( IN)?[[:space:]]+Anywhere'; then
     echo 'WARNING: ufw already allows 80/443 from Anywhere; review and remove manually' >&2
+  fi
+}
+
+# TCP/10051 must stay restricted to the proxy allowlist; Anywhere (v4/v6) aborts.
+assert_10051_restricted() {
+  if ufw status | grep -Eq '^10051(/tcp)?( on [^[:space:]]+)?( \(v6\))?[[:space:]]+ALLOW( IN)?[[:space:]]+Anywhere'; then
+    echo 'ufw allows 10051/tcp from Anywhere; restrict it to the proxy allowlist' >&2
+    exit 1
   fi
 }
 # web-exposure:end
@@ -78,7 +88,10 @@ grep -qx 'ListenIP=0.0.0.0' "${server_conf}"
 grep -qx 'FpingLocation=/usr/bin/fping' "${server_conf}"
 grep -qx 'Fping6Location=/usr/bin/fping6' "${server_conf}"
 grep -qx 'NoNewPrivileges=false' "${isolation_dropin}"
-! grep -q '^IPAddress' "${isolation_dropin}"
+if grep -q '^IPAddress' "${isolation_dropin}"; then
+  echo 'IPAddress* directives still present in isolation drop-in' >&2
+  exit 1
+fi
 getcap /usr/bin/fping | grep -q 'cap_net_raw=ep'
 sudo -u zabbix /usr/bin/fping -q -c1 127.0.0.1 >/dev/null
 
@@ -86,7 +99,7 @@ sudo -u zabbix /usr/bin/fping -q -c1 127.0.0.1 >/dev/null
 systemctl daemon-reload
 
 configure_web_exposure
-! ufw status | grep -Eq '^10051/tcp[[:space:]]+ALLOW[[:space:]]+Anywhere([[:space:]]|$)'
+assert_10051_restricted
 
 if [[ ${activation_mode} == initial ]]; then
   systemctl unmask zabbix-server
