@@ -51,23 +51,20 @@ Não verificado: `ProxyOfflineBuffer`/`ConfigFrequency` dos proxies, duração r
 - [ ] **Step 3:** Ler `ProxyOfflineBuffer` e `ConfigFrequency` de 2 proxies (somente leitura, SSH autorizado) e reconciliar 18 × 19 no `monitor-zabbix-proxy-reconnect.sh`. **Resolvido em 06/11:** o 19º é o `stacavprx` (Cavan, Santa Lucia), máquina já migrada e sem acesso desde 11/09; fica fora do critério de sucesso e o monitor **precisa de ajuste antes da janela**: `infra/scripts/monitor-zabbix-proxy-reconnect.sh` conta todas as linhas de `proxy` e só aceita `18/18`; com o `stacavprx` no banco restaurado o resultado é `18/19` e dá timeout. Correção (PR próprio, pré-requisito da Task 7): excluir o `stacavprx` na consulta (`WHERE p.name<>'stacavprx'`) e manter a meta 18/18. Seus 4 hosts e 5 problemas antigos seguem ativos no Zabbix; limpeza (desativar, não apagar) é decisão à parte.
 - **Verifica:** buffer ≥ duração estimada da janela; contagem de proxies explicada.
 
-### Task 2: Restore atual na VPS nova, isolado e medido **[FRASE]**
+### Task 2: Restore atual na VPS nova, isolado e medido **[FEITA em 09/11]**
 
-**Fatos (leitura 06/11):** o dump noturno da origem (`/var/backups/zabbix/nightly/20261105T220005-0300`, `COMPLETED`, SHA256SUMS) tem **5,3 GB** e leva ~32 min para ser gerado; o backup é copiado todo dia 05:30 para o Object Storage (restic, `verified`). A VPS nova tem 180 GB livres e já traz `ness-zabbix-object-storage-stage-restore SNAPSHOT_ID` (traz o snapshot para `/var/lib/ness-os/restore-input/restic-<id>`) e `ness-zabbix-native-restore restore DUMP SHA256` (nomes **como instalados na VPS nova**, conferidos em `/usr/local/sbin`; o repositório traz `infra/scripts/zabbix-kvm8-native-restore.sh` e o checklist cita `ness-zabbix-kvm8-native-restore`; `ness-zabbix-post-restore-verify` também só existe instalado, não no repositório — conferir o nome na máquina antes de rodar e, se divergir, o que vale é o instalado). Não é preciso abrir SSH entre as máquinas.
+**Medido em 09/11** (dump noturno de 08/11, 5,65 GB, SHA-256 conferido contra o `SHA256SUMS` da origem):
+- Envio da origem para a VPS nova por pipe SSH, sem restic: ~15 min (~6 MB/s).
+- Restore (`ness-zabbix-native-restore restore`): **3.497 s (58 min)**, banco final 30 GB.
+- Resultado: `restore=PASS`, 203 tabelas, 708 hosts, 67.183 itens, 28.100 triggers, `dbversion=7000000`, actions/media/connectors ativos = 0, `zabbix-server` inativo e mascarado.
+- **Repositório restic `zabbix-prod`:** a senha do `backup-s3.env` da VPS nova não o abre (só abre `zbx-prd-01`). Por isso o dump do cutover NÃO passa pelo restic: segue por pipe SSH, com SHA-256 conferido nos dois lados.
+- **Janela real da Task 7:** dump ~32 min + envio ~15 min + restore ~58 min + religar/DNS/conferência ~15 min = **~2 h** com a coleta parada. Exige `ProxyOfflineBuffer` ≥ 24 h nos proxies antes (script `infra/scripts/zabbix-proxy-set-offline-buffer.sh`, rodado pelo Ismael).
 
-- [ ] **Step 1:** Listar o snapshot mais recente do restic (`restic snapshots`, leitura) e anotar id e SHA-256 do dump no `backup-set-manifest.json`.
-- [ ] **Step 2:** Na VPS nova, como root: `ness-zabbix-object-storage-stage-restore <snapshot_id>`; conferir SHA-256 contra o manifesto e `gzip -t`.
-- [ ] **Step 3:** `ness-zabbix-native-restore restore <dump> <sha256>`; **registrar a duração** (cronômetro) e CPU/RAM/I/O. Essa duração vira a estimativa da janela da Task 7.
-- [ ] **Step 4:** Rodar `ness-zabbix-post-restore-verify`; conferir hosts/itens/triggers/proxies, `dbversion=7000000`, `actions/media/connectors ativos = 0`, `zabbix-server` mascarado, sem 10051 pública.
-- **Verifica:** checklist §1.1 atendido; duração registrada em `docs/execution/zabbix-cutover-2026-11.md`.
-- **Rollback:** nada em produção é tocado; o restore antigo (11/10) é descartado e substituído.
+### Task 3: Web da VPS nova só em loopback **[FEITA em 09/11]**
 
-### Task 3: Web da VPS nova só em loopback
-
-- [ ] **Step 1:** Subir Apache + frontend escutando em `127.0.0.1` (sem abrir 80/443), `zabbix-server` ainda mascarado. Branding e locale pelos scripts existentes.
-- [ ] **Step 2:** Fail2ban e `Require ip 127.0.0.1` no vhost; `EnableGlobalScripts=0`; guest desligado; `Admin` no grupo `Disabled`.
-- **Verifica:** `curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1/` = 200 na própria VPS; `ss -ltn` sem 80/443 públicos.
-- **Atenção:** `ness-zabbix-cutover-enable-production` (já na VPS) executa `ufw allow 80` e `443` e `ListenIP=0.0.0.0`. Com o Access, **não** pode rodar como está: a 80/443 ficam fechadas e a tela só sai pelo túnel. O fonte (`infra/scripts/zabbix-cutover-enable-production.sh`) agora tem `ZBX_WEB_EXPOSURE` (default `closed`: não abre 80/443 e aborta se já houver regra pública para 80/443; `public` = comportamento antigo) — reinstalar na VPS antes da Task 7 e **não** definir `public`.
+- Apache só em `127.0.0.1:8080` (vhost `ness-zabbix-tunnel`, `Require ip 127.0.0.1`, sem 80/443); vhosts de produção/UAT desabilitados; backup do `ports.conf` em `/root/apache-task3-*`. `zabbix-server` segue mascarado.
+- Verificado na VPS: `/` 200, `/conf`, `/include`, `/app` 403, API `apiinfo.version` responde; `ss -ltn` sem 80/443. `Admin` e `guest` no grupo `Disabled`; `EnableGlobalScripts=0`.
+- `ness-zabbix-cutover-enable-production` roda com `ZBX_WEB_EXPOSURE=closed` (default).
 
 ### Task 4: Túnel e Access na VPS nova **[FRASE]**
 
