@@ -23,9 +23,7 @@ else
   printf '\nProxyOfflineBuffer=%s\n' "$hours" >>"$conf"
 fi
 if [[ -z ${ZBX_SKIP_RESTART:-} ]]; then
-  systemctl restart zabbix-proxy
-  sleep 10
-  if ! systemctl is-active --quiet zabbix-proxy; then
+  if ! systemctl restart zabbix-proxy || { sleep 10; ! systemctl is-active --quiet zabbix-proxy; }; then
     cp -p "$bak" "$conf"; systemctl restart zabbix-proxy || true
     echo "FALHOU: backup restaurado ($bak)" >&2; exit 1
   fi
