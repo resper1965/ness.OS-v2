@@ -40,6 +40,16 @@ on:
       - 'infra/scripts/aiops-runtime-preflight.sh'
       - 'infra/tests/test-aiops-runtime-preflight.sh'
       - 'infra/tests/test-wazuh-ufw-stale.py'
+      - 'infra/scripts/zabbix-cutover-backup.sh'
+      - 'infra/tests/test-zabbix-cutover-backup.sh'
+      - 'infra/scripts/ness-object-storage-restic.sh'
+      - 'infra/tests/test-object-storage-restic-datasets.sh'
+      - 'infra/scripts/monitor-zabbix-proxy-reconnect.sh'
+      - 'infra/tests/test-zabbix-proxy-reconnect.sh'
+      - 'infra/scripts/zabbix-proxy-set-offline-buffer.sh'
+      - 'infra/tests/test-zabbix-proxy-offline-buffer.sh'
+      - 'infra/scripts/zabbix-saml-entra-apply.sh'
+      - 'infra/tests/test-zabbix-saml-entra-apply.sh'
       - 'infra/ansible/roles/wazuh/files/ufw_stale.py'
       - '.github/workflows/ci-backend.yml'
   pull_request:
@@ -125,6 +135,11 @@ jobs:
         python -m pytest -q infra/tests/test_glpi_backlog_reconcile.py
         PYTHONPATH=app/backend python -m pytest -q infra/tests/test_hub_glpi_integrity_check.py
         bash infra/tests/test-aiops-runtime-readiness.sh
+        bash infra/tests/test-zabbix-cutover-backup.sh
+        bash infra/tests/test-object-storage-restic-datasets.sh
+        bash infra/tests/test-zabbix-proxy-reconnect.sh
+        bash infra/tests/test-zabbix-proxy-offline-buffer.sh
+        bash infra/tests/test-zabbix-saml-entra-apply.sh
 
     - name: Validate merged AIOps Compose without starting services
       working-directory: .
@@ -168,6 +183,7 @@ jobs:
         bash -n infra/scripts/hub-integration-monitor.sh
         bash infra/tests/test-hub-alert-mail.sh
         bash infra/tests/test-hub-integration-readiness-report.sh
+        bash infra/tests/test-zabbix-web-exposure.sh
 
     - name: Set up Node.js 20 for n8n workflow checks
       uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4

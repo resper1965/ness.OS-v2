@@ -24,7 +24,7 @@ grep -q -- '-type f -name COMPLETED' "${restic_script}"
 grep -q 'SHA256SUMS' "${restic_script}"
 grep -q 'check_percent}%' "${restic_script}"
 grep -q -- '--keep-last "${keep_last}"' "${restic_script}"
-grep -q 'ness-os/${NESS_BACKUP_HOST_ID}/${dataset}' "${restic_script}"
+grep -q 'ness-os/${NESS_BACKUP_HOST_ID}/${repo_dataset}' "${restic_script}"
 grep -q 'EnvironmentFile mode must be 0400 or 0600' "${restic_script}"
 grep -q '\. "${env_file}"' "${restic_script}"
 

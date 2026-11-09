@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wazuh: quantas VPS contratar, e quando contratar mais</title>
+<style>
+:root{--paper:#fff;--surface:#f8fafc;--surface2:#eef2f7;--line:#e2e8f0;--ink:#0f172a;--ink2:#334155;--ink3:#475569;--ink4:#52627a;--accent:#00ade8;--accent-ink:#007aa3;--warn:#b45309;--bad:#b91c1c;--ok:#047857}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:14px/1.55 Inter,system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
+main{max-width:920px;margin:0 auto;padding:40px 24px 64px}
+h1,h2,h3{font-family:Montserrat,Inter,system-ui,sans-serif;margin:0}
+h1{font-size:26px;line-height:1.15;font-weight:600}
+h2{font-size:18px;font-weight:600;margin:40px 0 12px;padding-top:16px;border-top:1px solid var(--line)}
+h3{font-size:14px;font-weight:600;margin:0 0 6px}
+p{margin:0 0 10px;color:var(--ink2)}
+.mono,.eyebrow{font-family:"JetBrains Mono",ui-monospace,SFMono-Regular,monospace}
+.eyebrow{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink4);margin-bottom:10px}
+.lead{font-size:16px;color:var(--ink);max-width:70ch}
+.band{background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--accent);padding:16px 18px;margin:20px 0}
+.band p{color:var(--ink);margin:0}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));margin:16px 0}
+.card{border:1px solid var(--line);background:var(--surface);padding:14px 16px}
+.kpi{font:600 28px/1 Montserrat,Inter,sans-serif;color:var(--ink)}
+.kpi small{font-size:13px;font-weight:500;color:var(--ink3)}
+.lbl{font-size:12px;color:var(--ink3);margin-top:6px}
+table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13px}
+th,td{border-bottom:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+th{font-weight:600;color:var(--ink2);background:var(--surface)}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+.tag{display:inline-block;font:500 11px/1 "JetBrains Mono",monospace;padding:4px 6px;border:1px solid var(--line);background:var(--paper);color:var(--ink2)}
+.tag.ok{color:var(--ok);border-color:var(--ok)}.tag.warn{color:var(--warn);border-color:var(--warn)}.tag.bad{color:var(--bad);border-color:var(--bad)}
+figure{margin:16px 0;border:1px solid var(--line);padding:14px 16px;background:var(--paper)}
+figcaption{font-size:12px;color:var(--ink3);margin-top:8px}
+svg text{font-family:Inter,system-ui,sans-serif;fill:var(--ink2);font-size:12px}
+svg .num{font-weight:600;fill:var(--ink)}
+ul{margin:0 0 10px;padding-left:20px;color:var(--ink2)}li{margin:3px 0}
+.cols{display:grid;gap:12px;grid-template-columns:1fr 1fr}
+@media(max-width:640px){.cols{grid-template-columns:1fr}}
+.foot{font-size:12px;color:var(--ink3);margin-top:40px;border-top:1px solid var(--line);padding-top:12px}
+@media print{main{padding:0}h2{break-after:avoid}figure,.card,.band{break-inside:avoid}}
+</style>
+</head>
+<body>
+<main>
+
+<div class="eyebrow">Decisão de capacidade · 06/11/2026</div>
+<h1>Wazuh: quantas VPS contratar agora, e quando contratar mais</h1>
+<p class="lead">Contratar <strong>uma</strong> VPS agora. Ela cobre os endpoints previstos com folga de disco. Ampliar para um cluster de sete servidores só quando um dos quatro gatilhos abaixo disparar.</p>
+
+<div class="band"><p><strong>Pedido de decisão.</strong> Uma VPS de 12 vCPU, 48 GB de RAM e 400 GB de disco, <strong>€ 25,00/mês com IVA</strong> (€ 600,00 em 24 meses), preço de tabela do provedor, ainda não confirmado na conta. O código de provisionamento está pronto; nada foi criado nem cobrado. A criação só ocorre com autorização explícita à parte.</p></div>
+
+<h2>1. Onde estamos</h2>
+<div class="grid">
+  <div class="card"><div class="kpi">902</div><div class="lbl">agentes cadastrados (06/11)</div></div>
+  <div class="card"><div class="kpi">611</div><div class="lbl">agentes que geraram alerta em 04/11</div></div>
+  <div class="card"><div class="kpi">391</div><div class="lbl">agentes conectados (última contagem, 29/10)</div></div>
+  <div class="card"><div class="kpi">0,9 mi<small> /dia</small></div><div class="lbl">alertas por dia hoje, média de 03 a 05/11</div></div>
+</div>
+<p>A máquina atual (8 vCPU, 32 GB) carrega 611 agentes com load average de 3,2 em 8 vCPU (indicador de fila, não de uso de CPU; a utilização real de CPU e o steal ainda não foram medidos). Os cadastros incluem 485 agentes desconectados e 10 que nunca conectaram (contagem de 29/10), que a migração deve limpar.</p>
+
+<figure>
+<svg viewBox="0 0 640 150" width="100%" role="img" aria-label="Alertas por dia caíram de 6,2 milhões para 0,9 milhão após os cortes de ruído de 29/10">
+  <text x="0" y="16" class="num">Alertas por dia (milhões)</text>
+  <rect x="0" y="30" width="560" height="34" fill="#cbd5e1"/>
+  <text x="8" y="52" class="num">Antes dos cortes de ruído (29/10): 6,2</text>
+  <rect x="0" y="80" width="81" height="34" fill="#00ade8"/>
+  <text x="92" y="102" class="num">Hoje: 0,9 (queda de 85%)</text>
+  <text x="0" y="140">Fonte: medição na máquina atual do Wazuh, alertas diários de 03 a 05/11.</text>
+</svg>
+<figcaption>O corte de regras ruidosas, feito em 29/10, reduziu o volume em cerca de 85%. Isso é o que torna uma única VPS suficiente.</figcaption>
+</figure>
+
+<h2>2. Clientes e endpoints esperados</h2>
+<p>Os agentes se agrupam hoje em quatro grupos do Wazuh (contagem de cadastros em 29/10, sobre 886 agentes). A ligação de cada grupo ao contrato e à modalidade de atendimento ainda está pendente.</p>
+
+<figure>
+<svg viewBox="0 0 640 170" width="100%" role="img" aria-label="Agentes por grupo: RZK-AGRO 644, RZK-HOLDING 147, TARGET 82, RZK-SOL 2">
+  <g>
+    <text x="0" y="22">RZK-AGRO</text><rect x="110" y="8" width="460" height="20" fill="#00ade8"/><text x="578" y="23" class="num">644</text>
+    <text x="0" y="62">RZK-HOLDING</text><rect x="110" y="48" width="105" height="20" fill="#00ade8"/><text x="223" y="63" class="num">147</text>
+    <text x="0" y="102">TARGET</text><rect x="110" y="88" width="59" height="20" fill="#00ade8"/><text x="177" y="103" class="num">82</text>
+    <text x="0" y="142">RZK-SOL</text><rect x="110" y="128" width="2" height="20" fill="#00ade8"/><text x="120" y="143" class="num">2</text>
+  </g>
+</svg>
+<figcaption>Cadastros por grupo em 29/10. Parte deles está desconectada; os agentes conectados naquele dia somavam 391.</figcaption>
+</figure>
+
+<h3>Cenários de endpoints</h3>
+<table>
+<thead><tr><th>Cenário</th><th class="n">Agentes</th><th>Origem do número</th></tr></thead>
+<tbody>
+<tr><td>Conectados hoje</td><td class="n">≈ 400</td><td>Medido (391 em 29/10)</td></tr>
+<tr><td><strong>Premissa de projeto</strong></td><td class="n"><strong>624</strong></td><td>Maior valor já visto (21/08); próximo dos 611 que alertaram em 04/11</td></tr>
+<tr><td>Gatilho do cluster</td><td class="n">≈ 900 a 1.000</td><td>Limite da primeira onda do plano de capacidade</td></tr>
+<tr><td>Teto da arquitetura</td><td class="n">5.000</td><td>Desenho oficial; não será comprado antecipadamente</td></tr>
+</tbody>
+</table>
+<p class="mono" style="font-size:12px;color:var(--ink3)">Não há projeção de novos clientes nesta análise. Se a carteira for crescer, informe a previsão para ajustar a premissa de 624.</p>
+
+<h2>3. Quanto disco cada cenário exige (retenção de 90 dias)</h2>
+<figure>
+<svg viewBox="0 0 640 260" width="100%" role="img" aria-label="Disco necessário em 90 dias por cenário contra os 400 GB da VPS">
+  <line x1="40" y1="20" x2="40" y2="210" stroke="#94a3b8"/>
+  <line x1="40" y1="210" x2="630" y2="210" stroke="#94a3b8"/>
+  <!-- escala: 0..900 GB => 190px  => 0.2111 px/GB; 400 GB => y=125.6 -->
+  <line x1="40" y1="125.6" x2="630" y2="125.6" stroke="#b91c1c" stroke-dasharray="5 4"/>
+  <text x="46" y="118" style="fill:#b91c1c" class="num">400 GB contratados</text>
+  <rect x="80"  y="180.6" width="70" height="29.4"  fill="#00ade8"/><text x="80"  y="174" class="num">≈ 140</text><text x="68" y="228">≈ 400 agentes</text>
+  <rect x="210" y="169"   width="70" height="41"    fill="#00ade8"/><text x="210" y="162" class="num">≈ 194</text><text x="196" y="228">624 agentes</text>
+  <rect x="340" y="149.9" width="70" height="60.1"  fill="#00ade8"/><text x="340" y="143" class="num">≈ 285</text><text x="318" y="228">1.000 agentes</text>
+  <rect x="470" y="33"    width="70" height="177"   fill="#94a3b8"/><text x="470" y="26" class="num">≈ 840</text><text x="444" y="228">volume de outubro</text>
+  <text x="444" y="244">(6,2 mi alertas/dia)</text>
+</svg>
+<figcaption>Estimativa pela medição atual (≈ 1,1 KB por alerta, mais 30% de reserva, mais arquivos locais). O cenário de 1.000 agentes é extrapolação linear. O índice real ainda não foi medido; a tabela oficial do Wazuh daria cerca de 1,9 TB para 624 agentes, 12 vezes acima da medição.</figcaption>
+</figure>
+<p><strong>Leitura.</strong> Com o volume atual, 400 GB cobrem até 1.000 agentes com folga de 1,4 vez. O risco único é o volume de alertas voltar ao de outubro: aí 90 dias não cabem, e a saída é disco adicional ou a Storage VPS (1,2 TB, também € 25,00/mês, com menos CPU e RAM).</p>
+
+<h2>4. As duas arquiteturas</h2>
+<div class="cols">
+  <div class="card">
+    <div class="eyebrow">Agora</div>
+    <h3>Um nó (manager, indexer e dashboard juntos)</h3>
+    <div class="kpi">1 <small>VPS</small></div>
+    <ul>
+      <li>€ 25,00/mês com IVA, 24 meses</li>
+      <li>Sem alta disponibilidade</li>
+      <li>Operação simples: um servidor para manter</li>
+      <li>A máquina atual segue como reserva e plano de volta</li>
+    </ul>
+  </div>
+  <div class="card">
+    <div class="eyebrow">Só se um gatilho disparar</div>
+    <h3>Cluster de primeira onda</h3>
+    <div class="kpi">7 <small>VPS</small></div>
+    <ul>
+      <li>€ 81,50/mês sem IVA, mais rede privada e disco extra (preços a confirmar)</li>
+      <li>Alta disponibilidade: tolera a falha de um indexer</li>
+      <li>Operação pesada: certificados entre nós, rede privada, monitoração por nó</li>
+      <li>Migração sem reinstalar agentes</li>
+    </ul>
+  </div>
+</div>
+<p>O desenho de agosto previa 8 servidores logo na primeira onda (€ 86/mês). Foi substituído por este, porque a medição mostrou que um nó basta e porque capacidade não usada não se compra antecipadamente.</p>
+
+<h2>5. Quando passar para o cluster</h2>
+<p>Medir o nó único por pelo menos 14 dias. Qualquer um dos quatro gatilhos justifica o cluster:</p>
+<table>
+<thead><tr><th>#</th><th>Gatilho</th></tr></thead>
+<tbody>
+<tr><td class="mono">1</td><td>CPU ou taxa de eventos acima de 70% da capacidade do nó por 14 dias</td></tr>
+<tr><td class="mono">2</td><td>Disco projetado com menos de 20% livre antes de completar a retenção</td></tr>
+<tr><td class="mono">3</td><td>Cliente exige alta disponibilidade em contrato, ou agentes passam de 900 com previsão de chegar a 1.000 em 90 dias</td></tr>
+<tr><td class="mono">4</td><td>Fila persistente de eventos descartados no servidor</td></tr>
+</tbody>
+</table>
+
+<figure>
+<svg viewBox="0 0 640 110" width="100%" role="img" aria-label="Escada de crescimento: 1 VPS até 1.000 agentes, cluster de 7 VPS acima, mais nós até 5.000">
+  <rect x="0"   y="30" width="210" height="36" fill="#00ade8"/><text x="10" y="53" style="fill:#04121c" class="num">1 VPS · até ≈ 1.000 agentes</text>
+  <rect x="210" y="30" width="230" height="36" fill="#94a3b8"/><text x="220" y="53" style="fill:#0f172a" class="num">7 VPS · cluster (≈ 1.000)</text>
+  <rect x="440" y="30" width="200" height="36" fill="#cbd5e1"/><text x="450" y="53" style="fill:#0f172a" class="num">mais nós até 5.000</text>
+  <text x="0" y="90">Hoje: ≈ 400 a 624 agentes</text>
+  <path d="M0 74 v-6 M0 74 h210" stroke="#475569" fill="none"/>
+</svg>
+<figcaption>O avanço de uma etapa para a seguinte acontece por gatilho medido, não por calendário.</figcaption>
+</figure>
+
+<h2>6. Custo</h2>
+<table>
+<thead><tr><th>Etapa</th><th class="n">€/mês</th><th class="n">24 meses</th><th>Situação</th></tr></thead>
+<tbody>
+<tr><td>1 VPS, 12 vCPU / 48 GB / 400 GB (com IVA)</td><td class="n">25,00</td><td class="n">600,00</td><td><span class="tag ok">recomendada</span></td></tr>
+<tr><td>Alternativa: Storage VPS de 1,2 TB (se o volume voltar ao de outubro; com IVA)</td><td class="n">25,00</td><td class="n">600,00</td><td><span class="tag warn">só se necessário</span></td></tr>
+<tr><td>Cluster de 7 VPS, sem rede privada e sem disco extra (sem IVA, preço do BOM)</td><td class="n">81,50</td><td class="n">1.956,00</td><td><span class="tag warn">só com gatilho</span></td></tr>
+</tbody>
+</table>
+<p>Preços de tabela do provedor: VPS única consultada em 06/11/2026 (com IVA); cluster vem do BOM de agosto (sem IVA). Nenhum foi confirmado no carrinho. Disco extra e rede privada não têm preço publicado. Backup automático não está incluído.</p>
+
+<h2>7. O que ainda precisa de decisão</h2>
+<ul>
+  <li><strong>Retenção pesquisável:</strong> 30 ou 90 dias (a conta de disco acima usa 90).</li>
+  <li><strong>OT:</strong> duração da janela retrospectiva (teto de 24 h), banda e capacidade. Não há dado de OT hoje, então o pico não está dimensionado.</li>
+  <li><strong>Capacidade de agentes:</strong> confirmar a premissa de 624 e autorizar a limpeza dos cadastros desconectados.</li>
+  <li><strong>Modalidade por grupo</strong> (quem envia os dados e de onde) e a ligação de cada grupo ao contrato.</li>
+  <li><strong>Criação da VPS:</strong> autorização explícita, com o custo à vista.</li>
+</ul>
+
+<div class="foot">
+Fontes: dimensionamento do Wazuh de 06/11/2026 (<span class="mono">docs/specs/wazuh-r3a-dimensionamento.md</span>) e BOM de 29/10/2026 (<span class="mono">docs/procurement/wazuh-bom-2026-10.md</span>). Medições feitas por leitura na máquina atual, sem credencial do indexer; o tamanho real do índice e o número atual de agentes conectados não foram medidos. Valores estimados estão marcados como tal.
+</div>
+</main>
+</body>
+</html>

@@ -72,18 +72,18 @@ async def test_model_timeout_does_not_block_nor_lose_signal(monkeypatch):
 
 @pytest.mark.parametrize("level", [10, 12, 15])
 def test_attendance_decision_uses_only_rule_and_score(level):
-    # rótulos de teste, não piso: o limiar vem de settings
+    # rótulos de teste, não piso: o limiar vem de policy_params (padrão 12)
     got = secops._attendance_required(
-        False, TriageAction.ARCHIVE, {"level": level, "level_invalid": False}
+        False, TriageAction.ARCHIVE, {"level": level, "level_invalid": False}, 12
     )
-    assert got is (level >= secops.settings.soc_attendance_min_level)
+    assert got is (level >= 12)
 
 
 def test_pending_and_high_score_always_attend():
     low = {"level": 1, "level_invalid": False}
-    assert secops._attendance_required(True, TriageAction.ARCHIVE, low) is True
-    assert secops._attendance_required(False, TriageAction.TRIAGE_L1, low) is True
-    assert secops._attendance_required(False, TriageAction.ARCHIVE, low) is False
+    assert secops._attendance_required(True, TriageAction.ARCHIVE, low, 12) is True
+    assert secops._attendance_required(False, TriageAction.TRIAGE_L1, low, 12) is True
+    assert secops._attendance_required(False, TriageAction.ARCHIVE, low, 12) is False
 
 
 def test_free_text_rejection_is_not_echoed_in_log(monkeypatch, caplog):

@@ -31,11 +31,28 @@ def is_zabbix_api_url(url: str) -> bool:
 class ZabbixClient:
     """Cliente JSON-RPC assíncrono para a API do Zabbix 7.0 LTS."""
 
+    _partial_warned = False
+
     def __init__(self, url: str | None = None, token: str | None = None):
         self.url = (settings.zabbix_url if url is None else url).rstrip("/")
         self.token = settings.zabbix_api_token if token is None else token
         self.timeout = httpx.Timeout(10.0, read=30.0)
         self.verify_ssl = settings.zabbix_verify_cert
+
+    @staticmethod
+    def _access_headers() -> dict[str, str]:
+        """Service token do Cloudflare Access: só vai se ambos estiverem definidos."""
+        cid = settings.zabbix_access_client_id
+        secret = settings.zabbix_access_client_secret
+        if cid and secret:
+            return {"CF-Access-Client-Id": cid, "CF-Access-Client-Secret": secret}
+        if (cid or secret) and not ZabbixClient._partial_warned:
+            ZabbixClient._partial_warned = True
+            logger.warning(
+                "NINF_ZABBIX_ACCESS_CLIENT_ID e NINF_ZABBIX_ACCESS_CLIENT_SECRET "
+                "devem ser definidos juntos; nenhum header do Access será enviado"
+            )
+        return {}
 
     async def _call(self, method: str, params: dict[str, Any] | list[str]) -> Any:
         """Executa uma chamada JSON-RPC para a API do Zabbix."""
@@ -48,7 +65,7 @@ class ZabbixClient:
 
         # Zabbix 7.0+: API tokens (criados na UI) devem usar Bearer header.
         # O campo "auth" no payload era para session tokens (user.login) — deprecado em 7.0.
-        headers = {"Content-Type": "application/json-rpc"}
+        headers = {"Content-Type": "application/json-rpc", **self._access_headers()}
         if self.token:
             headers["Authorization"] = f"Bearer {self.token}"
 
@@ -57,8 +74,13 @@ class ZabbixClient:
         ) as client:
             try:
                 response = await client.post(self.url, json=payload, headers=headers)
+                if response.is_redirect:
+                    logger.error("Zabbix API %s redirect refused", method)
+                    raise RuntimeError("Zabbix API: redirecionamento recusado")
                 response.raise_for_status()
                 res_data = response.json()
+            except RuntimeError:
+                raise
             except Exception as exc:
                 logger.error("Zabbix API %s failed: %s", method, type(exc).__name__)
                 raise RuntimeError("Zabbix API indisponível") from exc
@@ -77,7 +99,7 @@ class ZabbixClient:
         *,
         authenticated: bool,
     ) -> Any:
-        headers = {"Content-Type": "application/json-rpc"}
+        headers = {"Content-Type": "application/json-rpc", **self._access_headers()}
         if authenticated:
             headers["Authorization"] = f"Bearer {self.token}"
 
