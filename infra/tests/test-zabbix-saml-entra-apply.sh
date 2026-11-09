@@ -8,7 +8,8 @@ printf '#!/bin/sh\ncat >/dev/null; printf "FAKEHASH"\n' >"$d/hash"; chmod +x "$d
 printf 'pw\n' >"$d/pw"; printf '<?php\n' >"$d/web.php"
 T=3b1a6aeb-5d84-4bc9-8442-92226a949039
 w() { printf 'TENANT_ID=%s\nDOMAIN=ex.com\nSP_ENTITY=https://z.ex.com\nCERT_SRC=%s\nSSO_USERS="%s"\nLOCK_USERS="%s"\nAKADMIN_PASS_FILE=%s\n' "$1" "$d/c.crt" "$2" "$3" "$d/pw" >"$d/cfg"; }
-export ZBX_WEB_GROUP="$(id -gn)" ZBX_SAML_CONFIG="$d/cfg" ZBX_HASH_BIN="$d/hash" ZBX_WEB_CONF="$d/web.php" ZBX_CERT_DST="$d/idp.crt" ZBX_BACKUP_DIR="$d/bk" ZBX_MYSQL="cat"
+ZBX_WEB_GROUP=$(id -gn)
+export ZBX_WEB_GROUP ZBX_SAML_CONFIG="$d/cfg" ZBX_HASH_BIN="$d/hash" ZBX_WEB_CONF="$d/web.php" ZBX_CERT_DST="$d/idp.crt" ZBX_BACKUP_DIR="$d/bk" ZBX_MYSQL="cat"
 w "$T" "alice bob" "bob"
 S >"$d/dry"; [[ ! -e $d/idp.crt ]] || { echo "simulacao instalou cert" >&2; exit 1; }
 grep -q "<hash>" "$d/dry"; grep -q FAKEHASH "$d/dry" && { echo "hash vazou na simulacao" >&2; exit 1; }
