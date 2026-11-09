@@ -44,6 +44,8 @@ on:
       - 'infra/tests/test-zabbix-cutover-backup.sh'
       - 'infra/scripts/ness-object-storage-restic.sh'
       - 'infra/tests/test-object-storage-restic-datasets.sh'
+      - 'infra/scripts/monitor-zabbix-proxy-reconnect.sh'
+      - 'infra/tests/test-zabbix-proxy-reconnect.sh'
       - 'infra/ansible/roles/wazuh/files/ufw_stale.py'
       - '.github/workflows/ci-backend.yml'
   pull_request:
@@ -131,6 +133,7 @@ jobs:
         bash infra/tests/test-aiops-runtime-readiness.sh
         bash infra/tests/test-zabbix-cutover-backup.sh
         bash infra/tests/test-object-storage-restic-datasets.sh
+        bash infra/tests/test-zabbix-proxy-reconnect.sh
 
     - name: Validate merged AIOps Compose without starting services
       working-directory: .
