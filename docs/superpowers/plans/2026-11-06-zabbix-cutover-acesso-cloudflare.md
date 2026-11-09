@@ -25,7 +25,7 @@ Não verificado: `ProxyOfflineBuffer`/`ConfigFrequency` dos proxies, duração r
 
 ## Restrições globais
 
-- ADR 0015: o provedor autentica e o Zabbix autoriza (sem JIT); cliente nunca alcança o Zabbix; conta local de emergência e SSH com chave e origem restrita ficam; **Entra e SAML só na Fase B**.
+- ADR 0015: o provedor autentica e o Zabbix autoriza (sem JIT); cliente nunca alcança o Zabbix; conta local de emergência e SSH com chave e origem restrita ficam; **Entra e SAML só na Fase B, com uma exceção decidida pelo Ricardo em 09/11 ("antecipa o SAML do Zabbix"): o SAML do Entra no Zabbix é antecipado para este cutover, porque a segunda senha é o elo fraco do alvo do alerta PHP2Shell.** Seguem na Fase B o Entra no Hub, o Access em GLPI/n8n e o desligamento do Authentik. Validado em UAT na VPS nova (login de técnico pelo M365 em 09/11, antes do corte); a ADR 0015 continua valendo para o resto.
 - Custo: Cloudflare Free (≤ 50 usuários; hoje ≤ 5 técnicos). Sem licença nova.
 - Contraria o ADR 0015 ("não mexer em Cloudflare/DNS antes do aceite do MVP"): Tasks 4 e 6 em diante pedem **[FRASE]** do Ricardo.
 - Segredos só em `projetos.env` (gravados pelo Ricardo) ou Psono; nada em log nem em arquivo versionado. Actions, media types e connectors desligados no restore; `EnableGlobalScripts=0`.
@@ -114,7 +114,7 @@ Não verificado: `ProxyOfflineBuffer`/`ConfigFrequency` dos proxies, duração r
 - [ ] **Step 1:** Fechar 80/443/2222 só na VPS nova (já nasce assim) e confirmar que a origem não recebe mais proxies. Testar a conta de emergência (SSH com chave + port forward).
 - [ ] **Step 2:** PSK nos 19 proxies, em ondas, com `zabbix_proxy_tls_connect: psk` e `reconnect-proxies.yml --limit`; só depois fechar `noencryption`. Exige o inventário sem `PLACEHOLDER_IP` (17 hoje).
 - [ ] **Step 3:** Kernel da origem e forense antes de reaproveitar a máquina; observação D+1, D+3, D+7.
-- [ ] **Step 4 (Fase B):** trocar o IdP do Access para o Entra e ligar SAML no Zabbix, sem JIT.
+- [ ] **Step 4 (Fase B):** trocar o IdP do Access para o Entra (o SAML do Zabbix já foi antecipado no Step 3b da Task 7).
 
 ## Autocheck
 
