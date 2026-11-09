@@ -67,7 +67,7 @@ Não verificado: `ProxyOfflineBuffer`/`ConfigFrequency` dos proxies, duração r
 - [ ] **Step 1:** Subir Apache + frontend escutando em `127.0.0.1` (sem abrir 80/443), `zabbix-server` ainda mascarado. Branding e locale pelos scripts existentes.
 - [ ] **Step 2:** Fail2ban e `Require ip 127.0.0.1` no vhost; `EnableGlobalScripts=0`; guest desligado; `Admin` no grupo `Disabled`.
 - **Verifica:** `curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1/` = 200 na própria VPS; `ss -ltn` sem 80/443 públicos.
-- **Atenção:** `ness-zabbix-cutover-enable-production` (já na VPS) executa `ufw allow 80` e `443` e `ListenIP=0.0.0.0`. Com o Access, **não** pode rodar como está: a 80/443 ficam fechadas e a tela só sai pelo túnel. Adaptar o script (ou aplicar só os passos do `zabbix-server`: `ListenIP`, `fping`, `enable --now`) na Task 7, num PR próprio com revisor.
+- **Atenção:** `ness-zabbix-cutover-enable-production` (já na VPS) executa `ufw allow 80` e `443` e `ListenIP=0.0.0.0`. Com o Access, **não** pode rodar como está: a 80/443 ficam fechadas e a tela só sai pelo túnel. O fonte (`infra/scripts/zabbix-cutover-enable-production.sh`) agora tem `ZBX_WEB_EXPOSURE` (default `closed`: não abre 80/443 e aborta se já houver regra pública para 80/443; `public` = comportamento antigo) — reinstalar na VPS antes da Task 7 e **não** definir `public`.
 
 ### Task 4: Túnel e Access na VPS nova **[FRASE]**
 
