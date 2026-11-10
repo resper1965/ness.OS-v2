@@ -93,6 +93,10 @@ async def get_current_user(
 
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
+    # Fecha a transação do SELECT já: sem isso a conexão fica "idle in transaction"
+    # até o fim da resposta (SSE, chamadas ao Zabbix) e esgota o limite do Postgres (#231).
+    # expire_on_commit=False mantém `user` carregado.
+    await db.commit()
     if not user or not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

@@ -273,3 +273,32 @@ def test_frontend_never_handles_session_token() -> None:
     assert "localStorage" not in auth_source
     assert "stream?token=" not in session_consumers
     assert "Authorization: `Bearer ${token}`" not in session_consumers
+
+
+def test_get_current_user_closes_transaction_after_lookup() -> None:
+    """#231: o SELECT de autenticação não pode manter a conexão em transação aberta."""
+    db = _Db(_user())
+    commits: list[int] = []
+
+    async def commit() -> None:
+        commits.append(1)
+
+    db.commit = commit  # type: ignore[method-assign]
+    app = FastAPI()
+    app.include_router(auth_router)
+
+    @app.get("/protected")
+    async def protected(current_user=Depends(get_current_user)):
+        assert commits, "transação ainda aberta dentro da rota"
+        return {"id": current_user.id}
+
+    async def override_db():
+        yield db
+
+    app.dependency_overrides[get_db] = override_db
+    client = TestClient(app, base_url="https://hub.ness.com.br")
+    client.cookies.set(
+        SESSION_COOKIE_NAME,
+        create_access_token(user_id=42, role=UserRole.noc.value),
+    )
+    assert client.get("/protected").json() == {"id": 42}
