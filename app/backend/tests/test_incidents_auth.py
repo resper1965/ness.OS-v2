@@ -193,6 +193,9 @@ class _StreamSession:
     async def execute(self, _: object) -> SimpleNamespace:
         return SimpleNamespace(scalar_one_or_none=lambda: self.user)
 
+    async def commit(self) -> None:
+        pass
+
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("role", (UserRole.cliente, UserRole.operator, UserRole.viewer))
