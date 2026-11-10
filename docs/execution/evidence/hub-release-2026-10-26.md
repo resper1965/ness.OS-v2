@@ -109,3 +109,18 @@ OK do Ricardo em 05/11 (aceitou o risco do SSO; sem uso de OIDC nos últimos 7 d
 Depois: `NINF_TRANSACTIONAL_EMAIL_ENABLED=true` em `/opt/n-infraops/app/.env` e no `.env` da release; `worker-alerts` recriado; Resend respondeu 200 e o envio foi aceito. Domínio `ness.com.br` verificado no Resend. Backup dos `.env` em `/opt/n-infraops/change-backups/p3-email-20261105T172515/`.
 
 Rollback: `.env` do backup + recriar `worker-alerts`; API para a release `3b7e7cb`.
+
+## 10/11/2026 — promoção `4a72949` (#232, correção do #231)
+
+Incidente: em 10/11 a API ficou ~24 min fora (14:49–15:13 UTC) com `asyncpg TooManyConnectionsError`: 63 conexões `idle in transaction` no SELECT de usuário de `get_current_user`, Postgres em 100/100. `docker restart ninf-api` (OK do Ricardo, "reinicia a api do Hub"; logs em `/opt/n-infraops/change-backups/api-restart-20261110T121306/`). Nenhum alerta perdido: incidentes e tickets do GLPI conferem por hora; 70 alertas reenviados pelo Zabbix às 15:13 com 202.
+
+Correção (#232): `await db.commit()` logo após o SELECT do usuário, para a conexão não ficar presa durante o SSE e as chamadas ao Zabbix. Teste novo falha sem a correção. Sem migração. Frontend não incluso.
+
+Imagem `ghcr.io/resper1965/ninf-api@sha256:0d12dd407487bfeaceb9d9f4673f2e39baa96fa18c8f4778d7e410d42dab62a1`. `aiops-promote-hub-api.sh`: `promotion=PASS`, `backup_set=20261110T135905-0300` (backup novo iniciado pelo script; GLPI e n8n pararam ~7 min), release anterior `69daf30`, `hub_http=401` (sem sessão). OK do Ricardo: "promove" (disparo às 13:58 em Brasília, fora do horário combinado das 14h, por causa do incidente).
+
+Verificado 3 min depois: API e workers `healthy`, `/ready` 200, 2 conexões no Postgres, 0 erros nos logs, 23 alertas com 202 e 24 tickets criados em 15 min.
+
+Rollback: release `69daf30` (`docker compose -p app -f /opt/n-infraops/releases/69daf3082bebe2ac78be4ba2d13f0590bfa8d370/app/docker-compose.yml -f …/docker-compose.tickets.yml up -d --no-deps --force-recreate api worker-alerts worker-ml`).
+
+Aberto no #231: rotas que chamam o Zabbix depois de outro `execute` ainda podem segurar transação; polling do dashboard (~140 req/min por navegador); ícones PNG do PWA (o manifest agora aponta para o SVG).
+

@@ -21,4 +21,4 @@
 
 ## Aceite
 
-Em 09/11/2026 o Ricardo aceitou os 7 itens ("sim para todos"), como padrão interno, `contractual=false`, editável depois por contrato. O aceite não é promoção: o item 5 mexe em configuração do GLPI e só se aplica com frase própria; os itens 1, 4 e 7 ainda não têm campo cadastrado no banco.
+Em 09/11/2026 o Ricardo aceitou os 7 itens ("sim para todos"), como padrão interno, `contractual=false`, editável depois por contrato. O aceite não é promoção: o item 5 mexe em configuração do GLPI e só se aplica com frase própria; o item 7 já está cadastrado (4 passos do escalonamento, contrato 1); os itens 1 e 4 não ganham campo agora, porque nada os consome (a pausa de SLA vive no GLPI; o revisor só faz sentido com aviso ou escala real).
