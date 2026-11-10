@@ -124,3 +124,5 @@ Rollback: release `69daf30` (`docker compose -p app -f /opt/n-infraops/releases/
 
 Aberto no #231: rotas que chamam o Zabbix depois de outro `execute` ainda podem segurar transação; polling do dashboard (~140 req/min por navegador); ícones PNG do PWA (o manifest agora aponta para o SVG).
 
+
+Frontend promovido em 10/11 (`63604a2`, #235): `ghcr.io/resper1965/ninf-frontend@sha256:82ea3432a1e993cae010ab0ca765f2bfea11f5526a1eae4d1941171c8cf0298c`, troca de `NINF_FRONTEND_IMAGE` só no `.env` da release `4a72949` (o de `/opt/n-infraops/app` está vazio), backup em `change-backups/frontend-20261110T150012/release.env`, recriação só do contêiner `ninf-frontend`; Hub 200, API `healthy` sem reinício. Rollback: imagem `c2c0953f…` no mesmo `.env` e recriar o contêiner. Teste de push segue pendente (ver `STATE.md`).
