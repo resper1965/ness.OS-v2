@@ -11,6 +11,7 @@ import LoginPage from './components/LoginPage';
 import SecopsModule from './components/SecopsModule';
 import ModuleSwitcher, { type NessModule } from './components/ModuleSwitcher';
 import CoreDashboard from './components/CoreDashboard';
+import { debounce } from './debounce';
 import { useAuth } from './hooks/useAuth';
 import PushNotificationToggle from './components/PushNotificationToggle';
 import NotificationInbox from './components/NotificationInbox';
@@ -326,20 +327,25 @@ function AppShellBody({ AUTH, logout, user }: {
     if (currentView === 'incidents') fetchIncidents();
   }, [currentView, fetchIncidents]);
 
+  // Rajada de alertas (dezenas de eventos SSE) vira uma recarga só: sem isso cada evento
+  // refazia 3 chamadas do dashboard e a API esgotou o Postgres em 10/11 (#231).
   // Escuta SSE para incidentes em tempo real
   useEffect(() => {
     if (!user) return;
 
     const sseUrl = `${API_BASE}/api/incidents/stream`;
     const eventSource = new EventSource(sseUrl, { withCredentials: true });
+    const scheduleReload = debounce(() => {
+      if (currentView === 'incidents') void fetchIncidents();
+      if (isOperator) void fetchData();
+      setInboxVersion(v => v + 1);
+    }, 2000);
 
     eventSource.addEventListener('incident', (event) => {
       try {
         const eventData = JSON.parse(event.data);
         if (!access.matchesTenant(selectedTenant, eventData.tenant_id)) return;
-        if (currentView === 'incidents') void fetchIncidents();
-        if (isOperator) void fetchData();
-        setInboxVersion(v => v + 1);
+        scheduleReload();
       } catch (err) {
         console.error('Erro ao analisar dados do SSE:', err);
       }
@@ -359,6 +365,7 @@ function AppShellBody({ AUTH, logout, user }: {
     };
 
     return () => {
+      scheduleReload.cancel();
       eventSource.close();
     };
   }, [user, fetchData, fetchIncidents, selectedTenant, currentView, isOperator, logout]);
