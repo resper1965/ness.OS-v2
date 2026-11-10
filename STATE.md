@@ -46,7 +46,7 @@ Tasks do [plano de execução](docs/superpowers/plans/2026-10-26-ness-os-executi
 - Recuperação Zabbix → Hub ligada em 03/11 (ação 7 e media type 72): antes nenhum incidente era marcado como recuperado. Frontend com o contador novo promovido em 04/11 (#149) — [evidência](docs/execution/evidence/zabbix-hub-recovery-2026-11-03.md)
 
 ### Em andamento
-- Padrões operacionais aceitos em 09/11 (7 itens, internos, `contractual=false`; [folha](docs/specs/padroes-operacionais-propostos.md)). Falta cadastrar revisor/dia da amostra, pausa do SLA e plantão; fechamento automático no GLPI só com frase própria.
+- Padrões operacionais aceitos em 09/11 (7 itens, internos, `contractual=false`; [folha](docs/specs/padroes-operacionais-propostos.md)). Já cadastrados: calendários e escalonamento `soc`→`noc`→`operator`→`admin` (4 passos, contrato 1). Revisor/dia da amostra e pausa do SLA não ganham campo agora (nada os consome; a pausa vive no GLPI). Faltam a escala de plantão real (fonte a definir) e feriados; fechamento automático no GLPI só com frase própria.
 - Cutover do Zabbix (sábado 14/11 23h, #208 a #225): script de backup final (#219), ProxyOfflineBuffer (#221), SAML do Entra (#223, #224), roteiro final com pré-checagens de sexta (#225). Web pública desligada; restauração testada em 58 min (#222). Sem rollback possível após restaurar o banco no novo IP: o backup tem 23h59min59s de idade.
 - Identidade: IdP do Hub configurável por ambiente (#211) para ligar o Entra ID ao Hub (antes só Authentik). ADR 0015 revisado (#209). Fase B (Entra, Cloudflare Access, desligar Authentik) só após o aceite do MVP.
 - P3 backend (#210): caixa de avisos no frontend, ack e link da notificação abre o caso. Falta UI/PWA (push exige assinatura) e escala de plantão real.
