@@ -74,6 +74,10 @@ Esperado: `restore=PASS`, 203 tabelas, `dbversion=7000000`, `active_actions_afte
 ssh ness_admin@169.58.234.9 'sudo ness-zabbix-saml-entra-apply'          # simulação: ler o SQL
 ssh ness_admin@169.58.234.9 'sudo ness-zabbix-saml-entra-apply --apply'  # aplica
 ```
+O `userdirectoryid=NULL` do `akadmin` é aplicado **sempre**, com ou sem arquivo de senha: sem isso o
+restore deixa o `akadmin` preso ao diretório SAML antigo e a senha local é recusada (aconteceu em
+10/11). A senha em si só é trocada se `AKADMIN_PASS_FILE` estiver definido na chamada; o arquivo em
+`/etc/ness-os/akadmin.pass` existe como reserva, mas o script não depende dele.
 Refaz o IdP, o certificado, os usernames com e-mail, o bloqueio da senha local de 14 usuários e a senha do `akadmin`. `resper` e `akadmin` mantêm senha local (quebra de vidro).
 
 ### Passo 6: ~00:55 Ligar o server no destino (notificações desligadas)

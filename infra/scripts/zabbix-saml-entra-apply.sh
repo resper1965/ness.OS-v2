@@ -40,13 +40,16 @@ for u in $LOCK_USERS; do
   sql+="UPDATE users SET passwd='$h' WHERE username='$u@$DOMAIN'; DELETE FROM sessions WHERE userid=(SELECT userid FROM users WHERE username='$u@$DOMAIN');
 "
 done
+# O restore da producao traz o akadmin ligado ao diretorio SAML antigo, e o Zabbix 7.0 trata
+# userdirectoryid != NULL como externo e recusa a senha local, mesmo com hash certo. Isso precisa
+# valer SEMPRE, inclusive sem arquivo de senha: sem esta linha o akadmin volta quebrado depois de
+# cada restore (aconteceu em 10/11).
+sql+="UPDATE users SET userdirectoryid=NULL WHERE username='akadmin'; DELETE FROM sessions WHERE userid=(SELECT userid FROM users WHERE username='akadmin');"
+
 if [[ -n ${AKADMIN_PASS_FILE:-} ]]; then
   [[ -f $AKADMIN_PASS_FILE ]] || { echo "sem $AKADMIN_PASS_FILE" >&2; exit 2; }
   h=$(hash <"$AKADMIN_PASS_FILE")
-  # userdirectoryid != 0 faz o Zabbix 7.0 tratar o usuario como externo e recusar a senha local,
-  # mesmo com hash certo. O restore da producao traz akadmin ligado ao diretorio SAML antigo.
-  sql+="UPDATE users SET passwd='$h', userdirectoryid=NULL WHERE username='akadmin'; DELETE FROM sessions WHERE userid=(SELECT userid FROM users WHERE username='akadmin');
-"
+  sql+="UPDATE users SET passwd='$h' WHERE username='akadmin';"
 fi
 ((apply)) || { echo "$sql" | sed -E "s/passwd='[^']*'/passwd='<hash>'/"; echo "(simulacao; use --apply)"; exit 0; }
 
