@@ -271,6 +271,7 @@ Uma entrega termina com: alteração pequena revisável, teste/readback pertinen
 | Hub/PWA/dados | [Fase 4](2026-09-18-phase-4-dashboard-operational-truth.md) |
 | UAT/produção | [Fase 6](2026-09-18-phase-6-integrated-acceptance.md), [testes históricos do canário](2026-09-27-ness-os-mvp-delivery.md) |
 | Wazuh | [Rollout](2026-09-18-wazuh-4147-production-rollout.md), [ingestão](2026-09-18-wazuh-security-signal-ingestion.md) |
+| Investigação de casos L2 (Vigil candidato) | [Plano de entregas](2026-11-11-vigil-investigacao-l2.md) e [ADR 0022](../../adr/0022-vigil-l2-investigation.md), proposto; não altera F6 nem F7 |
 | Psono/segredos/AIOps/Workspace | [Roteiro geral](2026-10-11-ness-os-complete-implementation-route.md), seções correspondentes, ajustadas pelas decisões deste master |
 
 Não executar instrução histórica conflitante: segunda cópia não é requisito inicial novo; Psono dedicado não volta a decisão em aberto; versão/onda Wazuh é conferida na execução; SQL de personalização legado está substituído. Detalhes técnicos não disponíveis no plano de domínio são definidos como tarefa pequena antes da mudança, com arquivo/interface/teste exatos, sem iniciar implementação ambígua.
