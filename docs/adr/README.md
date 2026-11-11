@@ -19,5 +19,6 @@
 | [0015](0015-entra-id-identity-local-authorization.md) | Entra ID autentica; cada sistema autoriza; Authentik sai | Aceita |
 | [0016](0016-m365-integrations.md) | Integrações com o Microsoft 365: o que existe, o que não existe e as regras | Aceita |
 | [0021](0021-action1-endpoint-executor.md) | Action1 como executor de endpoint | Aceita; homologação pendente |
+| [0022](0022-vigil-l2-investigation.md) | Vigil como candidato à investigação de casos L2 | Proposta |
 
 Novas decisões devem ser registradas antes da implementação quando alterarem arquitetura, segurança, operação ou custo recorrente.
