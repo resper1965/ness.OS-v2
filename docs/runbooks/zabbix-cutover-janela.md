@@ -76,8 +76,26 @@ ssh ness_admin@169.58.234.9 'sudo ness-zabbix-saml-entra-apply --apply'  # aplic
 ```
 O `userdirectoryid=NULL` do `akadmin` é aplicado **sempre**, com ou sem arquivo de senha: sem isso o
 restore deixa o `akadmin` preso ao diretório SAML antigo e a senha local é recusada (aconteceu em
-10/11). A senha em si só é trocada se `AKADMIN_PASS_FILE` estiver definido na chamada; o arquivo em
-`/etc/ness-os/akadmin.pass` existe como reserva, mas o script não depende dele.
+10/11).
+
+**Estado em 11/11, conferido:** `/etc/ness-os/akadmin.pass` **não existe** no destino e
+`AKADMIN_PASS_FILE` **não está definido** em `/etc/ness-os/zabbix-saml.env`. Nesse estado o script
+desliga o diretório, mas **não troca a senha do `akadmin`**: ela fica a que o restore trouxe da
+origem, e a senha de quebra de vidro registrada no `projetos.env`
+(`ZBX_BREAKGLASS_AKADMIN_PASSWORD`) **não vale**.
+
+Para a quebra de vidro funcionar com o valor registrado, antes do `--apply`:
+
+```bash
+# no destino, root: gravar a senha de quebra de vidro (sem eco na tela)
+sudo install -m 600 -o root -g root /dev/null /etc/ness-os/akadmin.pass
+sudo sh -c 'read -r s; printf %s "$s" > /etc/ness-os/akadmin.pass'   # colar a senha e Enter
+echo 'AKADMIN_PASS_FILE=/etc/ness-os/akadmin.pass' | sudo tee -a /etc/ness-os/zabbix-saml.env
+sudo ness-zabbix-saml-entra-apply            # simulação: confirmar que troca a senha
+sudo ness-zabbix-saml-entra-apply --apply
+```
+
+Sem esse passo, o `akadmin` continua com a senha da origem e a quebra de vidro documentada não abre.
 Refaz o IdP, o certificado, os usernames com e-mail, o bloqueio da senha local de 14 usuários e a senha do `akadmin`. `resper` e `akadmin` mantêm senha local (quebra de vidro).
 
 ### Passo 6: ~00:55 Ligar o server no destino (notificações desligadas)
