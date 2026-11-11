@@ -2,6 +2,6 @@
   <!-- Mesmas proporções de app/frontend/scripts/gen-pwa-icons.py: fundo chapado,
        raio 0, "n" em text-primary e o ponto da marca em BlueDot. -->
   <rect width="100" height="100" fill="#0B1326"/>
-  <path d="M13 91.3V33.5A24.8 24.8 0 0 1 62.6 33.5V91.3" fill="none" stroke="#F1F5F9" stroke-width="12.4"/>
+  <path d="M19.2 91.3V33.5A18.6 18.6 0 0 1 56.4 33.5V91.3" fill="none" stroke="#F1F5F9" stroke-width="12.4"/>
   <circle cx="77.1" cy="81.4" r="9.9" fill="#00ADE8"/>
 </svg>

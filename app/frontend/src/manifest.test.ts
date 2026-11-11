@@ -23,8 +23,9 @@ describe('manifest do PWA', () => {
     expect(purposes).toContain('maskable');
   });
 
-  it('a variante maskable tem dezenas de pixels de folga para o recorte', () => {
-    const maskable = manifest.icons.find((i) => i.purpose === 'maskable');
-    expect(maskable?.sizes).toBe('512x512');
+  it('a variante maskable é 512 e não reaproveita a versão "any"', () => {
+    const maskable = manifest.icons.filter((i) => i.purpose === 'maskable');
+    expect(maskable).toHaveLength(1);
+    expect(maskable[0].src).not.toBe('/icons/icon-512.png');
   });
 });

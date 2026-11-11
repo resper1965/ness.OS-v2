@@ -62,8 +62,8 @@ self.addEventListener('push', (event) => {
     const title = payload.title || 'Alerta ness.';
     const options = {
       body: payload.body || 'Novo incidente crítico detectado.',
-      icon: '/favicon.svg',
-      badge: '/favicon.svg',
+      icon: '/icons/icon-192.png',
+      badge: '/icons/icon-192.png',
       vibrate: [200, 100, 200],
       data: {
         incident_id: payload.incident_id,
@@ -83,7 +83,7 @@ self.addEventListener('push', (event) => {
     event.waitUntil(
       self.registration.showNotification('Alerta ness.', {
         body: text,
-        icon: '/favicon.svg'
+        icon: '/icons/icon-192.png'
       })
     );
   }
