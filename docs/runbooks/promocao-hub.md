@@ -11,7 +11,7 @@ Procedimento completo de release e rollback: [release-and-rollback.md](release-a
 3. **Conferir o lote:** só tabelas aditivas (a migração roda uma vez, antes de trocar os serviços). Migração destrutiva ou incompatível com a versão anterior **não** entra no lote.
 4. **Pedir a frase ao Ricardo**, dita com o efeito (modelo abaixo). "ok", "siga" e "aprovado" soltos não valem.
 5. **Preparar o staging** na aiops, em `/tmp/stage-promo`: `docker-compose.yml` e `docker-compose.tickets.yml` do commit **e** `aiops-promote-hub-api.sh` do mesmo commit (`infra/scripts/`), todos copiados do checkout.
-6. **Disparar logo depois do corte das 14:00** (entre ~14:00 e ~22:00, fora da janela do backup noturno das ~23:00). O script exige backup com menos de 30 min; sem ele, **inicia outro backup, que para GLPI e n8n por alguns minutos**. Avise quem usa o GLPI antes de disparar. Se preferir não parar o GLPI, dispare logo depois do backup noturno, ao custo de esperar o dia seguinte:
+6. **Horário escolhido pelo Ricardo: 14h** (10/11). **Disparar logo depois do corte das 14:00** (entre ~14:00 e ~22:00, fora da janela do backup noturno das ~23:00). O script exige backup com menos de 30 min; sem ele, **inicia outro backup, que para GLPI e n8n por alguns minutos**. Avise quem usa o GLPI antes de disparar. Se preferir não parar o GLPI, dispare logo depois do backup noturno, ao custo de esperar o dia seguinte:
    ```
    sudo -n bash -c 'cd /tmp/stage-promo && nohup bash ./aiops-promote-hub-api.sh <sha40> <api-ref@sha256> /tmp/stage-promo > /tmp/promo-<sha7>.log 2>&1 < /dev/null & disown'
    ```
