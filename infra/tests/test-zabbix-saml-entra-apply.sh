@@ -26,4 +26,10 @@ S --apply >/dev/null; [[ $(grep -c 'SSO\[' "$d/web.php") == 1 ]] || { echo "SSO 
 w "x" "alice" "alice"; S --apply >/dev/null 2>&1 && { echo "aceitou tenant ruim" >&2; exit 1; }
 w "$T" "a'b" "a'b"; S --apply >/dev/null 2>&1 && { echo "aceitou usuario com aspas" >&2; exit 1; }
 w "$T" "alice" "bob"; S --apply >/dev/null 2>&1 && { echo "aceitou LOCK fora de SSO" >&2; exit 1; }
+# Sem AKADMIN_PASS_FILE o restore deixaria o akadmin preso ao diretorio SAML antigo e recusando
+# senha local (aconteceu em 10/11). O desligamento do diretorio tem de ocorrer de qualquer forma.
+printf 'TENANT_ID=%s\nDOMAIN=ex.com\nSP_ENTITY=https://z.ex.com\nCERT_SRC=%s\nSSO_USERS="alice"\nLOCK_USERS=""\n' "$T" "$d/c.crt" >"$d/noak.conf"
+ZBX_SAML_CONFIG="$d/noak.conf" S >"$d/noak.out" || { echo "falhou sem AKADMIN_PASS_FILE" >&2; exit 1; }
+grep -q "userdirectoryid=NULL WHERE username='akadmin'" "$d/noak.out" || { echo "sem AKADMIN_PASS_FILE, akadmin ficaria preso ao diretorio" >&2; exit 1; }
+grep -q "SET passwd='FAKEHASH' WHERE username='akadmin'" "$d/noak.out" && { echo "trocou senha do akadmin sem arquivo" >&2; exit 1; }
 echo PASS
