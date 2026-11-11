@@ -74,6 +74,8 @@ Esperado: `restore=PASS`, 203 tabelas, `dbversion=7000000`, `active_actions_afte
 ssh ness_admin@169.58.234.9 'sudo ness-zabbix-saml-entra-apply'          # simulação: ler o SQL
 ssh ness_admin@169.58.234.9 'sudo ness-zabbix-saml-entra-apply --apply'  # aplica
 ```
+Refaz o IdP, o certificado, os usernames com e-mail, o bloqueio da senha local de 14 usuários e a senha do `akadmin`. `resper` e `akadmin` mantêm senha local (quebra de vidro).
+
 O `userdirectoryid=NULL` do `akadmin` é aplicado **sempre**, com ou sem arquivo de senha: sem isso o
 restore deixa o `akadmin` preso ao diretório SAML antigo e a senha local é recusada (aconteceu em
 10/11).
@@ -92,7 +94,6 @@ Corrigido em 11/11, com autorização do Ricardo:
 
 Para um cutover futuro, o passo é: gravar a senha no arquivo, garantir a linha no
 `zabbix-saml.env` e conferir na simulação, antes de qualquer `--apply`.
-Refaz o IdP, o certificado, os usernames com e-mail, o bloqueio da senha local de 14 usuários e a senha do `akadmin`. `resper` e `akadmin` mantêm senha local (quebra de vidro).
 
 ### Passo 6: ~00:55 Ligar o server no destino (notificações desligadas)
 ```
