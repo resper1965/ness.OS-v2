@@ -23,7 +23,8 @@ export function describeError(erro: unknown): ErrorSurface {
         ? erro
         : 'Falha inesperada';
 
-  // O código acompanha a mensagem: o mesmo defeito gera o mesmo código, e dá para
-  // procurar no log sem expor a mensagem crua ao usuário.
+  // O código acompanha a mensagem: dá para casar o que o usuário vê com a linha do log.
+  // Mensagem com id ou URL no meio muda o código para o mesmo defeito — é identificador
+  // de ocorrência, não de causa.
   return { code: `HUB-${hash(mensagem)}`, message: mensagem };
 }

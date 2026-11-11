@@ -2,6 +2,9 @@ import React from 'react';
 import { describeError } from './error-surface';
 
 interface State {
+  // Sentinela separada: `throw null` daria `erro === null` e o boundary voltaria a renderizar
+  // os filhos, que lançam de novo.
+  falhou: boolean;
   erro: unknown;
 }
 
@@ -13,18 +16,19 @@ export default class ErrorBoundary extends React.Component<
   { children: React.ReactNode },
   State
 > {
-  state: State = { erro: null };
+  state: State = { falhou: false, erro: null };
 
   static getDerivedStateFromError(erro: unknown): State {
-    return { erro };
+    return { falhou: true, erro };
   }
 
   componentDidCatch(erro: unknown) {
-    console.error('Falha de render no Hub:', erro);
+    // O código é o que aparece na tela; sem ele no log não dá para casar os dois.
+    console.error(`Falha de render no Hub (${describeError(erro).code}):`, erro);
   }
 
   render() {
-    if (this.state.erro === null) return this.props.children;
+    if (!this.state.falhou) return this.props.children;
 
     const { code, message } = describeError(this.state.erro);
     return (

@@ -10,6 +10,15 @@ describe('describeError', () => {
     expect(a.code).toBe(b.code);
   });
 
+  it('vetor conhecido: o algoritmo não pode mudar sem aviso', () => {
+    // FNV-1a de 32 bits de "a" = e40c292c
+    expect(describeError(new Error('a')).code).toBe('HUB-E40C29');
+  });
+
+  it('mensagem vazia cai no nome do erro', () => {
+    expect(describeError(new Error('')).message).toBe('Error');
+  });
+
   it('mensagens diferentes geram códigos diferentes', () => {
     expect(describeError(new Error('a')).code).not.toBe(describeError(new Error('b')).code);
   });
