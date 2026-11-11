@@ -18,6 +18,56 @@
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     <script>
+      // Vigia de inicialização: se o bundle não carregar, estourar antes do primeiro render
+      // ou nada aparecer, o usuário lê o motivo em vez de encarar tela branca (relatado em
+      // 11/11 no Android). Mesmo visual do ErrorBoundary, sem depender do React.
+      (function () {
+        var mostrado = false;
+        function mostrar(motivo, codigo) {
+          var raiz = document.getElementById('root');
+          if (mostrado || !raiz || raiz.childElementCount) return;
+          mostrado = true;
+          var caixa = document.createElement('div');
+          caixa.setAttribute('style', 'max-width:32rem;margin:12vh auto;padding:24px;' +
+            'border:1px solid rgba(255,255,255,.10);background:#0e1a2d;color:#f1f5f9;' +
+            'font:13px/1.5 Inter,system-ui,sans-serif');
+          var rotulo = document.createElement('div');
+          rotulo.setAttribute('style', 'font:10px/1.5 "JetBrains Mono",monospace;' +
+            'letter-spacing:.14em;text-transform:uppercase;color:#00ADE8');
+          rotulo.textContent = 'n.infraops \u00b7 falha';
+          var titulo = document.createElement('h1');
+          titulo.setAttribute('style', 'font:600 17px/1.3 Montserrat,system-ui,sans-serif;margin:8px 0 0');
+          titulo.textContent = 'A tela n\u00e3o p\u00f4de ser carregada';
+          var texto = document.createElement('p');
+          texto.setAttribute('style', 'margin:8px 0 0;color:#cbd5e1');
+          texto.textContent = motivo;
+          var cod = document.createElement('p');
+          cod.setAttribute('style', 'margin:12px 0 0;font:11px/1.5 "JetBrains Mono",monospace;color:#94a3b8');
+          cod.textContent = 'c\u00f3digo ' + codigo;
+          var botao = document.createElement('button');
+          botao.setAttribute('style', 'margin-top:20px;padding:7px 12px;border:0;background:#00ADE8;' +
+            'color:#04121c;font:500 13px Inter,system-ui,sans-serif;cursor:pointer');
+          botao.textContent = 'Recarregar';
+          botao.onclick = function () { window.location.reload(); };
+          caixa.appendChild(rotulo); caixa.appendChild(titulo);
+          caixa.appendChild(texto); caixa.appendChild(cod); caixa.appendChild(botao);
+          raiz.textContent = '';
+          raiz.appendChild(caixa);
+        }
+        window.addEventListener('error', function (e) {
+          mostrar(e.message || 'a aplica\u00e7\u00e3o n\u00e3o carregou', 'HUB-BOOT');
+        }, true);
+        window.addEventListener('unhandledrejection', function (e) {
+          var r = e.reason;
+          mostrar(String((r && r.message) || r || 'promessa rejeitada'), 'HUB-BOOT');
+        });
+        setTimeout(function () {
+          mostrar('nada foi renderizado em 10 s. Pode ser conex\u00e3o lenta ou vers\u00e3o em cache.',
+            'HUB-BOOT-TIMEOUT');
+        }, 10000);
+      })();
+    </script>
+    <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('/sw.js').catch(() => {});
