@@ -22,6 +22,9 @@ recriação de `api`.
 
 - `GET /api/auth/oidc/config` → `"enabled": false` (HTTP 200).
 - `ninf-api` `healthy` após a recriação; `/ready` = 200 no contêiner.
+- **Login local comprovado depois da mudança:** o Ricardo entrou pelo navegador em 11/11 e a conta
+  registrou `last_login` = 11/11/2026 13:21:02 UTC, com `oidc/config` já em `enabled: false`. É a prova
+  de que o caminho por e-mail e senha funciona sem o SSO, que era a lacuna apontada na revisão.
 - `worker-alerts` e `worker-ml` não foram tocados (`healthy`, sem recriação).
 
 ## Achados
