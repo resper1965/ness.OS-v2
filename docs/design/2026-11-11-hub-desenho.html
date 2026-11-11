@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ness. n.infraops — desenho para aprovação</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;500&family=Montserrat:wght@500;600&display=swap" rel="stylesheet">
+<style>
+/* Uma única fonte de cor. Nenhum hex fora deste bloco. */
+:root{--accent:#00ade8;--accent-ink:#04121c;--accent-text:#00ade8;--accent-text-strong:#7fd6f6;
+--surface-page:#0b1326;--surface-card:#162244;--surface-raised:#1e2d52;--border-hairline:rgba(255,255,255,.10);
+--text-primary:#f1f5f9;--text-secondary:#cbd5e1;--text-muted:#94a3b8;--text-faint:#8fa0b6;
+--ok:#10b981;--warn:#f59e0b;--bad:#ef4444;--radius:0;
+--font-head:"Montserrat",system-ui,sans-serif;--font-body:"Inter",system-ui,sans-serif;--font-mono:"JetBrains Mono",ui-monospace,monospace}
+[data-theme="light"]{--accent-text:#006a8f;--accent-text-strong:#005273;--surface-page:#fff;--surface-card:#f8fafc;
+--surface-raised:#eef2f7;--border-hairline:#e2e8f0;--text-primary:#0f172a;--text-secondary:#334155;--text-muted:#475569;
+--text-faint:#52627a;--ok:#065f46;--warn:#92400e;--bad:#b91c1c}
+
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--surface-page);color:var(--text-primary);
+font-family:var(--font-body);font-size:13px;line-height:1.5;-webkit-font-smoothing:antialiased}
+a{color:var(--accent-text);text-decoration:none}
+h1,h2,h3{font-family:var(--font-head);font-weight:600;letter-spacing:-.01em;margin:0}
+h1{font-size:20px}h2{font-size:17px}h3{font-size:14px}
+.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+.muted{color:var(--text-muted)}.sec{color:var(--text-secondary)}
+.eyebrow{font-family:var(--font-mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent-text)}
+
+/* marca: caixa baixa, ponto sempre BlueDot, nunca em negrito */
+.brand{font-family:var(--font-head);font-weight:500;font-size:15px;letter-spacing:-.02em}
+.brand .dot{color:var(--accent)}
+
+/* estrutura */
+.topbar{display:flex;align-items:center;gap:24px;padding:0 20px;height:52px;
+border-bottom:1px solid var(--border-hairline);background:var(--surface-card);position:sticky;top:0;z-index:5}
+.nav{display:flex;gap:2px;margin-left:8px}
+.nav button{font:inherit;font-size:12px;color:var(--text-secondary);background:none;border:0;
+border-bottom:2px solid transparent;padding:16px 12px 14px;cursor:pointer}
+.nav button:hover{color:var(--text-primary);background:var(--surface-raised)}
+.nav button[aria-selected="true"]{color:var(--text-primary);border-bottom-color:var(--accent)}
+.wrap{max-width:1240px;margin:0 auto;padding:20px}
+.fresh{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:11px;color:var(--text-muted)}
+
+.screen{display:none}.screen.on{display:block}
+.grid{display:grid;gap:12px}
+.k4{grid-template-columns:repeat(4,1fr)}
+.k2{grid-template-columns:2fr 1fr}
+@media(max-width:900px){.k4,.k2{grid-template-columns:1fr}}
+
+.card{background:var(--surface-card);border:1px solid var(--border-hairline);border-radius:var(--radius);padding:16px}
+.card h3{margin-bottom:12px}
+.kpi{font-family:var(--font-head);font-weight:600;font-size:28px;line-height:1.1;letter-spacing:-.02em}
+.kpi.bad{color:var(--bad)}.kpi.warn{color:var(--warn)}.kpi.ok{color:var(--ok)}
+.cap{font-family:var(--font-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-muted);margin-top:6px}
+
+/* tabela: régua entre linhas, última sem régua, cabeçalho em texto secundário */
+table{width:100%;border-collapse:collapse}
+th{text-align:left;font-weight:500;font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+color:var(--text-secondary);padding:0 10px 8px;border-bottom:1px solid var(--border-hairline);white-space:nowrap}
+td{padding:9px 10px;border-bottom:1px solid var(--border-hairline);vertical-align:middle}
+tr:last-child td{border-bottom:0}
+tbody tr:hover{background:var(--surface-raised);cursor:pointer}
+tbody tr[aria-selected="true"]{background:var(--surface-raised);box-shadow:inset 2px 0 0 var(--accent)}
+.num{text-align:right;font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+
+/* severidade: ponto + rótulo, não caixa colorida */
+.sev{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--text-secondary);white-space:nowrap}
+.sev i{width:7px;height:7px;border-radius:var(--radius)}
+.s5 i{background:var(--bad)}.s4 i{background:var(--warn)}.s3 i{background:var(--text-muted)}
+.s5{color:var(--text-primary)}
+
+.chip{display:inline-block;font-family:var(--font-mono);font-size:10px;letter-spacing:.06em;
+text-transform:uppercase;padding:2px 6px;border:1px solid var(--border-hairline);color:var(--text-muted);border-radius:var(--radius)}
+.chip.on{border-color:var(--accent);color:var(--accent-text)}
+
+.btn{font:inherit;font-size:12px;padding:7px 12px;border-radius:var(--radius);cursor:pointer;
+border:1px solid var(--border-hairline);background:var(--surface-raised);color:var(--text-primary)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:500}
+.btn:focus-visible,button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.bar{height:6px;background:var(--surface-raised);border-radius:var(--radius);overflow:hidden}
+.bar span{display:block;height:100%;background:var(--accent)}
+.bar.warn span{background:var(--warn)}.bar.bad span{background:var(--bad)}
+
+.fonte{display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--border-hairline)}
+.fonte:last-child{border-bottom:0;padding-bottom:0}
+.fonte .ico{width:28px;height:28px;border:1px solid var(--border-hairline);display:grid;place-items:center;
+color:var(--text-secondary);flex:0 0 auto}
+.fonte .ico svg{width:15px;height:15px;stroke:currentColor;stroke-width:1.5;fill:none}
+
+/* anexo da marca */
+.anexo{margin-top:28px;border-top:1px solid var(--border-hairline);padding-top:16px}
+.anexo ul{margin:8px 0 0;padding-left:18px;color:var(--text-secondary)}
+.anexo li{margin-bottom:6px}
+.demo{display:flex;gap:16px;flex-wrap:wrap;margin-top:12px}
+.demo figure{margin:0;text-align:center}
+.demo img{display:block;border:1px solid var(--border-hairline);background:var(--surface-page)}
+.demo figcaption{font-family:var(--font-mono);font-size:10px;color:var(--text-muted);margin-top:6px}
+.mask-demo{display:grid;place-items:center;width:120px;height:120px;border-radius:50%;overflow:hidden;
+border:1px solid var(--border-hairline)}
+.mask-demo img{width:120px;height:120px;border:0}
+
+.skel{height:11px;background:var(--surface-raised);border-radius:var(--radius)}
+@media(prefers-reduced-motion:no-preference){.skel{animation:p 1.6s ease-in-out infinite}
+@keyframes p{0%,100%{opacity:.5}50%{opacity:1}}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">ness<span class="dot">.</span> <span class="muted" style="font-weight:400">n.infraops</span></div>
+  <nav class="nav" id="nav">
+    <button aria-selected="true" data-s="geral">Visão geral</button>
+    <button data-s="fila">Fila</button>
+    <button data-s="cobertura">Cobertura</button>
+  </nav>
+  <div class="fresh">
+    <span class="mono">atualizado 11/11 14:32</span>
+    <span class="chip">A. Usuário</span>
+  </div>
+</div>
+
+<div class="wrap">
+
+<!-- ───────────── 1. VISÃO GERAL ───────────── -->
+<section class="screen on" id="geral">
+  <div class="grid k4" style="margin-bottom:12px">
+    <div class="card"><div class="kpi bad">7</div><div class="cap">Críticos abertos</div></div>
+    <div class="card"><div class="kpi warn">3</div><div class="cap">SLA em risco</div></div>
+    <div class="card"><div class="kpi">24</div><div class="cap">Tickets abertos</div></div>
+    <div class="card"><div class="kpi ok">96,4<span style="font-size:16px">%</span></div><div class="cap">Cobertura 24 h</div></div>
+  </div>
+
+  <div class="grid k2">
+    <div class="card">
+      <h3>Críticos por cliente</h3>
+      <table>
+        <thead><tr><th>Cliente</th><th class="num">Críticos</th><th class="num">Hosts</th><th>Maior espera</th><th>SLA</th></tr></thead>
+        <tbody>
+          <tr><td>ncliente</td><td class="num">3</td><td class="num">128</td><td class="mono">01:42</td>
+              <td><div class="bar bad" style="width:120px"><span style="width:82%"></span></div></td></tr>
+          <tr><td>target</td><td class="num">2</td><td class="num">76</td><td class="mono">00:58</td>
+              <td><div class="bar warn" style="width:120px"><span style="width:54%"></span></div></td></tr>
+          <tr><td>rzk</td><td class="num">1</td><td class="num">41</td><td class="mono">00:21</td>
+              <td><div class="bar" style="width:120px"><span style="width:22%"></span></div></td></tr>
+          <tr><td>ness <span class="chip">interno</span></td><td class="num">1</td><td class="num">12</td><td class="mono">00:06</td>
+              <td><div class="bar" style="width:120px"><span style="width:8%"></span></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h3>Fontes operacionais</h3>
+      <div class="fonte">
+        <div class="ico"><svg viewBox="0 0 24 24"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg></div>
+        <div><div>zabbix</div><div class="muted mono" style="font-size:11px">última coleta 14:32 · 285 hosts</div></div>
+        <div style="margin-left:auto"><span class="sev s5" style="font-size:10px"><i></i>ok</span></div>
+      </div>
+      <div class="fonte">
+        <div class="ico"><svg viewBox="0 0 24 24"><path d="M4 5h16v14H4z"/><path d="M4 9h16"/></svg></div>
+        <div><div>glpi</div><div class="muted mono" style="font-size:11px">último ticket 14:29 · fila 3</div></div>
+        <div style="margin-left:auto"><span class="sev s5" style="font-size:10px"><i></i>ok</span></div>
+      </div>
+      <div class="fonte">
+        <div class="ico"><svg viewBox="0 0 24 24"><path d="M12 3l8 4v5c0 5-3.5 7.5-8 9-4.5-1.5-8-4-8-9V7z"/></svg></div>
+        <div><div>wazuh</div><div class="muted mono" style="font-size:11px">último alerta 14:31 · 902 agentes</div></div>
+        <div style="margin-left:auto"><span class="sev s4"><i></i>atraso</span></div>
+      </div>
+      <div class="fonte">
+        <div class="ico"><svg viewBox="0 0 24 24"><path d="M4 7h10v8H4z"/><path d="M14 9h4l2 3v3h-6z"/></svg></div>
+        <div><div>action1</div><div class="muted mono" style="font-size:11px">sem leitura desde 11/11 06:00</div></div>
+        <div style="margin-left:auto"><span class="sev s3"><i></i>parado</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────── 2. FILA ───────────── -->
+<section class="screen" id="fila">
+  <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+    <span class="chip on">Todos os clientes</span>
+    <span class="chip">Severidade 4–5</span>
+    <span class="chip">Abertos</span>
+    <span class="chip">SLA em risco</span>
+    <div style="margin-left:auto;display:flex;gap:8px">
+      <button class="btn">Filtros</button>
+      <button class="btn primary">Assumir selecionado</button>
+    </div>
+  </div>
+
+  <div class="card" style="padding:0">
+    <table>
+      <thead><tr><th style="width:88px">Severidade</th><th>Alerta</th><th>Cliente</th><th>Host</th>
+        <th class="num">Início</th><th class="num">SLA</th><th>Ticket</th><th>Responsável</th></tr></thead>
+      <tbody>
+        <tr aria-selected="true"><td><span class="sev s5"><i></i>Desastre</span></td>
+            <td>Disco acima de 95% <span class="mono muted" style="font-size:10px">10997</span></td>
+            <td>ncliente</td><td class="mono">alpdb01</td><td class="num mono">13:42</td>
+            <td class="num mono" style="color:var(--bad)">-00:12</td><td class="mono">#4821</td><td>A. Usuário</td></tr>
+        <tr><td><span class="sev s5"><i></i>Alta</span></td>
+            <td>Interface down <span class="mono muted" style="font-size:10px">11002</span></td>
+            <td>target</td><td class="mono">fw-edge</td><td class="num mono">14:06</td>
+            <td class="num mono" style="color:var(--warn)">00:18</td><td class="mono">#4822</td><td>—</td></tr>
+        <tr><td><span class="sev s4"><i></i>Média</span></td>
+            <td>Serviço parado <span class="mono muted" style="font-size:10px">10988</span></td>
+            <td>rzk</td><td class="mono">app01</td><td class="num mono">14:11</td>
+            <td class="num mono">01:44</td><td class="mono">#4823</td><td>B. Usuário</td></tr>
+        <tr><td><span class="sev s4"><i></i>Média</span></td>
+            <td>Autenticação falhando <span class="mono muted" style="font-size:10px">50001</span></td>
+            <td>ness</td><td class="mono">hub</td><td class="num mono">14:20</td>
+            <td class="num mono">02:10</td><td class="mono">#4824</td><td>—</td></tr>
+        <tr><td><span class="sev s3"><i></i>Baixa</span></td>
+            <td>Agente sem contato <span class="mono muted" style="font-size:10px">10913</span></td>
+            <td>ncliente</td><td class="mono">ws-14</td><td class="num mono">12:03</td>
+            <td class="num mono">03:57</td><td class="mono">#4819</td><td>A. Usuário</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="grid k2" style="margin-top:12px">
+    <div class="card">
+      <h3>Caso 4821 · Disco acima de 95%</h3>
+      <table>
+        <tbody>
+          <tr><td class="muted" style="width:120px">Cliente</td><td>ncliente</td>
+              <td class="muted" style="width:120px">Host</td><td class="mono">alpdb01</td></tr>
+          <tr><td class="muted">Origem</td><td>zabbix · trigger 10997</td>
+              <td class="muted">Modalidade</td><td>managed</td></tr>
+          <tr><td class="muted">Início</td><td class="mono">11/11 13:42</td>
+              <td class="muted">SLA</td><td class="mono" style="color:var(--bad)">estourado há 12 min</td></tr>
+        </tbody>
+      </table>
+      <div style="margin-top:14px;border-left:2px solid var(--accent);padding:2px 0 2px 12px">
+        <div class="eyebrow">Investigação · gerada por IA</div>
+        <p class="sec" style="margin:6px 0 0">
+          O volume cresceu 4,1 GB/h desde 11:20 e o archive log não é rotacionado desde 09/11.
+          A hipótese principal é preenchimento do mesmo volume montado em <span class="mono">/var/log</span>.
+          Evidências: 3 eventos de <span class="mono">vfs.fs.size</span> e 1 ticket anterior no mesmo host.
+        </p>
+        <p class="muted" style="margin:8px 0 0;font-size:11px">
+          Revisar antes de agir. Nada foi executado.
+        </p>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Linha do tempo</h3>
+      <table>
+        <tbody>
+          <tr><td class="mono muted" style="width:52px">13:42</td><td>Alerta recebido do zabbix</td></tr>
+          <tr><td class="mono muted">13:42</td><td>Ticket #4821 aberto no GLPI</td></tr>
+          <tr><td class="mono muted">13:43</td><td>Cliente notificado por e-mail</td></tr>
+          <tr><td class="mono muted">14:05</td><td>Assumido por A. Usuário</td></tr>
+          <tr><td class="mono muted">14:20</td><td>Investigado · 3 evidências citadas</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────── 3. COBERTURA ───────────── -->
+<section class="screen" id="cobertura">
+  <div class="grid k4" style="margin-bottom:12px">
+    <div class="card"><div class="kpi">902</div><div class="cap">Agentes ativos</div></div>
+    <div class="card"><div class="kpi warn">485</div><div class="cap">Desconectados</div></div>
+    <div class="card"><div class="kpi bad">31</div><div class="cap">Hosts sem sinal 24 h</div></div>
+    <div class="card"><div class="kpi">12</div><div class="cap">Clientes</div></div>
+  </div>
+  <div class="card" style="padding:0">
+    <table>
+      <thead><tr><th>Cliente</th><th class="num">Agentes</th><th class="num">Hosts</th><th class="num">Sem sinal 24 h</th>
+        <th style="width:180px">Cobertura</th><th>Lacuna</th></tr></thead>
+      <tbody>
+        <tr><td>ncliente</td><td class="num">128</td><td class="num">140</td><td class="num">4</td>
+            <td><div class="bar" style="width:180px"><span style="width:91%"></span></div>
+                <span class="mono muted" style="font-size:10px">91%</span></td>
+            <td class="sec">12 hosts sem agente</td></tr>
+        <tr><td>target</td><td class="num">76</td><td class="num">78</td><td class="num">1</td>
+            <td><div class="bar" style="width:180px"><span style="width:97%"></span></div>
+                <span class="mono muted" style="font-size:10px">97%</span></td>
+            <td class="sec">—</td></tr>
+        <tr><td>rzk</td><td class="num">41</td><td class="num">58</td><td class="num">17</td>
+            <td><div class="bar warn" style="width:180px"><span style="width:71%"></span></div>
+                <span class="mono muted" style="font-size:10px">71%</span></td>
+            <td class="sec">17 hosts sem sinal</td></tr>
+        <tr><td>ness <span class="chip">interno</span></td><td class="num">12</td><td class="num">12</td><td class="num">0</td>
+            <td><div class="bar" style="width:180px"><span style="width:100%"></span></div>
+                <span class="mono muted" style="font-size:10px">100%</span></td>
+            <td class="sec">—</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="grid k4" style="margin-top:12px">
+    <div class="card"><div class="cap" style="margin:0 0 8px">Vazio</div>
+      <p class="muted" style="margin:0">Nenhum host sem sinal nas últimas 24 h.</p></div>
+    <div class="card"><div class="cap" style="margin:0 0 8px">Carregando</div>
+      <div class="skel" style="width:80%;margin-bottom:8px"></div><div class="skel" style="width:55%"></div></div>
+    <div class="card"><div class="cap" style="margin:0 0 8px">Erro</div>
+      <p style="margin:0">Não foi possível ler a cobertura. <span class="mono" style="color:var(--bad)">ZBX-503</span></p>
+      <p class="muted" style="margin:6px 0 0;font-size:11px">A última leitura válida é de 14:02. <a href="#">Tentar de novo</a></p></div>
+    <div class="card"><div class="cap" style="margin:0 0 8px">Sem permissão</div>
+      <p class="muted" style="margin:0">Você não tem acesso a este cliente.</p></div>
+  </div>
+</section>
+
+<!-- ───────────── anexo de marca ───────────── -->
+<div class="anexo">
+  <div class="eyebrow">Anexo · identidade</div>
+  <h2 style="margin-top:6px">Ícone do PWA</h2>
+  <div class="demo">
+    <figure><img src="../../app/frontend/public/icons/icon-192.png" width="96" height="96" alt="Ícone 192">
+      <figcaption>192 · any</figcaption></figure>
+    <figure><img src="../../app/frontend/public/icons/icon-512.png" width="96" height="96" alt="Ícone 512">
+      <figcaption>512 · any</figcaption></figure>
+    <figure><div class="mask-demo"><img src="../../app/frontend/public/icons/icon-maskable-512.png" alt="Ícone maskable">
+      </div><figcaption>512 · maskable (recorte)</figcaption></figure>
+  </div>
+
+  <h2 style="margin-top:20px">Decisões deste desenho</h2>
+  <ul>
+    <li>Um accent só: BlueDot <span class="mono">#00ADE8</span>. Marca interação, estado ativo e o ponto da marca.</li>
+    <li>Raio 0 em tudo, hairline de 1px, sem sombra e sem gradiente. Separação por superfície.</li>
+    <li>Montserrat nos títulos, Inter no corpo (13px), JetBrains Mono em ID, hash, hora e contagem.</li>
+    <li>Severidade é ponto + rótulo, não caixa colorida: a cor não carrega sozinha o significado.</li>
+    <li>Barra de SLA mostra o consumo do prazo, não a contagem regressiva: estourado fica em vermelho.</li>
+    <li>Investigação por IA é marcada como tal, com as evidências citadas e "nada foi executado".</li>
+    <li>Toda tela de dados tem vazio, carregando (skeleton, não spinner) e erro com código.</li>
+    <li>Tabela sem borda vertical; a última linha não tem régua; cabeçalho em texto secundário.</li>
+  </ul>
+</div>
+
+</div>
+
+<script>
+document.getElementById('nav').addEventListener('click', (e) => {
+  const b = e.target.closest('button'); if (!b) return;
+  for (const x of document.querySelectorAll('#nav button')) x.setAttribute('aria-selected', String(x === b));
+  for (const s of document.querySelectorAll('.screen')) s.classList.toggle('on', s.id === b.dataset.s);
+});
+</script>
+</body>
+</html>
