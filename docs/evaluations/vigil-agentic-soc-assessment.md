@@ -70,7 +70,7 @@ Falta: investigação em vários passos, e o registro do que o modelo recebeu e 
 
 Duas ideias dessas ferramentas entram no plano como entrega E1, sem depender do Vigil:
 
-- **Divergência como gatilho** (AlertSage): quando o motor de risco e o modelo discordam, o caso sobe para um analista.
+- **Divergência como sinal** (AlertSage): quando o motor de risco e o modelo discordam, a decisão é marcada e entra numa lista de revisão. Não muda o atendimento, que o Hub já decide antes do modelo.
 - **Registro da decisão que dá para refazer** (AiSOC): guardar o que o modelo recebeu, qual modelo respondeu e a resposta.
 
 ## Próximo passo

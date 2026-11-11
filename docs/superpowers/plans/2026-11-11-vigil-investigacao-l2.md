@@ -30,9 +30,9 @@ Cada entrega vale sozinha, tem um critério de pronto e um gate. Nenhuma começa
 
 Duas mudanças pequenas no `/secops/triage`, úteis com ou sem Vigil:
 
-- **Divergência:** se o motor de risco manda para L2 e o modelo devolve `FP` ou `LOW` (ou o contrário: motor baixo e modelo `HIGH`/`CRIT`), o caso é marcado e sobe para um analista. Nunca é arquivado em silêncio.
+- **Divergência:** quando o motor manda para L2 e o modelo devolve `FP` ou `LOW`, ou o motor dá L1 e o modelo devolve `HIGH` ou `CRIT`, a decisão é marcada. É **anotação, não roteamento**: o atendimento já é decidido antes do modelo (`_attendance_required`) e não muda. As decisões marcadas entram numa lista de revisão, no mesmo molde da amostra semanal de arquivados, e servem para calibrar limiares e prompt. Quando o motor arquiva, o modelo não roda, então não há divergência nesse sentido.
 - **Registro:** a decisão guarda, além do que já guarda, a pontuação do motor com os motivos, o modelo usado e a resposta do modelo. Hoje isso só existe em linha de log.
-- **Pronto quando:** teste cobre os dois sentidos da divergência; uma decisão salva permite ver o que o modelo recebeu e respondeu; migração aplicada com rollback.
+- **Pronto quando:** teste cobre os dois sentidos da divergência e confirma que o atendimento não muda; uma decisão salva permite ver o que o modelo recebeu e respondeu; migração aplicada com rollback.
 - **Gate:** revisão e promoção normais do Hub.
 
 ### E2 — Laboratório do Vigil (depois do primeiro gate da F7)
@@ -55,7 +55,9 @@ Limites que precisam estar definidos **antes** do laboratório, para o resultado
 
 ### E3 — Canário interno (só se o E2 passar)
 
+- Vínculo decisão → caso: hoje a triagem grava a `SocDecision` sem `incident_id` e nada preenche esse campo depois. Antes do adaptador, o Hub precisa criar ou vincular o caso do L2 e expor esse vínculo.
 - Adaptador no Hub: envia o pacote de evidência de um caso L2 e lê o resultado. Um arquivo de integração, no padrão dos outros.
+- Onde guardar o resultado: uma tabela ou coluna própria, ligada à decisão, com o que foi enviado, o que voltou, modelo e custo. Mais a leitura disso na API do caso e na tela.
 - Só o tenant `ness`. A investigação aparece no caso, marcada como gerada por IA, com as evidências citadas.
 - Teto diário de investigações e teto de gasto na chave. Estourou, o caso segue sem investigação e a falha aparece no `pipeline_health`.
 - **Pronto quando:** duas semanas de uso interno com a evidência registrada: quantos casos, quantas falhas, custo real, e a opinião dos analistas.
