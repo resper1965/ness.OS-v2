@@ -5,7 +5,6 @@ from pathlib import Path
 from .schemas import TokenResponse
 
 CREDENTIALS_FILE = Path("/tmp") / ".contabo_credentials.json"
-TOKEN_FILE = Path("/tmp") / ".contabo_token.json"
 AUTH_URL = "https://auth.contabo.com/auth/realms/contabo/protocol/openid-connect/token"
 
 def save_credentials(client_id: str, client_secret: str, user: str, password: str):
@@ -47,16 +46,8 @@ def fetch_token() -> TokenResponse:
     with httpx.Client() as client:
         response = client.post(AUTH_URL, data=data)
         response.raise_for_status()
-        token_data = response.json()
-        TOKEN_FILE.write_text(json.dumps(token_data))
-        return TokenResponse(**token_data)
+        return TokenResponse(**response.json())
 
 def get_access_token() -> str:
-    # Minimal version: re-fetch if not exists. Ideally should check expiration.
-    if not TOKEN_FILE.exists():
-        token = fetch_token()
-        return token.access_token
-    else:
-        token_data = json.loads(TOKEN_FILE.read_text())
-        # For simplicity, we just return it. In prod, check expiry and refresh if needed.
-        return token_data.get("access_token")
+    # Token da Contabo vale ~5 min; um por cliente instanciado, sem cache em disco.
+    return fetch_token().access_token
