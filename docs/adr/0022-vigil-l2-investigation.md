@@ -11,8 +11,7 @@ O n.secops classifica o alerta em uma chamada ao modelo. Ele não investiga: nã
 relacionados, não monta linha do tempo, não propõe hipótese. O Vigil é um SOC agêntico open source
 (Apache 2.0) que faz isso. A [avaliação](../evaluations/vigil-agentic-soc-assessment.md) mostra que ele
 não substitui o Hub e que tem lacunas sérias para o nosso uso: sem multi-tenant descrito e sem
-Wazuh entre as integrações citadas. A versão 1.0.0 saiu em 30/10/2026; a avaliação, anterior a isso,
-dizia que não havia 1.0.
+Wazuh entre as integrações citadas. A versão 1.0.0 saiu em 30/10/2026.
 
 ## Decisão proposta
 
