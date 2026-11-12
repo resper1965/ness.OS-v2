@@ -42,13 +42,6 @@ class Settings(BaseSettings):
     # --- Gemini API (embeddings only) ---
     gemini_api_key: str = ""
 
-    # --- n8n (Orquestração de borda) ---
-    n8n_base_url: str = "http://localhost:5678"
-    n8n_webhook_incident: str = "/webhook/incident-created"
-    n8n_webhook_postmortem: str = "/webhook/postmortem-ready"
-    n8n_webhook_soc: str = "/webhook/soc-triage"
-    n8n_webhook_api_key: str = ""
-
     # --- E-mail transacional (Resend HTTP API) ---
     transactional_email_enabled: bool = False
     transactional_email_from: str = "ness.OS Hub <hub@ness.com.br>"
@@ -72,12 +65,7 @@ class Settings(BaseSettings):
     glpi_infra_category_id: int = 0
     glpi_security_category_id: int = 0
 
-    # --- Evolution API (WhatsApp — Read-Only) ---
-    evolution_api_url: str = "http://localhost:8080"
-    evolution_instance: str = "noc-alerts"
-    evolution_api_key: str = ""
-    whatsapp_noc_group_id: str = ""
-    # Only controls WhatsApp and Web Push emitted by the v1 alert worker.
+    # Only controls Web Push emitted by the v1 alert worker.
     alert_notifications_enabled: bool = False
 
     # --- RMM Providers (Multi-tenant: default credentials) ---

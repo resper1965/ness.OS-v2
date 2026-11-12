@@ -39,7 +39,7 @@ SQL' \
     install -o root -g root -m 0600 "${rollback_dir}/docker-compose.yml" "${live_compose}"
     cd "${app_dir}"
     docker compose -f docker-compose.yml -f docker-compose.tickets.yml up -d --force-recreate \
-      postgres api worker-alerts worker-ml evolution-api authentik-server authentik-worker >/dev/null 2>&1 || true
+      postgres api worker-alerts worker-ml authentik-server authentik-worker >/dev/null 2>&1 || true
   fi
   exit "${exit_code}"
 }
@@ -71,7 +71,7 @@ done
 [[ "${postgres_health}" == healthy ]]
 
 docker compose -f docker-compose.yml -f docker-compose.tickets.yml up -d --force-recreate \
-  api worker-alerts worker-ml evolution-api authentik-server authentik-worker
+  api worker-alerts worker-ml authentik-server authentik-worker
 
 for _ in $(seq 1 90); do
   running="$(docker ps --format '{{.Names}}' | wc -l)"

@@ -15,7 +15,6 @@ mkdir -p "${fake_bin}"
 cat >"${complete_env}" <<'EOF'
 NINF_AUTHENTIK_SECRET_KEY=do-not-print-authentik
 NINF_DB_PASSWORD=do-not-print-database
-NINF_EVOLUTION_API_KEY=do-not-print-evolution
 NINF_JWT_SECRET=do-not-print-jwt
 NINF_RESEND_API_KEY=do-not-print-resend
 NINF_API_IMAGE=example.invalid/ness-api@sha256:0000000000000000000000000000000000000000000000000000000000000000
@@ -25,7 +24,6 @@ EOF
 cat >"${missing_env}" <<'EOF'
 NINF_AUTHENTIK_SECRET_KEY=do-not-print-authentik
 NINF_DB_PASSWORD=do-not-print-database
-NINF_EVOLUTION_API_KEY=do-not-print-evolution
 NINF_JWT_SECRET=
 NINF_RESEND_API_KEY=do-not-print-resend
 NINF_API_IMAGE=example.invalid/ness-api@sha256:0000000000000000000000000000000000000000000000000000000000000000
@@ -65,7 +63,6 @@ chmod +x "${fake_bin}/docker"
 unset_required=(
   NINF_AUTHENTIK_SECRET_KEY
   NINF_DB_PASSWORD
-  NINF_EVOLUTION_API_KEY
   NINF_JWT_SECRET
   NINF_RESEND_API_KEY
   NINF_API_IMAGE
@@ -85,7 +82,7 @@ run_isolated() {
 bash -n "${preflight}"
 
 success_output="$(run_isolated bash "${preflight}" --env-file "${complete_env}" --glpi-db-env "${glpi_db_env}" --glpi-app-env "${glpi_app_env}" 2>&1)"
-grep -q '^required_variables=7$' <<<"${success_output}"
+grep -q '^required_variables=6$' <<<"${success_output}"
 grep -q '^compose_files=2$' <<<"${success_output}"
 grep -q '^containers_started=0$' <<<"${success_output}"
 grep -q '^AIOps runtime preflight: PASS$' <<<"${success_output}"

@@ -21,15 +21,6 @@ services:
       postgres:
         condition: service_healthy
 
-  # O Braço: Evolution API (WhatsApp)
-  evolution-api:
-    image: evoapicloud/evolution-api:latest
-    container_name: ninf-evolution
-    restart: unless-stopped
-    env_file: .env
-    networks:
-      - ninf-net
-
   # A Base: PostgreSQL 16 + pgvector
   postgres:
     image: ankane/pgvector:v0.5.1

@@ -17,7 +17,6 @@ from app.config import get_settings
 from app.database import SessionLocal
 from app.integrations.glpi import GLPIClient, GLPIPermanentError, GLPITransientError
 from app.integrations.loki import LokiClient
-from app.integrations.whatsapp import WhatsAppClient
 from app.integrations.zabbix import ZabbixClient
 from app.ml.analyzer import analyze_incident
 from app.models import Asset, Customer, HostgroupRule, Incident, IncidentAction
@@ -463,45 +462,12 @@ async def _async_process_alert_v1(
     finally:
         await glpi.kill_session()
 
-    # 4. WhatsApp: Notificar NOC
+    # 4. Web Push (passo 7) só para HIGH/CRITICAL ou isolamento, e só com ticket criado
     notify = (
         settings.alert_notifications_enabled
         and glpi_error is None
         and (analysis.urgency in ("HIGH", "CRITICAL") or analysis.isolation_required)
     )
-    whatsapp_sent = False
-    if notify:
-        whatsapp = WhatsAppClient()
-        recipient = settings.whatsapp_noc_group_id
-
-        if recipient:
-            wa_message = f"""🚨 *AIOps Alerta Crítico — {customer_name}*
-━━━━━━━━━━━━━━━━━━━━━
-*Host:* {host_name}
-*Incidente:* {alert_data.get("trigger_name", "Trigger")}
-*Causa Provável:* {analysis.probable_cause}
-*Urgência:* {analysis.urgency}
-*Isolamento Requerido:* {"⚠️ SIM" if analysis.isolation_required else "NÃO"}
-━━━━━━━━━━━━━━━━━━━━━
-*Plano Executivo:*
-{analysis.executive_action_plan}
-
-*Plano Técnico:*
-{analysis.technical_action_plan}
-━━━━━━━━━━━━━━━━━━━━━
-🎫 *Chamado GLPI:* {ticket_id if ticket_id else "Não criado"}
-"""
-            try:
-                await whatsapp.send_text_message(recipient=recipient, text=wa_message)
-                whatsapp_sent = True
-            except Exception as e:
-                logger.error(
-                    "Erro ao disparar mensagem de WhatsApp via Evolution API: %s", e
-                )
-        else:
-            logger.warning(
-                "NINF_WHATSAPP_NOC_GROUP_ID não configurado. Notificação do WhatsApp pulada."
-            )
 
     # 4.5. Grafana Loki: Persistência de Inteligência Operacional (Com labels de baixa cardinalidade)
     try:
@@ -710,7 +676,6 @@ async def _async_process_alert_v1(
                 "id": db_incident.id,
                 "fingerprint": fingerprint,
                 "ticket_id": ticket_id,
-                "whatsapp_sent": whatsapp_sent,
             }
 
     # A failed commit must never announce an incident that was not persisted.

@@ -17,5 +17,4 @@ async def get_pipeline_status():
     result["deskmanager"] = dict(result["glpi"])
     if result["glpi"]["status"] == "ok":
         result["deskmanager"]["detail"] = "GLPI: leitura autenticada verificada"
-    result["whatsapp"] = {"status": "disabled", "detail": "Notificações desativadas"}
     return result

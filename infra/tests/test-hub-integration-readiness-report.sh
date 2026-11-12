@@ -12,27 +12,10 @@ exec python3 -
 DOCKER
 chmod +x "$TEMP_DIR/docker"
 
-run_report() {
-  local key="$1"
-  if [[ "$2" == "missing" ]]; then
-    env -u NINF_N8N_WEBHOOK_API_KEY PATH="$TEMP_DIR:$PATH" bash "$REPORT"
-  else
-    NINF_N8N_WEBHOOK_API_KEY="$key" PATH="$TEMP_DIR:$PATH" bash "$REPORT"
-  fi
-}
-
-valid_key="01234567890123456789012345678901"
-output="$(run_report "$valid_key" configured)"
-[[ "$output" == *"n8n_webhook_auth_configured=yes"* ]]
-[[ "$output" == *"n8n_webhook_auth_strength=ok"* ]]
-[[ "$output" != *"$valid_key"* ]]
-
-output="$(run_report "short" configured)"
-[[ "$output" == *"n8n_webhook_auth_configured=yes"* ]]
-[[ "$output" == *"n8n_webhook_auth_strength=weak"* ]]
-
-output="$(run_report "" missing)"
-[[ "$output" == *"n8n_webhook_auth_configured=no"* ]]
-[[ "$output" == *"n8n_webhook_auth_strength=missing"* ]]
+secret="do-not-print-glpi-token"
+output="$(NINF_GLPI_USER_TOKEN="$secret" env -u NINF_LOKI_URL PATH="$TEMP_DIR:$PATH" bash "$REPORT")"
+[[ "$output" == *"glpi_user_token_configured=yes"* ]]
+[[ "$output" == *"loki_url_configured=no"* ]]
+[[ "$output" != *"$secret"* ]]
 
 echo "Hub integration readiness secret report: PASS"

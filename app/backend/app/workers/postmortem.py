@@ -12,7 +12,6 @@ Pipeline completo:
   4. Montar prompt estruturado para o Gemini.
   5. Chamar Gemini → receber Markdown.
   6. Persistir relatório em `incident_reports`.
-  7. Enviar ao n8n → DeskManager (Interação Interna).
 """
 
 import asyncio
@@ -26,7 +25,6 @@ from app.config import get_settings
 from app.core.sanitizer import sanitize
 from app.database import SessionLocal
 from app.integrations.gemini import generate_embedding, generate_postmortem
-from app.integrations.n8n import notify_postmortem_ready
 from app.models import IncidentReport
 from app.workers.celery_app import celery_app
 
@@ -77,9 +75,6 @@ async def _async_generate_postmortem_report(
     # --- 6. Persistir no PostgreSQL ---
     await _async_save_report(report.model_dump(mode="json"))
 
-    # --- 7. Enviar ao n8n → DeskManager ---
-    n8n_result = notify_postmortem_ready(report)
-
     logger.info(
         "Post-mortem concluído | fingerprint=%s tokens=%d+%d",
         fingerprint,
@@ -93,9 +88,6 @@ async def _async_generate_postmortem_report(
         "summary": report.summary,
         "root_cause": report.root_cause,
         "tokens_used": report.prompt_tokens + report.completion_tokens,
-        "n8n_status": n8n_result.get(
-            "status", "ok" if "error" not in n8n_result else "failed"
-        ),
     }
 
 
@@ -116,7 +108,7 @@ def generate_postmortem_report(
 
     Args:
         incident_data: Dict do incidente consolidado (já sanitizado).
-        deskmanager_ticket_id: ID do ticket no DeskManager (retornado pelo n8n).
+        deskmanager_ticket_id: ID do ticket no DeskManager (legado).
 
     Returns:
         Dict com metadados do relatório gerado.

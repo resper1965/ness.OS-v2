@@ -36,9 +36,6 @@ applications:
     protocol: proxy-forward-auth-temporary
     machine_api_bypass: private-network-only
     target_protocol: oidc-native-after-separate-gate
-  - slug: n8n
-    protocol: proxy-forward-auth
-    native_roles_required: [owner, editor, viewer]
 
 promotion_tests:
   - login

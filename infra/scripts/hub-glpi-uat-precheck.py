@@ -43,9 +43,6 @@ def main():
                     "v1_notifications_enabled": getattr(
                         settings, "alert_notifications_enabled", None
                     ),
-                    "whatsapp_recipient_configured": bool(
-                        settings.whatsapp_noc_group_id
-                    ),
                     "webpush_keys_configured": bool(
                         settings.vapid_private_key and settings.vapid_public_key
                     ),

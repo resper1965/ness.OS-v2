@@ -74,7 +74,7 @@ async def test_resolve_tenant_real_db(sessions):
 
 async def test_concurrent_triage_dedups_once(sessions, monkeypatch):
     await _map(sessions, [("cavan", "g-cavan")])
-    calls = {"llm": 0, "n8n": 0}
+    calls = {"llm": 0}
 
     async def slow_llm(payload, tenant):
         calls["llm"] += 1
@@ -86,15 +86,10 @@ async def test_concurrent_triage_dedups_once(sessions, monkeypatch):
             "action_taken": "ESCALATE",
         }
 
-    def n8n(p):
-        calls["n8n"] += 1
-        return {"status": "sent"}
-
     async def no_intel(_):
         return {"abuseipdb": None, "virustotal": None}
 
     monkeypatch.setattr("app.integrations.soc_agent.triage_wazuh_alert", slow_llm)
-    monkeypatch.setattr("app.integrations.n8n.notify_soc_triage_decision", n8n)
     monkeypatch.setattr("app.integrations.threat_intel.enrich_ip", no_intel)
     monkeypatch.setattr("app.integrations.threat_intel.enrich_hash", no_intel)
 
@@ -131,7 +126,6 @@ async def test_concurrent_triage_dedups_once(sessions, monkeypatch):
     assert [r.status_code for r in rs] == [200] * 5, [r.text for r in rs]
     assert sum(1 for r in rs if r.json().get("duplicate")) == 4
     assert calls["llm"] == 1  # lock serializou: sem IA repetida
-    assert calls["n8n"] == 2  # 1 decisão do cavan + 1 pendente
     assert pend.json()["action_taken"] == "PENDING_TENANT_REVIEW"
     async with sessions() as s:
         n = (await s.execute(select(func.count()).select_from(SocDecision))).scalar()
@@ -248,7 +242,6 @@ async def test_burst_with_same_freq_key_counts_in_series(sessions, monkeypatch):
         return {"abuseipdb": None, "virustotal": None}
 
     monkeypatch.setattr(secops, "_recent_count", spy)
-    monkeypatch.setattr("app.integrations.n8n.notify_soc_triage_decision", lambda p: {})
     monkeypatch.setattr("app.integrations.threat_intel.enrich_ip", no_intel)
     monkeypatch.setattr("app.integrations.threat_intel.enrich_hash", no_intel)
 

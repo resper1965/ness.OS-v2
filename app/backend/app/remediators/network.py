@@ -4,7 +4,7 @@
 """
 Driver para ativos de rede sem agente RMM (switches,
 firewalls, APs). Usa SSH via Netmiko para execução
-de comandos ou roteamento para n8n.
+de comandos.
 
 Cobre rmm_provider = 'none' com asset_type = 'network_device'.
 """
@@ -58,9 +58,8 @@ _NETWORK_PLAYBOOKS: dict[str, list[str]] = {
 class NetworkDriver(BaseRMMDriver):
     """Driver para network devices (SSH/Netmiko).
 
-    Para ativos com rmm_provider='none', a execução acontece via:
-      1. SSH direto usando Netmiko (Cisco IOS, Junos, etc.).
-      2. Ou roteamento para n8n (se preferível para o ativo).
+    Para ativos com rmm_provider='none', a execução acontece via SSH
+    (Netmiko: Cisco IOS, Junos, etc.).
     """
 
     def __init__(

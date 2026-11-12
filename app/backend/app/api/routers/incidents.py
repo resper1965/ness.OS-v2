@@ -50,7 +50,7 @@ SEVERITY_LABEL = {
 def _pipeline_stage(incident: Incident) -> str:
     """Calcula em qual etapa do pipeline o incidente está."""
     # Por enquanto derivado dos campos existentes.
-    # Quando DeskManager e n8n forem integrados, estes campos serão persistidos.
+    # Campos legados do DeskManager; o ticket vive no GLPI.
     if incident.status in {"resolved", "closed"}:
         return "resolved"
     if incident.deskmanager_ticket_id:

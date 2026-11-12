@@ -24,11 +24,6 @@ api.ness.com.br {
     reverse_proxy api:8000
 }
 
-# Evolution API (WhatsApp Center)
-waba.ness.com.br {
-    reverse_proxy evolution-api:8080
-}
-
 # Authentik SSO Portal
 sso.ness.com.br {
     # Serve logo directly

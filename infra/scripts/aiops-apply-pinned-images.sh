@@ -9,9 +9,7 @@ stamp="$(date +%Y%m%dt%H%M%S%z)"
 rollback_dir="/opt/n-infraops/change-backups/aiops-image-pin-${stamp}"
 
 [[ -f "${staged_compose}" && -f "${live_compose}" ]]
-for image in timescale/timescaledb redis evoapicloud/evolution-api \
-  evoapicloud/evolution-manager caddy docker.n8n.io/n8nio/n8n \
-  ghcr.io/goauthentik/server; do
+for image in timescale/timescaledb redis caddy ghcr.io/goauthentik/server; do
   grep -Eq "image:[[:space:]]+${image}:[^[:space:]]+@sha256:[0-9a-f]{64}" "${staged_compose}"
 done
 
@@ -36,7 +34,7 @@ install -o root -g root -m 0600 "${staged_compose}" "${live_compose}"
 cd "${app_dir}"
 docker compose -f docker-compose.yml -f docker-compose.tickets.yml config -q
 
-services=(postgres redis evolution-api evolution-manager caddy n8n authentik-server authentik-worker)
+services=(postgres redis caddy authentik-server authentik-worker)
 docker compose -f docker-compose.yml -f docker-compose.tickets.yml pull "${services[@]}"
 
 docker compose -f docker-compose.yml -f docker-compose.tickets.yml up -d --force-recreate postgres redis
@@ -49,20 +47,19 @@ done
 [[ "${postgres_health}" == healthy && "${redis_health}" == healthy ]]
 
 docker compose -f docker-compose.yml -f docker-compose.tickets.yml up -d --force-recreate \
-  authentik-server authentik-worker evolution-api evolution-manager n8n
+  authentik-server authentik-worker
 docker compose -f docker-compose.yml -f docker-compose.tickets.yml up -d --force-recreate caddy
 
 for _ in $(seq 1 90); do
   running="$(docker ps --format '{{.Names}}' | wc -l)"
   unhealthy="$(docker ps --filter health=unhealthy --format '{{.Names}}' | wc -l)"
   starting="$(docker ps --filter health=starting --format '{{.Names}}' | wc -l)"
-  [[ "${running}" -eq 14 && "${unhealthy}" -eq 0 && "${starting}" -eq 0 ]] && break
+  [[ "${running}" -eq 11 && "${unhealthy}" -eq 0 && "${starting}" -eq 0 ]] && break
   sleep 2
 done
-[[ "${running}" -eq 14 && "${unhealthy}" -eq 0 && "${starting}" -eq 0 ]]
+[[ "${running}" -eq 11 && "${unhealthy}" -eq 0 && "${starting}" -eq 0 ]]
 
-for container in ninf-postgres ninf-redis ninf-evolution ninf-evolution-manager \
-  ninf-caddy ninf-n8n ninf-authentik-server ninf-authentik-worker; do
+for container in ninf-postgres ninf-redis ninf-caddy ninf-authentik-server ninf-authentik-worker; do
   image_ref="$(docker inspect -f '{{.Config.Image}}' "${container}")"
   [[ "${image_ref}" =~ @sha256:[0-9a-f]{64}$ ]]
 done

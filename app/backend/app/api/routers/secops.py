@@ -720,7 +720,6 @@ async def triage_alert(
     (Risk Engine) e Threat Intel. Atendimento é independente do score e do modelo.
     """
     logger.info("Recebido alerta Wazuh para triagem.")
-    from app.integrations.n8n import notify_soc_triage_decision
     from app.integrations.soc_agent import triage_wazuh_alert
     from app.integrations.threat_intel import enrich_hash, enrich_ip
 
@@ -883,29 +882,6 @@ async def triage_alert(
             503, "Decisão não registrada; despacho não realizado"
         ) from e
 
-    # 7. Despacha para n8n apenas se não for arquivado silenciosamente
-    if must_attend:
-        n8n_payload = {
-            "wazuh_rule_id": rule_id,
-            "agent_id": agent_id,
-            "agent_name": agent_name,
-            "customer_id": customer_id,
-            "tenant_pending": pending,
-            "classification": triage_result["classification"],
-            "confidence": triage_result["confidence"],
-            "summary": triage_result["summary"],
-            "action_taken": triage_result["action_taken"],
-            "risk_score": eval_result.risk_score,
-            "threat_intel": enriched_data,
-            "timestamp": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
-        }
-        dispatch = notify_soc_triage_decision(n8n_payload)
-        triage_result["dispatch_status"] = dispatch.get(
-            "status", "failed" if "error" in dispatch else "sent"
-        )
-    else:
-        triage_result["dispatch_status"] = "not_requested"
-
     triage_result["decision_id"] = decision.id
     triage_result["corrective_action_approved"] = False
 
@@ -963,8 +939,6 @@ def _dedup_key(tenant: str | None, payload: dict[str, Any]) -> str | None:
     """Chave estável do alerta: tenant + manager + id do Wazuh (ou agente+regra+timestamp).
 
     Sem id nem timestamp não há como distinguir replay de novo evento: sem chave.
-    ponytail: replay após falha de despacho não reenvia ao n8n; reenvio exigiria
-    gravar dispatch_status na decisão.
     """
     agent = payload.get("agent") or {}
     rule = payload.get("rule") or {}
@@ -1005,7 +979,6 @@ def _duplicate_response(d: SocDecision) -> dict[str, Any]:
         "action_taken": d.action_taken,
         "decision_id": d.id,
         "duplicate": True,
-        "dispatch_status": "duplicate",
         "corrective_action_approved": False,
     }
 
