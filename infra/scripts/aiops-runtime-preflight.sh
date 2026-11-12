@@ -6,6 +6,7 @@ app_dir="${repo_root}/app"
 env_file="${AIOPS_ENV_FILE:-${app_dir}/.env}"
 glpi_db_env_file="${AIOPS_GLPI_DB_ENV_FILE:-/etc/ness-os/glpi-db.env}"
 glpi_app_env_file="${AIOPS_GLPI_APP_ENV_FILE:-/etc/ness-os/glpi-app.env}"
+cloudflared_glpi_env_file="${AIOPS_CLOUDFLARED_GLPI_ENV_FILE:-/etc/ness-os/cloudflared-glpi.env}"
 compose_files=(
   "${app_dir}/docker-compose.yml"
   "${app_dir}/docker-compose.tickets.yml"
@@ -129,6 +130,9 @@ dotenv_value_hash() {
 # O banco lê MYSQL_PASSWORD e o GLPI lê DB_PASSWORD: precisam ser o mesmo valor.
 [[ "$(dotenv_value_hash MYSQL_PASSWORD "${glpi_db_env_file}")" == "$(dotenv_value_hash DB_PASSWORD "${glpi_app_env_file}")" ]] \
   || fail 'MYSQL_PASSWORD (glpi-db.env) and DB_PASSWORD (glpi-app.env) differ'
+# Sem o token, o túnel não sobe e n-ticket fica fora do ar (não há mais rota pelo Caddy).
+dotenv_has_nonempty_value TUNNEL_TOKEN "${cloudflared_glpi_env_file}" \
+  || fail "missing TUNNEL_TOKEN in ${cloudflared_glpi_env_file}"
 for variable in NINF_GLPI_DB_ROOT_PASSWORD NINF_GLPI_DB_PASSWORD; do
   if grep -Eq "^[[:space:]]*(export[[:space:]]+)?${variable}=" "${env_file}"; then
     fail "${variable} must not be in the Hub environment file ${env_file}"

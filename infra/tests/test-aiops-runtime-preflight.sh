@@ -38,6 +38,8 @@ glpi_app_env_leaky="${tmpdir}/glpi-app-leaky.env"
 printf '%s\n' MYSQL_ROOT_PASSWORD=do-not-print-root MYSQL_PASSWORD=do-not-print-db >"${glpi_db_env}"
 printf '%s\n' MYSQL_ROOT_PASSWORD= MYSQL_PASSWORD=do-not-print-db >"${glpi_db_env_blank}"
 printf '%s\n' DB_PASSWORD=do-not-print-db >"${glpi_app_env}"
+tunnel_env="${tmpdir}/cloudflared-glpi.env"
+printf '%s\n' TUNNEL_TOKEN=do-not-print-tunnel >"${tunnel_env}"
 printf '%s\n' DB_PASSWORD=do-not-print-db MYSQL_ROOT_PASSWORD=do-not-print-root >"${glpi_app_env_leaky}"
 { cat "${complete_env}"; printf '%s\n' NINF_GLPI_DB_ROOT_PASSWORD=do-not-print-leak; } >"${leaky_env}"
 
@@ -75,7 +77,7 @@ run_isolated() {
   for variable in "${unset_required[@]}"; do
     env_args+=(-u "${variable}")
   done
-  env_args+=("PATH=${fake_bin}:${PATH}" "AIOPS_TEST_DOCKER_LOG=${docker_log}")
+  env_args+=("PATH=${fake_bin}:${PATH}" "AIOPS_TEST_DOCKER_LOG=${docker_log}" "AIOPS_CLOUDFLARED_GLPI_ENV_FILE=${AIOPS_CLOUDFLARED_GLPI_ENV_FILE:-${tunnel_env}}")
   "${env_args[@]}" "$@"
 }
 
@@ -123,6 +125,12 @@ if grep -q 'do-not-print' <<<"${diff_out}"; then echo 'mismatch check exposed a 
 # aspas externas não contam como diferença
 printf '%s\n' 'DB_PASSWORD="do-not-print-db"' >"${tmpdir}/glpi-app-quoted.env"
 run_isolated bash "${preflight}" --env-file "${complete_env}" --glpi-db-env "${glpi_db_env}" --glpi-app-env "${tmpdir}/glpi-app-quoted.env" >/dev/null 2>&1
+
+if tunnel_out="$(AIOPS_CLOUDFLARED_GLPI_ENV_FILE="${tmpdir}/absent.env" run_isolated bash "${preflight}" --env-file "${complete_env}" --glpi-db-env "${glpi_db_env}" --glpi-app-env "${glpi_app_env}" 2>&1)"; then
+  echo 'preflight accepted a missing tunnel token file' >&2
+  exit 1
+fi
+grep -q 'missing TUNNEL_TOKEN' <<<"${tunnel_out}"
 
 if app_leak="$(run_isolated bash "${preflight}" --env-file "${complete_env}" --glpi-db-env "${glpi_db_env}" --glpi-app-env "${glpi_app_env_leaky}" 2>&1)"; then
   echo 'preflight accepted the root password in the GLPI app file' >&2

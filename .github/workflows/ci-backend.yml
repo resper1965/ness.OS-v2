@@ -161,6 +161,7 @@ jobs:
         sudo install -m 644 /dev/null /etc/ness-os/glpi-integration.env
         printf '%s\n' MYSQL_ROOT_PASSWORD=ci-placeholder MYSQL_PASSWORD=ci-placeholder | sudo tee /etc/ness-os/glpi-db.env >/dev/null
         printf '%s\n' DB_PASSWORD=ci-placeholder | sudo tee /etc/ness-os/glpi-app.env >/dev/null
+        printf '%s\n' TUNNEL_TOKEN=ci-placeholder | sudo tee /etc/ness-os/cloudflared-glpi.env >/dev/null
         sudo install -m 644 /dev/null /etc/ness-os/zabbix-integration.env
         bash infra/tests/test-release-compose-contract.sh
         docker compose version

@@ -1,5 +1,7 @@
 # GLPI — troca controlada do volume de estado
 
+> **Histórico.** Desde 12/11/2026 o `n-ticket` não passa mais pelo Caddy (túnel `cloudflared-glpi` + Access Entra) e o `glpi_caddy_maintenance.py` foi removido. Para uma nova janela, fechar o acesso parando o túnel (`docker stop ninf-cloudflared-glpi`), não editando o Caddyfile.
+
 Estado: **corte produtivo concluído em 13/10/2026, ~08:30 BRT**;
 validação nominal SSO/perfil/ticket ainda pendente. A issue #76 controla a
 observação e o retorno. Este procedimento não aprova T03/G2 nem reativa a

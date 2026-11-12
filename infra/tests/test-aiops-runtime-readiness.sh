@@ -30,6 +30,8 @@ export AIOPS_GLPI_DB_ENV_FILE="${tmpdir}/glpi-db.env"
 export AIOPS_GLPI_APP_ENV_FILE="${tmpdir}/glpi-app.env"
 printf '%s\n' MYSQL_ROOT_PASSWORD=runner-secret-glpi-root MYSQL_PASSWORD=runner-secret-glpi-db >"${AIOPS_GLPI_DB_ENV_FILE}"
 printf '%s\n' DB_PASSWORD=runner-secret-glpi-db >"${AIOPS_GLPI_APP_ENV_FILE}"
+export AIOPS_CLOUDFLARED_GLPI_ENV_FILE="${tmpdir}/cloudflared-glpi.env"
+printf '%s\n' TUNNEL_TOKEN=runner-secret-tunnel >"${AIOPS_CLOUDFLARED_GLPI_ENV_FILE}"
 
 cat >"${fake_bin}/docker" <<'EOF'
 #!/usr/bin/env bash

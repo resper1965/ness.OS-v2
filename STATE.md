@@ -4,7 +4,7 @@
 
 **Estágio:** em andamento
 
-**Próximo passo:** Cutover do Zabbix em 14/11 23h (roteiro #225). Dados por cliente fechados (T1–T6, #199/#200/#207). UI espera o redesenho (Task 4 do plano de aceleração). Wazuh IaC mergeado (#204), `terraform apply` espera OK. Trilha: [plano de aceleração](docs/superpowers/plans/2026-11-05-acelerar-producao.md).
+**Próximo passo:** GLPI já entra pelo Entra (Access + túnel `aiops-glpi`, 12/11); Authentik sai depois do D+2 do Zabbix. Cutover do Zabbix em 14/11 23h (roteiro #225). Dados por cliente fechados (T1–T6, #199/#200/#207). UI espera o redesenho (Task 4 do plano de aceleração). Wazuh IaC mergeado (#204), `terraform apply` espera OK. Trilha: [plano de aceleração](docs/superpowers/plans/2026-11-05-acelerar-producao.md).
 
 ## Quadro (atualizado a cada task fechada)
 
