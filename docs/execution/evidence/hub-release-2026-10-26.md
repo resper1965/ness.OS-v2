@@ -126,3 +126,20 @@ Aberto no #231: rotas que chamam o Zabbix depois de outro `execute` ainda podem 
 
 
 Frontend promovido em 10/11 (`63604a2`, #235): `ghcr.io/resper1965/ninf-frontend@sha256:82ea3432a1e993cae010ab0ca765f2bfea11f5526a1eae4d1941171c8cf0298c`, troca de `NINF_FRONTEND_IMAGE` no `.env` da release `4a72949`, backup em `change-backups/frontend-20261110T150012/release.env`. O `.env` canônico `/opt/n-infraops/app/.env` (o que o backup noturno guarda) não tinha nenhuma linha `NINF_*_IMAGE`; em 11/11 ganhou `NINF_API_IMAGE` (`0d12dd40…`) e `NINF_FRONTEND_IMAGE` (`82ea3432…`), com backup em `change-backups/app-env-sync-20261111T074956/app.env` e `docker compose config` OK, sem recriar contêiner, recriação só do contêiner `ninf-frontend`; Hub 200, API `healthy` sem reinício. Rollback: imagem `c2c0953f…` no mesmo `.env` e recriar o contêiner. Teste de push segue pendente (ver `STATE.md`).
+
+## 12/11/2026 — frontend `4edd35e6` (#241 e #244)
+
+Promoção de frontend autorizada ("aprovados", 12/11). Commit de referência `a883151` (o código de
+frontend é o de `cf0da59`; o que veio depois é doc e infra).
+
+- Imagem `ghcr.io/resper1965/ninf-frontend@sha256:4edd35e6cd7dc4faf6590851bfe42bb582bc3b6a0fedb6307543844b1babb73f`.
+- Backup dos dois `.env` em `/opt/n-infraops/change-backups/frontend-20261112T102110/`.
+- Só o contêiner `ninf-frontend` foi recriado; `ninf-api` segue `healthy` (24 h de uptime).
+- Rollback: `NINF_FRONTEND_IMAGE=…@sha256:82ea3432…` nos mesmos `.env` e recriar o contêiner.
+
+O que entrou: ícones PNG do PWA com a marca correta (#241) e o `ErrorBoundary` + vigia de boot que
+mostram o erro na tela em vez de tela branca (#244).
+
+Verificação: `/` 200 com 4.057 bytes (antes 1.203 — o vigia embutido aparece 3×), bundle novo
+`/assets/index-BDbPhZ4n.js` 200 (402 KB), `manifest.json` 200 listando os quatro ícones,
+`/icons/icon-192.png` e `/icons/icon-maskable-512.png` 200, `/ready` 200.

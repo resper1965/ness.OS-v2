@@ -23,6 +23,7 @@ Se qualquer item falhar, **o corte não acontece** e a nova data é combinada.
 | A5 | Scripts novos | **destino:** `ness-zabbix-cutover-enable-production` (#218) e `ness-zabbix-saml-entra-apply` (#223, já instalado). **Origem:** `zabbix-cutover-backup` (#219) copiado para `/usr/local/sbin` (hoje não está lá). | versão da `main`, modo 755 root |
 | A6 | Teste de acesso | 2 técnicos entram pelo M365 em `zabbix-web.ness.com.br`, um fora da rede; e-mail externo barrado | OK |
 | A7 | Senha do `akadmin` | `ZBX_BREAKGLASS_AKADMIN_PASSWORD` gravada no `projetos.env` pelo Ricardo | OK |
+| A7b | Sessão do `akadmin` no destino | `sessions` por usuário | **0 sessões em 12/11** (a aberta desde 10/11 foi encerrada com autorização) | OK |
 | A8 | **Firewall do destino (correção)** | `ufw status` no destino | **sem 80/443 para Anywhere** (hoje existem 4 regras: 80 e 443, v4 e v6; remover antes) |
 | A9 | Hub pronto | `.env` da aiops com `NINF_ZABBIX_ACCESS_CLIENT_ID/SECRET` **não** gravado ainda; backup do `.env` feito | grava-se no Passo 8 |
 | A10 | Aviso aos técnicos | mensagem enviada: Zabbix só entra pelo M365; usuário = e-mail completo; janela de coleta parada | enviado |
