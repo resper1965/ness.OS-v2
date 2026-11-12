@@ -150,8 +150,8 @@ cloudflare-zabbix-dns-cutover.sh cutover      # zabbix.ness.com.br: 144.91.72.20
 
 - **D0:** confirmar que a origem não recebe mais proxies; fechar 80/443/2222 na origem só depois de a ponte sair.
 - **D0:** testar a conta de emergência (SSH com chave e port forward; `resper` e `akadmin` por senha local).
-- **D+1, D+3, D+7:** observar; reportar disponibilidade ao Ricardo.
-- **D+7 a D+14:** o Ricardo decide cancelar a `ninfraops-zabbix` (efeito financeiro). Antes, kernel e forense da origem.
+- **D+1, D+2:** observar; reportar disponibilidade ao Ricardo.
+- **D+2 (gate, decisão de 12/11):** Zabbix novo estável 48 h; 18/18 proxies frescos; evento→incidente→ticket ok; backup e restore testados; nenhum incidente severo do cutover. Passou: kernel e forense da origem, depois a `ninfraops-zabbix` é recriada como base do Wazuh (não é cancelada).
 - **Depois:** PSK nos 19 proxies, por ondas. Fase B: Access com Entra em GLPI e n8n.
 - **Calendário:** o certificado de `zabbix.ness.com.br` vence em **29/11/2026**; o service token `hub-zabbix-api` vence em **09/11/2027**.
 

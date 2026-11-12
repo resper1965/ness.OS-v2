@@ -24,6 +24,6 @@ Qualquer um, por spoke: >300 agentes; >5 GB/dia de índice; `events_dropped` rec
 
 ## Infra
 
-- Sem VPS nova agora. Base: o Zabbix antigo (`ninfraops-zabbix`, 203409070), recriado depois do rollback de 48 h do cutover.
-- Hostinger (62.72.8.164) é origem temporária; desativar após a migração.
+- Sem VPS nova agora. Base: o Zabbix antigo (`ninfraops-zabbix`, 203409070). Decisão do Ricardo em 12/11: a janela de rollback do cutover é de 48 h (D+2, gate em [zabbix-cutover-janela.md](../runbooks/zabbix-cutover-janela.md)); passado o gate, a máquina é recriada para o Wazuh.
+- Hostinger (62.72.8.164) é origem temporária. Só desativar depois dos critérios de [ecosystem-completion-plan.md](../ecosystem-completion-plan.md) (Onda 2): borda redundante, teste N−1 aprovado, ≥98% dos agentes comunicando e 7–14 dias de estabilidade.
 - Contratos por cliente (Brain/CMS) podem mover alguém para B ou C.
