@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ness. n.infraops — desenho para aprovação</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;500&family=Montserrat:wght@500;600&display=swap" rel="stylesheet">
+<style>
+/* Uma única fonte de cor. Nenhum hex fora deste bloco. */
+:root{--accent:#00ade8;--accent-ink:#04121c;--accent-text:#00ade8;--accent-text-strong:#7fd6f6;
+--surface-page:#0b1326;--surface-card:#162244;--surface-raised:#1e2d52;--border-hairline:rgba(255,255,255,.10);
+--text-primary:#f1f5f9;--text-secondary:#cbd5e1;--text-muted:#94a3b8;--text-faint:#8fa0b6;
+--ok:#10b981;--warn:#f59e0b;--bad:#ef4444;--radius:0;
+--font-head:"Montserrat",system-ui,sans-serif;--font-body:"Inter",system-ui,sans-serif;--font-mono:"JetBrains Mono",ui-monospace,monospace}
+[data-theme="light"]{--accent-text:#006a8f;--accent-text-strong:#005273;--surface-page:#fff;--surface-card:#f8fafc;
+--surface-raised:#eef2f7;--border-hairline:#e2e8f0;--text-primary:#0f172a;--text-secondary:#334155;--text-muted:#475569;
+--text-faint:#52627a;--ok:#065f46;--warn:#92400e;--bad:#b91c1c}
+
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--surface-page);color:var(--text-primary);
+font-family:var(--font-body);font-size:13px;line-height:1.5;-webkit-font-smoothing:antialiased}
+a{color:var(--accent-text);text-decoration:none}
+h1,h2,h3{font-family:var(--font-head);font-weight:600;letter-spacing:-.01em;margin:0}
+h1{font-size:20px}h2{font-size:17px}h3{font-size:14px}
+.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+.muted{color:var(--text-muted)}.sec{color:var(--text-secondary)}
+.eyebrow{font-family:var(--font-mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent-text)}
+
+/* marca: caixa baixa, ponto sempre BlueDot, nunca em negrito */
+.brand{font-family:var(--font-head);font-weight:500;font-size:15px;letter-spacing:-.02em}
+.brand .dot{color:var(--accent)}
+
+/* estrutura */
+.topbar{display:flex;align-items:center;gap:24px;padding:0 20px;height:52px;
+border-bottom:1px solid var(--border-hairline);background:var(--surface-card);position:sticky;top:0;z-index:5}
+.nav{display:flex;gap:2px;margin-left:8px}
+.nav button{font:inherit;font-size:12px;color:var(--text-secondary);background:none;border:0;
+border-bottom:2px solid transparent;padding:16px 12px 14px;cursor:pointer}
+.nav button:hover{color:var(--text-primary);background:var(--surface-raised)}
+.nav button[aria-selected="true"]{color:var(--text-primary);border-bottom-color:var(--accent)}
+.wrap{max-width:1240px;margin:0 auto;padding:20px}
+.fresh{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:11px;color:var(--text-muted)}
+
+.screen{display:none}.screen.on{display:block}
+.grid{display:grid;gap:12px}
+.k4{grid-template-columns:repeat(4,1fr)}
+.k2{grid-template-columns:2fr 1fr}
+@media(max-width:900px){.k4,.k2{grid-template-columns:1fr}}
+
+.card{background:var(--surface-card);border:1px solid var(--border-hairline);border-radius:var(--radius);padding:16px}
+.card h3{margin-bottom:12px}
+.kpi{font-family:var(--font-head);font-weight:600;font-size:28px;line-height:1.1;letter-spacing:-.02em}
+.kpi.bad{color:var(--bad)}.kpi.warn{color:var(--warn)}.kpi.ok{color:var(--ok)}
+.cap{font-family:var(--font-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-muted);margin-top:6px}
+
+/* tabela: régua entre linhas, última sem régua, cabeçalho em texto secundário */
+table{width:100%;border-collapse:collapse}
+th{text-align:left;font-weight:500;font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+color:var(--text-secondary);padding:0 10px 8px;border-bottom:1px solid var(--border-hairline);white-space:nowrap}
+td{padding:9px 10px;border-bottom:1px solid var(--border-hairline);vertical-align:middle}
+tr:last-child td{border-bottom:0}
+tbody tr:hover{background:var(--surface-raised);cursor:pointer}
+tbody tr[aria-selected="true"]{background:var(--surface-raised);box-shadow:inset 2px 0 0 var(--accent)}
+.num{text-align:right;font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+
+/* severidade: ponto + rótulo, não caixa colorida */
+.sev{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--text-secondary);white-space:nowrap}
+.sev i{width:7px;height:7px;border-radius:var(--radius)}
+.s5 i{background:var(--bad)}.s4 i{background:var(--warn)}.s3 i{background:var(--text-muted)}
+.s5{color:var(--text-primary)}
+
+.chip{display:inline-block;font-family:var(--font-mono);font-size:10px;letter-spacing:.06em;
+text-transform:uppercase;padding:2px 6px;border:1px solid var(--border-hairline);color:var(--text-muted);border-radius:var(--radius)}
+.chip.on{border-color:var(--accent);color:var(--accent-text)}
+
+.btn{font:inherit;font-size:12px;padding:7px 12px;border-radius:var(--radius);cursor:pointer;
+border:1px solid var(--border-hairline);background:var(--surface-raised);color:var(--text-primary)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:500}
+.btn:focus-visible,button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.bar{height:6px;background:var(--surface-raised);border-radius:var(--radius);overflow:hidden}
+.bar span{display:block;height:100%;background:var(--accent)}
+.bar.warn span{background:var(--warn)}.bar.bad span{background:var(--bad)}
+
+.fonte{display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--border-hairline)}
+.fonte:last-child{border-bottom:0;padding-bottom:0}
+.fonte .ico{width:28px;height:28px;border:1px solid var(--border-hairline);display:grid;place-items:center;
+color:var(--text-secondary);flex:0 0 auto}
+.fonte .ico svg{width:15px;height:15px;stroke:currentColor;stroke-width:1.5;fill:none}
+
+/* anexo da marca */
+.anexo{margin-top:28px;border-top:1px solid var(--border-hairline);padding-top:16px}
+.anexo ul{margin:8px 0 0;padding-left:18px;color:var(--text-secondary)}
+.anexo li{margin-bottom:6px}
+.demo{display:flex;gap:16px;flex-wrap:wrap;margin-top:12px}
+.demo figure{margin:0;text-align:center}
+.demo img{display:block;border:1px solid var(--border-hairline);background:var(--surface-page)}
+.demo figcaption{font-family:var(--font-mono);font-size:10px;color:var(--text-muted);margin-top:6px}
+.mask-demo{display:grid;place-items:center;width:120px;height:120px;border-radius:50%;overflow:hidden;
+border:1px solid var(--border-hairline)}
+.mask-demo img{width:120px;height:120px;border:0}
+
+.skel{height:11px;background:var(--surface-raised);border-radius:var(--radius)}
+@media(prefers-reduced-motion:no-preference){.skel{animation:p 1.6s ease-in-out infinite}
+@keyframes p{0%,100%{opacity:.5}50%{opacity:1}}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">ness<span class="dot">.</span> <span class="muted" style="font-weight:400">n.infraops</span></div>
+  <nav class="nav" id="nav">
+    <button aria-selected="true" data-s="geral">Visão geral</button>
+    <button data-s="fila">Fila</button>
+    <button data-s="cobertura">Cobertura</button>
+  </nav>
+  <div class="fresh">
+    <span class="mono">atualizado 11/11 14:32</span>
+    <span class="chip">A. Usuário</span>
+  </div>
+</div>
+
+<div class="wrap">
+
+<!-- ───────────── 1. VISÃO GERAL ───────────── -->
+<section class="screen on" id="geral">
+  <div class="grid k4" style="margin-bottom:12px">
+    <div class="card"><div class="kpi bad">7</div><div class="cap">Críticos abertos</div></div>
+    <div class="card"><div class="kpi warn">3</div><div class="cap">SLA em risco</div></div>
+    <div class="card"><div class="kpi">24</div><div class="cap">Tickets abertos</div></div>
+    <div class="card"><div class="kpi ok">96,4<span style="font-size:16px">%</span></div><div class="cap">Cobertura 24 h</div></div>
+  </div>
+
+  <div class="grid k2">
+    <div class="card">
+      <h3>Críticos por cliente</h3>
+      <table>
+        <thead><tr><th>Cliente</th><th class="num">Críticos</th><th class="num">Hosts</th><th>Maior espera</th><th>SLA</th></tr></thead>
+        <tbody>
+          <tr><td>ncliente</td><td class="num">3</td><td class="num">128</td><td class="mono">01:42</td>
+              <td><div class="bar bad" style="width:120px"><span style="width:82%"></span></div></td></tr>
+          <tr><td>target</td><td class="num">2</td><td class="num">76</td><td class="mono">00:58</td>
+              <td><div class="bar warn" style="width:120px"><span style="width:54%"></span></div></td></tr>
+          <tr><td>rzk</td><td class="num">1</td><td class="num">41</td><td class="mono">00:21</td>
+              <td><div class="bar" style="width:120px"><span style="width:22%"></span></div></td></tr>
+          <tr><td>ness <span class="chip">interno</span></td><td class="num">1</td><td class="num">12</td><td class="mono">00:06</td>
+              <td><div class="bar" style="width:120px"><span style="width:8%"></span></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h3>Fontes operacionais</h3>
+      <div class="fonte">
+        <div class="ico"><svg viewBox="0 0 24 24"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg></div>
+        <div><div>zabbix</div><div class="muted mono" style="font-size:11px">última coleta 14:32 · 285 hosts</div></div>
+        <div style="margin-left:auto"><span class="sev s5" style="font-size:10px"><i></i>ok</span></div>
+      </div>
+      <div class="fonte">
+        <div class="ico"><svg viewBox="0 0 24 24"><path d="M4 5h16v14H4z"/><path d="M4 9h16"/></svg></div>
+        <div><div>glpi</div><div class="muted mono" style="font-size:11px">último ticket 14:29 · fila 3</div></div>
+        <div style="margin-left:auto"><span class="sev s5" style="font-size:10px"><i></i>ok</span></div>
+      </div>
+      <div class="fonte">
+        <div class="ico"><svg viewBox="0 0 24 24"><path d="M12 3l8 4v5c0 5-3.5 7.5-8 9-4.5-1.5-8-4-8-9V7z"/></svg></div>
+        <div><div>wazuh</div><div class="muted mono" style="font-size:11px">último alerta 14:31 · 902 agentes</div></div>
+        <div style="margin-left:auto"><span class="sev s4"><i></i>atraso</span></div>
+      </div>
+      <div class="fonte">
+        <div class="ico"><svg viewBox="0 0 24 24"><path d="M4 7h10v8H4z"/><path d="M14 9h4l2 3v3h-6z"/></svg></div>
+        <div><div>action1</div><div class="muted mono" style="font-size:11px">sem leitura desde 11/11 06:00</div></div>
+        <div style="margin-left:auto"><span class="sev s3"><i></i>parado</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────── 2. FILA ───────────── -->
+<section class="screen" id="fila">
+  <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+    <span class="chip on">Todos os clientes</span>
+    <span class="chip">Severidade 4–5</span>
+    <span class="chip">Abertos</span>
+    <span class="chip">SLA em risco</span>
+    <div style="margin-left:auto;display:flex;gap:8px">
+      <button class="btn">Filtros</button>
+      <button class="btn primary">Assumir selecionado</button>
+    </div>
+  </div>
+
+  <div class="card" style="padding:0">
+    <table>
+      <thead><tr><th style="width:88px">Severidade</th><th>Alerta</th><th>Cliente</th><th>Host</th>
+        <th class="num">Início</th><th class="num">SLA</th><th>Ticket</th><th>Responsável</th></tr></thead>
+      <tbody>
+        <tr aria-selected="true"><td><span class="sev s5"><i></i>Desastre</span></td>
+            <td>Disco acima de 95% <span class="mono muted" style="font-size:10px">10997</span></td>
+            <td>ncliente</td><td class="mono">alpdb01</td><td class="num mono">13:42</td>
+            <td class="num mono" style="color:var(--bad)">-00:12</td><td class="mono">#4821</td><td>A. Usuário</td></tr>
+        <tr><td><span class="sev s5"><i></i>Alta</span></td>
+            <td>Interface down <span class="mono muted" style="font-size:10px">11002</span></td>
+            <td>target</td><td class="mono">fw-edge</td><td class="num mono">14:06</td>
+            <td class="num mono" style="color:var(--warn)">00:18</td><td class="mono">#4822</td><td>—</td></tr>
+        <tr><td><span class="sev s4"><i></i>Média</span></td>
+            <td>Serviço parado <span class="mono muted" style="font-size:10px">10988</span></td>
+            <td>rzk</td><td class="mono">app01</td><td class="num mono">14:11</td>
+            <td class="num mono">01:44</td><td class="mono">#4823</td><td>B. Usuário</td></tr>
+        <tr><td><span class="sev s4"><i></i>Média</span></td>
+            <td>Autenticação falhando <span class="mono muted" style="font-size:10px">50001</span></td>
+            <td>ness</td><td class="mono">hub</td><td class="num mono">14:20</td>
+            <td class="num mono">02:10</td><td class="mono">#4824</td><td>—</td></tr>
+        <tr><td><span class="sev s3"><i></i>Baixa</span></td>
+            <td>Agente sem contato <span class="mono muted" style="font-size:10px">10913</span></td>
+            <td>ncliente</td><td class="mono">ws-14</td><td class="num mono">12:03</td>
+            <td class="num mono">03:57</td><td class="mono">#4819</td><td>A. Usuário</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="grid k2" style="margin-top:12px">
+    <div class="card">
+      <h3>Caso 4821 · Disco acima de 95%</h3>
+      <table>
+        <tbody>
+          <tr><td class="muted" style="width:120px">Cliente</td><td>ncliente</td>
+              <td class="muted" style="width:120px">Host</td><td class="mono">alpdb01</td></tr>
+          <tr><td class="muted">Origem</td><td>zabbix · trigger 10997</td>
+              <td class="muted">Modalidade</td><td>managed</td></tr>
+          <tr><td class="muted">Início</td><td class="mono">11/11 13:42</td>
+              <td class="muted">SLA</td><td class="mono" style="color:var(--bad)">estourado há 12 min</td></tr>
+        </tbody>
+      </table>
+      <div style="margin-top:14px;border-left:2px solid var(--accent);padding:2px 0 2px 12px">
+        <div class="eyebrow">Investigação · gerada por IA</div>
+        <p class="sec" style="margin:6px 0 0">
+          O volume cresceu 4,1 GB/h desde 11:20 e o archive log não é rotacionado desde 09/11.
+          A hipótese principal é preenchimento do mesmo volume montado em <span class="mono">/var/log</span>.
+          Evidências: 3 eventos de <span class="mono">vfs.fs.size</span> e 1 ticket anterior no mesmo host.
+        </p>
+        <p class="muted" style="margin:8px 0 0;font-size:11px">
+          Revisar antes de agir. Nada foi executado.
+        </p>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Linha do tempo</h3>
+      <table>
+        <tbody>
+          <tr><td class="mono muted" style="width:52px">13:42</td><td>Alerta recebido do zabbix</td></tr>
+          <tr><td class="mono muted">13:42</td><td>Ticket #4821 aberto no GLPI</td></tr>
+          <tr><td class="mono muted">13:43</td><td>Cliente notificado por e-mail</td></tr>
+          <tr><td class="mono muted">14:05</td><td>Assumido por A. Usuário</td></tr>
+          <tr><td class="mono muted">14:20</td><td>Investigado · 3 evidências citadas</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────── 3. COBERTURA ───────────── -->
+<section class="screen" id="cobertura">
+  <div class="grid k4" style="margin-bottom:12px">
+    <div class="card"><div class="kpi">902</div><div class="cap">Agentes ativos</div></div>
+    <div class="card"><div class="kpi warn">485</div><div class="cap">Desconectados</div></div>
+    <div class="card"><div class="kpi bad">31</div><div class="cap">Hosts sem sinal 24 h</div></div>
+    <div class="card"><div class="kpi">12</div><div class="cap">Clientes</div></div>
+  </div>
+  <div class="card" style="padding:0">
+    <table>
+      <thead><tr><th>Cliente</th><th class="num">Agentes</th><th class="num">Hosts</th><th class="num">Sem sinal 24 h</th>
+        <th style="width:180px">Cobertura</th><th>Lacuna</th></tr></thead>
+      <tbody>
+        <tr><td>ncliente</td><td class="num">128</td><td class="num">140</td><td class="num">4</td>
+            <td><div class="bar" style="width:180px"><span style="width:91%"></span></div>
+                <span class="mono muted" style="font-size:10px">91%</span></td>
+            <td class="sec">12 hosts sem agente</td></tr>
+        <tr><td>target</td><td class="num">76</td><td class="num">78</td><td class="num">1</td>
+            <td><div class="bar" style="width:180px"><span style="width:97%"></span></div>
+                <span class="mono muted" style="font-size:10px">97%</span></td>
+            <td class="sec">—</td></tr>
+        <tr><td>rzk</td><td class="num">41</td><td class="num">58</td><td class="num">17</td>
+            <td><div class="bar warn" style="width:180px"><span style="width:71%"></span></div>
+                <span class="mono muted" style="font-size:10px">71%</span></td>
+            <td class="sec">17 hosts sem sinal</td></tr>
+        <tr><td>ness <span class="chip">interno</span></td><td class="num">12</td><td class="num">12</td><td class="num">0</td>
+            <td><div class="bar" style="width:180px"><span style="width:100%"></span></div>
+                <span class="mono muted" style="font-size:10px">100%</span></td>
+            <td class="sec">—</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="grid k4" style="margin-top:12px">
+    <div class="card"><div class="cap" style="margin:0 0 8px">Vazio</div>
+      <p class="muted" style="margin:0">Nenhum host sem sinal nas últimas 24 h.</p></div>
+    <div class="card"><div class="cap" style="margin:0 0 8px">Carregando</div>
+      <div class="skel" style="width:80%;margin-bottom:8px"></div><div class="skel" style="width:55%"></div></div>
+    <div class="card"><div class="cap" style="margin:0 0 8px">Erro</div>
+      <p style="margin:0">Não foi possível ler a cobertura. <span class="mono" style="color:var(--bad)">ZBX-503</span></p>
+      <p class="muted" style="margin:6px 0 0;font-size:11px">A última leitura válida é de 14:02. <a href="#">Tentar de novo</a></p></div>
+    <div class="card"><div class="cap" style="margin:0 0 8px">Sem permissão</div>
+      <p class="muted" style="margin:0">Você não tem acesso a este cliente.</p></div>
+  </div>
+</section>
+
+<!-- ───────────── anexo de marca ───────────── -->
+<div class="anexo">
+  <div class="eyebrow">Anexo · identidade</div>
+  <h2 style="margin-top:6px">Ícone do PWA</h2>
+  <div class="demo">
+    <figure><img src="data:image/png;base64,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" width="96" height="96" alt="Ícone 192">
+      <figcaption>192 · any</figcaption></figure>
+    <figure><img src="data:image/png;base64,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" width="96" height="96" alt="Ícone 512">
+      <figcaption>512 · any</figcaption></figure>
+    <figure><div class="mask-demo"><img src="data:image/png;base64,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AiAAAiAAIAACIAACAAIgAAIgACAAAiAAAgACIAACIAAgAAIgAAIAAiAAAiAACIBHQQAEQAAQAARAAAQAAUAABEAAEAAEQAAEAAFAAARAABAABEAABAABQAAEQAAQAARAAAQAAUAABEAAEAAEQAAEAAFAAARAABAABEAAvOYRAARAAEAABEAABAAEQAAEQABAAARAAAQABEAABEAAQAAEQAAEAARAAARAAEAABEAABAAEQAAEQABAAARAAAQABEAABEAAQAAEQAAEAAFAAARAABAABEAABAABQAAEQAAQAARAAAQAAUAABEAAEAAEQAAEAAFAAARAABAABEAABAABQAAEQAAQAARAAAQAAUAABEAAEAAEQABAABAAAQABEAABEAAQAAEQAAEAARAAARAAEAABEAABAAEQAAEQABAAARAAAQABEAABEAAQAAEQAAEAARAAARAAEAABEAABQAA8CgIgAAKAACAAAiAACAACIAACgAAgAAIgAAgAAiAAAoAAIAACIAAIAAIgAAKAACAAAiAACAACIAACgAAgAAIgAAgAAiAAAoAAIAACAAKAAAgACIAACIAAgAAIgAAIAAiAAAiAAIAACIAACAAIgAAIgACAAAiAAAgACIAACIAAgAAIgAAIAAiAAAiAAIAACIAACAAIgAAIgAAgAAiAAAgAAoAACIAAIAAIgAAIAAKAAAiAACAACIAACAACgAAIgAAgAAiAAAgAAoAACIAAIAAIgAAIAAKAAAiAACAACIAACAACgAAIAAgAAiAAIAACIAACAAIgAAIgACAAAiAAAgACIAACIAAgAAIgAAIAAiAAAiAAIAACIAACAAIgAAIgACAAAiAAAgACIAACIAAIAAIgAAKAACAAAiAACAACIAACgAAgAAIgAAgAAiAAAoAAIAACIAAIAAIgAAKAACAAAiAACAACIAACgAAgAAKQWwAOT00fPjd78Ma9T03MLsb/OjJ5wVtSABAAAehJAGLQj/F9/w8bYz/+titrm/HDWz2Ymvb2FAAEQADKC0Acy4/Pr+579Ga34/7nxD+PePhYIAAIgACUEYDD52aHON7fnfHvn8bNercKAAIgAJkGoI2hf7u4cZ8GBAABEIC8AnD0xOk4SG9v6N/u4I178eu8cwUAARCA9AGIA/+xtc1uRv+/Pwo8eGmJWAAQAAFIHIA4Hu9y6N9u4spt718BQAAEIEEAupz2+cLisLewACAAAtBpAGL03//gZdrRXwMEAAEQgK4DkM/orwECgAAIQKcBaPVcTw0QAARAADINQPJ5/x3XhGcXvZ0FAAEQgLYCMHHldp6j/4CrhQUAARCAVgJwZPJCx+f7j7B3kGvEBAABEIDmA5Dh1L/FAAFAAASg9QBkPvljIkgAEAABaCUAR0+cznzy538bRXhfCwACIADNBCDhfg92iRAABEAAkgWgrMP/f1aDvbUFAAEQgL0GoKDZfysBAoAACECTAchq14fdO3DnuXe3ACAAAjB6AA5PTZc4+g+4JkAAEAABGD0A4/Or5QbAUrAAIAACMHoACp3/MQskAAiAAOwpAFvn/xQ7+m9Z2/QGFwAEQABGCcChi7fKDsCPv/nqYAFAAARglAAUd/2XZQABQAAEoJkAHLjzvPQARMO8xwUAARCAoQNQxPaf1oEFAAEQgOYDUNwOEJ/ZGO6HDe9xAUAABGD4ABQ++guAACAAAlBxAGwNLQAIgADUGYDgPS4ACIAAmAJCABAAARAABAABEIAv2PfojQAgAAIgAK4DKNL490+9xwUAARCAoQMQo6crgREAARCAGgMwMbtY/GZwvhhSABAAARghADF6lh4AXwomAAiAAIz4hTBFj/77Hr3xBhcABEAARgxA0RuCjs+veoMLAAIgACMGoOhlgEMXb3mDCwACIAAjBqDgb4X0fZACgAAIwF4CUO4skPkfAUAABGCvASj0XKAjkxe8uwUAARCAPQWgxD0hXAAsAAiAADQTgIkrtwu7/mtq2ltbABAAAWggAMeK2hfI4b8AIAAC0GQAilkJWNs0+y8ACIAANBmAMD6/mn8AJmYXvakFAAEQgIYDcPTE6f0PXtr9HwEQAAGoLgBbE0FT02Nrm9lO/tj6TQAQAAFoKwD5nhG0tunMHwFAAASg3QDk2YC4S97LAoAACEDrATiW2ZeFGf0FAAEQgO4CcCybjUKN/gKAAAhA1wFIPxe0tukbHwUAARCANAEYnBeUZKeg/Q9eWvUVAARAAFIGYHB9QMdbRo/PrzrjUwAQAAFIH4CBQxdvdfBRYOvA37SPACAAApBVAAYO3rjX0pViURfrvQKAAAhAvgEYzAhNzC42+GkgjvoN/QKAAAhAAQH4d3343OzW5QKjfiCIhIzPr1rpFQAEQADKC8D2M4XiM8GBO8+/updc/EA0I37YuC8AdDQepXL85JkKH/D4qxM+5jk8AkcmL8SHg/9xVo8AACAAAAgAAAIAgAAAIAAACAAAAgCAAAAgAAAIAAACAIAAACAAAAgAAAIAgAAAIAAACAAAAgCAAAAgAAACAIAAACAAAAgAAAIAgAAAIAAACAAAAgCAAAAgAAAIAAACAIAAACAAAAgAAAIAgAAAIAAACAAAAgCAAAAgAAACAIAAACAAAAgAAAIAgAAAIAAACAAAAgCAAAAgAAAIAAACAIAAACAAAAgAAAIAgAAAIAAACAAAAgCAAAAgAAAC4CEAEAAABAAAAQBAAAAQAAAEAAABAEAAABAAAAQAAAEAQAAAEAAABAAAAQBAAAAQAAAEAAABAEAAABAAAAQAAAEAEAAABAAAAQBAAAAQAAAEAAABAEAAABAAAAQAAAEAQAAAEAAABAAAAQBAAAAQAAAEAAABAEAAABAAAAQAAAEAEACPAoAAACAAAPTcX4VpWKZcYQdyAAAAAElFTkSuQmCC" alt="Ícone maskable">
+      </div><figcaption>512 · maskable (recorte)</figcaption></figure>
+  </div>
+
+  <h2 style="margin-top:20px">Decisões deste desenho</h2>
+  <ul>
+    <li>Um accent só: BlueDot <span class="mono">#00ADE8</span>. Marca interação, estado ativo e o ponto da marca.</li>
+    <li>Raio 0 em tudo, hairline de 1px, sem sombra e sem gradiente. Separação por superfície.</li>
+    <li>Montserrat nos títulos, Inter no corpo (13px), JetBrains Mono em ID, hash, hora e contagem.</li>
+    <li>Severidade é ponto + rótulo, não caixa colorida: a cor não carrega sozinha o significado.</li>
+    <li>Barra de SLA mostra o consumo do prazo, não a contagem regressiva: estourado fica em vermelho.</li>
+    <li>Investigação por IA é marcada como tal, com as evidências citadas e "nada foi executado".</li>
+    <li>Toda tela de dados tem vazio, carregando (skeleton, não spinner) e erro com código.</li>
+    <li>Tabela sem borda vertical; a última linha não tem régua; cabeçalho em texto secundário.</li>
+  </ul>
+</div>
+
+</div>
+
+<script>
+document.getElementById('nav').addEventListener('click', (e) => {
+  const b = e.target.closest('button'); if (!b) return;
+  for (const x of document.querySelectorAll('#nav button')) x.setAttribute('aria-selected', String(x === b));
+  for (const s of document.querySelectorAll('.screen')) s.classList.toggle('on', s.id === b.dataset.s);
+});
+</script>
+</body>
+</html>

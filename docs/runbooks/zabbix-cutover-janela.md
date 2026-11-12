@@ -23,6 +23,7 @@ Se qualquer item falhar, **o corte não acontece** e a nova data é combinada.
 | A5 | Scripts novos | **destino:** `ness-zabbix-cutover-enable-production` (#218) e `ness-zabbix-saml-entra-apply` (#223, já instalado). **Origem:** `zabbix-cutover-backup` (#219) copiado para `/usr/local/sbin` (hoje não está lá). | versão da `main`, modo 755 root |
 | A6 | Teste de acesso | 2 técnicos entram pelo M365 em `zabbix-web.ness.com.br`, um fora da rede; e-mail externo barrado | OK |
 | A7 | Senha do `akadmin` | `ZBX_BREAKGLASS_AKADMIN_PASSWORD` gravada no `projetos.env` pelo Ricardo | OK |
+| A7b | Sessão do `akadmin` no destino | `sessions` por usuário | **0 sessões em 12/11** (a aberta desde 10/11 foi encerrada com autorização) | OK |
 | A8 | **Firewall do destino (correção)** | `ufw status` no destino | **sem 80/443 para Anywhere** (hoje existem 4 regras: 80 e 443, v4 e v6; remover antes) |
 | A9 | Hub pronto | `.env` da aiops com `NINF_ZABBIX_ACCESS_CLIENT_ID/SECRET` **não** gravado ainda; backup do `.env` feito | grava-se no Passo 8 |
 | A10 | Aviso aos técnicos | mensagem enviada: Zabbix só entra pelo M365; usuário = e-mail completo; janela de coleta parada | enviado |
@@ -75,6 +76,25 @@ ssh ness_admin@169.58.234.9 'sudo ness-zabbix-saml-entra-apply'          # simul
 ssh ness_admin@169.58.234.9 'sudo ness-zabbix-saml-entra-apply --apply'  # aplica
 ```
 Refaz o IdP, o certificado, os usernames com e-mail, o bloqueio da senha local de 14 usuários e a senha do `akadmin`. `resper` e `akadmin` mantêm senha local (quebra de vidro).
+
+O `userdirectoryid=NULL` do `akadmin` é aplicado **sempre**, com ou sem arquivo de senha: sem isso o
+restore deixa o `akadmin` preso ao diretório SAML antigo e a senha local é recusada (aconteceu em
+10/11).
+
+**Estado em 11/11, conferido:** `/etc/ness-os/zabbix-saml.env` **define**
+`AKADMIN_PASS_FILE=/etc/ness-os/akadmin.pass`, mas o arquivo **não existia** no destino. O script
+aborta com `sem /etc/ness-os/akadmin.pass` (exit 2), então o **Passo 5 inteiro teria falhado às
+00:50**: sem SAML aplicado, sem login, corte perdido.
+
+Corrigido em 11/11, com autorização do Ricardo:
+
+- `/etc/ness-os/akadmin.pass` criado com a senha de quebra de vidro registrada no `projetos.env`,
+  modo 600, `root:root`; SHA-256 conferido entre a origem local e o destino.
+- Script do #246 instalado no destino (sha256 conferido; backup do anterior em `/root/`).
+- Simulação após a correção mostra o `userdirectoryid=NULL` e a troca da senha do `akadmin`.
+
+Para um cutover futuro, o passo é: gravar a senha no arquivo, garantir a linha no
+`zabbix-saml.env` e conferir na simulação, antes de qualquer `--apply`.
 
 ### Passo 6: ~00:55 Ligar o server no destino (notificações desligadas)
 ```
