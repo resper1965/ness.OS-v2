@@ -30,7 +30,9 @@ def _stack_domains(domains: dict[str, Any]) -> dict[str, dict[str, Any]]:
 
     return {
         "aiops": {
-            "contabo": contabo.get("aiops", {"status": "down", "error_code": "missing"}),
+            "contabo": contabo.get(
+                "aiops", {"status": "down", "error_code": "missing"}
+            ),
             "pipeline": {
                 "status": pipeline_status,
                 "error_code": pipeline_error,
@@ -80,7 +82,10 @@ def build_stack_health_report(domains: dict[str, Any]) -> dict[str, Any]:
     grouped_domains = _stack_domains(domains)
     stacks: list[dict[str, Any]] = []
     for stack_name, stack_domains in grouped_domains.items():
-        statuses = [str(domain.get("status", "unavailable")) for domain in stack_domains.values()]
+        statuses = [
+            str(domain.get("status", "unavailable"))
+            for domain in stack_domains.values()
+        ]
         status = _worst_status(statuses)
         stacks.append(
             {

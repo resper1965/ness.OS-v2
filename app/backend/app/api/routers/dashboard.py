@@ -7,8 +7,8 @@ import asyncio
 import logging
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException
 from cli.contabo.api_client import ContaboAPIClient
+from fastapi import APIRouter, Depends, HTTPException
 from redis.asyncio import Redis
 
 from app.config import get_settings
@@ -202,7 +202,11 @@ async def _collect_contabo_stacks() -> dict:
     domain_status = (
         "down"
         if any(item["status"] == "down" for item in stacks.values())
-        else ("degraded" if any(item["status"] == "degraded" for item in stacks.values()) else "ok")
+        else (
+            "degraded"
+            if any(item["status"] == "degraded" for item in stacks.values())
+            else "ok"
+        )
     )
     return {
         "status": domain_status,

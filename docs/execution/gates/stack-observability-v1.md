@@ -24,7 +24,7 @@ A V1 está implementada em código, mas o gate permanece `FAIL` até fechar as p
 ## Pendências para virar PASS
 
 1. Corrigir credenciais da integração Contabo e repetir coleta read-only ao vivo.
-2. Rodar testes backend/frontend em ambiente com toolchain completo e anexar saída.
+2. ~~Rodar testes~~ feito (PR #249).
 3. Capturar uma chamada real de `/api/ops/stack-health` após deploy/canário interno.
 
 ## Decisão operacional

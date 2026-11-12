@@ -43,7 +43,9 @@ def test_stack_health_rejects_client_role():
 
 def test_stack_health_returns_consolidated_payload(monkeypatch):
     app, client = _client()
-    app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(role=UserRole.noc)
+    app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(
+        role=UserRole.noc
+    )
 
     async def fake_sources(_):
         return {
