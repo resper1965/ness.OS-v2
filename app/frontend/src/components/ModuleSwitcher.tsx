@@ -65,7 +65,7 @@ export default function ModuleSwitcher({
   );
   return (
     <div
-      className="flex items-center gap-1 px-2 py-1.5 rounded-2xl border"
+      className="flex items-center gap-1 px-1.5 md:px-2 py-1.5 rounded-2xl border min-w-0 overflow-x-auto"
       style={{
         background: 'rgba(255,255,255,0.03)',
         borderColor: 'rgba(255,255,255,0.08)',
@@ -79,7 +79,9 @@ export default function ModuleSwitcher({
             key={mod.id}
             onClick={() => onChange(mod.id)}
             title={`${mod.label} — ${mod.sublabel}`}
-            className="relative flex items-center gap-2 px-3 py-1.5 rounded-xl transition-all duration-300 select-none"
+            aria-label={mod.label}
+            aria-pressed={isActive}
+            className="relative flex items-center gap-2 px-3 py-2 md:py-1.5 shrink-0 rounded-xl transition-all duration-300 select-none"
             style={isActive ? {
               background: `${mod.color}18`,
               boxShadow: `0 0 16px ${mod.glowColor}40`,
@@ -90,7 +92,7 @@ export default function ModuleSwitcher({
               style={{ color: isActive ? mod.color : 'rgba(255,255,255,0.3)' }}
             />
             <span
-              className="text-xs font-semibold tracking-tight transition-colors duration-200"
+              className={`text-xs font-semibold tracking-tight transition-colors duration-200 ${isActive ? '' : 'hidden sm:inline'}`}
               style={{ color: isActive ? mod.color : 'rgba(255,255,255,0.3)' }}
             >
               {mod.label}

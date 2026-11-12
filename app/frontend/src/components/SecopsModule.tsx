@@ -406,7 +406,7 @@ export default function SecopsModule() {
   const summary = cveIntel?.summary;
 
   return (
-    <div className="p-8 max-w-6xl space-y-6 animate-fade-in">
+    <div className="p-4 md:p-8 max-w-6xl space-y-6 animate-fade-in">
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div className="flex items-start justify-between gap-4">

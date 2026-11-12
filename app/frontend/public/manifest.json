@@ -1,6 +1,6 @@
 {
-  "name": "ness. n.infraops",
-  "short_name": "n.infraops",
+  "name": "ness.OS",
+  "short_name": "ness.OS",
   "description": "Painel de monitoramento e operações da ness.",
   "start_url": "/",
   "display": "standalone",
