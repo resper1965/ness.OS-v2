@@ -20,7 +20,7 @@ Hub, como componente de borda substituível. A adoção depende de um laboratór
 |---|---|
 | Origem | Projeto da DeepTempo, lançado em março de 2026. |
 | Licença | Apache 2.0. |
-| Maturidade | Versão 1.0 ainda não publicada. `main` é o ramo de desenvolvimento. 404 estrelas, 1.571 commits. |
+| Maturidade | Versão 1.0.0 publicada em 30/10/2026 (corrigido em 12/11). `main` é o ramo de desenvolvimento. 404 estrelas, 1.571 commits. |
 | Pilha | Docker com PostgreSQL, Redis e um gateway de LLM (Bifrost); Node.js 20+; Python. Tem chart Helm. |
 | Agentes | Triagem, investigação, hunting, correlação, resposta, relatório, ATT&CK, forense, threat intel, compliance, malware e rede. |
 | Extensão | Fluxos em Markdown, integrações por MCP. Expõe as próprias operações em `/mcp`. |
@@ -35,7 +35,7 @@ Hub, como componente de borda substituível. A adoção depende de um laboratór
 | Regra | Situação | O que exige |
 |---|---|---|
 | ADR 0010: licença OSI no que é autohospedado | Vigil passa (Apache 2.0). Redis e Bifrost, que vêm no pacote, **não foram conferidos**. O ADR 0010 já trocou Redis por Valkey. | Conferir licença e versão de cada componente do pacote. |
-| ADR 0010: versão e digest fixos | Sem 1.0. | Só usar tag de release, com digest. |
+| ADR 0010: versão e digest fixos | 1.0.0 disponível. | Só usar tag de release, com digest. |
 | F6: nenhuma remediação privilegiada autônoma | O limiar de 0,90 aprova sozinho. | Vigil **sem nenhuma integração de resposta**. Assim não há o que executar. |
 | F7: payload bruto não entra em IA | Vigil foi feito para consultar a fonte direto. | Vigil recebe só o pacote de evidência que o Hub monta. |
 | F7: modo observação sem IA | — | Vigil só depois do primeiro gate da F7. |
@@ -54,7 +54,7 @@ Falta: investigação em vários passos, e o registro do que o modelo recebeu e 
 
 ## Riscos de adotar
 
-1. **Projeto novo, sem 1.0.** Mudanças que quebram a integração são prováveis.
+1. **Projeto novo, 1.0.0 há poucas semanas.** Mudanças que quebram a integração ainda são prováveis.
 2. **Roteiro de um fornecedor.** A DeepTempo usa o Vigil como entrada para o produto pago dela (LogLM). O LogLM é opcional e fica fora.
 3. **Custo por caso.** Investigação com vários agentes gasta muito mais que uma chamada. Só dá para saber medindo.
 4. **Mais uma pilha para operar.** Banco, cache, gateway e atualizações próprias.
