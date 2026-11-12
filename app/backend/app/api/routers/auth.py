@@ -325,12 +325,12 @@ async def oidc_callback(
         )
 
     # 3. Identidade = (iss, oid|sub). Nunca e-mail; groups/role/tenant_id/email são ignorados.
-    # No Entra o `sub` é por aplicação: exige `oid`. O Authentik não emite `oid` e usa `sub`.
+    # No Entra o `sub` é por aplicação: exige `oid`. Outros IdPs (Authentik) caem em `sub`.
     issuer = claims.get("iss")
     is_entra = isinstance(issuer, str) and issuer.startswith(
         "https://login.microsoftonline.com/"
     )
-    subject = claims.get("oid") if is_entra else claims.get("sub")
+    subject = claims.get("oid") if is_entra else claims.get("oid") or claims.get("sub")
     if not (
         isinstance(issuer, str) and isinstance(subject, str) and issuer and subject
     ):
