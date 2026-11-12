@@ -54,6 +54,7 @@ Tasks do [plano de execução](docs/superpowers/plans/2026-10-26-ness-os-executi
 - P3 backend (#210): caixa de avisos no frontend, ack e link da notificação abre o caso. Falta UI/PWA e escala de plantão real. **Teste de push pendente (10/11):** `n_infraops_push_subscriptions` = 0; o Edge do Ricardo falha no registro (`NotAllowedError: Registration failed - permission denied`) mesmo com a permissão do site em Permitir; o `GET /api/v1/push/config` responde 200 e o `POST …/subscribe` nunca chega. Retomar no Chrome/Firefox ou no celular; depois, frase "envia 1 push de teste". O e-mail de alerta segue ativo.
 - Higienização de 11/11: 133 branches já mergeadas apagadas (lista com SHAs em `/tmp/opencode/branches-apagadas-20261111.tsv`, recuperáveis pelo SHA); 6 issues obsoletas fechadas (#47, #51, #59, #63, #66, #75; ADR 0015 e e-mail Resend já feito). Restam 16 branches e 22 issues antigas para decisão.
 - Wazuh R3a: IaC mergeado (#204), `terraform apply` espera OK do Ricardo.
+- Observabilidade da stack V1: `GET /api/ops/stack-health` + painel por stack no dashboard. [Gate](docs/execution/gates/stack-observability-v1.md) em FAIL condicional: credencial OAuth2 da Contabo no `ninf-api` inválida (HTTP 400) e nada promovido.
 - Zabbix sem vínculo em `n_infraops_tenant_mappings`: fica `pendente_de_modalidade` até o Ricardo decidir o mapeamento cliente ↔ Zabbix
 
 ### Pronto para começar

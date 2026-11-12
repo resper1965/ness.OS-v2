@@ -8,6 +8,7 @@ import logging
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
+from cli.contabo.api_client import ContaboAPIClient
 from redis.asyncio import Redis
 
 from app.config import get_settings
@@ -15,12 +16,20 @@ from app.core.dependencies import require_noc
 from app.dependencies import get_redis
 from app.integrations.atera import AteraClient
 from app.integrations.glpi import GLPIClient
+from app.integrations.pipeline_health import pipeline_health
 from app.integrations.zabbix import ZabbixClient
 from app.schemas.operational_status import OperationalStatus
 from app.services.operational_status import observe_source
+from app.services.stack_health import build_stack_health_report
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+TRACKED_CONTABO_STACKS = {
+    "aiops": "aiops",
+    "zabbix-prod": "ninfraops-zabbix",
+    "zabbix-prd-01": "ness-os-zabbix-prd-01",
+}
 
 
 async def _zabbix_summary() -> dict:
@@ -74,6 +83,11 @@ async def _atera_summary() -> dict:
 )
 async def get_operational_sources(redis: Redis = Depends(get_redis)) -> dict:
     """Per-source data and last valid collection for the operator dashboard."""
+    return {"sources": await _collect_sources(redis)}
+
+
+async def _collect_sources(redis: Redis) -> dict:
+    """Collect source statuses with the shared operational contract."""
     settings = get_settings()
 
     async def zabbix() -> dict:
@@ -116,7 +130,107 @@ async def get_operational_sources(redis: Redis = Depends(get_redis)) -> dict:
             error_code="post_mvp",
         )
     )
-    return {"sources": {item.source: item.model_dump(mode="json") for item in statuses}}
+    return {item.source: item.model_dump(mode="json") for item in statuses}
+
+
+async def _collect_contabo_stacks() -> dict:
+    observed_at = datetime.now(timezone.utc).isoformat()
+    try:
+        client = ContaboAPIClient()
+    except Exception as exc:
+        return {
+            "status": "down",
+            "observed_at": observed_at,
+            "error_code": type(exc).__name__,
+            "stacks": {
+                name: {
+                    "status": "down",
+                    "error_code": "client_init_failed",
+                    "display_name": display_name,
+                }
+                for name, display_name in TRACKED_CONTABO_STACKS.items()
+            },
+        }
+
+    try:
+        response = await asyncio.to_thread(client.get, "/compute/instances")
+        instances = response.get("data", [])
+    except Exception as exc:
+        return {
+            "status": "down",
+            "observed_at": observed_at,
+            "error_code": type(exc).__name__,
+            "stacks": {
+                name: {
+                    "status": "down",
+                    "error_code": "instance_list_failed",
+                    "display_name": display_name,
+                }
+                for name, display_name in TRACKED_CONTABO_STACKS.items()
+            },
+        }
+
+    by_name = {str(item.get("displayName", "")): item for item in instances}
+    stacks = {}
+    for stack, display_name in TRACKED_CONTABO_STACKS.items():
+        instance = by_name.get(display_name)
+        if not instance:
+            stacks[stack] = {
+                "status": "down",
+                "display_name": display_name,
+                "error_code": "missing_instance",
+            }
+            continue
+
+        provider_status = str(instance.get("status", "unknown")).lower()
+        if provider_status == "running":
+            status = "ok"
+        elif provider_status in {"stopped", "stopping", "error", "deleted"}:
+            status = "down"
+        else:
+            status = "degraded"
+
+        stacks[stack] = {
+            "status": status,
+            "display_name": display_name,
+            "instance_id": instance.get("instanceId") or instance.get("id"),
+            "provider_status": provider_status,
+            "ipv4": instance.get("ipConfig", {}).get("v4", {}).get("ip"),
+            "region": instance.get("region"),
+        }
+
+    domain_status = (
+        "down"
+        if any(item["status"] == "down" for item in stacks.values())
+        else ("degraded" if any(item["status"] == "degraded" for item in stacks.values()) else "ok")
+    )
+    return {
+        "status": domain_status,
+        "observed_at": observed_at,
+        "stacks": stacks,
+    }
+
+
+@router.get(
+    "/api/ops/stack-health", tags=["dashboard"], dependencies=[Depends(require_noc)]
+)
+async def get_stack_health(redis: Redis = Depends(get_redis)) -> dict:
+    """Unified view for stack-level health decisions."""
+    sources, contabo, pipeline = await asyncio.gather(
+        _collect_sources(redis),
+        _collect_contabo_stacks(),
+        pipeline_health(),
+    )
+    domains = {
+        "sources": sources,
+        "contabo": contabo,
+        "pipeline": {
+            "status": pipeline.get("status", "error"),
+            "checked_at": pipeline.get("checked_at"),
+            "error": pipeline.get("detail") if pipeline.get("status") != "ok" else None,
+        },
+    }
+    return build_stack_health_report(domains)
 
 
 @router.get("/api/dashboard/summary", tags=["dashboard"])
