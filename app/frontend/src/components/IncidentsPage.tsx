@@ -38,7 +38,7 @@ function IncidentTimeline({ stage }: { stage: string }) {
           return (
             <React.Fragment key={s.key}>
               <div className="flex flex-col items-center group relative">
-                <div className={`
+                <div role="img" aria-label={s.label} title={s.label} className={`
                   w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold
                   transition-all duration-300
                   ${done
@@ -175,7 +175,7 @@ export default function IncidentsPage({ incidents, total, loading, loadingMore, 
     <div className="space-y-4 animate-fade-in">
       {/* Page subtitle / stats bar */}
       {!loading && !error && (
-        <div className="flex items-center gap-4 px-1">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-1">
           <div className="flex items-center gap-1.5 text-xs text-[var(--color-brand-muted)]">
             <ShieldAlert size={13} />
             <span className="font-medium text-white">{incidents.length}</span> de {total} incidente{total !== 1 ? 's' : ''}
@@ -229,20 +229,20 @@ export default function IncidentsPage({ incidents, total, loading, loadingMore, 
               bg-[var(--color-brand-surface)] border border-white/[0.06]
               rounded-xl p-4 hover:border-white/[0.10]
               hover:shadow-[0_4px_24px_rgba(0,0,0,0.3)]
-              transition-all duration-300 hover:-translate-y-0.5
+              transition-all duration-300 md:hover:-translate-y-0.5
               animate-fade-in
             "
             style={{ animationDelay: `${idx * 40}ms` }}
           >
-            <div className="flex items-start justify-between gap-4">
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
               {/* Left */}
               <div className="flex items-start gap-3 min-w-0">
                 <div className={`mt-1 w-2.5 h-2.5 rounded-full shrink-0 ${sev.dot}`} />
                 <div className="min-w-0">
                   <p className="font-semibold text-sm text-white/90 leading-snug">{inc.title}</p>
-                  <div className="flex items-center gap-3 mt-1.5">
-                    <span className="flex items-center gap-1 text-[11px] text-[var(--color-brand-muted)]">
-                      <Server size={10} /> {inc.host_name}
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 min-w-0">
+                    <span className="flex items-center gap-1 text-[11px] text-[var(--color-brand-muted)] break-all">
+                      <Server size={10} className="shrink-0" /> {inc.host_name}
                     </span>
                     {inc.alert_count > 1 && (
                       <span className="flex items-center gap-1 text-[11px] text-[var(--color-brand-muted)]">
@@ -258,7 +258,7 @@ export default function IncidentsPage({ incidents, total, loading, loadingMore, 
                       href={`https://n-ticket.ness.com.br/front/ticket.form.php?id=${encodeURIComponent(inc.ticket_id)}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="mt-2 inline-block text-xs text-[var(--color-brand-primary)] hover:underline"
+                      className="mt-2 inline-block py-2 sm:py-0 text-xs text-[var(--color-brand-primary)] hover:underline"
                     >
                       Abrir chamado GLPI #{inc.ticket_id}
                     </a>
@@ -267,7 +267,7 @@ export default function IncidentsPage({ incidents, total, loading, loadingMore, 
               </div>
 
               {/* Right meta */}
-              <div className="flex flex-col items-end gap-2 shrink-0">
+              <div className="flex flex-row-reverse items-center justify-between gap-2 sm:flex-col sm:items-end shrink-0">
                 <div className="flex items-center gap-2">
                   <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${sev.badge}`}>
                     {sev.label}
@@ -286,7 +286,7 @@ export default function IncidentsPage({ incidents, total, loading, loadingMore, 
             <IncidentTimeline stage={inc.pipeline_stage} />
             <button
               type="button"
-              className="mt-3 text-xs text-[var(--color-brand-primary)] hover:underline"
+              className="mt-3 -mb-1 py-2 sm:py-0 text-xs text-[var(--color-brand-primary)] hover:underline"
               aria-expanded={activeId === inc.id}
               aria-controls={`incident-detail-${inc.id}`}
               onClick={() => { setNote(''); setActiveId(activeId === inc.id ? null : inc.id); }}
@@ -321,11 +321,11 @@ export default function IncidentsPage({ incidents, total, loading, loadingMore, 
                           className="w-full rounded-md border border-white/15 bg-black/20 p-2 text-white"
                         />
                         <div className="flex flex-wrap gap-2">
-                          {detail.status === 'open' && <button type="button" disabled={acting} onClick={() => void submitAction('acknowledge')} className="rounded border border-white/20 px-2 py-1 disabled:opacity-50">Reconhecer</button>}
-                          {detail.status !== 'closed' && <button type="button" disabled={acting} onClick={() => void submitAction('assign_self')} className="rounded border border-white/20 px-2 py-1 disabled:opacity-50">Assumir</button>}
-                          <button type="button" disabled={acting || !note.trim()} onClick={() => void submitAction('comment')} className="rounded border border-white/20 px-2 py-1 disabled:opacity-50">Registrar comentário</button>
-                          {!detail.ticket_id && ['open', 'acknowledged'].includes(detail.status) && <button type="button" disabled={acting || !note.trim()} onClick={() => void submitAction('resolve')} className="rounded border border-white/20 px-2 py-1 disabled:opacity-50">Resolver</button>}
-                          {detail.status === 'resolved' && (!detail.ticket_id || detail.resolution_sync_status === 'synced') && <button type="button" disabled={acting} onClick={() => void submitAction('close')} className="rounded border border-white/20 px-2 py-1 disabled:opacity-50">Encerrar</button>}
+                          {detail.status === 'open' && <button type="button" disabled={acting} onClick={() => void submitAction('acknowledge')} className="rounded border border-white/20 px-3 py-2.5 sm:px-2 sm:py-1 disabled:opacity-50">Reconhecer</button>}
+                          {detail.status !== 'closed' && <button type="button" disabled={acting} onClick={() => void submitAction('assign_self')} className="rounded border border-white/20 px-3 py-2.5 sm:px-2 sm:py-1 disabled:opacity-50">Assumir</button>}
+                          <button type="button" disabled={acting || !note.trim()} onClick={() => void submitAction('comment')} className="rounded border border-white/20 px-3 py-2.5 sm:px-2 sm:py-1 disabled:opacity-50">Registrar comentário</button>
+                          {!detail.ticket_id && ['open', 'acknowledged'].includes(detail.status) && <button type="button" disabled={acting || !note.trim()} onClick={() => void submitAction('resolve')} className="rounded border border-white/20 px-3 py-2.5 sm:px-2 sm:py-1 disabled:opacity-50">Resolver</button>}
+                          {detail.status === 'resolved' && (!detail.ticket_id || detail.resolution_sync_status === 'synced') && <button type="button" disabled={acting} onClick={() => void submitAction('close')} className="rounded border border-white/20 px-3 py-2.5 sm:px-2 sm:py-1 disabled:opacity-50">Encerrar</button>}
                         </div>
                       </div>
                     )}

@@ -1,6 +1,6 @@
 import { Activity, ShieldAlert, Settings, Cloud, RefreshCw,
          WifiOff, Monitor, AlertTriangle, CheckCircle, BarChart3,
-         Cpu, LogOut, BookOpen, FileText, Users } from 'lucide-react';
+         Cpu, LogOut, BookOpen, FileText, Users, Menu } from 'lucide-react';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import CloudManagement from './components/CloudManagement';
 import PipelineStrip from './components/PipelineStrip';
@@ -249,6 +249,7 @@ function AppShellBody({ AUTH, logout, user }: {
   const [activeModule, setActiveModule] = useState<NessModule>(isOperator && !startOnIncidents ? 'core' : 'infraops');
   const [currentView, setCurrentView] = useState<View>(isOperator && !startOnIncidents ? 'dashboard' : 'incidents');
   const [selectedTenant, setSelectedTenant] = useState<string | null>(null);
+  const [navOpen, setNavOpen] = useState(false);
   // Recarrega a caixa de avisos: evento SSE de incidente ou ação no caso.
   const [inboxVersion, setInboxVersion] = useState(0);
   const [summary, setSummary] = useState<Summary | null>(null);
@@ -370,6 +371,15 @@ function AppShellBody({ AUTH, logout, user }: {
     };
   }, [user, fetchData, fetchIncidents, selectedTenant, currentView, isOperator, logout]);
 
+  // Gaveta mobile: fecha ao trocar de tela e com Esc.
+  useEffect(() => { setNavOpen(false); }, [currentView, activeModule]);
+  useEffect(() => {
+    if (!navOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setNavOpen(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [navOpen]);
+
   const hasCritical = summary && summary.problems_critical > 0;
   const canAccessPricing = access.canAccessPricing(user?.role);
   const canReadCadastros = access.canReadCadastros(user?.role);
@@ -378,8 +388,12 @@ function AppShellBody({ AUTH, logout, user }: {
   return (
     <div className="min-h-screen bg-[var(--color-brand-base)] text-[var(--color-brand-text)] flex">
 
-      {/* ══ Sidebar ══ */}
-      <aside className="w-60 border-r border-white/[0.05] bg-[var(--color-brand-base)] flex flex-col py-5 px-3 gap-6 shrink-0 relative z-10">
+      {navOpen && <div className="fixed inset-0 z-30 bg-black/60 md:hidden" onClick={() => setNavOpen(false)} aria-hidden="true" />}
+
+      {/* ══ Sidebar (gaveta no mobile) ══ */}
+      <aside id="main-nav" className={`w-60 border-r border-white/[0.05] bg-[var(--color-brand-base)] flex flex-col py-5 px-3 gap-6 shrink-0 overflow-y-auto
+        fixed inset-y-0 left-0 z-40 transition-[transform,visibility] duration-200 pt-[max(1.25rem,env(safe-area-inset-top))]
+        md:static md:z-10 md:translate-x-0 ${navOpen ? 'translate-x-0' : '-translate-x-full max-md:invisible'}`}>
         <div className="absolute top-0 left-0 right-0 h-40 bg-[var(--color-brand-primary)] opacity-[0.03] blur-3xl pointer-events-none" />
 
         <div className="px-2 py-1">
@@ -483,7 +497,7 @@ function AppShellBody({ AUTH, logout, user }: {
       </aside>
 
       {/* ══ Main ══ */}
-      <main className="flex-1 flex flex-col h-screen overflow-hidden relative">
+      <main className="flex-1 min-w-0 flex flex-col h-dvh overflow-hidden relative">
         {/* Background glow — muda por módulo */}
         <div className="absolute top-0 inset-x-0 h-64 pointer-events-none"
           style={{ background: `radial-gradient(ellipse at 50% -20%, ${
@@ -494,13 +508,22 @@ function AppShellBody({ AUTH, logout, user }: {
           } 0%, transparent 70%)` }} />
 
         {/* ── Header ── */}
-        <header className="h-14 border-b border-white/[0.05] flex items-center justify-between px-8 z-10 shrink-0"
+        <header className="h-14 box-content pt-[env(safe-area-inset-top)] border-b border-white/[0.05] flex items-center justify-between gap-2 px-3 md:px-8 z-10 shrink-0"
           style={{ background: 'rgba(8,8,16,0.7)', backdropFilter: 'blur(12px)' }}>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 md:gap-3 min-w-0">
+            <button
+              onClick={() => setNavOpen(true)}
+              aria-label="Abrir menu"
+              aria-controls="main-nav"
+              aria-expanded={navOpen}
+              className="md:hidden p-2.5 -ml-1 rounded-lg text-white/70 hover:bg-white/[0.06]"
+            >
+              <Menu size={18} />
+            </button>
             <ModuleSwitcher active={activeModule} onChange={setActiveModule} showPricing={canAccessPricing} scoped={!isOperator} />
             {activeModule !== 'core' && hasCritical && activeModule === 'infraops' && (
-              <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-red-500/15 border border-red-500/30 text-red-400">
-                <AlertTriangle size={9} /> {summary!.problems_critical} {summary!.problems_critical === 1 ? 'alerta crítico' : 'alertas críticos'}
+              <span role="status" aria-label={`${summary!.problems_critical} alertas críticos`} className="flex shrink-0 items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-red-500/15 border border-red-500/30 text-red-400">
+                <AlertTriangle size={9} /> {summary!.problems_critical}<span className="hidden sm:inline">{summary!.problems_critical === 1 ? ' alerta crítico' : ' alertas críticos'}</span>
               </span>
             )}
           </div>
@@ -512,7 +535,7 @@ function AppShellBody({ AUTH, logout, user }: {
               else void fetchData();
             }}
             aria-label="Atualizar dados"
-            className="p-1.5 rounded-lg hover:bg-white/[0.06] text-[var(--color-brand-muted)] hover:text-white transition-all duration-200"
+            className="p-2.5 md:p-1.5 shrink-0 rounded-lg hover:bg-white/[0.06] text-[var(--color-brand-muted)] hover:text-white transition-all duration-200"
             style={{ transitionProperty: 'color, background, transform', transitionDuration: '300ms' }}
           >
             <RefreshCw size={14} />
@@ -532,7 +555,7 @@ function AppShellBody({ AUTH, logout, user }: {
 
           {/* ── n.infraops ── */}
           {activeModule === 'infraops' && currentView !== 'contracts' && currentView !== 'customers' && (
-          <div className="p-8 max-w-6xl space-y-5 animate-fade-in">
+          <div className="p-4 md:p-8 max-w-6xl space-y-5 animate-fade-in">
 
             {currentView === 'dashboard' && (
               <>
