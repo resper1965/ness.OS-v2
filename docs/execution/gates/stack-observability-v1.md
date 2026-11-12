@@ -19,7 +19,7 @@ A V1 está implementada em código, mas o gate permanece `FAIL` até fechar as p
 | Painel frontend por stack integrado ao CoreDashboard | PASS | `app/frontend/src/components/StackHealthPanel.tsx`, `CoreDashboard.tsx` |
 | Baseline das 3 VPS rastreadas documentado | PASS | `docs/execution/evidence/stack-health-baseline-2026-11-12.md` |
 | Revalidação online Contabo em 12/11 | FAIL | autenticação OAuth2 com HTTP 400 no token endpoint |
-| Execução de testes automatizados no ambiente deste runner | FAIL | `pytest`/`npm` indisponíveis localmente |
+| Testes automatizados | PASS | backend: 25 passed (venv local, 12/11); frontend: `build-and-test` verde no CI do PR #249 |
 
 ## Pendências para virar PASS
 
