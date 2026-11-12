@@ -136,7 +136,8 @@ done
 docker exec ninf-glpi-db sh -lc 'mariadb-admin -uroot -p"$MYSQL_ROOT_PASSWORD" ping' >/dev/null
 glpi_version="$(docker exec ninf-glpi php /var/www/glpi/bin/console --version)"
 db_tables="$(docker exec ninf-glpi-db sh -lc 'mariadb -N -B -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE" -e "SELECT count(*) FROM information_schema.tables WHERE table_schema=DATABASE()"')"
-http_status="$(curl -k -sS -o /dev/null -w '%{http_code}' --resolve n-ticket.ness.com.br:443:127.0.0.1 https://n-ticket.ness.com.br/)"
+# n-ticket passa pelo túnel cloudflared-glpi + Access: sem sessão, 302 para o login do Access.
+http_status="$(curl -sS -o /dev/null -w '%{http_code}' https://n-ticket.ness.com.br/)"
 internal_http_status="$(docker exec ninf-glpi sh -lc 'curl -sS -o /dev/null -w "%{http_code}" http://127.0.0.1/')"
 
 [[ "${db_tables}" =~ ^[0-9]+$ && "${db_tables}" -gt 0 ]]
