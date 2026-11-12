@@ -59,7 +59,7 @@ restart_stopped_containers() {
 }
 trap restart_stopped_containers EXIT
 
-for container in ninf-n8n ninf-glpi; do
+for container in ninf-glpi; do
   if [[ "$(docker inspect --format '{{.State.Running}}' "${container}" 2>/dev/null || true)" == "true" ]]; then
     docker stop --time 30 "${container}" >/dev/null
     stopped_containers+=("${container}")

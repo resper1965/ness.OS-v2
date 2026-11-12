@@ -30,7 +30,7 @@ for group in platform_admin ness-os-platform-admin admin noc soc helpdesk gestao
   printf 'group_%s=%s\n' "${group//-/_}" "${count}"
 done
 
-for slug in hub zabbix glpi n8n; do
+for slug in hub zabbix glpi; do
   count="$(api_count "/api/v3/core/applications/?slug=${slug}&page_size=1")"
   printf 'application_%s=%s\n' "${slug}" "${count}"
 done

@@ -16,7 +16,6 @@ mkdir -p "${fake_bin}"
 cat >"${env_file}" <<'EOF'
 NINF_AUTHENTIK_SECRET_KEY=runner-secret-authentik
 NINF_DB_PASSWORD=runner-secret-database
-NINF_EVOLUTION_API_KEY=runner-secret-evolution
 NINF_JWT_SECRET=runner-secret-jwt
 NINF_RESEND_API_KEY=runner-secret-resend
 NINF_ZABBIX_API_TOKEN=runner-secret-zabbix

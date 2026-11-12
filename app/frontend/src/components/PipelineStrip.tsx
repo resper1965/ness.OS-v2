@@ -1,6 +1,6 @@
 import React from 'react';
 import { timeAgo } from '../access';
-import { Zap, Cpu, GitBranch, Ticket, MessageCircle, CheckCircle2, AlertCircle, Minus } from 'lucide-react';
+import { Zap, Cpu, GitBranch, Ticket, CheckCircle2, AlertCircle, Minus } from 'lucide-react';
 
 interface NodeStatus {
   status: 'ok' | 'error' | 'unconfigured' | 'degraded' | 'disabled';
@@ -14,7 +14,6 @@ interface PipelineData {
   workers?:     NodeStatus;
   delivery?:    NodeStatus;
   deskmanager?: NodeStatus;
-  whatsapp?:    NodeStatus;
 }
 
 const NODES: {
@@ -27,7 +26,6 @@ const NODES: {
   { key: 'workers',     label: 'Processamento',  icon: Cpu,           description: 'Workers e filas de incidentes' },
   { key: 'delivery',    label: 'Entregas',       icon: GitBranch,     description: 'Tickets e resoluções pendentes' },
   { key: 'deskmanager', label: 'Helpdesk',        icon: Ticket,        description: 'Abertura de ticket' },
-  { key: 'whatsapp',    label: 'Mensageria',      icon: MessageCircle, description: 'Notificação' },
 ];
 
 function StatusIcon({ status }: { status: string }) {
@@ -158,7 +156,7 @@ export default function PipelineStrip({
                 <div className="w-12 h-2 bg-white/[0.04] rounded animate-pulse" />
                 <div className="w-8 h-1.5 bg-white/[0.03] rounded animate-pulse" />
               </div>
-              {n.key !== 'whatsapp' && <div className="w-8 h-px bg-white/5 mx-1.5" />}
+              {n.key !== 'deskmanager' && <div className="w-8 h-px bg-white/5 mx-1.5" />}
             </div>
           ))}
         </div>

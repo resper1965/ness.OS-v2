@@ -87,50 +87,6 @@ class AnomalyResult(BaseModel):
     threshold: float
 
 
-# --- Payload para n8n (dispara DeskManager + WhatsApp) ---
-class N8nIncidentPayload(BaseModel):
-    """Payload enviado ao webhook do n8n quando um incidente é consolidado.
-
-    O n8n usa este payload para:
-      1. Abrir ticket no DeskManager via API Rest.
-      2. Enviar alerta read-only no WhatsApp via Evolution API.
-    """
-
-    fingerprint: str
-    title: str
-    severity: ZabbixSeverity
-    severity_label: str = Field(
-        default="AVERAGE",
-        description="Label legível da severidade (DISASTER, HIGH, etc.)",
-    )
-    status: IncidentStatus = IncidentStatus.OPEN
-    host_id: str
-    host_name: str
-    trigger_id: str
-    trigger_name: str
-    sanitized_description: str
-    alert_count: int = 1
-    first_seen: str = Field(description="ISO 8601 timestamp")
-    last_seen: str = Field(description="ISO 8601 timestamp")
-    tags: dict[str, str] = Field(default_factory=dict)
-
-    # Links prontos para o template do WhatsApp
-    dashboard_url: str = Field(
-        default="",
-        description="URL direta do incidente no dashboard n.infraops",
-    )
-    deskmanager_ticket_id: str | None = Field(
-        default=None,
-        description="ID do ticket retornado pelo DeskManager (preenchido pelo n8n)",
-    )
-
-    # Achados técnicos mastigados para o NOC
-    findings_summary: str = Field(
-        default="",
-        description="Resumo técnico curto para o template WhatsApp",
-    )
-
-
 # --- Post-Mortem Report ---
 class PostMortemReport(BaseModel):
     """Relatório pós-incidente gerado pelo Gemini.
@@ -173,18 +129,6 @@ class PostMortemReport(BaseModel):
     completion_tokens: int = 0
 
 
-# --- WhatsApp Notification (Read-Only) ---
-class WhatsAppAlertMessage(BaseModel):
-    """Template de mensagem para o Evolution API.
-
-    Estritamente read-only: sem botões interativos,
-    sem chatbot, sem resposta. Apenas texto + links.
-    """
-
-    group_id: str = Field(description="ID do grupo WhatsApp do NOC")
-    message: str = Field(description="Mensagem formatada pronta para envio")
-
-
 # --- Solicitação de análise de incidente (RCA) ---
 class IncidentAnalyzeRequest(BaseModel):
     """Payload recebido pela API para gerar PostMortem."""
@@ -193,7 +137,7 @@ class IncidentAnalyzeRequest(BaseModel):
         description="Dados sanitizados do incidente consolidado"
     )
     ticket_id: str | None = Field(
-        default=None, description="ID do ticket no DeskManager (se já criado pelo n8n)"
+        default=None, description="ID do ticket no DeskManager (se já criado)"
     )
 
 

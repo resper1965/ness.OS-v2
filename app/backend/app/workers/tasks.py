@@ -23,7 +23,6 @@ from sqlalchemy import select
 from app.config import get_settings
 from app.core.sanitizer import sanitize, sanitize_dict
 from app.database import SessionLocal
-from app.integrations.n8n import notify_incident_created
 from app.models import Asset, Incident
 from app.workers.celery_app import celery_app
 
@@ -74,11 +73,9 @@ def process_alert(
         redis.delete(lock_key)
         redis.close()
 
-        # --- 4. Notificar n8n (Ticket + WhatsApp) ---
-        n8n_result = notify_incident_created(incident)
-        ticket_id = n8n_result.get("ticket_id")
+        ticket_id = None
 
-        # --- 5. Agendar geração de post-mortem ---
+        # --- 4. Agendar geração de post-mortem ---
         if incident.get("action") == "created":
             from app.workers.postmortem import generate_postmortem_report
 

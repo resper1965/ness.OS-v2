@@ -47,8 +47,6 @@ probe hub_public \
   'https://hub.ness.com.br/' 200 -
 probe glpi_without_session \
   'https://n-ticket.ness.com.br/' 302 sso.ness.com.br
-probe n8n_without_session \
-  'https://n8n.ness.com.br/' 302 sso.ness.com.br
 probe zabbix_uat_sso \
   'https://zabbix-uat.ness.com.br/zabbix/index_sso.php' 302 sso.ness.com.br
 probe glpi_forged_identity_headers \

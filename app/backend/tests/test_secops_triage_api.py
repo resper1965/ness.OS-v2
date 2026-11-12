@@ -130,7 +130,6 @@ def test_triage_alert_low_risk_bypasses_llm(decision_database):
     assert data["llm_bypassed"] is True
     assert data["risk_score"] < 75
     assert data["decision_id"] == 19
-    assert data["dispatch_status"] == "not_requested"
     decision_database.commit.assert_awaited_once()
 
 
@@ -189,10 +188,6 @@ def _spy_triage(monkeypatch):
         }
 
     monkeypatch.setattr("app.integrations.soc_agent.triage_wazuh_alert", fake)
-    monkeypatch.setattr(
-        "app.integrations.n8n.notify_soc_triage_decision",
-        lambda p: calls.append(("n8n", p["customer_id"])) or {"status": "sent"},
-    )
     return calls
 
 
@@ -207,27 +202,19 @@ def test_attendance_floor_is_independent_of_score_and_model(
     }
     data = client.post("/api/secops/triage", json=payload).json()
     assert data["attendance_required"] is attended
-    assert (("n8n", "cavan") in calls) is attended
 
 
-def test_attended_alert_is_dispatched_even_if_model_fails(
-    decision_database, monkeypatch
-):
+def test_attended_alert_is_recorded_even_if_model_fails(decision_database, monkeypatch):
     from app.integrations import soc_agent
 
     monkeypatch.setattr(soc_agent.settings, "llm_api_key", "")
-    sent = []
-    monkeypatch.setattr(
-        "app.integrations.n8n.notify_soc_triage_decision",
-        lambda p: sent.append(p) or {"status": "sent"},
-    )
     payload = {
         "rule": {"id": "1", "level": 15},
         "agent": {"id": "1", "name": "workstation-10", "group": ["g"]},
     }
     data = client.post("/api/secops/triage", json=payload).json()
-    assert data["classification"] == "HIGH" and data["dispatch_status"] == "sent"
-    assert sent and sent[0]["customer_id"] == "cavan"
+    assert data["classification"] == "HIGH" and data["attendance_required"] is True
+    assert decision_database.add.call_args.args[0].customer_id == "cavan"
 
 
 def test_unmapped_tenant_is_pending_without_enrichment_or_llm(
@@ -257,7 +244,7 @@ def test_unmapped_tenant_is_pending_without_enrichment_or_llm(
     assert data["classification"] == "PENDING_REVIEW"
     assert data["state"] == "pendente_de_cliente"
     assert data["attendance_required"] is True
-    assert [c for c in calls if c != ("n8n", None)] == []  # no LLM, no tenant
+    assert calls == []  # no LLM, no tenant
     decision = decision_database.add.call_args.args[0]
     assert decision.customer_id is None
 
@@ -302,7 +289,6 @@ def test_invalid_level_never_500_and_is_attended(decision_database, monkeypatch,
     response = client.post("/api/secops/triage", json=payload)
     assert response.status_code == 200
     assert response.json()["attendance_required"] is True
-    assert ("n8n", "cavan") in calls
 
 
 def test_triage_stats_pending_is_outside_bypass_meta(persisted_triage_stats_database):
@@ -330,9 +316,7 @@ def _prior(decision_database, row):
     decision_database.execute.return_value = result
 
 
-def test_replay_returns_saved_decision_without_model_or_dispatch(
-    decision_database, monkeypatch
-):
+def test_replay_returns_saved_decision_without_model(decision_database, monkeypatch):
     calls = _spy_triage(monkeypatch)
     _prior(
         decision_database,
@@ -358,7 +342,6 @@ def test_replay_returns_saved_decision_without_model_or_dispatch(
         False,
         True,
     )
-    assert data["dispatch_status"] == "duplicate"
     assert calls == []
     decision_database.add.assert_not_called()
 
@@ -395,7 +378,6 @@ def test_race_on_unique_key_returns_winner(decision_database, monkeypatch):
     decision_database.commit.side_effect = IntegrityError("x", {}, Exception())
     data = client.post("/api/secops/triage", json=_alert()).json()
     assert data["duplicate"] is True and data["decision_id"] == 8
-    assert ("n8n", "cavan") not in calls
 
 
 def test_dedup_key_is_per_tenant_and_absent_without_identity():

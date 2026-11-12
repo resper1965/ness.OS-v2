@@ -118,7 +118,6 @@ case "${1-}" in
     elif [[ "${arguments}" == *'.NetworkSettings.Networks'* ]]; then
       printf 'app_ninf-net\n'
     elif [[ "${arguments}" == *'.Mounts'* ]]; then
-      printf 'app_n8n-data\n'
       [[ "${AIOPS_TEST_OMIT_GLPI_STATE:-0}" == 1 ]] || printf 'app_glpi-state\n'
     fi
     ;;

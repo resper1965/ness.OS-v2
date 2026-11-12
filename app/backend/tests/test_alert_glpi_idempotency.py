@@ -779,7 +779,6 @@ async def test_pipeline_persists_incident_and_retries_glpi_failure(
         yield next(sessions)
 
     session.begin.side_effect = transaction
-    whatsapp = AsyncMock()
     push = AsyncMock()
     monkeypatch.setattr(alerts, "GLPIClient", lambda: glpi)
     monkeypatch.setattr(alerts, "analyze_incident", AsyncMock(return_value=analysis))
@@ -799,8 +798,6 @@ async def test_pipeline_persists_incident_and_retries_glpi_failure(
     redis.publish.side_effect = publish
     monkeypatch.setattr(alerts, "_get_sync_redis", lambda: redis)
     monkeypatch.setattr(alerts, "LokiClient", lambda: AsyncMock())
-    monkeypatch.setattr(alerts, "WhatsAppClient", lambda: whatsapp)
-    monkeypatch.setattr(alerts.settings, "whatsapp_noc_group_id", "synthetic")
     monkeypatch.setattr(
         alerts.settings, "alert_notifications_enabled", notifications_enabled
     )
@@ -820,7 +817,6 @@ async def test_pipeline_persists_incident_and_retries_glpi_failure(
     else:
         result = await alerts._async_process_alert_v1(alert_data, "a" * 64)
         assert result["ticket_id"] == 123
-        assert result["whatsapp_sent"] is notifications_enabled
 
     assert committed == [True]
     assert "sensitive-rca-must-not-reach-logs" not in caplog.text
@@ -859,10 +855,8 @@ async def test_pipeline_persists_incident_and_retries_glpi_failure(
     else:
         glpi.create_ticket.assert_awaited_once()
     if glpi_fails or not notifications_enabled:
-        whatsapp.send_text_message.assert_not_awaited()
         push.assert_not_called()
     else:
-        whatsapp.send_text_message.assert_awaited_once()
         push.assert_called_once()
 
 
