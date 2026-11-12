@@ -52,13 +52,16 @@ Tasks do [plano de execução](docs/superpowers/plans/2026-10-26-ness-os-executi
 - Cutover do Zabbix (sábado 14/11 23h, #208 a #225): script de backup final (#219), ProxyOfflineBuffer (#221), SAML do Entra (#223, #224), roteiro final com pré-checagens de sexta (#225). Web pública desligada; restauração testada em 58 min (#222). Sem rollback possível após restaurar o banco no novo IP: o backup tem 23h59min59s de idade.
 - Identidade: IdP do Hub configurável por ambiente (#211) para ligar o Entra ID ao Hub (antes só Authentik). ADR 0015 revisado (#209). Fase B (Entra, Cloudflare Access, desligar Authentik) só após o aceite do MVP.
 - P3 backend (#210): caixa de avisos no frontend, ack e link da notificação abre o caso. Falta UI/PWA e escala de plantão real. **Teste de push pendente (10/11):** `n_infraops_push_subscriptions` = 0; o Edge do Ricardo falha no registro (`NotAllowedError: Registration failed - permission denied`) mesmo com a permissão do site em Permitir; o `GET /api/v1/push/config` responde 200 e o `POST …/subscribe` nunca chega. Retomar no Chrome/Firefox ou no celular; depois, frase "envia 1 push de teste". O e-mail de alerta segue ativo.
+- Higienização de 11/11: 133 branches já mergeadas apagadas (lista com SHAs em `/tmp/opencode/branches-apagadas-20261111.tsv`, recuperáveis pelo SHA); 6 issues obsoletas fechadas (#47, #51, #59, #63, #66, #75; ADR 0015 e e-mail Resend já feito). Restam 16 branches e 22 issues antigas para decisão.
 - Wazuh R3a: IaC mergeado (#204), `terraform apply` espera OK do Ricardo.
 - Zabbix sem vínculo em `n_infraops_tenant_mappings`: fica `pendente_de_modalidade` até o Ricardo decidir o mapeamento cliente ↔ Zabbix
 
 ### Pronto para começar
+- Vigil, investigação de casos L2 ([ADR 0022](docs/adr/0022-vigil-l2-investigation.md) proposto, [plano](docs/superpowers/plans/2026-11-11-vigil-investigacao-l2.md)): **E0** feito (#239). **E1** (divergência motor × modelo como anotação e registro da decisão no `/secops/triage`, útil sem o Vigil) pode entrar no lote do Hub depois do corte do Zabbix. **E2** (laboratório) só depois do primeiro gate da F7 e exige máquina e custo máximo por caso aprovados pelo Ricardo. **E3/E4** só se o E2 passar. Critérios de corte no plano; nada instalado nem ativado.
 - 2.5 T06 do plano GLPI (reconciliar todo o inventário)
 
 ### Esperando o Ricardo
+- Vigil: custo máximo por caso, máquina do laboratório (E2) e decisão final do ADR 0022; o SOC define amostra (30 casos L2), critério de ganho e tempo máximo por caso.
 0. Action1 ([ADR 0021](docs/adr/0021-action1-endpoint-executor.md)): API lida em GET (01/11, inventário e atualizações ausentes por organização OK); falta o mapa por endpoint e o resultado de execução, multi-tenant, licença acima de 200 endpoints e dados do agente antes de integrar; contratação precisa do seu OK
 1. Replay dos 14 alertas ainda ativos sem ticket (Google Updater parado e disco em `alpdb01`/`alpdb02`)? Os 12 FortiGate já ganharam ticket; os 189 resolvidos ficam sem
 2. Wazuh: limpar agentes desconectados (485, dos quais 146 há mais de 30 dias) e os 10 que nunca conectaram e apagar os scripts temporários da `homol`; regras 100100/100101 já aplicadas (`docs/execution/evidence/wazuh-rules-review-2026-10-29.md`)
