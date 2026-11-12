@@ -392,8 +392,8 @@ function AppShellBody({ AUTH, logout, user }: {
 
       {/* ══ Sidebar (gaveta no mobile) ══ */}
       <aside id="main-nav" className={`w-60 border-r border-white/[0.05] bg-[var(--color-brand-base)] flex flex-col py-5 px-3 gap-6 shrink-0 overflow-y-auto
-        fixed inset-y-0 left-0 z-40 transition-transform duration-200 pt-[max(1.25rem,env(safe-area-inset-top))]
-        md:static md:z-10 md:translate-x-0 ${navOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        fixed inset-y-0 left-0 z-40 transition-[transform,visibility] duration-200 pt-[max(1.25rem,env(safe-area-inset-top))]
+        md:static md:z-10 md:translate-x-0 ${navOpen ? 'translate-x-0' : '-translate-x-full max-md:invisible'}`}>
         <div className="absolute top-0 left-0 right-0 h-40 bg-[var(--color-brand-primary)] opacity-[0.03] blur-3xl pointer-events-none" />
 
         <div className="px-2 py-1">
