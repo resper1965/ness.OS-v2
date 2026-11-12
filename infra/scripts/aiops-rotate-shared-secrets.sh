@@ -77,10 +77,10 @@ for _ in $(seq 1 90); do
   running="$(docker ps --format '{{.Names}}' | wc -l)"
   unhealthy="$(docker ps --filter health=unhealthy --format '{{.Names}}' | wc -l)"
   starting="$(docker ps --filter health=starting --format '{{.Names}}' | wc -l)"
-  [[ "${running}" -eq 14 && "${unhealthy}" -eq 0 && "${starting}" -eq 0 ]] && break
+  [[ "${running}" -eq 15 && "${unhealthy}" -eq 0 && "${starting}" -eq 0 ]] && break
   sleep 2
 done
-[[ "${running}" -eq 14 && "${unhealthy}" -eq 0 && "${starting}" -eq 0 ]]
+[[ "${running}" -eq 15 && "${unhealthy}" -eq 0 && "${starting}" -eq 0 ]]
 
 docker exec ninf-api sh -lc 'python - <<"PY"
 import asyncio

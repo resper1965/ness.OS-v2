@@ -46,13 +46,13 @@ probe authentik_health \
 probe hub_public \
   'https://hub.ness.com.br/' 200 -
 probe glpi_without_session \
-  'https://n-ticket.ness.com.br/' 302 sso.ness.com.br
+  'https://n-ticket.ness.com.br/' 302 ness.cloudflareaccess.com
 probe zabbix_uat_sso \
   'https://zabbix-uat.ness.com.br/zabbix/index_sso.php' 302 sso.ness.com.br
 probe glpi_forged_identity_headers \
-  'https://n-ticket.ness.com.br/' 302 sso.ness.com.br \
+  'https://n-ticket.ness.com.br/' 302 ness.cloudflareaccess.com \
   --header 'Remote-User: uat-forged' \
-  --header 'X-Authentik-Username: uat-forged'
+  --header 'Cf-Access-Authenticated-User-Email: uat-forged@ness.com.br'
 
 if (( failures > 0 )); then
   printf 'authentik_public_precheck=FAIL failures=%s\n' "${failures}" >&2

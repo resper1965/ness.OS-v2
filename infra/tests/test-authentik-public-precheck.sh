@@ -8,7 +8,7 @@ script="${repo_root}/infra/scripts/authentik-public-precheck.sh"
 grep -q 'Never follows redirects or prints headers' "${script}"
 grep -q 'zabbix-uat.ness.com.br/zabbix/index_sso.php' "${script}"
 grep -q 'Remote-User: uat-forged' "${script}"
-grep -q 'X-Authentik-Username: uat-forged' "${script}"
+grep -q 'Cf-Access-Authenticated-User-Email: uat-forged' "${script}"
 grep -q 'authentik_public_precheck=PASS' "${script}"
 if grep -Eq '(-L|--location|Authorization:|Set-Cookie)' "${script}"; then
   echo 'public precheck can follow redirects or expose authentication material' >&2
