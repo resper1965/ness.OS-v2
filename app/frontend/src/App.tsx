@@ -1,4 +1,4 @@
-import { Activity, ShieldAlert, Settings, Cloud, RefreshCw,
+import { Activity, ShieldAlert, Cloud, RefreshCw, LayoutDashboard, Shield,
          WifiOff, Monitor, AlertTriangle, CheckCircle, BarChart3,
          Cpu, LogOut, BookOpen, FileText, Users, Menu } from 'lucide-react';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
@@ -9,7 +9,6 @@ import TenantSelector from './components/TenantSelector';
 import SecurityAlerts from './components/SecurityAlerts';
 import LoginPage from './components/LoginPage';
 import SecopsModule from './components/SecopsModule';
-import ModuleSwitcher, { type NessModule } from './components/ModuleSwitcher';
 import CoreDashboard from './components/CoreDashboard';
 import { debounce } from './debounce';
 import { useAuth } from './hooks/useAuth';
@@ -46,7 +45,20 @@ const SEVERITY_LABEL: Record<string, string> = {
   warning: 'Aviso', info: 'Info', not_classified: 'N/C',
 };
 
-type View = 'dashboard' | 'cloud' | 'incidents' | 'contracts' | 'customers';
+type View = 'overview' | 'monitoring' | 'cloud' | 'incidents' | 'secops' | 'contracts' | 'customers';
+
+const TITLES: Record<View, string> = {
+  overview: 'Visão geral', monitoring: 'Monitoramento', cloud: 'Nuvem', incidents: 'Incidentes',
+  secops: 'Segurança', contracts: 'Contratos', customers: 'Clientes',
+};
+
+// A tela vive na URL (?view=) para recarregar, voltar e compartilhar link; papel decide o que pode abrir.
+export function allowedView(v: string | null, isOperator: boolean, canCadastros: boolean): View {
+  if (v === 'incidents') return v;
+  if ((v === 'contracts' || v === 'customers') && canCadastros) return v;
+  if (isOperator && (v === 'overview' || v === 'monitoring' || v === 'cloud' || v === 'secops')) return v;
+  return isOperator ? 'overview' : 'incidents';
+}
 
 interface Summary {
   hosts_active: number;
@@ -81,7 +93,6 @@ function SidebarItem({
       disabled={disabled || !onClick}
       aria-current={active ? 'page' : undefined}
       aria-disabled={disabled ? 'true' : undefined}
-      title={disabled ? 'Em breve' : undefined}
       className={`
         w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left
         transition-all duration-200 relative group select-none
@@ -104,11 +115,6 @@ function SidebarItem({
       )}
       <Icon size={18} className={active ? 'text-[#00ADE8]' : ''} />
       <span className={`font-medium text-sm ${active ? 'text-white' : 'text-slate-400'}`}>{label}</span>
-      {disabled && (
-        <span className="ml-auto text-[10px] font-medium px-1.5 py-0.5 rounded bg-white/[0.04] text-brand-muted leading-none">
-          breve
-        </span>
-      )}
     </button>
   );
 }
@@ -236,9 +242,21 @@ function AppShellBody({ AUTH, logout, user }: {
   // Link da notificação push: /?view=incidents&id=N abre o caso (o backend revalida o acesso).
   const linkParams = new URLSearchParams(window.location.search);
   const linkedIncident = linkParams.get('view') === 'incidents' ? linkParams.get('id') : null;
-  const startOnIncidents = linkParams.get('view') === 'incidents';
-  const [activeModule, setActiveModule] = useState<NessModule>(isOperator && !startOnIncidents ? 'core' : 'infraops');
-  const [currentView, setCurrentView] = useState<View>(isOperator && !startOnIncidents ? 'dashboard' : 'incidents');
+  const canReadCadastros = access.canReadCadastros(user?.role);
+  const [currentView, setView] = useState<View>(() => allowedView(linkParams.get('view'), isOperator, canReadCadastros));
+  const setCurrentView = useCallback((v: View) => {
+    setView(v);
+    const url = new URL(window.location.href);
+    if (url.searchParams.get('view') === v) return;
+    url.search = `?view=${v}`;
+    window.history.pushState(null, '', url);
+  }, []);
+  useEffect(() => {
+    const onPop = () => setView(allowedView(new URLSearchParams(window.location.search).get('view'), isOperator, canReadCadastros));
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, [isOperator, canReadCadastros]);
+  useEffect(() => { document.title = `${TITLES[currentView]} · ness.OS`; }, [currentView]);
   const [selectedTenant, setSelectedTenant] = useState<string | null>(null);
   const [navOpen, setNavOpen] = useState(false);
   // Recarrega a caixa de avisos: evento SSE de incidente ou ação no caso.
@@ -363,7 +381,7 @@ function AppShellBody({ AUTH, logout, user }: {
   }, [user, fetchData, fetchIncidents, selectedTenant, currentView, isOperator, logout]);
 
   // Gaveta mobile: fecha ao trocar de tela e com Esc.
-  useEffect(() => { setNavOpen(false); }, [currentView, activeModule]);
+  useEffect(() => { setNavOpen(false); }, [currentView]);
   useEffect(() => {
     if (!navOpen) return;
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setNavOpen(false); };
@@ -372,7 +390,6 @@ function AppShellBody({ AUTH, logout, user }: {
   }, [navOpen]);
 
   const hasCritical = summary && summary.problems_critical > 0;
-  const canReadCadastros = access.canReadCadastros(user?.role);
   const connectionError = isOperator ? error : incidentsError;
 
   return (
@@ -399,34 +416,29 @@ function AppShellBody({ AUTH, logout, user }: {
         </div>
 
         <nav className="flex flex-col gap-1 flex-1" aria-label="Navegação principal">
-          {/* Grupo principal */}
-          <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-brand-muted select-none">
-            Principal
-          </p>
-          {isOperator && <SidebarItem icon={Activity} label="Dashboard" active={activeModule === 'infraops' && currentView === 'dashboard'} onClick={() => { setActiveModule('infraops'); setCurrentView('dashboard'); }} />}
-          {isOperator && <SidebarItem icon={Cloud} label="Nuvem" active={activeModule === 'infraops' && currentView === 'cloud'} onClick={() => { setActiveModule('infraops'); setCurrentView('cloud'); }} />}
-          <SidebarItem icon={ShieldAlert} label="Incidentes"      active={activeModule === 'infraops' && currentView === 'incidents'} onClick={() => { setActiveModule('infraops'); setCurrentView('incidents'); }} />
-
-          <div className="my-3 border-t border-white/[0.04]" />
-
-          {/* Grupo sistema */}
-          <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-brand-muted select-none">
-            Sistema
-          </p>
+          {isOperator && <SidebarItem icon={LayoutDashboard} label="Visão geral" active={currentView === 'overview'} onClick={() => setCurrentView('overview')} />}
+          <p className="px-3 mt-3 mb-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-brand-muted select-none">Operação</p>
+          {isOperator && <SidebarItem icon={Activity} label="Monitoramento" active={currentView === 'monitoring'} onClick={() => setCurrentView('monitoring')} />}
+          <SidebarItem icon={ShieldAlert} label="Incidentes" active={currentView === 'incidents'} onClick={() => setCurrentView('incidents')} />
+          {isOperator && <SidebarItem icon={Cloud} label="Nuvem" active={currentView === 'cloud'} onClick={() => setCurrentView('cloud')} />}
+          {isOperator && <SidebarItem icon={Shield} label="Segurança" active={currentView === 'secops'} onClick={() => setCurrentView('secops')} />}
+          {canReadCadastros && <>
+          <p className="px-3 mt-3 mb-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-brand-muted select-none">Cadastros</p>
+          <SidebarItem icon={FileText} label="Contratos" active={currentView === 'contracts'} onClick={() => setCurrentView('contracts')} />
+          <SidebarItem icon={Users} label="Clientes" active={currentView === 'customers'} onClick={() => setCurrentView('customers')} />
+          </>}
+          <p className="px-3 mt-3 mb-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-brand-muted select-none">Sistema</p>
           <a
             href="/platform"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium text-brand-muted hover:text-white/80 hover:bg-white/[0.04] transition-all duration-150 select-none"
-            title="Documentação da plataforma ness.OS"
+            className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-400 hover:text-white/90 hover:bg-white/[0.04] transition-colors duration-150 select-none"
           >
-            <BookOpen size={14} className="shrink-0" />
-            <span>Plataforma</span>
-            <span className="ml-auto text-[10px] text-brand-muted">↗</span>
+            <BookOpen size={18} className="shrink-0" />
+            <span>Documentação</span>
+            <span className="ml-auto text-[10px] text-brand-muted" aria-hidden="true">↗</span>
+            <span className="sr-only">(abre em nova aba)</span>
           </a>
-          {canReadCadastros && <SidebarItem icon={FileText} label="Contratos" active={activeModule === 'infraops' && currentView === 'contracts'} onClick={() => { setActiveModule('infraops'); setCurrentView('contracts'); }} />}
-          {canReadCadastros && <SidebarItem icon={Users} label="Clientes" active={activeModule === 'infraops' && currentView === 'customers'} onClick={() => { setActiveModule('infraops'); setCurrentView('customers'); }} />}
-          <SidebarItem icon={Settings} label="Configurações" disabled />
         </nav>
 
         {/* ── User card + Logout ── */}
@@ -489,7 +501,7 @@ function AppShellBody({ AUTH, logout, user }: {
       <main className="flex-1 min-w-0 flex flex-col h-dvh overflow-hidden relative">
 
         {/* ── Header ── */}
-        <header className="h-14 box-content pt-[env(safe-area-inset-top)] border-b border-white/[0.05] flex items-center justify-between gap-2 px-3 md:px-8 z-10 shrink-0"
+        <header className="h-16 box-content pt-[env(safe-area-inset-top)] border-b border-white/[0.05] flex items-center justify-between gap-2 px-3 md:px-8 z-10 shrink-0"
           style={{ background: 'var(--color-brand-base)' }}>
           <div className="flex items-center gap-2 md:gap-3 min-w-0">
             <button
@@ -501,8 +513,8 @@ function AppShellBody({ AUTH, logout, user }: {
             >
               <Menu size={18} />
             </button>
-            <ModuleSwitcher active={activeModule} onChange={setActiveModule} scoped={!isOperator} />
-            {activeModule !== 'core' && hasCritical && activeModule === 'infraops' && (
+            <h1 className="text-xl font-semibold tracking-[-0.02em] truncate">{TITLES[currentView]}</h1>
+            {hasCritical && (currentView === 'overview' || currentView === 'monitoring') && (
               <span role="status" aria-label={`${summary!.problems_critical} alertas críticos`} className="flex shrink-0 items-center gap-1 text-[10px] font-semibold px-2 py-0.5 bg-red-500/15 border border-red-500/30 text-red-400">
                 <AlertTriangle size={9} /> {summary!.problems_critical}<span className="hidden sm:inline">{summary!.problems_critical === 1 ? ' alerta crítico' : ' alertas críticos'}</span>
               </span>
@@ -527,18 +539,18 @@ function AppShellBody({ AUTH, logout, user }: {
         <div className="flex-1 overflow-auto z-10">
 
           {/* ── ness.OS Core ── */}
-          {activeModule === 'core' && (
+          {currentView === 'overview' && (
             <CoreDashboard
               authHeader={AUTH}
-              onModuleSwitch={(mod) => setActiveModule(mod)}
+              onModuleSwitch={(mod) => setCurrentView(mod === 'secops' ? 'secops' : 'monitoring')}
             />
           )}
 
           {/* ── n.infraops ── */}
-          {activeModule === 'infraops' && currentView !== 'contracts' && currentView !== 'customers' && (
+          {(currentView === 'monitoring' || currentView === 'incidents' || currentView === 'cloud') && (
           <div className="p-4 md:p-8 max-w-6xl space-y-5 animate-fade-in">
 
-            {currentView === 'dashboard' && (
+            {currentView === 'monitoring' && (
               <>
                 {/* Alertas de Segurança e Desatualização do Ambiente */}
                 <SecurityAlerts />
@@ -616,11 +628,11 @@ function AppShellBody({ AUTH, logout, user }: {
 
           </div>
           )} {/* /infraops */}
-          {activeModule === 'infraops' && currentView === 'contracts' && <ContractsScreen role={user?.role} refreshKey={cadastrosTick} />}
-          {activeModule === 'infraops' && currentView === 'customers' && <CustomersScreen role={user?.role} refreshKey={cadastrosTick} />}
+          {currentView === 'contracts' && <ContractsScreen role={user?.role} refreshKey={cadastrosTick} />}
+          {currentView === 'customers' && <CustomersScreen role={user?.role} refreshKey={cadastrosTick} />}
 
           {/* ── n.secops ── */}
-          {activeModule === 'secops' && (
+          {currentView === 'secops' && (
             <SecopsModule />
           )}
 
@@ -636,7 +648,7 @@ export default function App() {
   // Enquanto valida token salvo, mostrar loading minimal
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-[#08111f] flex items-center justify-center">
+      <div className="min-h-screen bg-[var(--color-brand-base)] flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-2 border-[#00ADE8]/30 border-t-[#00ADE8] rounded-full animate-spin" />
           <BrandMark size="sm" className="opacity-60" />
