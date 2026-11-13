@@ -75,7 +75,6 @@ export default function ModuleSwitcher({
             className="relative flex items-center gap-2 px-3 py-2 md:py-1.5 shrink-0 rounded-xl transition-all duration-300 select-none"
             style={isActive ? {
               background: `${mod.color}18`,
-              boxShadow: `0 0 16px ${mod.glowColor}40`,
             } : {}}
           >
             <Icon
@@ -91,7 +90,7 @@ export default function ModuleSwitcher({
             {isActive && (
               <span
                 className="absolute bottom-0 left-1/2 -translate-x-1/2 w-4 h-0.5 rounded-full"
-                style={{ background: mod.color, boxShadow: `0 0 6px ${mod.glowColor}` }}
+                style={{ background: mod.color }}
               />
             )}
           </button>

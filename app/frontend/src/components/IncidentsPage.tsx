@@ -3,19 +3,19 @@ import { timeAgo } from '../access';
 import { ShieldAlert, CheckCircle, Clock, Server, AlertTriangle, RefreshCw } from 'lucide-react';
 
 const SEVERITY_CONFIG: Record<string, { badge: string; dot: string; label: string }> = {
-  disaster:       { badge: 'bg-red-500/15 border-red-500/40 text-red-400',     dot: 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.9)]',         label: 'Desastre' },
-  high:           { badge: 'bg-red-400/10 border-red-400/30 text-red-400',     dot: 'bg-red-400 shadow-[0_0_6px_rgba(248,113,113,0.7)]',        label: 'Alta' },
-  average:        { badge: 'bg-orange-400/10 border-orange-400/25 text-orange-400', dot: 'bg-orange-400 shadow-[0_0_6px_rgba(251,146,60,0.6)]', label: 'Média' },
-  warning:        { badge: 'bg-yellow-400/10 border-yellow-400/25 text-yellow-400', dot: 'bg-yellow-400 shadow-[0_0_5px_rgba(250,204,21,0.5)]', label: 'Aviso' },
+  disaster:       { badge: 'bg-red-500/15 border-red-500/40 text-red-400',     dot: 'bg-red-500',         label: 'Desastre' },
+  high:           { badge: 'bg-red-400/10 border-red-400/30 text-red-400',     dot: 'bg-red-400',        label: 'Alta' },
+  average:        { badge: 'bg-orange-400/10 border-orange-400/25 text-orange-400', dot: 'bg-orange-400', label: 'Média' },
+  warning:        { badge: 'bg-yellow-400/10 border-yellow-400/25 text-yellow-400', dot: 'bg-yellow-400', label: 'Aviso' },
   info:           { badge: 'bg-blue-400/10 border-blue-400/20 text-blue-400',  dot: 'bg-blue-400',                                              label: 'Info' },
-  not_classified: { badge: 'bg-white/5 border-white/10 text-white/30',         dot: 'bg-white/20',                                              label: 'N/C' },
+  not_classified: { badge: 'bg-white/5 border-white/10 text-brand-muted',         dot: 'bg-white/20',                                              label: 'N/C' },
 };
 
 const STATUS_CONFIG: Record<string, { label: string; style: string }> = {
   open:     { label: 'Aberto',    style: 'bg-red-500/10 text-red-400 border-red-500/20' },
   acknowledged: { label: 'Reconhecido', style: 'bg-amber-500/10 text-amber-300 border-amber-500/20' },
   resolved: { label: 'Resolvido', style: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' },
-  closed:   { label: 'Fechado',   style: 'bg-white/5 text-white/30 border-white/10' },
+  closed:   { label: 'Fechado',   style: 'bg-white/5 text-brand-muted border-white/10' },
 };
 
 const STAGES = [
@@ -30,7 +30,7 @@ function IncidentTimeline({ stage }: { stage: string }) {
   const currentIdx = Math.max(0, STAGE_ORDER.indexOf(stage));
   return (
     <div className="flex items-center mt-3 pt-3 border-t border-white/[0.04]">
-      <span className="text-[9px] text-white/25 uppercase tracking-wider mr-3 shrink-0">Fluxo</span>
+      <span className="text-[10px] text-brand-muted uppercase tracking-wider mr-3 shrink-0">Fluxo</span>
       <div className="flex items-center flex-1">
         {STAGES.map((s, i) => {
           const done    = i <= currentIdx;
@@ -39,20 +39,20 @@ function IncidentTimeline({ stage }: { stage: string }) {
             <React.Fragment key={s.key}>
               <div className="flex flex-col items-center group relative">
                 <div role="img" aria-label={s.label} title={s.label} className={`
-                  w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold
+                  w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold
                   transition-all duration-300
                   ${done
                     ? current
                       ? 'bg-[var(--color-brand-primary)] text-white ring-2 ring-[var(--color-brand-primary)]/40 ring-offset-1 ring-offset-[var(--color-brand-surface)]'
                       : 'bg-[var(--color-brand-primary)]/20 border border-[var(--color-brand-primary)]/40 text-[var(--color-brand-primary)]'
-                    : 'bg-white/[0.04] border border-white/10 text-white/20'
+                    : 'bg-white/[0.04] border border-white/10 text-brand-muted'
                   }
                 `}>
                   {i < currentIdx ? '✓' : s.shortLabel}
                 </div>
                 {/* Tooltip */}
                 <div className="absolute bottom-full mb-1.5 hidden group-hover:block z-50 pointer-events-none">
-                  <div className="bg-[#0c0c18] border border-white/10 rounded px-2 py-1 text-[9px] text-white/60 whitespace-nowrap shadow-xl">
+                  <div className="bg-[#0c0c18] border border-white/10 rounded px-2 py-1 text-[10px] text-white/60 whitespace-nowrap shadow-xl">
                     {s.label}
                   </div>
                 </div>
@@ -269,10 +269,10 @@ export default function IncidentsPage({ incidents, total, loading, loadingMore, 
               {/* Right meta */}
               <div className="flex flex-row-reverse items-center justify-between gap-2 sm:flex-col sm:items-end shrink-0">
                 <div className="flex items-center gap-2">
-                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${sev.badge}`}>
+                  <span className={`text-[10px] font-semibold px-2 py-0.5 border ${sev.badge}`}>
                     {sev.label}
                   </span>
-                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${stCfg.style}`}>
+                  <span className={`text-[10px] font-semibold px-2 py-0.5 border ${stCfg.style}`}>
                     {stCfg.label}
                   </span>
                 </div>

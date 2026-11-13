@@ -29,14 +29,14 @@ const SEVERITY_BG: Record<string, string> = {
   average:        'bg-orange-400/10 border-orange-400/25 text-orange-400',
   warning:        'bg-yellow-400/10 border-yellow-400/25 text-yellow-400',
   info:           'bg-blue-400/10 border-blue-400/25 text-blue-400',
-  not_classified: 'bg-white/5 border-white/10 text-white/40',
+  not_classified: 'bg-white/5 border-white/10 text-brand-muted',
 };
 
 const SEVERITY_DOT: Record<string, string> = {
-  disaster:       'bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.8)]',
-  high:           'bg-red-400 shadow-[0_0_5px_rgba(248,113,113,0.6)]',
-  average:        'bg-orange-400 shadow-[0_0_5px_rgba(251,146,60,0.6)]',
-  warning:        'bg-yellow-400 shadow-[0_0_4px_rgba(250,204,21,0.5)]',
+  disaster:       'bg-red-500',
+  high:           'bg-red-400',
+  average:        'bg-orange-400',
+  warning:        'bg-yellow-400',
   info:           'bg-blue-400',
   not_classified: 'bg-white/30',
 };
@@ -88,24 +88,24 @@ function SidebarItem({
         ${active
           ? 'text-white'
           : disabled || !onClick
-            ? 'text-white/20 cursor-not-allowed'
+            ? 'text-brand-muted cursor-not-allowed'
             : 'text-[var(--color-brand-muted)] hover:text-white/90 hover:bg-white/[0.04]'
         }
       `}
       style={active ? {
-        background: 'linear-gradient(90deg, rgba(0,173,232,0.14) 0%, rgba(0,173,232,0.04) 100%)',
+        background: 'rgba(0,173,232,0.12)',
       } : {}}
     >
       {active && (
         <span
           className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-6 rounded-r-full"
-          style={{ background: '#00ADE8', boxShadow: '0 0 8px rgba(0,173,232,0.7)' }}
+          style={{ background: '#00ADE8' }}
         />
       )}
       <Icon size={18} className={active ? 'text-[#00ADE8]' : ''} />
       <span className={`font-medium text-sm ${active ? 'text-white' : 'text-slate-400'}`}>{label}</span>
       {disabled && (
-        <span className="ml-auto text-[9px] font-medium px-1.5 py-0.5 rounded bg-white/[0.04] text-white/20 leading-none">
+        <span className="ml-auto text-[10px] font-medium px-1.5 py-0.5 rounded bg-white/[0.04] text-brand-muted leading-none">
           breve
         </span>
       )}
@@ -137,16 +137,8 @@ function MetricCard({
         hover:shadow-[0_8px_30px_rgba(0,0,0,0.3)] group
       `}
       style={status !== 'neutral' ? {
-        boxShadow: `inset 0 1px 0 rgba(255,255,255,0.04), 0 0 0 1px rgba(255,255,255,0.03)`,
       } : {}}
     >
-      {/* Top glow */}
-      {status !== 'neutral' && (
-        <div
-          className="absolute top-0 inset-x-0 h-px rounded-t-xl"
-          style={{ background: `linear-gradient(90deg, transparent, ${colors.glow.replace('0.15', '0.5')}, transparent)` }}
-        />
-      )}
 
       {/* Header row */}
       <div className="flex items-center justify-between">
@@ -195,7 +187,7 @@ function ProblemRow({ p }: { p: Problem }) {
       </div>
 
       <div className="flex items-center gap-2.5 shrink-0 ml-4">
-        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${SEVERITY_BG[p.severity] || ''}`}>
+        <span className={`text-[10px] font-semibold px-2 py-0.5 border ${SEVERITY_BG[p.severity] || ''}`}>
           {SEVERITY_LABEL[p.severity] || p.severity}
         </span>
         <span className="text-[11px] text-[var(--color-brand-muted)] tabular-nums w-8 text-right">
@@ -217,7 +209,7 @@ function SectionCard({ title, count, children, loading }: {
           {title}
         </span>
         {count !== undefined && (
-          <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-white/[0.05] text-[var(--color-brand-muted)]">
+          <span className="text-[11px] font-medium px-2 py-0.5 bg-white/[0.05] text-[var(--color-brand-muted)]">
             {count}
           </span>
         )}
@@ -392,11 +384,10 @@ function AppShellBody({ AUTH, logout, user }: {
       <aside id="main-nav" className={`w-60 border-r border-white/[0.05] bg-[var(--color-brand-base)] flex flex-col py-5 px-3 gap-6 shrink-0 overflow-y-auto
         fixed inset-y-0 left-0 z-40 transition-[transform,visibility] duration-200 pt-[max(1.25rem,env(safe-area-inset-top))]
         md:static md:z-10 md:translate-x-0 ${navOpen ? 'translate-x-0' : '-translate-x-full max-md:invisible'}`}>
-        <div className="absolute top-0 left-0 right-0 h-40 bg-[var(--color-brand-primary)] opacity-[0.03] blur-3xl pointer-events-none" />
 
         <div className="px-2 py-1">
           <BrandMark size="md" />
-          <p className="mt-1 text-[10px] font-medium tracking-wide text-white/40">operações de tecnologia</p>
+          <p className="mt-1 text-[10px] font-medium tracking-wide text-brand-muted">operações de tecnologia</p>
         </div>
 
         <div className="px-2">
@@ -409,7 +400,7 @@ function AppShellBody({ AUTH, logout, user }: {
 
         <nav className="flex flex-col gap-1 flex-1" aria-label="Navegação principal">
           {/* Grupo principal */}
-          <p className="px-3 mb-1 text-[9px] font-semibold uppercase tracking-[0.15em] text-white/20 select-none">
+          <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-brand-muted select-none">
             Principal
           </p>
           {isOperator && <SidebarItem icon={Activity} label="Dashboard" active={activeModule === 'infraops' && currentView === 'dashboard'} onClick={() => { setActiveModule('infraops'); setCurrentView('dashboard'); }} />}
@@ -419,19 +410,19 @@ function AppShellBody({ AUTH, logout, user }: {
           <div className="my-3 border-t border-white/[0.04]" />
 
           {/* Grupo sistema */}
-          <p className="px-3 mb-1 text-[9px] font-semibold uppercase tracking-[0.15em] text-white/20 select-none">
+          <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-brand-muted select-none">
             Sistema
           </p>
           <a
             href="/platform"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium text-white/40 hover:text-white/80 hover:bg-white/[0.04] transition-all duration-150 select-none"
+            className="flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium text-brand-muted hover:text-white/80 hover:bg-white/[0.04] transition-all duration-150 select-none"
             title="Documentação da plataforma ness.OS"
           >
             <BookOpen size={14} className="shrink-0" />
             <span>Plataforma</span>
-            <span className="ml-auto text-[9px] text-white/20">↗</span>
+            <span className="ml-auto text-[10px] text-brand-muted">↗</span>
           </a>
           {canReadCadastros && <SidebarItem icon={FileText} label="Contratos" active={activeModule === 'infraops' && currentView === 'contracts'} onClick={() => { setActiveModule('infraops'); setCurrentView('contracts'); }} />}
           {canReadCadastros && <SidebarItem icon={Users} label="Clientes" active={activeModule === 'infraops' && currentView === 'customers'} onClick={() => { setActiveModule('infraops'); setCurrentView('customers'); }} />}
@@ -473,11 +464,11 @@ function AppShellBody({ AUTH, logout, user }: {
                 <p className="text-[11px] font-medium text-white/80 truncate">
                   {user.full_name ?? user.email}
                 </p>
-                <span className={`text-[9px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-full ${
+                <span className={`text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 ${
                   user.role === 'admin' ? 'bg-[#00ADE8]/15 text-[#00ADE8]'
                   : user.role === 'noc' ? 'bg-emerald-500/15 text-emerald-400'
                   : user.role === 'soc' ? 'bg-amber-500/15 text-amber-400'
-                  : 'bg-white/10 text-white/40'
+                  : 'bg-white/10 text-brand-muted'
                 }`}>{user.role}</span>
               </div>
               {/* Logout */}
@@ -485,7 +476,7 @@ function AppShellBody({ AUTH, logout, user }: {
                 onClick={logout}
                 title="Sair"
                 aria-label="Sair da conta"
-                className="p-1.5 rounded-lg text-white/30 hover:text-red-400 hover:bg-red-500/10 transition-all duration-200 shrink-0"
+                className="p-1.5 rounded-lg text-brand-muted hover:text-red-400 hover:bg-red-500/10 transition-all duration-200 shrink-0"
               >
                 <LogOut size={13} />
               </button>
@@ -496,18 +487,10 @@ function AppShellBody({ AUTH, logout, user }: {
 
       {/* ══ Main ══ */}
       <main className="flex-1 min-w-0 flex flex-col h-dvh overflow-hidden relative">
-        {/* Background glow — muda por módulo */}
-        <div className="absolute top-0 inset-x-0 h-64 pointer-events-none"
-          style={{ background: `radial-gradient(ellipse at 50% -20%, ${
-            activeModule === 'core'     ? 'rgba(99,102,241,0.07)' :
-            activeModule === 'infraops' ? 'rgba(59,130,246,0.06)' :
-            activeModule === 'secops'   ? 'rgba(239,68,68,0.06)' :
-                                          'rgba(16,185,129,0.06)'
-          } 0%, transparent 70%)` }} />
 
         {/* ── Header ── */}
         <header className="h-14 box-content pt-[env(safe-area-inset-top)] border-b border-white/[0.05] flex items-center justify-between gap-2 px-3 md:px-8 z-10 shrink-0"
-          style={{ background: 'rgba(8,8,16,0.7)', backdropFilter: 'blur(12px)' }}>
+          style={{ background: 'var(--color-brand-base)' }}>
           <div className="flex items-center gap-2 md:gap-3 min-w-0">
             <button
               onClick={() => setNavOpen(true)}
@@ -520,7 +503,7 @@ function AppShellBody({ AUTH, logout, user }: {
             </button>
             <ModuleSwitcher active={activeModule} onChange={setActiveModule} scoped={!isOperator} />
             {activeModule !== 'core' && hasCritical && activeModule === 'infraops' && (
-              <span role="status" aria-label={`${summary!.problems_critical} alertas críticos`} className="flex shrink-0 items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-red-500/15 border border-red-500/30 text-red-400">
+              <span role="status" aria-label={`${summary!.problems_critical} alertas críticos`} className="flex shrink-0 items-center gap-1 text-[10px] font-semibold px-2 py-0.5 bg-red-500/15 border border-red-500/30 text-red-400">
                 <AlertTriangle size={9} /> {summary!.problems_critical}<span className="hidden sm:inline">{summary!.problems_critical === 1 ? ' alerta crítico' : ' alertas críticos'}</span>
               </span>
             )}

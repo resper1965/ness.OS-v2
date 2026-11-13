@@ -51,7 +51,7 @@ export default function TenantSelector({ selectedTenant, onSelect }: Props) {
           <Building2 size={16} />
         </div>
         <div className="flex-1 text-left">
-          <p className="text-[9px] font-bold text-[var(--color-brand-muted)] uppercase tracking-wider">Contexto</p>
+          <p className="text-[10px] font-bold text-[var(--color-brand-muted)] uppercase tracking-wider">Contexto</p>
           <p className="text-sm font-bold text-white truncate">
             {loading ? 'Carregando…' : currentTenant ? currentTenant.name : 'Todos os Clientes'}
           </p>
