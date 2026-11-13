@@ -18,7 +18,7 @@ export const SEVERITIES = [
   { level: 0, label: 'N/C', tone: 'neutral' },
 ] as const satisfies readonly { level: number; label: string; tone: Tone }[];
 
-export interface ProblemFilter { sev: number[]; ack: '' | 'yes' | 'no'; q: string; group: '' | 'host' | 'customer'; customer: string }
+export interface ProblemFilter { sev: number[]; ack: '' | 'yes' | 'no'; q: string; group: '' | 'host' | 'customer'; customer: string; host: string }
 
 export function readFilter(search: string): ProblemFilter {
   const p = new URLSearchParams(search);
@@ -29,13 +29,14 @@ export function readFilter(search: string): ProblemFilter {
     q: p.get('q') ?? '',
     group: p.get('group') === 'host' || p.get('group') === 'customer' ? (p.get('group') as 'host' | 'customer') : '',
     customer: p.get('cliente') ?? '',
+    host: p.get('host') ?? '',
   };
 }
 
 function writeFilter(f: ProblemFilter) {
   const url = new URL(window.location.href);
   const set = (k: string, v: string) => (v ? url.searchParams.set(k, v) : url.searchParams.delete(k));
-  set('sev', f.sev.join(',')); set('ack', f.ack); set('q', f.q); set('group', f.group); set('cliente', f.customer);
+  set('sev', f.sev.join(',')); set('ack', f.ack); set('q', f.q); set('group', f.group); set('cliente', f.customer); set('host', f.host);
   window.history.replaceState(null, '', url);
 }
 
@@ -45,6 +46,7 @@ export function applyFilter(list: Problem[], f: ProblemFilter) {
   const base = list.filter(p =>
     (!f.ack || p.acknowledged === (f.ack === 'yes')) &&
     (!f.customer || (p.customer ?? NO_CUSTOMER) === f.customer) &&
+    (!f.host || p.host === f.host) &&
     (!q || p.title.toLowerCase().includes(q) || p.host.toLowerCase().includes(q)));
   const counts = new Map<number, number>();
   for (const p of base) counts.set(p.severity_level, (counts.get(p.severity_level) ?? 0) + 1);
@@ -137,6 +139,7 @@ export default function ProblemsView({ problems, loading, error, observedAt, hos
         </label>
       </div>
 
+      {f.host && <div className="nx-actions">Host: <span className="nx-mono">{f.host}</span><button type="button" className="nx-btn nx-link" onClick={() => setF(x => ({ ...x, host: '' }))}>Limpar</button></div>}
       {error && <div className="nx-alert warn" role="alert">{error}. {problems.length ? 'Exibindo a última leitura válida.' : ''}</div>}
 
       <Panel

@@ -21,8 +21,11 @@ describe('problems filter', () => {
     expect(applyFilter(l, readFilter('?cliente=Cavan')).rows.map(r => r.id)).toEqual(['1']);
     expect(applyFilter(l, readFilter('?cliente=Sem+cliente')).rows.map(r => r.id)).toEqual(['2']);
   });
+  it('host drill-down is exact', () => {
+    expect(applyFilter([...list, p('5', 3, 'web010', 1)], readFilter('?host=web01')).rows.map(r => r.id)).toEqual(['1', '4']);
+  });
   it('rejects junk from the URL', () => {
-    expect(readFilter('?sev=9,x,4&ack=maybe&group=foo')).toEqual({ sev: [4], ack: '', q: '', group: '', customer: '' });
+    expect(readFilter('?sev=9,x,4&ack=maybe&group=foo')).toEqual({ sev: [4], ack: '', q: '', group: '', customer: '', host: '' });
   });
 });
 

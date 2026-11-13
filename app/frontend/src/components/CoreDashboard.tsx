@@ -81,6 +81,8 @@ export default function CoreDashboard({ authHeader, problems, hosts, observedAt,
         <div><dt>Incidentes 24h</dt><dd>{incidents24h?.toLocaleString('pt-BR') ?? '—'}</dd></div>
       </dl>
       {error && <div className="nx-alert warn" role="alert">{error}.</div>}
+      {/* ponytail: totais saem da lista limitada a 2.000 (hoje ~800); upgrade path: agregado na API (F2/F3). */}
+      {problems.length >= 2000 && <div className="nx-alert warn" role="alert">Mais de 2.000 problemas ativos: as contagens abaixo são parciais.</div>}
 
       <Panel title="Fontes" meta={<span className="nx-meta">Zabbix {observedAt ? timeAgo(observedAt.toISOString()) : 'sem leitura'}</span>} flush>
         <ol className="nx-flow">
@@ -119,13 +121,13 @@ export default function CoreDashboard({ authHeader, problems, hosts, observedAt,
             <table className="nx-table nx-dense">
               <thead><tr><th>Host</th><th>Problemas</th></tr></thead>
               <tbody>{topHosts.map(([h, n]) => (
-                <tr key={h}><td><button type="button" className="nx-btn nx-link nx-mono" onClick={() => go('monitoring', `&q=${encodeURIComponent(h)}`)}>{h}</button></td><td className="nx-mono">{n}</td></tr>
+                <tr key={h}><td><button type="button" className="nx-btn nx-link nx-mono" onClick={() => go('monitoring', `&host=${encodeURIComponent(h)}`)}>{h}</button></td><td className="nx-mono">{n}</td></tr>
               ))}</tbody>
             </table>}
         </Panel>
       </div>
 
-      <Panel title="Últimos incidentes" meta={<button type="button" className="nx-btn nx-link" onClick={() => go('incidents')}>Ver todos</button>} flush>
+      <Panel title="Incidentes das últimas 24h" meta={<span className="nx-actions"><span className="nx-meta">mais graves primeiro</span><button type="button" className="nx-btn nx-link" onClick={() => go('incidents')}>Ver todos</button></span>} flush>
         {!recent.length ? <div className="nx-empty">Nenhum incidente nas últimas 24h.</div> :
           <table className="nx-table nx-dense">
             <thead><tr><th>Severidade</th><th>Cliente</th><th>Host</th><th>Incidente</th><th>Chamado</th><th>Último</th></tr></thead>
