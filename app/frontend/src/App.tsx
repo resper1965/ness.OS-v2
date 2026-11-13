@@ -99,7 +99,7 @@ function SidebarItem({
       {active && (
         <span
           className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-6 rounded-r-full"
-          style={{ background: '#00ADE8', boxShadow: '0 0 8px rgba(0,173,232,0.7)' }}
+          style={{ background: '#00ADE8' }}
         />
       )}
       <Icon size={18} className={active ? 'text-[#00ADE8]' : ''} />
@@ -137,7 +137,6 @@ function MetricCard({
         hover:shadow-[0_8px_30px_rgba(0,0,0,0.3)] group
       `}
       style={status !== 'neutral' ? {
-        boxShadow: `inset 0 1px 0 rgba(255,255,255,0.04), 0 0 0 1px rgba(255,255,255,0.03)`,
       } : {}}
     >
 
@@ -188,7 +187,7 @@ function ProblemRow({ p }: { p: Problem }) {
       </div>
 
       <div className="flex items-center gap-2.5 shrink-0 ml-4">
-        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${SEVERITY_BG[p.severity] || ''}`}>
+        <span className={`text-[10px] font-semibold px-2 py-0.5 border ${SEVERITY_BG[p.severity] || ''}`}>
           {SEVERITY_LABEL[p.severity] || p.severity}
         </span>
         <span className="text-[11px] text-[var(--color-brand-muted)] tabular-nums w-8 text-right">
@@ -210,7 +209,7 @@ function SectionCard({ title, count, children, loading }: {
           {title}
         </span>
         {count !== undefined && (
-          <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-white/[0.05] text-[var(--color-brand-muted)]">
+          <span className="text-[11px] font-medium px-2 py-0.5 bg-white/[0.05] text-[var(--color-brand-muted)]">
             {count}
           </span>
         )}
@@ -465,7 +464,7 @@ function AppShellBody({ AUTH, logout, user }: {
                 <p className="text-[11px] font-medium text-white/80 truncate">
                   {user.full_name ?? user.email}
                 </p>
-                <span className={`text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-full ${
+                <span className={`text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 ${
                   user.role === 'admin' ? 'bg-[#00ADE8]/15 text-[#00ADE8]'
                   : user.role === 'noc' ? 'bg-emerald-500/15 text-emerald-400'
                   : user.role === 'soc' ? 'bg-amber-500/15 text-amber-400'
@@ -504,7 +503,7 @@ function AppShellBody({ AUTH, logout, user }: {
             </button>
             <ModuleSwitcher active={activeModule} onChange={setActiveModule} scoped={!isOperator} />
             {activeModule !== 'core' && hasCritical && activeModule === 'infraops' && (
-              <span role="status" aria-label={`${summary!.problems_critical} alertas críticos`} className="flex shrink-0 items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-red-500/15 border border-red-500/30 text-red-400">
+              <span role="status" aria-label={`${summary!.problems_critical} alertas críticos`} className="flex shrink-0 items-center gap-1 text-[10px] font-semibold px-2 py-0.5 bg-red-500/15 border border-red-500/30 text-red-400">
                 <AlertTriangle size={9} /> {summary!.problems_critical}<span className="hidden sm:inline">{summary!.problems_critical === 1 ? ' alerta crítico' : ' alertas críticos'}</span>
               </span>
             )}

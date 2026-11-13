@@ -269,10 +269,10 @@ export default function IncidentsPage({ incidents, total, loading, loadingMore, 
               {/* Right meta */}
               <div className="flex flex-row-reverse items-center justify-between gap-2 sm:flex-col sm:items-end shrink-0">
                 <div className="flex items-center gap-2">
-                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${sev.badge}`}>
+                  <span className={`text-[10px] font-semibold px-2 py-0.5 border ${sev.badge}`}>
                     {sev.label}
                   </span>
-                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${stCfg.style}`}>
+                  <span className={`text-[10px] font-semibold px-2 py-0.5 border ${stCfg.style}`}>
                     {stCfg.label}
                   </span>
                 </div>

@@ -122,7 +122,7 @@ export default function PipelineStrip({
             Fluxo de incidentes
           </span>
           {!loading && data && (
-            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full
+            <span className={`text-[10px] font-semibold px-2 py-0.5
               ${allOk
                 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
                 : hasError

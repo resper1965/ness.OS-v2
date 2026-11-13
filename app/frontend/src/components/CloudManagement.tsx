@@ -292,7 +292,7 @@ export default function CloudManagement() {
                 <div className="space-y-4">
                   <div>
                     <div className="flex justify-between text-xs mb-1.5"><span className="text-[var(--color-brand-muted)]">Uso</span><span className="text-white font-bold">0% de {bucket.totalSpaceTb} TB</span></div>
-                    <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden"><div className="h-full bg-[var(--color-brand-primary)] w-[2%] rounded-full" /></div>
+                    <div className="h-1.5 w-full bg-white/5 overflow-hidden"><div className="h-full bg-[var(--color-brand-primary)] w-[2%]" /></div>
                   </div>
                   <div className="bg-white/5 rounded-xl p-3 border border-white/[0.03]">
                     <p className="text-[10px] uppercase font-bold text-[var(--color-brand-muted)] mb-1">S3 Endpoint</p>

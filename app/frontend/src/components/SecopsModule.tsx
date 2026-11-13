@@ -119,12 +119,12 @@ function CveCard({ cve }: { cve: CveItem }) {
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap mb-1">
-            <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${sev.bg} ${sev.color} border ${sev.border}`}>
+            <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 ${sev.bg} ${sev.color} border ${sev.border}`}>
               {sev.label}
             </span>
             <span className="text-[10px] font-mono text-brand-muted">{cve.id}</span>
             {cve.exploited_wild && (
-              <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-500 text-white uppercase tracking-wider animate-pulse">
+              <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 bg-red-500 text-white uppercase tracking-wider animate-pulse">
                 <Zap size={8} /> Exploração ativa
               </span>
             )}
@@ -146,7 +146,7 @@ function CveCard({ cve }: { cve: CveItem }) {
             <p className="text-[10px] text-brand-muted uppercase tracking-wider mb-1.5">Clientes afetados</p>
             <div className="flex flex-wrap gap-1.5">
               {cve.affected_clients.map(c => (
-                <span key={c} className="text-[10px] font-semibold px-2 py-0.5 rounded-full text-white/80"
+                <span key={c} className="text-[10px] font-semibold px-2 py-0.5 text-white/80"
                   style={{ background: (CLIENT_COLORS[c] ?? '#6B7280') + '25', border: `1px solid ${(CLIENT_COLORS[c] ?? '#6B7280')}40` }}>
                   {c}
                 </span>
@@ -313,7 +313,7 @@ function ClientRiskMatrix({ cves }: { cves: CveItem[] }) {
                   <span className="text-[11px] text-orange-400 font-mono">{stats.high}×alto</span>
                 )}
                 {stats.exploited > 0 && (
-                  <span className="flex items-center gap-0.5 text-[10px] font-bold text-red-300 bg-red-500/10 px-1.5 py-0.5 rounded-full">
+                  <span className="flex items-center gap-0.5 text-[10px] font-bold text-red-300 bg-red-500/10 px-1.5 py-0.5">
                     <Zap size={8} /> {stats.exploited}
                   </span>
                 )}
