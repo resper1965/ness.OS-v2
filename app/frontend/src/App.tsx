@@ -17,7 +17,6 @@ import PushNotificationToggle from './components/PushNotificationToggle';
 import NotificationInbox from './components/NotificationInbox';
 import * as access from './access';
 import BrandMark from './components/BrandMark';
-import PricingModule from './components/PricingModule';
 import ContractsScreen from './components/ContractsScreen';
 import CustomersScreen from './components/CustomersScreen';
 
@@ -381,7 +380,6 @@ function AppShellBody({ AUTH, logout, user }: {
   }, [navOpen]);
 
   const hasCritical = summary && summary.problems_critical > 0;
-  const canAccessPricing = access.canAccessPricing(user?.role);
   const canReadCadastros = access.canReadCadastros(user?.role);
   const connectionError = isOperator ? error : incidentsError;
 
@@ -520,7 +518,7 @@ function AppShellBody({ AUTH, logout, user }: {
             >
               <Menu size={18} />
             </button>
-            <ModuleSwitcher active={activeModule} onChange={setActiveModule} showPricing={canAccessPricing} scoped={!isOperator} />
+            <ModuleSwitcher active={activeModule} onChange={setActiveModule} scoped={!isOperator} />
             {activeModule !== 'core' && hasCritical && activeModule === 'infraops' && (
               <span role="status" aria-label={`${summary!.problems_critical} alertas críticos`} className="flex shrink-0 items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-red-500/15 border border-red-500/30 text-red-400">
                 <AlertTriangle size={9} /> {summary!.problems_critical}<span className="hidden sm:inline">{summary!.problems_critical === 1 ? ' alerta crítico' : ' alertas críticos'}</span>
@@ -641,11 +639,6 @@ function AppShellBody({ AUTH, logout, user }: {
           {/* ── n.secops ── */}
           {activeModule === 'secops' && (
             <SecopsModule />
-          )}
-
-          {/* ── Precificação ── */}
-          {activeModule === 'pricing' && canAccessPricing && (
-            <PricingModule />
           )}
 
         </div>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canAccessPricing, canEditCadastros, canReadCadastros, canReadContacts, canActOnIncidents, isOperator, matchesTenant, tenantScope, timeAgo } from './access';
+import { canEditCadastros, canReadCadastros, canReadContacts, canActOnIncidents, isOperator, matchesTenant, tenantScope, timeAgo } from './access';
 
 describe('role gating', () => {
   it.each(['platform_admin', 'admin', 'noc', 'soc'] as const)('%s is a global operator', (r) => {
@@ -12,10 +12,6 @@ describe('role gating', () => {
   it('operator acts on incidents but only inside its tenant', () => {
     expect(canActOnIncidents('operator')).toBe(true);
     expect(canActOnIncidents('viewer')).toBe(false);
-  });
-  it('pricing is limited to admin/gestao', () => {
-    expect(['platform_admin', 'admin', 'gestao'].every((r) => canAccessPricing(r as never))).toBe(true);
-    expect(['noc', 'soc', 'cliente', 'operator', undefined].some((r) => canAccessPricing(r as never))).toBe(false);
   });
 });
 

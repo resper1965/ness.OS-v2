@@ -4,9 +4,9 @@
  * Cada módulo tem cor, ícone e label próprios.
  */
 import React from 'react';
-import { Calculator, Globe, Server, Shield } from 'lucide-react';
+import { Globe, Server, Shield } from 'lucide-react';
 
-export type NessModule = 'core' | 'infraops' | 'secops' | 'pricing';
+export type NessModule = 'core' | 'infraops' | 'secops';
 
 interface ModuleDef {
   id: NessModule;
@@ -42,26 +42,17 @@ const MODULES: ModuleDef[] = [
     glowColor: 'rgba(239,68,68,0.4)',
     icon: Shield,
   },
-  {
-    id: 'pricing',
-    label: 'Pricing',
-    sublabel: 'Comercial · Unit economics',
-    color: '#10B981',
-    glowColor: 'rgba(16,185,129,0.4)',
-    icon: Calculator,
-  },
 ];
 
 export default function ModuleSwitcher({
-  active, onChange, showPricing = false, scoped = false,
+  active, onChange, scoped = false,
 }: {
   active: NessModule;
   onChange: (mod: NessModule) => void;
-  showPricing?: boolean;
   scoped?: boolean;
 }) {
   const visibleModules = MODULES.filter((module) =>
-    module.id === 'pricing' ? showPricing : !scoped || module.id === 'infraops'
+    !scoped || module.id === 'infraops'
   );
   return (
     <div
