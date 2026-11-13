@@ -1,6 +1,6 @@
 import { Activity, ShieldAlert, Cloud, RefreshCw, LayoutDashboard, Shield,
          WifiOff, Monitor, AlertTriangle, CheckCircle, BarChart3,
-         Cpu, LogOut, BookOpen, FileText, Users, Menu } from 'lucide-react';
+         Cpu, LogOut, FileText, Users, Menu } from 'lucide-react';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import CloudManagement from './components/CloudManagement';
 import PipelineStrip from './components/PipelineStrip';
@@ -427,18 +427,6 @@ function AppShellBody({ AUTH, logout, user }: {
           <SidebarItem icon={FileText} label="Contratos" active={currentView === 'contracts'} onClick={() => setCurrentView('contracts')} />
           <SidebarItem icon={Users} label="Clientes" active={currentView === 'customers'} onClick={() => setCurrentView('customers')} />
           </>}
-          <p className="px-3 mt-3 mb-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-brand-muted select-none">Sistema</p>
-          <a
-            href="/platform"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-400 hover:text-white/90 hover:bg-white/[0.04] transition-colors duration-150 select-none"
-          >
-            <BookOpen size={18} className="shrink-0" />
-            <span>Documentação</span>
-            <span className="ml-auto text-xs text-brand-muted" aria-hidden="true">↗</span>
-            <span className="sr-only">(abre em nova aba)</span>
-          </a>
         </nav>
 
         {/* ── User card + Logout ── */}

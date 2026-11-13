@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
-  Shield, ShieldAlert, ShieldCheck, ShieldX,
+  Shield, ShieldCheck, ShieldX,
   AlertTriangle, CheckCircle2, XCircle, Clock,
   Zap, Activity, ChevronDown, ChevronUp,
   ExternalLink, RefreshCw, Bug, Eye, Globe,
@@ -410,15 +410,7 @@ export default function SecopsModule() {
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div className="flex items-start justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-red-500/10 border border-red-500/20">
-            <ShieldAlert size={20} className="text-red-400" />
-          </div>
-          <div>
-            <h1 className="text-lg font-semibold text-white">Segurança</h1>
-            <p className="text-xs text-brand-muted">Vulnerabilidades, monitoramento e risco</p>
-          </div>
-        </div>
+        <p className="text-sm text-brand-muted">Vulnerabilidades, monitoramento e risco</p>
         <div className="flex items-center gap-3">
           <p className="text-xs text-brand-muted">
             {lastRefresh ? `Tentativa ${lastRefresh.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}` : 'Sem tentativa'}
