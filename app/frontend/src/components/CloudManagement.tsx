@@ -1,309 +1,147 @@
-import { useState, useEffect, useCallback } from 'react';
-import { 
-  Server, HardDrive, RefreshCw, AlertTriangle, 
-  Search,
-  Shield, Network, Cpu, Database,
-  Camera, Globe, ShieldAlert
-} from 'lucide-react';
-import { useAuth } from '../hooks/useAuth';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { RefreshCw } from 'lucide-react';
+import { fmtDate, fmtDateTime } from '../format';
+import { asApiError, request, type ApiError } from '../http';
+import { Badge, Button, Empty, ErrorState, PageHeader, Panel, Screen, Skeleton, type Tone } from './ui/kit';
 
-const API_BASE = import.meta.env.VITE_API_URL ?? '';
+interface Risk { level: 'bad' | 'warn'; kind: string; target: string; detail: string }
+interface Instance {
+  id: number; name: string; status: string; product: string | null; region: string | null; ipv4: string | null;
+  cpu: number | null; ram_gb: number; disk_gb: number; cancel_date: string | null; error: string | null;
+  firewalls: string[]; networks: string[]; snapshots: number | null; snapshot_age_days: number | null;
+}
+interface Storage { id: string; name: string; status: string; region: string | null; total_tb: number | null; used_tb: number | null; used_pct: number | null; objects: number | null }
+interface Event { at: string | null; kind: string; action: string; target: string; by: string | null; fields: string[] }
+export interface Overview {
+  observed_at: string;
+  fleet: { instances: number; statuses: Record<string, number>; cpu: number; ram_gb: number; disk_gb: number; regions: string[]; firewalls: number; networks: number };
+  risks: Risk[]; instances: Instance[]; storages: Storage[]; events: Event[];
+}
 
-type Tab = 'compute' | 'snapshots' | 'storage' | 'networks' | 'firewall';
-type HealthAlert = { type: 'danger'; title: string; message: string; icon: typeof AlertTriangle };
+const STATUS_TONE: Record<string, Tone> = { running: 'ok', stopped: 'warn', error: 'bad', rescue: 'warn' };
+const ACTION: Record<string, string> = { CREATED: 'criou', UPDATED: 'alterou', DELETED: 'removeu' };
+const RISK: Record<string, string> = { cancel: 'Cancelamento', error: 'Erro', status: 'Parada', firewall: 'Sem firewall', snapshot: 'Snapshot', storage: 'Armazenamento' };
+const num = (n: number) => n.toLocaleString('pt-BR');
 
-export default function CloudManagement() {
-  const { authHeader } = useAuth();
-  const [activeTab, setActiveTab] = useState<Tab>('compute');
-  const [summary, setSummary] = useState<any>(null);
-  const [instances, setInstances] = useState<any[]>([]);
-  const [storage, setStorage] = useState<any[]>([]);
-  const [firewalls, setFirewalls] = useState<any[]>([]);
-  const [networks, setNetworks] = useState<any[]>([]);
-  const [healthAlerts, setHealthAlerts] = useState<HealthAlert[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [search, setSearch] = useState('');
-  
-  const fetchData = useCallback(async () => {
+function Stat({ label, value }: { label: string; value: string }) {
+  return <div><div className="nx-meta">{label}</div><div style={{ font: '600 22px/1.2 var(--nx-head)', marginTop: 6 }}>{value}</div></div>;
+}
+
+export default function CloudManagement({ refreshKey }: { refreshKey?: number }) {
+  const [data, setData] = useState<Overview | null>(null);
+  const [error, setError] = useState<ApiError | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState('');
+
+  const load = useCallback(async () => {
     setLoading(true);
-    try {
-      const res = await fetch(`${API_BASE}/api/contabo/dashboard-full`, { credentials: 'include', headers: authHeader() });
-      if (res.ok) {
-        const data = await res.json();
-        setSummary(data.summary);
-        setStorage(data.storage);
-        setFirewalls(data.firewalls);
-        setNetworks(data.networks);
-        
-        const instData = data.instances;
-        setInstances(instData);
-        
-        const alerts: HealthAlert[] = [];
-        instData.forEach((inst: any) => {
-          if (inst.status === 'running') {
-            if (inst.imageId && (inst.imageId.includes('ubuntu-18') || inst.imageId.includes('debian-9'))) {
-              alerts.push({
-                type: 'danger',
-                title: 'OS Obsoleto Detectado',
-                message: `A instância ${inst.displayName} está rodando uma imagem com fim de vida (EOL).`,
-                icon: AlertTriangle
-              });
-            }
-          }
-        });
-        setHealthAlerts(alerts);
-      }
+    try { setData(await request<Overview>('/api/contabo/overview')); setError(null); }
+    catch (e) { setError(asApiError(e)); }
+    finally { setLoading(false); }
+  }, []);
+  useEffect(() => { void load(); }, [load, refreshKey]);
 
-    } catch (e) {
-      console.error('Failed to fetch cloud data', e);
-    } finally {
-      setLoading(false);
-    }
-  }, [authHeader]);
+  const rows = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return (data?.instances ?? []).filter((i) => !q || i.name.toLowerCase().includes(q) || (i.ipv4 ?? '').includes(q));
+  }, [data, query]);
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  const filteredInstances = instances.filter(i => 
-    i.displayName.toLowerCase().includes(search.toLowerCase()) ||
-    i.ipConfig?.v4?.ip.includes(search)
-  );
+  const f = data?.fleet;
+  const bad = data?.risks.filter((r) => r.level === 'bad').length ?? 0;
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      
-      {/* ── Health Alerts (Risk Analysis) ── */}
-      {healthAlerts.length > 0 && (
-        <div className="space-y-3">
-          {healthAlerts.map((alert, idx) => (
-            <div key={idx} className={`
-              flex items-center gap-4 p-4 rounded-xl border animate-slide-left
-              ${alert.type === 'danger' ? 'bg-red-500/10 border-red-500/20 text-red-400' : 'bg-orange-500/10 border-orange-500/20 text-orange-400'}
-            `}>
-              <alert.icon size={20} />
-              <div className="flex-1">
-                <p className="text-sm font-bold">{alert.title}</p>
-                <p className="text-xs opacity-80">{alert.message}</p>
-              </div>
-              <button className="text-[10px] uppercase font-bold tracking-widest px-3 py-1 rounded bg-white/5 hover:bg-white/10 transition-all">
-                Corrigir Agora
-              </button>
+    <Screen>
+      <PageHeader title="Nuvem" kicker="provedor de nuvem · somente leitura"
+        actions={<>
+          {data && <span className="nx-muted">Atualizado {fmtDateTime(data.observed_at)}</span>}
+          <Button icon={RefreshCw} onClick={() => void load()} disabled={loading}>Atualizar</Button>
+        </>} />
+
+      {error && <ErrorState error={error} onRetry={() => void load()} />}
+      {loading && !data && <Skeleton rows={6} />}
+
+      {data && f && <>
+        <Panel title="Frota">
+          <div className="nx-grid">
+            <Stat label="Servidores" value={num(f.instances)} />
+            <Stat label="vCPU" value={num(f.cpu)} />
+            <Stat label="RAM" value={`${num(f.ram_gb)} GB`} />
+            <Stat label="Disco" value={`${num(f.disk_gb)} GB`} />
+          </div>
+          <div className="nx-actions" style={{ marginTop: 16 }}>
+            {Object.entries(f.statuses).map(([s, n]) => <Badge key={s} tone={STATUS_TONE[s] ?? 'neutral'}>{s}: {n}</Badge>)}
+            <span className="nx-muted">{f.firewalls} firewalls · {f.networks} redes privadas · {f.regions.join(', ') || 'sem região'}</span>
+          </div>
+        </Panel>
+
+        <Panel title="Riscos" meta={<Badge tone={bad ? 'bad' : data.risks.length ? 'warn' : 'ok'}>{data.risks.length}</Badge>} flush>
+          {data.risks.length === 0 ? <Empty title="Nenhum risco encontrado." hint="Snapshots, firewall, cancelamentos e armazenamento em dia." /> : (
+            <table className="nx-table">
+              <thead><tr><th scope="col">Tipo</th><th scope="col">Recurso</th><th scope="col">Detalhe</th></tr></thead>
+              <tbody>{data.risks.map((r, i) => (
+                <tr key={i}><td><Badge tone={r.level}>{RISK[r.kind] ?? r.kind}</Badge></td><td>{r.target}</td><td className="nx-muted">{r.detail}</td></tr>
+              ))}</tbody>
+            </table>
+          )}
+        </Panel>
+
+        <Panel title="Servidores" meta={<Badge>{rows.length}</Badge>} flush
+          actions={<label className="nx-field" style={{ minWidth: 220 }}>
+            <span className="sr-only">Buscar servidor</span>
+            <input type="search" placeholder="Nome ou IP…" value={query} onChange={(e) => setQuery(e.target.value)} autoComplete="off" spellCheck={false} />
+          </label>}>
+          {rows.length === 0 ? <Empty title="Nenhum servidor." /> : (
+            <div style={{ overflowX: 'auto' }}>
+              <table className="nx-table">
+                <thead><tr><th scope="col">Servidor</th><th scope="col">Estado</th><th scope="col">Plano</th><th scope="col">Recursos</th><th scope="col">Firewall</th><th scope="col">Snapshot</th></tr></thead>
+                <tbody>{rows.map((i) => (
+                  <tr key={i.id}>
+                    <td><strong>{i.name}</strong><div className="nx-mono nx-muted">{i.ipv4 ?? '—'} · {i.region ?? '—'}</div></td>
+                    <td><Badge tone={STATUS_TONE[i.status] ?? 'neutral'}>{i.status}</Badge>{i.cancel_date && <div className="nx-muted">cancela {fmtDate(i.cancel_date)}</div>}</td>
+                    <td>{i.product ?? '—'}</td>
+                    <td className="nx-mono" style={{ fontVariantNumeric: 'tabular-nums' }}>{i.cpu ?? '—'} vCPU · {i.ram_gb} GB · {i.disk_gb} GB</td>
+                    <td>{i.firewalls.length ? i.firewalls.join(', ') : <Badge tone="warn">nenhum</Badge>}</td>
+                    <td>{i.snapshots === null ? '—' : i.snapshot_age_days === null ? <Badge tone="warn">nenhum</Badge>
+                      : <Badge tone={i.snapshot_age_days > 7 ? 'warn' : 'ok'}>há {i.snapshot_age_days} d</Badge>}</td>
+                  </tr>
+                ))}</tbody>
+              </table>
             </div>
-          ))}
-        </div>
-      )}
+          )}
+        </Panel>
 
-      {/* ── Summary Header ── */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="glass rounded-xl p-4 flex items-center gap-4">
-          <div className="p-3 rounded-lg bg-[var(--color-brand-primary-dim)] text-[var(--color-brand-primary)]">
-            <Server size={20} />
-          </div>
-          <div>
-            <p className="text-[10px] uppercase tracking-wider text-[var(--color-brand-muted)] font-bold">Instâncias</p>
-            <p className="text-xl font-bold text-white">{summary?.instances?.total ?? '—'}</p>
-          </div>
-        </div>
-
-        <div className="glass rounded-xl p-4 flex items-center gap-4">
-          <div className="p-3 rounded-lg bg-emerald-500/10 text-emerald-400">
-            <Database size={20} />
-          </div>
-          <div>
-            <p className="text-[10px] uppercase tracking-wider text-[var(--color-brand-muted)] font-bold">Storage</p>
-            <p className="text-xl font-bold text-white">{summary?.storage?.total_tb ?? 0} TB</p>
-          </div>
-        </div>
-
-        <div className="glass rounded-xl p-4 flex items-center gap-4">
-          <div className="p-3 rounded-lg bg-orange-500/10 text-orange-400">
-            <Network size={20} />
-          </div>
-          <div>
-            <p className="text-[10px] uppercase tracking-wider text-[var(--color-brand-muted)] font-bold">VPC Redes</p>
-            <p className="text-xl font-bold text-white">{networks.length}</p>
-          </div>
-        </div>
-
-        <div className="glass rounded-xl p-4 flex items-center gap-4">
-          <div className="p-3 rounded-lg bg-blue-500/10 text-blue-400">
-            <Shield size={20} />
-          </div>
-          <div>
-            <p className="text-[10px] uppercase tracking-wider text-[var(--color-brand-muted)] font-bold">Firewalls</p>
-            <p className="text-xl font-bold text-white">{firewalls.length}</p>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Tabs Navigation ── */}
-      <div className="flex items-center justify-between border-b border-white/[0.04] px-1 overflow-x-auto no-scrollbar">
-        <div className="flex gap-6 min-w-max">
-          {[
-            { id: 'compute', label: 'Instâncias', icon: Server },
-            { id: 'snapshots', label: 'Snapshots', icon: Camera },
-            { id: 'storage', label: 'Storage', icon: HardDrive },
-            { id: 'networks', label: 'Redes VPC', icon: Globe },
-            { id: 'firewall', label: 'Segurança', icon: ShieldAlert },
-          ].map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as Tab)}
-              className={`
-                flex items-center gap-2 py-4 text-sm font-medium transition-all relative
-                ${activeTab === tab.id ? 'text-[var(--color-brand-primary)]' : 'text-[var(--color-brand-muted)] hover:text-white'}
-              `}
-            >
-              <tab.icon size={16} />
-              {tab.label}
-              {activeTab === tab.id && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--color-brand-primary)] glow-primary rounded-t-full" />
-              )}
-            </button>
-          ))}
-        </div>
-
-        <div className="flex items-center gap-3 mb-2 ml-4">
-          <div className="relative group hidden md:block">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-brand-muted)] group-focus-within:text-[var(--color-brand-primary)] transition-colors" />
-            <input 
-              type="text" 
-              placeholder="Buscar..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="bg-white/[0.03] border border-white/[0.06] rounded-lg py-1.5 pl-9 pr-4 text-xs text-white placeholder:text-white/20 focus:outline-none focus:border-[var(--color-brand-primary)]/40 focus:bg-white/[0.05] transition-all w-48 focus:w-64"
-            />
-          </div>
-          <button onClick={fetchData} className="p-1.5 rounded-lg bg-white/[0.03] border border-white/[0.06] text-[var(--color-brand-muted)] hover:text-white transition-all">
-            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-          </button>
-        </div>
-      </div>
-
-      {/* ── Tab Content ── */}
-      <div className="min-h-[400px]">
-        {activeTab === 'compute' && (
-          <div className="grid grid-cols-1 gap-4">
-            {filteredInstances.map(instance => (
-              <div key={instance.instanceId} className="glass rounded-2xl p-5 hover:border-white/[0.12] transition-all group relative overflow-hidden">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-5">
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center border ${instance.status === 'running' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-white/5 border-white/10 text-white/30'}`}>
-                      <Cpu size={24} />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-3">
-                        <h3 className="font-bold text-white text-lg">{instance.displayName}</h3>
-                        <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-md border ${instance.status === 'running' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-white/5 border-white/10 text-white/40'}`}>{instance.status}</span>
-                      </div>
-                      <div className="flex items-center gap-4 mt-1 text-xs text-[var(--color-brand-muted)]">
-                        <span className="flex items-center gap-1"><Network size={12}/> {instance.ipConfig?.v4?.ip}</span>
-                        <span className="flex items-center gap-1"><Globe size={12}/> {instance.region}</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex flex-col items-end gap-3">
-                    <div className="flex items-center gap-4">
-                      <div className="text-right"><p className="text-[10px] font-bold text-[var(--color-brand-muted)] uppercase">vCPU/RAM</p><p className="text-xs font-semibold text-white">{instance.vCpu} / {instance.ramMb/1024}GB</p></div>
-                      <div className="text-right"><p className="text-[10px] font-bold text-[var(--color-brand-muted)] uppercase">Disco</p><p className="text-xs font-semibold text-white">{instance.diskMb/1024}GB</p></div>
-                    </div>
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-brand-muted)]">Somente leitura</span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+        {data.storages.length > 0 && (
+          <Panel title="Object Storage" flush>
+            <table className="nx-table">
+              <thead><tr><th scope="col">Nome</th><th scope="col">Estado</th><th scope="col">Uso</th><th scope="col">Objetos</th></tr></thead>
+              <tbody>{data.storages.map((s) => (
+                <tr key={s.id}>
+                  <td>{s.name}<div className="nx-muted">{s.region ?? '—'}</div></td>
+                  <td><Badge>{s.status}</Badge></td>
+                  <td>{s.used_pct == null ? `${s.total_tb ?? '—'} TB contratados`
+                    : <Badge tone={s.used_pct >= 80 ? 'warn' : 'ok'}>{s.used_pct.toFixed(0)}% de {s.total_tb} TB</Badge>}</td>
+                  <td className="nx-mono">{s.objects == null ? '—' : num(s.objects)}</td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </Panel>
         )}
 
-        {activeTab === 'firewall' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="md:col-span-2 flex justify-between items-center mb-2">
-              <h2 className="text-lg font-bold text-white">Firewalls Ativos</h2>
-              <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-brand-muted)]">Somente leitura</span>
-            </div>
-            {firewalls.length === 0 ? (
-              <div className="md:col-span-2 py-20 glass rounded-2xl flex flex-col items-center justify-center opacity-40">
-                <ShieldAlert size={48} className="mb-4" />
-                <p>Nenhum firewall configurado via API.</p>
-              </div>
-            ) : firewalls.map(fw => (
-              <div key={fw.firewallId} className="glass rounded-2xl p-6 hover:border-[var(--color-brand-primary)]/30 transition-all">
-                <div className="flex justify-between items-start mb-6">
-                  <div className="p-3 rounded-xl bg-blue-500/10 text-blue-400"><Shield size={24}/></div>
-                  <span className="text-[10px] font-bold px-2 py-1 bg-white/5 rounded border border-white/10">{fw.status}</span>
-                </div>
-                <h3 className="text-xl font-bold text-white mb-2">{fw.displayName}</h3>
-                <div className="space-y-2 mb-6">
-                  <div className="flex justify-between text-xs text-[var(--color-brand-muted)]"><span>Instâncias</span><span className="text-white font-mono">{fw.instanceIds?.length || 0}</span></div>
-                  <div className="flex justify-between text-xs text-[var(--color-brand-muted)]"><span>Regras Inbound</span><span className="text-white font-mono">{fw.rules?.inbound?.length || 0}</span></div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {activeTab === 'networks' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {networks.map(net => (
-              <div key={net.privateNetworkId} className="glass rounded-2xl p-6">
-                <div className="flex items-center gap-4 mb-6">
-                  <div className="p-3 rounded-xl bg-orange-500/10 text-orange-400"><Globe size={24}/></div>
-                  <div>
-                    <h3 className="text-lg font-bold text-white">{net.name || 'Private Network'}</h3>
-                    <p className="text-xs text-[var(--color-brand-muted)]">{net.regionName}</p>
-                  </div>
-                </div>
-                <div className="p-4 bg-white/[0.03] rounded-xl border border-white/[0.05] space-y-3">
-                  <div className="flex justify-between text-xs">
-                    <span className="text-[var(--color-brand-muted)]">Network ID</span>
-                    <span className="text-white font-mono">{net.privateNetworkId}</span>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-[var(--color-brand-muted)]">Instâncias Conectadas</span>
-                    <span className="text-white font-bold">{net.instanceIds?.length || 0}</span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {activeTab === 'snapshots' && (
-          <div className="grid grid-cols-1 gap-4">
-            <div className="py-20 glass rounded-2xl flex flex-col items-center justify-center opacity-40">
-              <Camera size={48} className="mb-4" />
-              <p>Selecione uma instância para gerenciar snapshots.</p>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'storage' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {storage.map(bucket => (
-              <div key={bucket.tenantId} className="glass rounded-2xl p-6 relative overflow-hidden group">
-                <div className="flex items-start justify-between mb-6">
-                  <div>
-                    <h3 className="text-xl font-bold text-white mb-1">Object Storage</h3>
-                    <p className="text-xs text-[var(--color-brand-muted)] font-mono">{bucket.tenantId}</p>
-                  </div>
-                  <span className="px-2 py-1 rounded bg-emerald-500/10 text-emerald-400 text-[10px] font-bold uppercase tracking-widest border border-emerald-500/20">{bucket.status}</span>
-                </div>
-                <div className="space-y-4">
-                  <div>
-                    <div className="flex justify-between text-xs mb-1.5"><span className="text-[var(--color-brand-muted)]">Uso</span><span className="text-white font-bold">0% de {bucket.totalSpaceTb} TB</span></div>
-                    <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden"><div className="h-full bg-[var(--color-brand-primary)] w-[2%] rounded-full" /></div>
-                  </div>
-                  <div className="bg-white/5 rounded-xl p-3 border border-white/[0.03]">
-                    <p className="text-[10px] uppercase font-bold text-[var(--color-brand-muted)] mb-1">S3 Endpoint</p>
-                    <p className="text-xs font-mono text-white/90 truncate">{bucket.s3Url}</p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
+        <Panel title="Mudanças nos últimos 7 dias" meta={<Badge>{data.events.length}</Badge>} flush>
+          {data.events.length === 0 ? <Empty title="Nenhuma mudança registrada." /> : (
+            <table className="nx-table">
+              <thead><tr><th scope="col">Quando</th><th scope="col">Quem</th><th scope="col">O quê</th></tr></thead>
+              <tbody>{data.events.map((e, i) => (
+                <tr key={i}>
+                  <td className="nx-mono">{fmtDateTime(e.at)}</td>
+                  <td>{e.by ?? '—'}</td>
+                  <td>{ACTION[e.action] ?? e.action} {e.kind} <strong>{e.target}</strong>{e.fields.length > 0 && <span className="nx-muted"> ({e.fields.join(', ')})</span>}</td>
+                </tr>
+              ))}</tbody>
+            </table>
+          )}
+        </Panel>
+      </>}
+    </Screen>
   );
 }
