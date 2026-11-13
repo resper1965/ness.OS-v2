@@ -62,7 +62,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 1G
 
   # --- Celery Worker (ML + Post-mortem) ---
   worker-ml:

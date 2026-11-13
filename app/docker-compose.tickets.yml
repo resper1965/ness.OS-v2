@@ -2,6 +2,8 @@ services:
   glpi-db:
     image: mariadb:10.11@sha256:be981e4113326ada8d6004174dd09eeaefc03094037f811182a52d4f2e737350
     container_name: ninf-glpi-db
+    # 640 MB de dados/125k tickets: o padrão de 128M causava ReadTimeout no Hub (12/11/2026).
+    command: --innodb-buffer-pool-size=1G
     restart: unless-stopped
     # Senhas do banco ficam fora do app/.env: o Hub recebe o .env inteiro e não deve vê-las.
     # glpi-db.env: MYSQL_ROOT_PASSWORD e MYSQL_PASSWORD (só o banco). glpi-app.env: DB_PASSWORD
@@ -18,7 +20,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 1536M
 
   glpi:
     image: elestio/glpi:latest@sha256:48ec3ce559fda9eaf73c6fe2f0fc2dd382ef013f2dda14004f34ee88ec17c8b8
