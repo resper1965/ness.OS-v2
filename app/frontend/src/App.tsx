@@ -386,17 +386,15 @@ function AppShellBody({ AUTH, logout, user }: {
 
           {/* ── ness.OS Core ── */}
           {currentView === 'overview' && (
-            <CoreDashboard
-              authHeader={AUTH}
-              onModuleSwitch={(mod) => setCurrentView(mod === 'secops' ? 'secops' : 'monitoring')}
-            />
+            <CoreDashboard authHeader={AUTH} problems={problems} hosts={summary?.hosts_active} observedAt={lastUpdate}
+              pipeline={<PipelineStrip data={pipeline} loading={pipelineLoading} />} />
           )}
 
           {/* ── n.infraops ── */}
           {currentView === 'monitoring' && <ProblemsView problems={problems} loading={loading} error={error} observedAt={lastUpdate}
-            hosts={summary?.hosts_active} items={summary?.items_total} pipeline={<PipelineStrip data={pipeline} loading={pipelineLoading} />} />}
+            hosts={summary?.hosts_active} items={summary?.items_total} />}
           {(currentView === 'incidents' || currentView === 'cloud') && (
-          <div className="p-4 md:p-8 max-w-6xl space-y-5 animate-fade-in">
+          <div className={`p-4 md:p-6 space-y-5 animate-fade-in ${currentView === 'cloud' ? 'max-w-6xl' : ''}`}>
 
             {currentView === 'incidents' && (
               <IncidentsPage

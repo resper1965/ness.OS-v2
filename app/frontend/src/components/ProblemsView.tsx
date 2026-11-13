@@ -96,7 +96,7 @@ export default function ProblemsView({ problems, loading, error, observedAt, hos
   const rowHosts = new Set(rows.map(p => p.host)).size;
 
   return (
-    <Screen>
+    <Screen fill>
       <dl className="nx-kpis">
         <div><dt>Problemas ativos</dt><dd>{problems.length}</dd></div>
         <div><dt>Desastre + alta</dt><dd className={problems.some(p => p.severity_level >= 4) ? 'bad' : ''}>{problems.filter(p => p.severity_level >= 4).length}</dd></div>

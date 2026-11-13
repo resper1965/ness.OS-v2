@@ -1,129 +1,149 @@
-import { useCallback, useEffect, useState, type ElementType } from 'react';
-import { ArrowUpRight, RefreshCw, Server, Shield, Ticket } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { timeAgo } from '../access';
+import { Badge, Panel, Screen, type Tone } from './ui/kit';
+import { NO_CUSTOMER, SEVERITIES, type Problem } from './ProblemsView';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
 
-type SourceState = 'ok' | 'degraded' | 'down' | 'planned' | 'unavailable';
-
 interface SourceStatus {
-  status: SourceState;
-  source: string;
-  observed_at: string;
+  status: 'ok' | 'degraded' | 'down' | 'planned' | 'unavailable';
   last_success_at: string | null;
-  freshness_seconds: number | null;
   stale: boolean;
   error_code: string | null;
-  data: Record<string, unknown> | null;
+}
+type Sources = Partial<Record<'zabbix' | 'glpi' | 'wazuh', SourceStatus>>;
+interface RecentIncident { id: string; title: string; host_name: string; severity_level: number; client?: string; last_seen: string | null; ticket_id?: string | null }
+
+const SOURCE: Record<SourceStatus['status'], [Tone, string]> = {
+  ok: ['ok', 'Conectada'], degraded: ['warn', 'Degradada'], down: ['bad', 'Indisponível'],
+  planned: ['neutral', 'Não integrada'], unavailable: ['neutral', 'Não configurada'],
+};
+const SEV = [5, 4, 3, 2, 1] as const;
+const sevLabel = (l: number) => SEVERITIES.find(s => s.level === l)?.label ?? 'N/C';
+
+/** Matriz cliente × severidade, ordenada pelo pior problema e depois pelo volume. */
+export function customerMatrix(problems: Problem[]) {
+  const m = new Map<string, number[]>();
+  for (const p of problems) {
+    const row = m.get(p.customer ?? NO_CUSTOMER) ?? [0, 0, 0, 0, 0, 0];
+    row[p.severity_level] = (row[p.severity_level] ?? 0) + 1;
+    m.set(p.customer ?? NO_CUSTOMER, row);
+  }
+  const worst = (r: number[]) => SEV.find(l => r[l]) ?? 0;
+  const sum = (r: number[]) => r.reduce((a, b) => a + b, 0);
+  return [...m.entries()].sort(([, a], [, b]) => worst(b) - worst(a) || sum(b) - sum(a));
 }
 
-type Sources = Record<'zabbix' | 'atera' | 'glpi' | 'wazuh', SourceStatus>;
+// Navega pelo mesmo caminho do botão voltar: o shell troca a tela e ela lê o filtro da URL.
+const go = (view: string, extra = '') => { window.history.pushState(null, '', `?view=${view}${extra}`); window.dispatchEvent(new PopStateEvent('popstate')); };
 
-function sourceLabel(source: SourceStatus | undefined): string {
-  if (!source) return 'sem coleta';
-  if (source.status === 'unavailable') return 'não configurada';
-  if (source.status === 'down') return 'indisponível';
-  if (source.status === 'degraded') return source.stale ? 'Dados desatualizados' : 'coleta sem histórico';
-  if (source.status === 'planned') return 'planejada';
-  if (source.status === 'ok') return 'conectada';
-  return 'estado desconhecido';
-}
-
-function lastSuccess(source: SourceStatus | undefined): string {
-  if (!source?.last_success_at) return 'Nenhuma coleta válida registrada';
-  const date = new Date(source.last_success_at);
-  if (Number.isNaN(date.getTime())) return 'Horário da coleta indisponível';
-  return `Última coleta válida: ${date.toLocaleString('pt-BR')}`;
-}
-
-function metric(source: SourceStatus | undefined, key: string): string {
-  const value = source?.data?.[key];
-  return typeof value === 'number' ? value.toLocaleString('pt-BR') : '—';
-}
-
-function SourceLine({ icon: Icon, title, source, onOpen }: {
-  icon: ElementType;
-  title: string;
-  source?: SourceStatus;
-  onOpen?: () => void;
-}) {
-  const tone = source?.status === 'ok' ? 'text-emerald-300' : source?.status === 'degraded' ? 'text-amber-300' : 'text-brand-muted';
-  return <div className="flex items-center gap-3 border-b border-white/[0.06] py-4 last:border-b-0">
-    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white/[0.05] text-[#00ADE8]"><Icon size={16} /></div>
-    <div className="min-w-0 flex-1">
-      <p className="text-sm font-medium text-white">{title}</p>
-      <p className="mt-1 text-xs text-brand-muted">{lastSuccess(source)}</p>
-      {source?.error_code && ['degraded', 'down'].includes(source.status) && <p className="mt-1 text-xs text-amber-300">Falha: {source.error_code}</p>}
-    </div>
-    <span className={`text-right text-xs ${tone}`}>{sourceLabel(source)}</span>
-    {onOpen && <button type="button" onClick={onOpen} className="rounded-md p-2 text-brand-muted hover:text-white" aria-label={`Abrir ${title}`}><ArrowUpRight size={15} /></button>}
-  </div>;
-}
-
-export default function CoreDashboard({ authHeader, onModuleSwitch }: {
-  authHeader: Record<string, string>;
-  onModuleSwitch: (module: 'infraops' | 'secops') => void;
+export default function CoreDashboard({ authHeader, problems, hosts, observedAt, pipeline }: {
+  authHeader: Record<string, string>; problems: Problem[]; hosts?: number; observedAt: Date | null; pipeline: ReactNode;
 }) {
   const [sources, setSources] = useState<Sources | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [recent, setRecent] = useState<RecentIncident[]>([]);
+  const [incidents24h, setIncidents24h] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
-    setLoading(true);
-    try {
-      const response = await fetch(`${API_BASE}/api/dashboard/sources`, { credentials: 'include', headers: authHeader });
-      if (response.status === 401 || response.status === 403) {
-        setSources(null);
-        throw new Error('Sessão sem acesso às fontes operacionais');
-      }
-      if (!response.ok) throw new Error('Falha ao consultar as fontes operacionais');
-      const payload = await response.json() as { sources: Sources };
-      if (!payload.sources) throw new Error('Resposta de fontes inválida');
-      setSources(payload.sources);
-      setError(null);
-    } catch (cause) {
-      setSources(previous => previous && Object.fromEntries(
-        Object.entries(previous).map(([key, source]) => [
-          key,
-          source.status === 'ok' ? { ...source, status: 'degraded', stale: true, error_code: 'dashboard_unreachable' } : source,
-        ]),
-      ) as Sources);
-      setError(cause instanceof Error ? cause.message : 'Falha ao consultar as fontes operacionais');
-    } finally {
-      setLoading(false);
-    }
+    const since = encodeURIComponent(new Date(Date.now() - 86_400_000).toISOString());
+    const get = (path: string) => fetch(`${API_BASE}${path}`, { credentials: 'include', headers: authHeader })
+      .then(r => { if (!r.ok) throw new Error(String(r.status)); return r.json(); });
+    const [src, inc] = await Promise.allSettled([get('/api/dashboard/sources'), get(`/api/incidents?limit=10&from=${since}`)]);
+    if (src.status === 'fulfilled') setSources(src.value.sources ?? null);
+    if (inc.status === 'fulfilled') { setRecent(inc.value.incidents ?? []); setIncidents24h(inc.value.total ?? 0); }
+    setError(src.status === 'rejected' || inc.status === 'rejected' ? 'Parte dos dados não carregou; exibindo a última leitura válida' : null);
   }, [authHeader]);
 
-  useEffect(() => { void refresh(); }, [refresh]);
   useEffect(() => {
-    const interval = window.setInterval(() => { void refresh(); }, 60_000);
-    return () => window.clearInterval(interval);
+    void refresh();
+    const t = window.setInterval(() => { void refresh(); }, 60_000);
+    return () => window.clearInterval(t);
   }, [refresh]);
 
-  const zabbix = sources?.zabbix;
-  const glpi = sources?.glpi;
-  const readings = [
-    { label: 'Hosts Zabbix', value: metric(zabbix, 'hosts_active'), source: zabbix },
-    { label: 'Problemas críticos', value: metric(zabbix, 'problems_critical'), source: zabbix },
-    { label: 'Entidades GLPI', value: metric(glpi, 'entity_count'), source: glpi },
-  ];
+  const matrix = useMemo(() => customerMatrix(problems), [problems]);
+  const topHosts = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const p of problems) m.set(p.host, (m.get(p.host) ?? 0) + 1);
+    return [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8);
+  }, [problems]);
+  const severe = problems.filter(p => p.severity_level >= 4).length;
+  const unacked = problems.filter(p => !p.acknowledged && p.severity_level >= 4).length;
 
-  return <div className="min-h-full px-5 py-6 text-white sm:px-8 lg:px-10">
-    <header className="flex flex-wrap items-end justify-between gap-4 border-b border-white/[0.08] pb-5">
-      <p className="text-sm text-brand-muted">Valores e última coleta válida de cada fonte.</p>
-      <button type="button" onClick={() => { void refresh(); }} disabled={loading} className="inline-flex items-center gap-2 rounded-md border border-white/[0.10] px-3 py-2 text-xs text-white/70 disabled:opacity-50"><RefreshCw size={13} className={loading ? 'animate-spin' : ''} />Tentar novamente</button>
-    </header>
+  return (
+    <Screen>
+      <dl className="nx-kpis">
+        <div><dt>Problemas ativos</dt><dd>{problems.length}</dd></div>
+        <div><dt>Desastre + alta</dt><dd className={severe ? 'bad' : ''}>{severe}</dd></div>
+        <div><dt>Graves sem reconhecer</dt><dd className={unacked ? 'bad' : ''}>{unacked}</dd></div>
+        <div><dt>Hosts com problema</dt><dd>{new Set(problems.map(p => p.host)).size}</dd></div>
+        <div><dt>Hosts monitorados</dt><dd>{hosts?.toLocaleString('pt-BR') ?? '—'}</dd></div>
+        <div><dt>Incidentes 24h</dt><dd>{incidents24h?.toLocaleString('pt-BR') ?? '—'}</dd></div>
+      </dl>
+      {error && <div className="nx-alert warn" role="alert">{error}.</div>}
 
-    {error && <p role="alert" className="mt-5 border border-amber-400/30 bg-amber-400/10 p-3 text-sm text-amber-200">{error}. {sources ? 'Dados desatualizados exibidos abaixo.' : 'Nenhum dado válido disponível.'}</p>}
-    <section className="mt-7 border border-white/[0.09] bg-white/[0.02] p-5 sm:p-6" aria-label="Estado das fontes">
-      <div className="mb-3 flex items-center justify-between"><h2 className="text-sm font-semibold">Fontes operacionais</h2>{loading && <span role="status" className="text-xs text-brand-muted">Consultando fontes…</span>}</div>
-      <SourceLine icon={Server} title="Zabbix" source={zabbix} onOpen={() => onModuleSwitch('infraops')} />
-      <SourceLine icon={Ticket} title="GLPI" source={glpi} />
-      <SourceLine icon={Shield} title="Wazuh" source={sources?.wazuh} onOpen={() => onModuleSwitch('secops')} />
-    </section>
+      <Panel title="Fontes" meta={<span className="nx-meta">Zabbix {observedAt ? timeAgo(observedAt.toISOString()) : 'sem leitura'}</span>} flush>
+        <ol className="nx-flow">
+          {([['zabbix', 'Zabbix', 'Monitoramento de infraestrutura'], ['wazuh', 'Wazuh', 'Eventos de segurança'], ['glpi', 'GLPI', 'Chamados']] as const).map(([k, label, role]) => {
+            const s = sources?.[k];
+            const [tone, text] = s ? SOURCE[s.status] : ['neutral', 'Sem leitura'] as [Tone, string];
+            return (
+              <li key={k}>
+                <div className="nx-actions"><strong>{label}</strong><Badge tone={tone}>{text}</Badge></div>
+                <span className="nx-muted">{role}</span>
+                <span>{s?.status === 'planned' ? 'Alertas ainda não chegam ao Hub' : s?.last_success_at ? `Última coleta ${timeAgo(s.last_success_at)}` : '—'}{s?.error_code && s.status !== 'planned' ? ` · ${s.error_code}` : ''}</span>
+              </li>
+            );
+          })}
+        </ol>
+      </Panel>
 
-    <section className="mt-6 border border-white/[0.09] bg-white/[0.02] p-5 sm:p-6" aria-label="Leituras operacionais">
-      <h2 className="text-sm font-semibold">Leituras disponíveis</h2>
-      <div className="mt-5 grid gap-5 sm:grid-cols-3">{readings.map(item => <div key={item.label} className="border-l border-white/[0.12] pl-4"><p className="text-xs text-brand-muted">{item.label}</p><p className="mt-2 text-2xl font-semibold tabular-nums">{item.value}</p><p className={`mt-1 text-xs ${item.source?.stale ? 'text-amber-300' : 'text-brand-muted'}`}>{sourceLabel(item.source)}</p></div>)}</div>
-    </section>
-  </div>;
+      {pipeline}
+
+      <div className="nx-cols">
+        <Panel title="Problemas por cliente" meta={<span className="nx-meta">{matrix.length} clientes</span>} flush>
+          {!matrix.length ? <div className="nx-empty">Nenhum problema ativo.</div> :
+            <table className="nx-table nx-dense nx-matrix">
+              <thead><tr><th>Cliente</th>{SEV.map(l => <th key={l}>{sevLabel(l)}</th>)}<th>Total</th></tr></thead>
+              <tbody>{matrix.map(([c, r]) => (
+                <tr key={c}>
+                  <td><button type="button" className="nx-btn nx-link" onClick={() => go('monitoring', `&cliente=${encodeURIComponent(c)}`)}>{c}</button></td>
+                  {SEV.map(l => <td key={l} className={`nx-mono ${l >= 4 && r[l] ? 'nx-bad' : r[l] ? '' : 'nx-muted'}`}>{r[l] || '·'}</td>)}
+                  <td className="nx-mono">{r.reduce((a, b) => a + b, 0)}</td>
+                </tr>
+              ))}</tbody>
+            </table>}
+        </Panel>
+        <Panel title="Hosts com mais problemas" flush>
+          {!topHosts.length ? <div className="nx-empty">Nenhum problema ativo.</div> :
+            <table className="nx-table nx-dense">
+              <thead><tr><th>Host</th><th>Problemas</th></tr></thead>
+              <tbody>{topHosts.map(([h, n]) => (
+                <tr key={h}><td><button type="button" className="nx-btn nx-link nx-mono" onClick={() => go('monitoring', `&q=${encodeURIComponent(h)}`)}>{h}</button></td><td className="nx-mono">{n}</td></tr>
+              ))}</tbody>
+            </table>}
+        </Panel>
+      </div>
+
+      <Panel title="Últimos incidentes" meta={<button type="button" className="nx-btn nx-link" onClick={() => go('incidents')}>Ver todos</button>} flush>
+        {!recent.length ? <div className="nx-empty">Nenhum incidente nas últimas 24h.</div> :
+          <table className="nx-table nx-dense">
+            <thead><tr><th>Severidade</th><th>Cliente</th><th>Host</th><th>Incidente</th><th>Chamado</th><th>Último</th></tr></thead>
+            <tbody>{recent.map(i => {
+              const s = SEVERITIES.find(x => x.level === i.severity_level) ?? SEVERITIES[5];
+              return (
+                <tr key={i.id}>
+                  <td><Badge tone={s.tone}>{s.label}</Badge></td>
+                  <td>{i.client || '—'}</td>
+                  <td className="nx-mono">{i.host_name}</td>
+                  <td>{i.title}</td>
+                  <td className="nx-mono">{i.ticket_id ? `#${i.ticket_id}` : '—'}</td>
+                  <td className="nx-mono">{timeAgo(i.last_seen)}</td>
+                </tr>
+              );
+            })}</tbody>
+          </table>}
+      </Panel>
+    </Screen>
+  );
 }

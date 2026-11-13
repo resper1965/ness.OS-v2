@@ -5,7 +5,7 @@ import '../../ness-ui.css';
 
 export const ICON = { size: 14, strokeWidth: 1.5, 'aria-hidden': true } as const;
 
-export const Screen = ({ children }: { children: ReactNode }) => <div className="nx">{children}</div>;
+export const Screen = ({ fill, children }: { fill?: boolean; children: ReactNode }) => <div className={fill ? 'nx nx-fill' : 'nx'}>{children}</div>;
 
 // Marca de produto: minúscula, ponto interno sempre em BlueDot.
 export const ProductMark = () => <>n<span style={{ color: 'var(--nx-accent)' }}>.</span>infraops</>;
