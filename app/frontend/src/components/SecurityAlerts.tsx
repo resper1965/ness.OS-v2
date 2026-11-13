@@ -59,7 +59,7 @@ export default function SecurityAlerts() {
           <div className="flex-1">
             <h3 className="text-sm font-bold text-white flex items-center gap-2">
               Riscos Detectados no Ambiente Cloud
-              <span className="px-2 py-0.5 bg-red-500 text-[10px] font-bold uppercase tracking-wider text-white">Crítico</span>
+              <span className="px-2 py-0.5 bg-[#F87171] text-[10px] font-bold uppercase tracking-wider text-[#04121c]">Crítico</span>
             </h3>
             <p className="text-xs text-red-200/60 mt-1">
               Foram identificadas vulnerabilidades e desatualizações críticas na infraestrutura do Hub.Ness.

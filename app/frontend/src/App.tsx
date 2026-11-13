@@ -139,8 +139,8 @@ function MetricCard({
       className={`
         relative bg-[var(--color-brand-surface)] border border-white/[0.06]
         ${colors.border} rounded-xl p-5 flex flex-col gap-3 overflow-hidden
-        hover:border-white/10 transition-all duration-300 hover:-translate-y-0.5
-        hover:shadow-[0_8px_30px_rgba(0,0,0,0.3)] group
+        hover:border-white/10 transition-all duration-300
+        group
       `}
       style={status !== 'neutral' ? {
       } : {}}

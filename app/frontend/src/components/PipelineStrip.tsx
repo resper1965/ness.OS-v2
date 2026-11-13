@@ -55,7 +55,7 @@ function PipelineNode({
       <div className={`
         group relative flex flex-col items-center gap-2 px-4 py-3 rounded-xl
         ring-1 ${styles.ring} ${styles.bg}
-        transition-all duration-300 hover:scale-105 hover:ring-2
+        transition-all duration-300 hover:ring-2
         min-w-[80px] cursor-default
       `}>
         {/* Status dot */}
@@ -83,7 +83,7 @@ function PipelineNode({
         {/* Tooltip */}
         {(data?.detail || data?.last_success_at !== undefined) && (
           <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-50 pointer-events-none">
-            <div className="bg-[#0c0c18] border border-white/10 rounded-lg px-3 py-1.5 text-[10px] text-white/70 whitespace-nowrap shadow-2xl">
+            <div className="bg-[var(--color-brand-elevated)] border border-white/10 rounded-lg px-3 py-1.5 text-[10px] text-slate-300 whitespace-nowrap shadow-2xl">
               {data?.detail}{data?.detail && ' · '}última coleta válida: {timeAgo(data?.last_success_at)}
               <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-white/10" />
             </div>

@@ -52,7 +52,7 @@ function IncidentTimeline({ stage }: { stage: string }) {
                 </div>
                 {/* Tooltip */}
                 <div className="absolute bottom-full mb-1.5 hidden group-hover:block z-50 pointer-events-none">
-                  <div className="bg-[#0c0c18] border border-white/10 rounded px-2 py-1 text-[10px] text-white/60 whitespace-nowrap shadow-xl">
+                  <div className="bg-[var(--color-brand-elevated)] border border-white/10 rounded px-2 py-1 text-[10px] text-slate-300 whitespace-nowrap shadow-xl">
                     {s.label}
                   </div>
                 </div>
@@ -228,8 +228,8 @@ export default function IncidentsPage({ incidents, total, loading, loadingMore, 
             className="
               bg-[var(--color-brand-surface)] border border-white/[0.06]
               rounded-xl p-4 hover:border-white/[0.10]
-              hover:shadow-[0_4px_24px_rgba(0,0,0,0.3)]
-              transition-all duration-300 md:hover:-translate-y-0.5
+             
+              transition-all duration-300
               animate-fade-in
             "
             style={{ animationDelay: `${idx * 40}ms` }}
