@@ -528,7 +528,7 @@ function AppShellBody({ AUTH, logout, user }: {
 
           <button
             onClick={() => {
-              if (currentView === 'contracts' || currentView === 'customers') setCadastrosTick(t => t + 1);
+              if (currentView === 'cloud' || currentView === 'contracts' || currentView === 'customers') setCadastrosTick(t => t + 1);
               else if (currentView === 'incidents') void fetchIncidents();
               else void fetchData();
             }}
@@ -552,7 +552,7 @@ function AppShellBody({ AUTH, logout, user }: {
           )}
 
           {/* ── n.infraops ── */}
-          {activeModule === 'infraops' && currentView !== 'contracts' && currentView !== 'customers' && (
+          {activeModule === 'infraops' && !['contracts', 'customers', 'cloud'].includes(currentView) && (
           <div className="p-4 md:p-8 max-w-6xl space-y-5 animate-fade-in">
 
             {currentView === 'dashboard' && (
@@ -629,10 +629,9 @@ function AppShellBody({ AUTH, logout, user }: {
               />
             )}
 
-            {currentView === 'cloud' && <CloudManagement />}
-
           </div>
           )} {/* /infraops */}
+          {activeModule === 'infraops' && currentView === 'cloud' && <CloudManagement refreshKey={cadastrosTick} />}
           {activeModule === 'infraops' && currentView === 'contracts' && <ContractsScreen role={user?.role} refreshKey={cadastrosTick} />}
           {activeModule === 'infraops' && currentView === 'customers' && <CustomersScreen role={user?.role} refreshKey={cadastrosTick} />}
 
