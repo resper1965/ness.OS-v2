@@ -72,7 +72,7 @@ export default function CoreDashboard({ authHeader, problems, hosts, observedAt,
 
   return (
     <Screen>
-      <dl className="nx-kpis">
+      <dl className="nx-kpis nx-sticky">
         <div><dt>Problemas ativos</dt><dd>{problems.length}</dd></div>
         <div><dt>Desastre + alta</dt><dd className={severe ? 'bad' : ''}>{severe}</dd></div>
         <div><dt>Graves sem reconhecer</dt><dd className={unacked ? 'bad' : ''}>{unacked}</dd></div>
