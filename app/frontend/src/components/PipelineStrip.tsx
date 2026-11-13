@@ -1,177 +1,60 @@
-import React from 'react';
 import { timeAgo } from '../access';
-import { Zap, Cpu, GitBranch, Ticket, CheckCircle2, AlertCircle, Minus } from 'lucide-react';
+import { Badge, Panel, type Tone } from './ui/kit';
 
 interface NodeStatus {
-  status: 'ok' | 'error' | 'unconfigured' | 'degraded' | 'disabled';
+  status?: 'ok' | 'error' | 'unconfigured' | 'degraded' | 'disabled';
   detail?: string;
   last_success_at?: string | null;
-  last_error?: string | null;
+  workers_seen?: number;
+  failed_tasks?: number;
+  retrying_tasks?: number;
+  queues?: Record<string, number>;
+  incidents_without_ticket?: number;
+  resolutions_pending?: number;
+}
+type PipelineData = Partial<Record<'zabbix' | 'workers' | 'delivery' | 'glpi', NodeStatus>>;
+
+const STATUS: Record<string, [Tone, string]> = {
+  ok: ['ok', 'Normal'], degraded: ['warn', 'Degradado'], error: ['bad', 'Falha'],
+};
+
+// O que cada etapa faz e o que está acontecendo nela agora, em texto (sem tooltip).
+export function describe(key: keyof PipelineData, n: NodeStatus | undefined): string {
+  if (!n?.status || n.status === 'unconfigured' || n.status === 'disabled') return 'Não configurado';
+  if (key === 'workers') {
+    const queued = Object.values(n.queues ?? {}).reduce((a, b) => a + b, 0);
+    const parts = [`${n.workers_seen ?? 0} workers`, `${queued} na fila`];
+    if (n.failed_tasks) parts.push(`${n.failed_tasks} alertas recusados nos últimos 15 min (ver logs do worker)`);
+    if (n.retrying_tasks) parts.push(`${n.retrying_tasks} em nova tentativa`);
+    return parts.join(' · ');
+  }
+  if (key === 'delivery') return `${n.incidents_without_ticket ?? 0} incidentes sem chamado · ${n.resolutions_pending ?? 0} resoluções pendentes`;
+  return n.status === 'ok' ? `Respondeu ${timeAgo(n.last_success_at)}` : `Última resposta válida ${timeAgo(n.last_success_at)}`;
 }
 
-interface PipelineData {
-  zabbix?:      NodeStatus;
-  workers?:     NodeStatus;
-  delivery?:    NodeStatus;
-  deskmanager?: NodeStatus;
-}
+const NODES = [
+  ['zabbix', 'Coleta', 'Zabbix envia o alerta'],
+  ['workers', 'Processamento', 'Cria ou atualiza o incidente'],
+  ['delivery', 'Entrega', 'Abre e fecha o chamado'],
+  ['glpi', 'Helpdesk', 'GLPI recebe o chamado'],
+] as const;
 
-const NODES: {
-  key: keyof PipelineData;
-  label: string;
-  icon: React.ElementType;
-  description: string;
-}[] = [
-  { key: 'zabbix',      label: 'Monitoramento', icon: Zap,           description: 'Coleta de alertas' },
-  { key: 'workers',     label: 'Processamento',  icon: Cpu,           description: 'Workers e filas de incidentes' },
-  { key: 'delivery',    label: 'Entregas',       icon: GitBranch,     description: 'Tickets e resoluções pendentes' },
-  { key: 'deskmanager', label: 'Helpdesk',        icon: Ticket,        description: 'Abertura de ticket' },
-];
-
-function StatusIcon({ status }: { status: string }) {
-  if (status === 'ok')           return <CheckCircle2 size={11} className="text-emerald-400" />;
-  if (status === 'error')        return <AlertCircle  size={11} className="text-red-400" />;
-  return <Minus size={10} className="text-brand-muted" />;
-}
-
-function PipelineNode({
-  label, description, icon: Icon, data, isLast,
-}: {
-  label: string; description: string; icon: React.ElementType;
-  data?: NodeStatus; isLast: boolean;
-}) {
-  const rawStatus = data?.status ?? 'unconfigured';
-  const st = rawStatus === 'disabled' ? 'unconfigured' : rawStatus === 'degraded' ? 'error' : rawStatus;
-
-  const styles = {
-    ok:           { ring: 'ring-emerald-500/30', bg: 'bg-emerald-500/10', icon: 'text-emerald-400', text: 'text-emerald-400', dot: 'bg-emerald-400' },
-    error:        { ring: 'ring-red-500/30',     bg: 'bg-red-500/10',     icon: 'text-red-400',     text: 'text-red-400',     dot: 'bg-red-400' },
-    unconfigured: { ring: 'ring-white/5',         bg: 'bg-white/[0.03]',   icon: 'text-brand-muted',    text: 'text-brand-muted',    dot: 'bg-white/15' },
-  }[st];
-
+export default function PipelineStrip({ data, loading }: { data: PipelineData | null; loading: boolean }) {
   return (
-    <div className="flex items-center">
-      {/* Node card */}
-      <div className={`
-        group relative flex flex-col items-center gap-2 px-4 py-3 rounded-xl
-        ring-1 ${styles.ring} ${styles.bg}
-        transition-all duration-300 hover:ring-2
-        min-w-[80px] cursor-default
-      `}>
-        {/* Status dot */}
-        <div className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full ${styles.dot} ring-2 ring-[var(--color-brand-base)]`} />
-
-        {/* Icon */}
-        <div className={`p-2 rounded-lg bg-white/[0.05] ${styles.icon}`}>
-          <Icon size={14} />
-        </div>
-
-        {/* Label */}
-        <div className="text-center">
-          <p className={`text-xs font-semibold ${styles.text} leading-tight`}>{label}</p>
-          <p className="text-xs text-brand-muted mt-0.5 leading-tight">{description}</p>
-        </div>
-
-        {/* Status row */}
-        <div className="flex items-center gap-1">
-          <StatusIcon status={st} />
-          <span className={`text-xs font-medium ${styles.text} capitalize`}>
-            {st === 'unconfigured' ? 'N/C' : st === 'ok' ? 'Online' : 'Erro'}
-          </span>
-        </div>
-
-        {/* Tooltip */}
-        {(data?.detail || data?.last_success_at !== undefined) && (
-          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-50 pointer-events-none">
-            <div className="bg-[var(--color-brand-elevated)] border border-white/10 rounded-lg px-3 py-1.5 text-xs text-slate-300 whitespace-nowrap shadow-2xl">
-              {data?.detail}{data?.detail && ' · '}última coleta válida: {timeAgo(data?.last_success_at)}
-              <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-white/10" />
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Connector */}
-      {!isLast && (
-        <div className="flex items-center gap-0 mx-1.5">
-          <div className={`h-px w-6 ${st === 'ok' ? 'bg-emerald-500/40' : 'bg-white/10'}`} />
-          <div className={`w-0 h-0 border-y-[3px] border-y-transparent border-l-[4px]
-            ${st === 'ok' ? 'border-l-emerald-500/40' : 'border-l-white/10'}`} />
-        </div>
-      )}
-    </div>
-  );
-}
-
-export default function PipelineStrip({
-  data, loading,
-}: { data: PipelineData | null; loading: boolean }) {
-
-  const allOk = data && NODES.every(n => ['ok', 'disabled'].includes(data[n.key]?.status ?? ''));
-  const hasError = data && NODES.some(n => ['error', 'degraded'].includes(data[n.key]?.status ?? ''));
-
-  return (
-    <div className="
-      relative flex flex-col gap-3 px-5 py-4
-      bg-[var(--color-brand-surface)] border border-white/[0.06] rounded-xl overflow-hidden
-    ">
-      {/* Header row */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[var(--color-brand-muted)]">
-            Fluxo de incidentes
-          </span>
-          {!loading && data && (
-            <span className={`text-xs font-semibold px-2 py-0.5
-              ${allOk
-                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                : hasError
-                  ? 'bg-red-500/10 text-red-400 border border-red-500/20'
-                  : 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20'
-              }`}
-            >
-              {allOk ? '● Todos online' : hasError ? '● Degradado' : '● Parcial'}
-            </span>
-          )}
-        </div>
-
-        {/* Background radial glow */}
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            background: 'transparent'
-          }}
-        />
-      </div>
-
-      {/* Nodes */}
-      {loading ? (
-        <div className="flex items-center gap-2">
-          {NODES.map(n => (
-            <div key={n.key} className="flex items-center">
-              <div className="flex flex-col items-center gap-2 px-4 py-3 rounded-xl bg-white/[0.03] ring-1 ring-white/5 min-w-[80px]">
-                <div className="w-8 h-8 rounded-lg bg-white/[0.04] animate-pulse" />
-                <div className="w-12 h-2 bg-white/[0.04] rounded animate-pulse" />
-                <div className="w-8 h-1.5 bg-white/[0.03] rounded animate-pulse" />
-              </div>
-              {n.key !== 'deskmanager' && <div className="w-8 h-px bg-white/5 mx-1.5" />}
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="flex items-center">
-          {NODES.map((n, i) => (
-            <PipelineNode
-              key={n.key}
-              label={n.label}
-              description={n.description}
-              icon={n.icon}
-              data={data?.[n.key]}
-              isLast={i === NODES.length - 1}
-            />
-          ))}
-        </div>
-      )}
-    </div>
+    <Panel title="Fluxo de incidentes" meta={loading && !data ? <span className="nx-meta">Consultando…</span> : undefined} flush>
+      <ol className="nx-flow">
+        {NODES.map(([key, label, role]) => {
+          const n = data?.[key];
+          const [tone, text] = STATUS[n?.status ?? ''] ?? ['neutral', 'N/C'];
+          return (
+            <li key={key}>
+              <div className="nx-actions"><strong>{label}</strong><Badge tone={tone}>{text}</Badge></div>
+              <span className="nx-muted">{role}</span>
+              <span>{data ? describe(key, n) : '—'}</span>
+            </li>
+          );
+        })}
+      </ol>
+    </Panel>
   );
 }

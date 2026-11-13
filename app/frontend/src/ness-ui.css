@@ -69,7 +69,7 @@
 .nx-kpis > div { background: var(--nx-surface); padding: 12px 16px; display: grid; gap: 6px; }
 .nx-kpis dt { font: 500 10px/1 var(--nx-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--nx-ink-4); }
 .nx-kpis dd { margin: 0; font: 600 24px/1 var(--nx-mono); font-variant-numeric: tabular-nums; }
-.nx-kpis dd.bad { color: var(--nx-bad); }
+.nx-kpis dd.bad, .nx-bad { color: var(--nx-bad); }
 .nx-filters { position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding: 12px 0; margin-bottom: 12px; background: var(--nx-paper); border-bottom: 1px solid var(--nx-line); }
 .nx-search { display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 10px; min-width: 240px; flex: 1; max-width: 360px; border: 1px solid var(--nx-line); color: var(--nx-ink-3); }
 .nx-search input { flex: 1; background: transparent; border: 0; color: var(--nx-ink); font: 400 13px/1 var(--nx-body); outline: none; }
@@ -79,4 +79,15 @@
 .nx-inline select { width: auto; }
 .nx-dense td { padding: 7px 16px; vertical-align: middle; }
 .nx-dense tbody tr:hover td { background: var(--nx-surface-2); }
+/* Tela cheia: KPIs e filtros fixos, só o painel da lista rola. */
+.nx.nx-fill { height: 100%; min-height: 0; display: flex; flex-direction: column; padding-bottom: 16px; }
+.nx-fill > .nx-panel:last-child { flex: 1; min-height: 0; display: flex; flex-direction: column; margin-bottom: 0; }
+.nx-fill > .nx-panel:last-child > div { flex: 1; min-height: 0; overflow: auto; }
+.nx-fill .nx-filters { position: static; }
+.nx-fill thead th { position: sticky; top: 0; z-index: 1; background: var(--nx-surface); }
+.nx-flow { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin: 0; padding: 0; list-style: none; }
+.nx-flow li { display: grid; gap: 4px; padding: 10px 16px; border-right: 1px solid var(--nx-line); }
+.nx-flow li:last-child { border-right: 0; }
+.nx-matrix td, .nx-matrix th { text-align: right; } .nx-matrix td:first-child, .nx-matrix th:first-child { text-align: left; }
+.nx-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 20px; }
 .nx-group th { background: var(--nx-paper); color: var(--nx-ink-2); text-transform: none; letter-spacing: 0; font: 600 12px/1 var(--nx-mono); }
