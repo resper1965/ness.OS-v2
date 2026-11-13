@@ -188,15 +188,15 @@ function ProblemRow({ p }: { p: Problem }) {
           <p className="font-medium text-sm truncate text-white/90 group-hover:text-white transition-colors">
             {p.title}
           </p>
-          <p className="text-[11px] text-[var(--color-brand-muted)] mt-0.5 truncate">{p.host}</p>
+          <p className="text-xs text-[var(--color-brand-muted)] mt-0.5 truncate">{p.host}</p>
         </div>
       </div>
 
       <div className="flex items-center gap-2.5 shrink-0 ml-4">
-        <span className={`text-[10px] font-semibold px-2 py-0.5 border ${SEVERITY_BG[p.severity] || ''}`}>
+        <span className={`text-xs font-semibold px-2 py-0.5 border ${SEVERITY_BG[p.severity] || ''}`}>
           {SEVERITY_LABEL[p.severity] || p.severity}
         </span>
-        <span className="text-[11px] text-[var(--color-brand-muted)] tabular-nums w-8 text-right">
+        <span className="text-xs text-[var(--color-brand-muted)] tabular-nums w-8 text-right">
           {access.timeAgo(p.clock)}
         </span>
       </div>
@@ -211,11 +211,11 @@ function SectionCard({ title, count, children, loading }: {
   return (
     <div className="bg-[var(--color-brand-surface)] border border-white/[0.06] rounded-xl overflow-hidden">
       <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/[0.04]">
-        <span className="text-[11px] font-semibold text-[var(--color-brand-muted)] uppercase tracking-[0.12em]">
+        <span className="text-xs font-semibold text-[var(--color-brand-muted)] uppercase tracking-[0.12em]">
           {title}
         </span>
         {count !== undefined && (
-          <span className="text-[11px] font-medium px-2 py-0.5 bg-white/[0.05] text-[var(--color-brand-muted)]">
+          <span className="text-xs font-medium px-2 py-0.5 bg-white/[0.05] text-[var(--color-brand-muted)]">
             {count}
           </span>
         )}
@@ -404,7 +404,7 @@ function AppShellBody({ AUTH, logout, user }: {
 
         <div className="px-2 py-1">
           <BrandMark size="md" />
-          <p className="mt-1 text-[10px] font-medium tracking-wide text-brand-muted">operações de tecnologia</p>
+          <p className="mt-1 text-xs font-medium tracking-wide text-brand-muted">operações de tecnologia</p>
         </div>
 
         <div className="px-2">
@@ -436,7 +436,7 @@ function AppShellBody({ AUTH, logout, user }: {
           >
             <BookOpen size={18} className="shrink-0" />
             <span>Documentação</span>
-            <span className="ml-auto text-[10px] text-brand-muted" aria-hidden="true">↗</span>
+            <span className="ml-auto text-xs text-brand-muted" aria-hidden="true">↗</span>
             <span className="sr-only">(abre em nova aba)</span>
           </a>
         </nav>
@@ -473,7 +473,7 @@ function AppShellBody({ AUTH, logout, user }: {
               </div>
               {/* Info */}
               <div className="flex-1 min-w-0">
-                <p className="text-[11px] font-medium text-white/80 truncate">
+                <p className="text-xs font-medium text-white/80 truncate">
                   {user.full_name ?? user.email}
                 </p>
                 <span className={`text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 ${
@@ -515,7 +515,7 @@ function AppShellBody({ AUTH, logout, user }: {
             </button>
             <h1 className="text-xl font-semibold tracking-[-0.02em] truncate">{TITLES[currentView]}</h1>
             {hasCritical && (currentView === 'overview' || currentView === 'monitoring') && (
-              <span role="status" aria-label={`${summary!.problems_critical} alertas críticos`} className="flex shrink-0 items-center gap-1 text-[10px] font-semibold px-2 py-0.5 bg-red-500/15 border border-red-500/30 text-red-400">
+              <span role="status" aria-label={`${summary!.problems_critical} alertas críticos`} className="flex shrink-0 items-center gap-1 text-xs font-semibold px-2 py-0.5 bg-red-500/15 border border-red-500/30 text-red-400">
                 <AlertTriangle size={9} /> {summary!.problems_critical}<span className="hidden sm:inline">{summary!.problems_critical === 1 ? ' alerta crítico' : ' alertas críticos'}</span>
               </span>
             )}

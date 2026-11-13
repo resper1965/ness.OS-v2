@@ -72,15 +72,15 @@ export default function SecurityAlerts() {
             <div key={idx} className="flex items-center gap-3 px-3 py-2 rounded-lg bg-black/20 border border-white/5">
               <div className={`w-1.5 h-1.5 rounded-full ${issue.status === 'danger' ? 'bg-red-500' : 'bg-orange-400'}`} />
               <div className="flex-1 min-w-0">
-                <p className="text-[11px] font-bold text-white/90 truncate">{issue.check}</p>
-                <p className="text-[10px] text-brand-muted truncate">{issue.message}</p>
+                <p className="text-xs font-bold text-white/90 truncate">{issue.check}</p>
+                <p className="text-xs text-brand-muted truncate">{issue.message}</p>
               </div>
             </div>
           ))}
         </div>
         
         <div className="mt-2 pt-2 border-t border-white/5 flex justify-between items-center">
-            <p className="text-[10px] text-brand-muted italic">Auditoria consultada {timeAgo(fetchedAt)}{failed ? ' (última consulta falhou)' : ''}</p>
+            <p className="text-xs text-brand-muted italic">Auditoria consultada {timeAgo(fetchedAt)}{failed ? ' (última consulta falhou)' : ''}</p>
             <button className="text-[10px] font-bold text-red-400 hover:text-red-300 transition-colors uppercase tracking-wider">
               Ver Relatório Completo
             </button>

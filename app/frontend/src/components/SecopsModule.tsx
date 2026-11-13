@@ -113,7 +113,7 @@ function CveCard({ cve }: { cve: CveItem }) {
         className="w-full flex items-start gap-3 p-4 text-left hover:bg-white/[0.02] transition-colors"
       >
         {/* CVSS badge */}
-        <div className={`shrink-0 mt-0.5 px-2 py-1 rounded-lg text-[11px] font-black ${sev.color} bg-black/20 min-w-[42px] text-center`}>
+        <div className={`shrink-0 mt-0.5 px-2 py-1 rounded-lg text-xs font-black ${sev.color} bg-black/20 min-w-[42px] text-center`}>
           {cve.cvss > 0 ? cve.cvss.toFixed(1) : 'N/A'}
         </div>
 
@@ -122,7 +122,7 @@ function CveCard({ cve }: { cve: CveItem }) {
             <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 ${sev.bg} ${sev.color} border ${sev.border}`}>
               {sev.label}
             </span>
-            <span className="text-[10px] font-mono text-brand-muted">{cve.id}</span>
+            <span className="text-xs font-mono text-brand-muted">{cve.id}</span>
             {cve.exploited_wild && (
               <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 bg-[#F87171] text-[#04121c] uppercase tracking-wider">
                 <Zap size={8} /> Exploração ativa
@@ -130,7 +130,7 @@ function CveCard({ cve }: { cve: CveItem }) {
             )}
           </div>
           <p className="text-sm font-semibold text-white/90 leading-snug">{cve.title}</p>
-          <p className="text-[11px] text-brand-muted mt-1">{cve.affected_tech}</p>
+          <p className="text-xs text-brand-muted mt-1">{cve.affected_tech}</p>
         </div>
 
         <div className="shrink-0 text-brand-muted">
@@ -146,7 +146,7 @@ function CveCard({ cve }: { cve: CveItem }) {
             <p className="text-[10px] text-brand-muted uppercase tracking-wider mb-1.5">Clientes afetados</p>
             <div className="flex flex-wrap gap-1.5">
               {cve.affected_clients.map(c => (
-                <span key={c} className="text-[10px] font-semibold px-2 py-0.5 text-white/80"
+                <span key={c} className="text-xs font-semibold px-2 py-0.5 text-white/80"
                   style={{ background: (CLIENT_COLORS[c] ?? '#6B7280') + '25', border: `1px solid ${(CLIENT_COLORS[c] ?? '#6B7280')}40` }}>
                   {c}
                 </span>
@@ -173,19 +173,19 @@ function CveCard({ cve }: { cve: CveItem }) {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               {cve.patch_available
-                ? <><CheckCircle2 size={12} className="text-emerald-400" /><span className="text-[11px] text-emerald-400 font-medium">Patch disponível</span></>
-                : <><XCircle size={12} className="text-red-400" /><span className="text-[11px] text-red-400 font-medium">Sem patch — mitigação manual</span></>
+                ? <><CheckCircle2 size={12} className="text-emerald-400" /><span className="text-xs text-emerald-400 font-medium">Patch disponível</span></>
+                : <><XCircle size={12} className="text-red-400" /><span className="text-xs text-red-400 font-medium">Sem patch — mitigação manual</span></>
               }
             </div>
             {cve.references[0] && (
               <a href={cve.references[0]} target="_blank" rel="noreferrer"
-                className="flex items-center gap-1 text-[10px] text-brand-muted hover:text-white/60 transition-colors">
+                className="flex items-center gap-1 text-xs text-brand-muted hover:text-white/60 transition-colors">
                 <ExternalLink size={10} /> Referência
               </a>
             )}
           </div>
 
-          <p className="text-[10px] text-brand-muted font-mono">{cve.patch_version}</p>
+          <p className="text-xs text-brand-muted font-mono">{cve.patch_version}</p>
         </div>
       )}
     </div>
@@ -220,13 +220,13 @@ function ZabbixHealthPanel({ health, loading, requestError }: { health: ZabbixHe
           </div>
           <div>
             <p className="text-sm font-bold text-white">Zabbix — Saúde do Ambiente</p>
-            <p className="text-[11px] text-brand-muted">{requestError ? `Dados desatualizados · última coleta válida: ${new Date(health.timestamp).toLocaleString('pt-BR')}` : health.error ? 'Falha na coleta · última coleta válida indisponível' : `Coletado em ${new Date(health.timestamp).toLocaleString('pt-BR')}`}</p>
+            <p className="text-xs text-brand-muted">{requestError ? `Dados desatualizados · última coleta válida: ${new Date(health.timestamp).toLocaleString('pt-BR')}` : health.error ? 'Falha na coleta · última coleta válida indisponível' : `Coletado em ${new Date(health.timestamp).toLocaleString('pt-BR')}`}</p>
           </div>
         </div>
         <div className="flex items-center gap-4">
           {!failed && <ScoreRing score={health.score} />}
           <a href={health.zabbix_url} target="_blank" rel="noreferrer"
-            className="flex items-center gap-1.5 text-[11px] text-brand-muted hover:text-[#00ADE8] transition-colors">
+            className="flex items-center gap-1.5 text-xs text-brand-muted hover:text-[#00ADE8] transition-colors">
             <ExternalLink size={11} /> Abrir Zabbix
           </a>
         </div>
@@ -242,17 +242,17 @@ function ZabbixHealthPanel({ health, loading, requestError }: { health: ZabbixHe
               <Icon size={15} className={`${cfg.color} shrink-0 mt-0.5`} />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2 mb-0.5">
-                  <p className="text-[11px] font-bold text-white/80">{chk.check}</p>
-                  <span className={`text-[10px] font-mono ${cfg.color} shrink-0`}>{chk.value}</span>
+                  <p className="text-xs font-bold text-white/80">{chk.check}</p>
+                  <span className={`text-xs font-mono ${cfg.color} shrink-0`}>{chk.value}</span>
                 </div>
-                <p className="text-[11px] text-brand-muted leading-snug">{chk.message}</p>
+                <p className="text-xs text-brand-muted leading-snug">{chk.message}</p>
                 {chk.details.length > 0 && (
                   <div className="mt-2 flex flex-wrap gap-1">
                     {chk.details.slice(0, 5).map(d => (
-                      <span key={d} className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-black/20 text-brand-muted">{d}</span>
+                      <span key={d} className="text-xs font-mono px-1.5 py-0.5 rounded bg-black/20 text-brand-muted">{d}</span>
                     ))}
                     {chk.details.length > 5 && (
-                      <span className="text-[10px] text-brand-muted">+{chk.details.length - 5} mais</span>
+                      <span className="text-xs text-brand-muted">+{chk.details.length - 5} mais</span>
                     )}
                   </div>
                 )}
@@ -307,13 +307,13 @@ function ClientRiskMatrix({ cves }: { cves: CveItem[] }) {
               <p className="text-[12px] font-semibold text-white/80 flex-1 truncate">{client}</p>
               <div className="flex items-center gap-3">
                 {stats.critical > 0 && (
-                  <span className="text-[11px] text-red-400 font-mono">{stats.critical}×crítico</span>
+                  <span className="text-xs text-red-400 font-mono">{stats.critical}×crítico</span>
                 )}
                 {stats.high > 0 && (
-                  <span className="text-[11px] text-orange-400 font-mono">{stats.high}×alto</span>
+                  <span className="text-xs text-orange-400 font-mono">{stats.high}×alto</span>
                 )}
                 {stats.exploited > 0 && (
-                  <span className="flex items-center gap-0.5 text-[10px] font-bold text-red-300 bg-red-500/10 px-1.5 py-0.5">
+                  <span className="flex items-center gap-0.5 text-xs font-bold text-red-300 bg-red-500/10 px-1.5 py-0.5">
                     <Zap size={8} /> {stats.exploited}
                   </span>
                 )}
@@ -416,16 +416,16 @@ export default function SecopsModule() {
           </div>
           <div>
             <h1 className="text-lg font-semibold text-white">Segurança</h1>
-            <p className="text-[11px] text-brand-muted">Vulnerabilidades, monitoramento e risco</p>
+            <p className="text-xs text-brand-muted">Vulnerabilidades, monitoramento e risco</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <p className="text-[10px] text-brand-muted">
+          <p className="text-xs text-brand-muted">
             {lastRefresh ? `Tentativa ${lastRefresh.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}` : 'Sem tentativa'}
           </p>
           <button
             onClick={fetchAll}
-            className="flex items-center gap-1.5 text-[11px] px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.08] text-brand-muted hover:text-white hover:bg-white/[0.08] transition-all"
+            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.08] text-brand-muted hover:text-white hover:bg-white/[0.08] transition-all"
           >
             <RefreshCw size={11} /> Atualizar
           </button>
@@ -433,9 +433,9 @@ export default function SecopsModule() {
       </div>
 
       {/* ── Triagem SOC ────────────────────────────────────────────────────── */}
-      {triageFailed && <p className="text-[11px] text-amber-200/80">Triagem SOC indisponível.</p>}
+      {triageFailed && <p className="text-xs text-amber-200/80">Triagem SOC indisponível.</p>}
       {triage && (
-        <section aria-label="Triagem SOC" className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-[11px]">
+        <section aria-label="Triagem SOC" className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
           <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-3">
             <p className="text-brand-muted">Alertas triados</p>
             <p className="text-lg font-semibold text-white">{triage.total_processed}</p>
@@ -444,7 +444,7 @@ export default function SecopsModule() {
             <p className="text-brand-muted">Arquivados sem IA <span className="text-brand-muted">(% dos avaliados)</span></p>
             <p className="text-lg font-semibold text-white">
               {triage.llm_bypassed_count}
-              {triage.bypassed_percentage !== null && <span className="ml-1 text-[10px] text-brand-muted">({triage.bypassed_percentage}%)</span>}
+              {triage.bypassed_percentage !== null && <span className="ml-1 text-xs text-brand-muted">({triage.bypassed_percentage}%)</span>}
             </p>
           </div>
           <div className={`rounded-xl border p-3 ${triage.pending_tenant_review_count > 0 ? 'bg-amber-500/10 border-amber-400/30' : 'bg-white/[0.03] border-white/[0.06]'}`}>
@@ -457,7 +457,7 @@ export default function SecopsModule() {
       {/* ── Summary Cards ──────────────────────────────────────────────────── */}
       {!cveLoading && summary && (
         <div>
-          <div className="mb-3 flex items-center gap-2 text-[11px] text-amber-200/80">
+          <div className="mb-3 flex items-center gap-2 text-xs text-amber-200/80">
             <span className="h-1.5 w-1.5 rounded-full bg-amber-300" />
             Base de referência estática — atualização e aplicabilidade por cliente pendentes.
           </div>
@@ -512,7 +512,7 @@ export default function SecopsModule() {
           <div className="flex items-center bg-white/[0.04] border border-white/[0.08] rounded-lg overflow-hidden">
             {(['all', 'critical', 'high'] as FilterSev[]).map(f => (
               <button key={f} onClick={() => setFilter(f)}
-                className={`px-3 py-1.5 text-[11px] font-semibold transition-colors ${
+                className={`px-3 py-1.5 text-xs font-semibold transition-colors ${
                   filter === f
                     ? 'bg-[#00ADE8]/20 text-[#00ADE8]'
                     : 'text-brand-muted hover:text-white/60'
@@ -523,7 +523,7 @@ export default function SecopsModule() {
           </div>
 
           <button onClick={() => setExploitedOnly(e => !e)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold border transition-all ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
               exploitedOnly
                 ? 'bg-red-500/20 border-red-500/30 text-red-400'
                 : 'bg-white/[0.04] border-white/[0.08] text-brand-muted hover:text-white/60'
@@ -536,7 +536,7 @@ export default function SecopsModule() {
             placeholder="Buscar CVE, tech, cliente..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            className="ml-auto bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-1.5 text-[11px] text-white/60 placeholder-white/20 focus:border-[#00ADE8]/40 transition-colors w-48"
+            className="ml-auto bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-1.5 text-xs text-white/60 placeholder-white/20 focus:border-[#00ADE8]/40 transition-colors w-48"
           />
         </div>
 
@@ -562,7 +562,7 @@ export default function SecopsModule() {
 
         {/* Footer */}
         {cveIntel && (
-          <div className="mt-4 flex items-center justify-between text-[10px] text-brand-muted">
+          <div className="mt-4 flex items-center justify-between text-xs text-brand-muted">
             <span>Fonte: {cveIntel.source}</span>
             <span>Atualizado em: {new Date(cveIntel.updated_at).toLocaleDateString('pt-BR')}</span>
           </div>
