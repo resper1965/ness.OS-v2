@@ -7,15 +7,19 @@ import asyncio
 import logging
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from redis.asyncio import Redis
+
+from sqlalchemy import select
 
 from app.config import get_settings
 from app.core.dependencies import require_noc
+from app.database import SessionLocal
 from app.dependencies import get_redis
 from app.integrations.atera import AteraClient
 from app.integrations.glpi import GLPIClient
 from app.integrations.zabbix import ZabbixClient
+from app.models import Customer, CustomerAlias, Incident
 from app.schemas.operational_status import OperationalStatus
 from app.services.operational_status import observe_source
 
@@ -157,8 +161,53 @@ async def get_unified_summary(_=Depends(require_noc)):
     }
 
 
+def canonical_names(customers, aliases) -> dict[str, str]:
+    """Grafia normalizada (chave, nome, apelido) -> nome de exibição; une `NESS`/`Ness`."""
+    names = {}
+    by_id = {}
+    for c in customers:
+        by_id[c.id] = c.display_name
+        names[c.key.lower()] = names[c.display_name.lower().strip()] = c.display_name
+    for a in aliases:
+        if a.customer_id in by_id:
+            names[a.alias_norm] = by_id[a.customer_id]
+    return names
+
+
+async def _incident_context(event_ids: list[str]) -> dict[str, dict]:
+    """Cliente canônico, incidente e chamado de cada evento Zabbix já processado."""
+    if not event_ids:
+        return {}
+    key = Incident.tags["ninf_zabbix_event_id"].astext
+    async with SessionLocal() as session:
+        rows = (
+            await session.execute(
+                select(
+                    key,
+                    Incident.id,
+                    Incident.deskmanager_ticket_id,
+                    Incident.tags["ninf_customer_name"].astext,
+                ).where(key.in_(event_ids))
+            )
+        ).all()
+        names = canonical_names(
+            (await session.execute(select(Customer))).scalars(),
+            (await session.execute(select(CustomerAlias))).scalars(),
+        )
+    return {
+        ev: {
+            "incident_id": str(inc_id),
+            "ticket_id": ticket,
+            "customer": names.get((customer or "").lower().strip(), customer),
+        }
+        for ev, inc_id, ticket, customer in rows
+    }
+
+
 @router.get("/api/dashboard/problems", tags=["dashboard"])
-async def get_dashboard_problems(limit: int = 20, _=Depends(require_noc)):
+async def get_dashboard_problems(
+    limit: int = Query(20, ge=1, le=5000), _=Depends(require_noc)
+):
     """Retorna lista de problemas ativos do Zabbix com info do host."""
     zabbix = ZabbixClient()
     try:
@@ -211,6 +260,12 @@ async def get_dashboard_problems(limit: int = 20, _=Depends(require_noc)):
             "5": "disaster",
         }
 
+        try:
+            context = await _incident_context([p["eventid"] for p in problems])
+        except Exception as exc:  # banco fora não derruba a leitura do Zabbix
+            logger.error("Problem context failed: %s", type(exc).__name__)
+            context = {}
+
         result = []
         for p in problems:
             result.append(
@@ -224,6 +279,10 @@ async def get_dashboard_problems(limit: int = 20, _=Depends(require_noc)):
                     "host": trigger_host_map.get(p.get("objectid", ""), "unknown"),
                     "clock": int(p["clock"]),
                     "acknowledged": p.get("acknowledged") == "1",
+                    "customer": None,
+                    "incident_id": None,
+                    "ticket_id": None,
+                    **context.get(p["eventid"], {}),
                 }
             )
 

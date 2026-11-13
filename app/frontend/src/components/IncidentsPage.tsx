@@ -110,7 +110,7 @@ const ACTION_LABEL: Record<Action, string> = {
   resolve: 'Resolveu',
   close: 'Encerrou',
 };
-export interface IncidentFilter { period: '24h' | '7d' | '30d' | 'all'; status: '' | 'open' | 'resolved' }
+export interface IncidentFilter { period: '24h' | '7d' | '30d' | 'all'; status: '' | 'open' | 'resolved'; sev: string; q: string }
 const PERIOD_HOURS = { '24h': 24, '7d': 168, '30d': 720, all: 0 } as const;
 
 // Padrão 24h: o histórico tem ~128 mil linhas e quase todas antigas; sem recorte a fila não informa nada.
@@ -121,20 +121,26 @@ export function readIncidentFilter(search: string): IncidentFilter {
   return {
     period: period === '7d' || period === '30d' || period === 'all' ? period : '24h',
     status: status === 'open' || status === 'resolved' ? status : '',
+    sev: /^[0-5](,[0-5])*$/.test(p.get('sev') ?? '') ? p.get('sev')! : '',
+    q: p.get('q') ?? '',
   };
 }
 
 export function writeIncidentFilter(f: IncidentFilter) {
   const url = new URL(window.location.href);
   url.searchParams.set('periodo', f.period);
-  if (f.status) url.searchParams.set('estado', f.status); else url.searchParams.delete('estado');
+  for (const [k, v] of [['estado', f.status], ['sev', f.sev], ['q', f.q]]) {
+    if (v) url.searchParams.set(k, v); else url.searchParams.delete(k);
+  }
   window.history.replaceState(null, '', url);
 }
 
 export function incidentQuery(f: IncidentFilter, now = Date.now()): string {
   const h = PERIOD_HOURS[f.period];
   return (h ? `&from=${encodeURIComponent(new Date(now - h * 3600_000).toISOString())}` : '')
-    + (f.status ? `&status=${f.status}` : '');
+    + (f.status ? `&status=${f.status}` : '')
+    + (f.sev ? `&severity=${f.sev}` : '')
+    + (f.q.trim() ? `&q=${encodeURIComponent(f.q.trim())}` : '');
 }
 
 interface Props { incidents: Incident[]; total: number; loading: boolean; loadingMore: boolean; error: string | null; canAct: boolean; onChanged: () => void | Promise<void>; onLoadMore: () => void | Promise<void>; initialActiveId?: string | null; filter: IncidentFilter; onFilter: (f: IncidentFilter) => void; }
@@ -209,6 +215,18 @@ export default function IncidentsPage({ incidents, total, loading, loadingMore, 
             </button>
           ))}
         </div>
+        <form role="none" onSubmit={e => { e.preventDefault(); onFilter({ ...filter, q: String(new FormData(e.currentTarget).get('q') ?? '') }); }}>
+          <label className="flex items-center gap-2 h-8 px-2 border border-white/[0.14] text-xs text-slate-300 focus-within:outline focus-within:outline-2 focus-within:outline-[#00ADE8]">
+            <span className="sr-only">Buscar host ou título</span>
+            <input name="q" type="search" defaultValue={filter.q} placeholder="Host ou título (Enter)" className="bg-transparent outline-none text-white w-48" />
+          </label>
+        </form>
+        <label className="flex items-center gap-2 text-xs text-slate-300">Severidade
+          <select value={filter.sev} onChange={e => onFilter({ ...filter, sev: e.target.value })}
+            className="h-8 px-2 bg-[var(--color-brand-base)] border border-white/[0.14] text-white text-xs">
+            <option value="">Todas</option><option value="5,4">Desastre + alta</option><option value="3">Média</option><option value="2">Atenção</option><option value="1,0">Info</option>
+          </select>
+        </label>
         <label className="flex items-center gap-2 text-xs text-slate-300">Estado
           <select value={filter.status} onChange={e => onFilter({ ...filter, status: e.target.value as IncidentFilter['status'] })}
             className="h-8 px-2 bg-[var(--color-brand-base)] border border-white/[0.14] text-white text-xs">
