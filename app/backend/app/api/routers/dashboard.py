@@ -9,7 +9,6 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from redis.asyncio import Redis
-
 from sqlalchemy import select
 
 from app.config import get_settings

@@ -100,7 +100,7 @@ export default function ProblemsView({ problems, loading, error, observedAt, hos
       <dl className="nx-kpis">
         <div><dt>Problemas ativos</dt><dd>{problems.length}</dd></div>
         <div><dt>Desastre + alta</dt><dd className={problems.some(p => p.severity_level >= 4) ? 'bad' : ''}>{problems.filter(p => p.severity_level >= 4).length}</dd></div>
-        <div><dt>Clientes afetados</dt><dd>{new Set(problems.map(customerOf)).size}</dd></div>
+        <div><dt>Clientes afetados</dt><dd>{new Set(problems.flatMap(p => p.customer ? [p.customer] : [])).size}</dd></div>
         <div><dt>Hosts com problema</dt><dd>{new Set(problems.map(p => p.host)).size}</dd></div>
         <div><dt>Hosts monitorados</dt><dd>{hosts?.toLocaleString('pt-BR') ?? '—'}</dd></div>
         <div><dt>Itens monitorados</dt><dd>{items?.toLocaleString('pt-BR') ?? '—'}</dd></div>
