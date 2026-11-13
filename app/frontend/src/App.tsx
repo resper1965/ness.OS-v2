@@ -126,6 +126,7 @@ function AppShellBody({ AUTH, logout, user }: {
   const [incidentsMoreLoading, setIncidentsMoreLoading] = useState(false);
   const [incidentsError, setIncidentsError] = useState<string | null>(null);
   const incidentsRequest = useRef(0);
+  const incidentsSince = useRef(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [cadastrosTick, setCadastrosTick] = useState(0);
@@ -164,7 +165,9 @@ function AppShellBody({ AUTH, logout, user }: {
     try {
       const tenant = access.tenantScope(user?.role, selectedTenant);
       const scope = tenant ? `&tenant_id=${encodeURIComponent(tenant)}` : '';
-      const res = await fetch(`${API_BASE}/api/incidents?limit=20&offset=${offset}${scope}${incidentQuery(incidentFilter)}`, { credentials: 'include', headers: AUTH });
+      // O corte do período fica fixo durante a paginação; senão a janela anda e a próxima página pula linhas.
+      if (offset === 0) incidentsSince.current = Date.now();
+      const res = await fetch(`${API_BASE}/api/incidents?limit=20&offset=${offset}${scope}${incidentQuery(incidentFilter, incidentsSince.current)}`, { credentials: 'include', headers: AUTH });
       if (!res.ok) throw new Error();
       const data = await res.json();
       if (requestId !== incidentsRequest.current) return;
