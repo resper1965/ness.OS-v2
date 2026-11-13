@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type ElementType } from 'react';
-import { ArrowUpRight, Database, RefreshCw, Server, Shield, Ticket } from 'lucide-react';
+import { ArrowUpRight, RefreshCw, Server, Shield, Ticket } from 'lucide-react';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
 
@@ -100,18 +100,16 @@ export default function CoreDashboard({ authHeader, onModuleSwitch }: {
   }, [refresh]);
 
   const zabbix = sources?.zabbix;
-  const atera = sources?.atera;
   const glpi = sources?.glpi;
   const readings = [
     { label: 'Hosts Zabbix', value: metric(zabbix, 'hosts_active'), source: zabbix },
     { label: 'Problemas críticos', value: metric(zabbix, 'problems_critical'), source: zabbix },
-    { label: 'Agentes Atera', value: metric(atera, 'agents_total'), source: atera },
     { label: 'Entidades GLPI', value: metric(glpi, 'entity_count'), source: glpi },
   ];
 
-  return <div className="min-h-full bg-[#090c13] px-5 py-6 text-white sm:px-8 lg:px-10">
+  return <div className="min-h-full px-5 py-6 text-white sm:px-8 lg:px-10">
     <header className="flex flex-wrap items-end justify-between gap-4 border-b border-white/[0.08] pb-5">
-      <div><h1 className="text-2xl font-semibold">Visão geral</h1><p className="mt-1 text-sm text-brand-muted">Valores e última coleta válida de cada fonte.</p></div>
+      <p className="text-sm text-brand-muted">Valores e última coleta válida de cada fonte.</p>
       <button type="button" onClick={() => { void refresh(); }} disabled={loading} className="inline-flex items-center gap-2 rounded-md border border-white/[0.10] px-3 py-2 text-xs text-white/70 disabled:opacity-50"><RefreshCw size={13} className={loading ? 'animate-spin' : ''} />Tentar novamente</button>
     </header>
 
@@ -119,14 +117,13 @@ export default function CoreDashboard({ authHeader, onModuleSwitch }: {
     <section className="mt-7 border border-white/[0.09] bg-white/[0.02] p-5 sm:p-6" aria-label="Estado das fontes">
       <div className="mb-3 flex items-center justify-between"><h2 className="text-sm font-semibold">Fontes operacionais</h2>{loading && <span role="status" className="text-xs text-brand-muted">Consultando fontes…</span>}</div>
       <SourceLine icon={Server} title="Zabbix" source={zabbix} onOpen={() => onModuleSwitch('infraops')} />
-      <SourceLine icon={Database} title="Atera" source={atera} onOpen={() => onModuleSwitch('infraops')} />
       <SourceLine icon={Ticket} title="GLPI" source={glpi} />
-      <SourceLine icon={Shield} title="SecOps / Wazuh" source={sources?.wazuh} onOpen={() => onModuleSwitch('secops')} />
+      <SourceLine icon={Shield} title="Wazuh" source={sources?.wazuh} onOpen={() => onModuleSwitch('secops')} />
     </section>
 
     <section className="mt-6 border border-white/[0.09] bg-white/[0.02] p-5 sm:p-6" aria-label="Leituras operacionais">
       <h2 className="text-sm font-semibold">Leituras disponíveis</h2>
-      <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">{readings.map(item => <div key={item.label} className="border-l border-white/[0.12] pl-4"><p className="text-xs text-brand-muted">{item.label}</p><p className="mt-2 text-2xl font-semibold tabular-nums">{item.value}</p><p className={`mt-1 text-xs ${item.source?.stale ? 'text-amber-300' : 'text-brand-muted'}`}>{sourceLabel(item.source)}</p></div>)}</div>
+      <div className="mt-5 grid gap-5 sm:grid-cols-3">{readings.map(item => <div key={item.label} className="border-l border-white/[0.12] pl-4"><p className="text-xs text-brand-muted">{item.label}</p><p className="mt-2 text-2xl font-semibold tabular-nums">{item.value}</p><p className={`mt-1 text-xs ${item.source?.stale ? 'text-amber-300' : 'text-brand-muted'}`}>{sourceLabel(item.source)}</p></div>)}</div>
     </section>
   </div>;
 }

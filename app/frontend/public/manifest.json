@@ -4,7 +4,7 @@
   "description": "Painel de monitoramento e operações da ness.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0a0f1a",
+  "background_color": "#0e1116",
   "theme_color": "#00ADE8",
   "orientation": "portrait-primary",
   "icons": [
@@ -39,14 +39,14 @@
   ],
   "shortcuts": [
     {
-      "name": "Alertas Críticos",
+      "name": "Incidentes",
       "url": "/?view=incidents",
-      "description": "Ver alertas críticos ativos"
+      "description": "Incidentes abertos"
     },
     {
-      "name": "Dashboard",
-      "url": "/?view=dashboard",
-      "description": "Painel unificado"
+      "name": "Visão geral",
+      "url": "/?view=overview",
+      "description": "Estado das fontes"
     }
   ]
 }
