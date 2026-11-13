@@ -141,6 +141,16 @@ async def test_filters_assignee_and_first_seen_range(maker, api):
     assert _ids(await api.get("/api/incidents?status=open&assignee=9")) == ["1", "2"]
 
 
+async def test_filters_severity_and_text_search(maker, api):
+    await _inc(maker, 1, sev=5)
+    await _inc(maker, 2, sev=3)
+    await _inc(maker, 3, sev=2)
+    assert _ids(await api.get("/api/incidents?severity=5,3")) == ["1", "2"]
+    assert _ids(await api.get("/api/incidents?q=INC3")) == ["3"]
+    assert _ids(await api.get("/api/incidents?q=100%")) == []  # curinga é literal
+    assert (await api.get("/api/incidents?severity=9")).status_code == 422
+
+
 async def test_pagination_is_stable_on_full_ties(maker, api):
     for n in (3, 1, 2):  # mesma severity, status e first_seen
         await _inc(maker, n)

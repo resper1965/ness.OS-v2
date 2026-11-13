@@ -16,8 +16,13 @@ describe('problems filter', () => {
     expect(counts.get(2)).toBe(1);
     expect(counts.get(5)).toBeUndefined();
   });
+  it('filters by customer, with unknown customer as its own bucket', () => {
+    const l = [{ ...list[0], customer: 'Cavan' }, list[1]];
+    expect(applyFilter(l, readFilter('?cliente=Cavan')).rows.map(r => r.id)).toEqual(['1']);
+    expect(applyFilter(l, readFilter('?cliente=Sem+cliente')).rows.map(r => r.id)).toEqual(['2']);
+  });
   it('rejects junk from the URL', () => {
-    expect(readFilter('?sev=9,x,4&ack=maybe&group=foo')).toEqual({ sev: [4], ack: '', q: '', group: '' });
+    expect(readFilter('?sev=9,x,4&ack=maybe&group=foo')).toEqual({ sev: [4], ack: '', q: '', group: '', customer: '' });
   });
 });
 
@@ -26,8 +31,8 @@ import { incidentQuery, readIncidentFilter } from './components/IncidentsPage';
 describe('incident filter', () => {
   it('defaults to the last 24h and maps to the API query', () => {
     const f = readIncidentFilter('?view=incidents&id=3');
-    expect(f).toEqual({ period: '24h', status: '' });
+    expect(f).toEqual({ period: '24h', status: '', sev: '', q: '' });
     expect(incidentQuery(f, Date.parse('2026-11-13T12:00:00Z'))).toBe('&from=2026-11-12T12%3A00%3A00.000Z');
-    expect(incidentQuery({ period: 'all', status: 'open' })).toBe('&status=open');
+    expect(incidentQuery({ period: 'all', status: 'open', sev: '5,4', q: ' db 1 ' })).toBe('&status=open&severity=5,4&q=db%201');
   });
 });
