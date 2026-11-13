@@ -1,12 +1,12 @@
 import { Activity, ShieldAlert, Cloud, RefreshCw, LayoutDashboard, Shield,
-         WifiOff, Monitor, AlertTriangle, CheckCircle, BarChart3,
-         Cpu, LogOut, FileText, Users, Menu } from 'lucide-react';
+         WifiOff, AlertTriangle, LogOut, FileText, Users, Menu } from 'lucide-react';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import CloudManagement from './components/CloudManagement';
 import PipelineStrip from './components/PipelineStrip';
-import IncidentsPage from './components/IncidentsPage';
+import IncidentsPage, { incidentQuery, readIncidentFilter, writeIncidentFilter } from './components/IncidentsPage';
 import TenantSelector from './components/TenantSelector';
 import SecurityAlerts from './components/SecurityAlerts';
+import ProblemsView, { type Problem } from './components/ProblemsView';
 import LoginPage from './components/LoginPage';
 import SecopsModule from './components/SecopsModule';
 import CoreDashboard from './components/CoreDashboard';
@@ -21,29 +21,6 @@ import CustomersScreen from './components/CustomersScreen';
 
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
-
-const SEVERITY_BG: Record<string, string> = {
-  disaster:       'bg-red-500/15 border-red-500/30 text-red-400',
-  high:           'bg-red-400/10 border-red-400/25 text-red-400',
-  average:        'bg-orange-400/10 border-orange-400/25 text-orange-400',
-  warning:        'bg-yellow-400/10 border-yellow-400/25 text-yellow-400',
-  info:           'bg-blue-400/10 border-blue-400/25 text-blue-400',
-  not_classified: 'bg-white/5 border-white/10 text-brand-muted',
-};
-
-const SEVERITY_DOT: Record<string, string> = {
-  disaster:       'bg-red-500',
-  high:           'bg-red-400',
-  average:        'bg-orange-400',
-  warning:        'bg-yellow-400',
-  info:           'bg-blue-400',
-  not_classified: 'bg-white/30',
-};
-
-const SEVERITY_LABEL: Record<string, string> = {
-  disaster: 'Desastre', high: 'Alta', average: 'Média',
-  warning: 'Aviso', info: 'Info', not_classified: 'N/C',
-};
 
 type View = 'overview' | 'monitoring' | 'cloud' | 'incidents' | 'secops' | 'contracts' | 'customers';
 
@@ -68,17 +45,6 @@ interface Summary {
   problems_total: number;
 }
 
-interface Problem {
-  id: string; title: string; severity: string;
-  severity_level: number; host: string; clock: number; acknowledged: boolean;
-}
-
-// ─── Helpers ───────────────────────────────────────────────────────────────
-function formatNumber(n: number): string {
-  if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
-  if (n >= 1000) return `${(n / 1000).toFixed(0)}k`;
-  return String(n);
-}
 
 // ─── Sidebar Item ────────────────────────────────────────────────────────────
 function SidebarItem({
@@ -119,118 +85,6 @@ function SidebarItem({
   );
 }
 
-// ─── Metric Card ─────────────────────────────────────────────────────────────
-function MetricCard({
-  title, value, status = 'neutral', loading = false, icon: Icon, suffix = '',
-}: {
-  title: string; value: string | number; suffix?: string;
-  status?: 'success' | 'danger' | 'warning' | 'neutral';
-  loading?: boolean; icon?: React.ElementType;
-}) {
-  const colors = {
-    success: { text: 'text-emerald-400', glow: 'rgba(16,185,129,0.15)', border: 'border-emerald-500/15' },
-    danger:  { text: 'text-red-400',     glow: 'rgba(239,68,68,0.15)',  border: 'border-red-500/15'     },
-    warning: { text: 'text-yellow-400',  glow: 'rgba(245,158,11,0.12)', border: 'border-yellow-500/15'  },
-    neutral: { text: 'text-white',       glow: 'transparent',           border: 'border-transparent'    },
-  }[status];
-
-  return (
-    <div
-      className={`
-        relative bg-[var(--color-brand-surface)] border border-white/[0.06]
-        ${colors.border} rounded-xl p-5 flex flex-col gap-3 overflow-hidden
-        hover:border-white/10 transition-all duration-300
-        group
-      `}
-      style={status !== 'neutral' ? {
-      } : {}}
-    >
-
-      {/* Header row */}
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-[var(--color-brand-muted)] uppercase tracking-wider">
-          {title}
-        </span>
-        {Icon && (
-          <div className={`p-1.5 rounded-md bg-white/[0.04] ${colors.text} opacity-60 group-hover:opacity-100 transition-opacity`}>
-            <Icon size={13} />
-          </div>
-        )}
-      </div>
-
-      {/* Value */}
-      {loading ? (
-        <div className="h-9 w-20 bg-white/[0.06] rounded-lg animate-pulse" />
-      ) : (
-        <div className={`text-3xl font-bold tracking-tight ${colors.text} tabular-nums`}>
-          {value}<span className="text-base font-medium opacity-60 ml-1">{suffix}</span>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── Problem Row ─────────────────────────────────────────────────────────────
-function ProblemRow({ p }: { p: Problem }) {
-  return (
-    <div
-      role="article"
-      aria-label={`Alerta: ${p.title}`}
-      className="
-        flex items-center justify-between px-3 py-2.5 rounded-lg
-        border border-transparent hover:border-white/[0.06] hover:bg-white/[0.025]
-        transition-all duration-200 group
-      "
-    >
-      <div className="flex items-center gap-3 min-w-0">
-        <div className={`w-2 h-2 rounded-full shrink-0 ${SEVERITY_DOT[p.severity] || 'bg-gray-500'}`} />
-        <div className="min-w-0">
-          <p className="font-medium text-sm truncate text-white/90 group-hover:text-white transition-colors">
-            {p.title}
-          </p>
-          <p className="text-xs text-[var(--color-brand-muted)] mt-0.5 truncate">{p.host}</p>
-        </div>
-      </div>
-
-      <div className="flex items-center gap-2.5 shrink-0 ml-4">
-        <span className={`text-xs font-semibold px-2 py-0.5 border ${SEVERITY_BG[p.severity] || ''}`}>
-          {SEVERITY_LABEL[p.severity] || p.severity}
-        </span>
-        <span className="text-xs text-[var(--color-brand-muted)] tabular-nums w-8 text-right">
-          {access.timeAgo(p.clock)}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-// ─── Section Card ─────────────────────────────────────────────────────────────
-function SectionCard({ title, count, children, loading }: {
-  title: string; count?: number; children: React.ReactNode; loading?: boolean;
-}) {
-  return (
-    <div className="bg-[var(--color-brand-surface)] border border-white/[0.06] rounded-xl overflow-hidden">
-      <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/[0.04]">
-        <span className="text-xs font-semibold text-[var(--color-brand-muted)] uppercase tracking-[0.12em]">
-          {title}
-        </span>
-        {count !== undefined && (
-          <span className="text-xs font-medium px-2 py-0.5 bg-white/[0.05] text-[var(--color-brand-muted)]">
-            {count}
-          </span>
-        )}
-      </div>
-      <div className="p-3">
-        {loading ? (
-          <div className="space-y-2 p-2">
-            {[1,2,3].map(i => <div key={i} className="h-11 bg-white/[0.04] rounded-lg animate-pulse" />)}
-          </div>
-        ) : children}
-      </div>
-    </div>
-  );
-}
-
 // ─── App Shell Body ──────────────────────────────────────────────────────────
 function AppShellBody({ AUTH, logout, user }: {
   AUTH: Record<string, string>;
@@ -258,6 +112,7 @@ function AppShellBody({ AUTH, logout, user }: {
   }, [isOperator, canReadCadastros]);
   useEffect(() => { document.title = `${TITLES[currentView]} · ness.OS`; }, [currentView]);
   const [selectedTenant, setSelectedTenant] = useState<string | null>(null);
+  const [incidentFilter, setIncidentFilter] = useState(() => readIncidentFilter(window.location.search));
   const [navOpen, setNavOpen] = useState(false);
   // Recarrega a caixa de avisos: evento SSE de incidente ou ação no caso.
   const [inboxVersion, setInboxVersion] = useState(0);
@@ -285,7 +140,7 @@ function AppShellBody({ AUTH, logout, user }: {
     try {
       const [summaryRes, problemsRes, pipelineRes] = await Promise.all([
         fetch(`${API_BASE}/api/dashboard/summary`, { credentials: 'include', headers: AUTH }),
-        fetch(`${API_BASE}/api/dashboard/problems?limit=15`, { credentials: 'include', headers: AUTH }),
+        fetch(`${API_BASE}/api/dashboard/problems?limit=2000`, { credentials: 'include', headers: AUTH }),
         fetch(`${API_BASE}/api/dashboard/pipeline-status`, { credentials: 'include', headers: AUTH }),
       ]);
       if (!summaryRes.ok || !problemsRes.ok) throw new Error('API error');
@@ -309,7 +164,7 @@ function AppShellBody({ AUTH, logout, user }: {
     try {
       const tenant = access.tenantScope(user?.role, selectedTenant);
       const scope = tenant ? `&tenant_id=${encodeURIComponent(tenant)}` : '';
-      const res = await fetch(`${API_BASE}/api/incidents?limit=20&offset=${offset}${scope}`, { credentials: 'include', headers: AUTH });
+      const res = await fetch(`${API_BASE}/api/incidents?limit=20&offset=${offset}${scope}${incidentQuery(incidentFilter)}`, { credentials: 'include', headers: AUTH });
       if (!res.ok) throw new Error();
       const data = await res.json();
       if (requestId !== incidentsRequest.current) return;
@@ -325,7 +180,7 @@ function AppShellBody({ AUTH, logout, user }: {
         setIncidentsMoreLoading(false);
       }
     }
-  }, [AUTH, selectedTenant, isOperator]);
+  }, [AUTH, selectedTenant, isOperator, incidentFilter]);
 
   useEffect(() => {
     fetchData();
@@ -535,68 +390,10 @@ function AppShellBody({ AUTH, logout, user }: {
           )}
 
           {/* ── n.infraops ── */}
-          {(currentView === 'monitoring' || currentView === 'incidents' || currentView === 'cloud') && (
+          {currentView === 'monitoring' && <ProblemsView problems={problems} loading={loading} error={error} observedAt={lastUpdate}
+            hosts={summary?.hosts_active} items={summary?.items_total} pipeline={<PipelineStrip data={pipeline} loading={pipelineLoading} />} />}
+          {(currentView === 'incidents' || currentView === 'cloud') && (
           <div className="p-4 md:p-8 max-w-6xl space-y-5 animate-fade-in">
-
-            {currentView === 'monitoring' && (
-              <>
-                {/* Alertas de Segurança e Desatualização do Ambiente */}
-                <SecurityAlerts />
-
-                {/* Pipeline Strip */}
-                <PipelineStrip data={pipeline} loading={pipelineLoading} />
-
-                {/* Metric Cards */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <MetricCard
-                    icon={Monitor}
-                    title="Hosts Ativos"
-                    value={summary ? formatNumber(summary.hosts_active) : '—'}
-                    loading={loading}
-                  />
-                  <MetricCard
-                    icon={Cpu}
-                    title="Itens Monitorados"
-                    value={summary ? formatNumber(summary.items_total) : '—'}
-                    loading={loading}
-                  />
-                  <MetricCard
-                    icon={AlertTriangle}
-                    title="Críticos"
-                    value={summary ? summary.problems_critical : '—'}
-                    status={summary && summary.problems_critical > 0 ? 'danger' : 'success'}
-                    loading={loading}
-                  />
-                  <MetricCard
-                    icon={BarChart3}
-                    title="Alertas Totais"
-                    value={summary ? summary.problems_total : '—'}
-                    status={summary && summary.problems_total > 5 ? 'warning' : 'neutral'}
-                    loading={loading}
-                  />
-                </div>
-
-                {/* Alertas */}
-                <SectionCard
-                  title="Alertas Ativos"
-                  count={summary?.problems_total}
-                  loading={loading && !error}
-                >
-                  {error && (
-                    <div className="flex items-center gap-2 text-red-400 text-sm p-3 m-1 rounded-lg bg-red-500/10 border border-red-500/20">
-                      <WifiOff size={14} /> {error}
-                    </div>
-                  )}
-                  {!loading && !error && problems.length === 0 && (
-                    <div className="flex flex-col items-center justify-center py-10 gap-2">
-                      <CheckCircle size={28} className="text-emerald-400 opacity-60" />
-                      <p className="text-sm text-[var(--color-brand-muted)]">Nenhum problema ativo</p>
-                    </div>
-                  )}
-                  {problems.map(p => <ProblemRow key={p.id} p={p} />)}
-                </SectionCard>
-              </>
-            )}
 
             {currentView === 'incidents' && (
               <IncidentsPage
@@ -609,6 +406,8 @@ function AppShellBody({ AUTH, logout, user }: {
                 initialActiveId={linkedIncident}
                 onChanged={() => { setInboxVersion(v => v + 1); return fetchIncidents(); }}
                 onLoadMore={() => fetchIncidents(incidents.length)}
+                filter={incidentFilter}
+                onFilter={f => { setIncidentFilter(f); writeIncidentFilter(f); }}
               />
             )}
 
@@ -621,7 +420,7 @@ function AppShellBody({ AUTH, logout, user }: {
 
           {/* ── n.secops ── */}
           {currentView === 'secops' && (
-            <SecopsModule />
+            <><div className="px-4 pt-4 md:px-8"><SecurityAlerts /></div><SecopsModule /></>
           )}
 
         </div>

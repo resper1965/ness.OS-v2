@@ -110,9 +110,36 @@ const ACTION_LABEL: Record<Action, string> = {
   resolve: 'Resolveu',
   close: 'Encerrou',
 };
-interface Props { incidents: Incident[]; total: number; loading: boolean; loadingMore: boolean; error: string | null; canAct: boolean; onChanged: () => void | Promise<void>; onLoadMore: () => void | Promise<void>; initialActiveId?: string | null; }
+export interface IncidentFilter { period: '24h' | '7d' | '30d' | 'all'; status: '' | 'open' | 'resolved' }
+const PERIOD_HOURS = { '24h': 24, '7d': 168, '30d': 720, all: 0 } as const;
 
-export default function IncidentsPage({ incidents, total, loading, loadingMore, error, canAct, onChanged, onLoadMore, initialActiveId = null }: Props) {
+// Padrão 24h: o histórico tem ~128 mil linhas e quase todas antigas; sem recorte a fila não informa nada.
+export function readIncidentFilter(search: string): IncidentFilter {
+  const p = new URLSearchParams(search);
+  const period = p.get('periodo');
+  const status = p.get('estado');
+  return {
+    period: period === '7d' || period === '30d' || period === 'all' ? period : '24h',
+    status: status === 'open' || status === 'resolved' ? status : '',
+  };
+}
+
+export function writeIncidentFilter(f: IncidentFilter) {
+  const url = new URL(window.location.href);
+  url.searchParams.set('periodo', f.period);
+  if (f.status) url.searchParams.set('estado', f.status); else url.searchParams.delete('estado');
+  window.history.replaceState(null, '', url);
+}
+
+export function incidentQuery(f: IncidentFilter, now = Date.now()): string {
+  const h = PERIOD_HOURS[f.period];
+  return (h ? `&from=${encodeURIComponent(new Date(now - h * 3600_000).toISOString())}` : '')
+    + (f.status ? `&status=${f.status}` : '');
+}
+
+interface Props { incidents: Incident[]; total: number; loading: boolean; loadingMore: boolean; error: string | null; canAct: boolean; onChanged: () => void | Promise<void>; onLoadMore: () => void | Promise<void>; initialActiveId?: string | null; filter: IncidentFilter; onFilter: (f: IncidentFilter) => void; }
+
+export default function IncidentsPage({ incidents, total, loading, loadingMore, error, canAct, onChanged, onLoadMore, initialActiveId = null, filter, onFilter }: Props) {
   // "Aberto de verdade": o status só muda pelo GLPI; o Zabbix já recuperado não conta.
   const openCount = incidents.filter(i => i.status === 'open' && i.source_status !== 'resolved').length;
   // ponytail: o caso do link da notificação só expande se estiver entre os carregados da lista;
@@ -173,6 +200,22 @@ export default function IncidentsPage({ incidents, total, loading, loadingMore, 
 
   return (
     <div className="space-y-4 animate-fade-in">
+      <div role="search" aria-label="Filtrar incidentes" className="flex flex-wrap items-center gap-3 border-b border-white/[0.08] pb-3">
+        <div role="group" aria-label="Período" className="flex">
+          {(['24h', '7d', '30d', 'all'] as const).map(p => (
+            <button key={p} type="button" aria-pressed={filter.period === p} onClick={() => onFilter({ ...filter, period: p })}
+              className={`px-3 h-8 text-xs border -ml-px first:ml-0 ${filter.period === p ? 'border-[#00ADE8] text-[#00ADE8] bg-[#00ADE8]/10 relative' : 'border-white/[0.14] text-slate-300 hover:text-white'}`}>
+              {p === 'all' ? 'Tudo' : p}
+            </button>
+          ))}
+        </div>
+        <label className="flex items-center gap-2 text-xs text-slate-300">Estado
+          <select value={filter.status} onChange={e => onFilter({ ...filter, status: e.target.value as IncidentFilter['status'] })}
+            className="h-8 px-2 bg-[var(--color-brand-base)] border border-white/[0.14] text-white text-xs">
+            <option value="">Todos</option><option value="open">Aberto</option><option value="resolved">Resolvido</option>
+          </select>
+        </label>
+      </div>
       {/* Page subtitle / stats bar */}
       {!loading && !error && (
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-1">
