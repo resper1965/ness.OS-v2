@@ -68,14 +68,14 @@ function PipelineNode({
 
         {/* Label */}
         <div className="text-center">
-          <p className={`text-[11px] font-semibold ${styles.text} leading-tight`}>{label}</p>
-          <p className="text-[10px] text-brand-muted mt-0.5 leading-tight">{description}</p>
+          <p className={`text-xs font-semibold ${styles.text} leading-tight`}>{label}</p>
+          <p className="text-xs text-brand-muted mt-0.5 leading-tight">{description}</p>
         </div>
 
         {/* Status row */}
         <div className="flex items-center gap-1">
           <StatusIcon status={st} />
-          <span className={`text-[10px] font-medium ${styles.text} capitalize`}>
+          <span className={`text-xs font-medium ${styles.text} capitalize`}>
             {st === 'unconfigured' ? 'N/C' : st === 'ok' ? 'Online' : 'Erro'}
           </span>
         </div>
@@ -83,7 +83,7 @@ function PipelineNode({
         {/* Tooltip */}
         {(data?.detail || data?.last_success_at !== undefined) && (
           <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-50 pointer-events-none">
-            <div className="bg-[var(--color-brand-elevated)] border border-white/10 rounded-lg px-3 py-1.5 text-[10px] text-slate-300 whitespace-nowrap shadow-2xl">
+            <div className="bg-[var(--color-brand-elevated)] border border-white/10 rounded-lg px-3 py-1.5 text-xs text-slate-300 whitespace-nowrap shadow-2xl">
               {data?.detail}{data?.detail && ' · '}última coleta válida: {timeAgo(data?.last_success_at)}
               <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-white/10" />
             </div>
@@ -122,7 +122,7 @@ export default function PipelineStrip({
             Fluxo de incidentes
           </span>
           {!loading && data && (
-            <span className={`text-[10px] font-semibold px-2 py-0.5
+            <span className={`text-xs font-semibold px-2 py-0.5
               ${allOk
                 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
                 : hasError

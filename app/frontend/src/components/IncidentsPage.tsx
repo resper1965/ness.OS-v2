@@ -39,7 +39,7 @@ function IncidentTimeline({ stage }: { stage: string }) {
             <React.Fragment key={s.key}>
               <div className="flex flex-col items-center group relative">
                 <div role="img" aria-label={s.label} title={s.label} className={`
-                  w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold
+                  w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold
                   transition-all duration-300
                   ${done
                     ? current
@@ -52,7 +52,7 @@ function IncidentTimeline({ stage }: { stage: string }) {
                 </div>
                 {/* Tooltip */}
                 <div className="absolute bottom-full mb-1.5 hidden group-hover:block z-50 pointer-events-none">
-                  <div className="bg-[var(--color-brand-elevated)] border border-white/10 rounded px-2 py-1 text-[10px] text-slate-300 whitespace-nowrap shadow-xl">
+                  <div className="bg-[var(--color-brand-elevated)] border border-white/10 rounded px-2 py-1 text-xs text-slate-300 whitespace-nowrap shadow-xl">
                     {s.label}
                   </div>
                 </div>
@@ -241,17 +241,17 @@ export default function IncidentsPage({ incidents, total, loading, loadingMore, 
                 <div className="min-w-0">
                   <p className="font-semibold text-sm text-white/90 leading-snug">{inc.title}</p>
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 min-w-0">
-                    <span className="flex items-center gap-1 text-[11px] text-[var(--color-brand-muted)] break-all">
+                    <span className="flex items-center gap-1 text-xs text-[var(--color-brand-muted)] break-all">
                       <Server size={10} className="shrink-0" /> {inc.host_name}
                     </span>
                     {inc.alert_count > 1 && (
-                      <span className="flex items-center gap-1 text-[11px] text-[var(--color-brand-muted)]">
+                      <span className="flex items-center gap-1 text-xs text-[var(--color-brand-muted)]">
                         <RefreshCw size={9} /> {inc.alert_count}×
                       </span>
                     )}
                   </div>
-                  {inc.client && <p className="mt-1 text-[11px] text-[var(--color-brand-muted)]">{inc.client}</p>}
-                  {inc.asset && <p className="mt-1 text-[11px] text-[var(--color-brand-muted)]">Ativo: {inc.asset.name} · Responsável: {inc.asset.owner || (inc.asset.owner_group_id ? `Equipe GLPI #${inc.asset.owner_group_id}` : 'Não cadastrado')}</p>}
+                  {inc.client && <p className="mt-1 text-xs text-[var(--color-brand-muted)]">{inc.client}</p>}
+                  {inc.asset && <p className="mt-1 text-xs text-[var(--color-brand-muted)]">Ativo: {inc.asset.name} · Responsável: {inc.asset.owner || (inc.asset.owner_group_id ? `Equipe GLPI #${inc.asset.owner_group_id}` : 'Não cadastrado')}</p>}
                   {inc.solution && <p className="mt-2 whitespace-pre-wrap text-xs text-white/70">Solução: {inc.solution}</p>}
                   {inc.ticket_id && (
                     <a
@@ -269,14 +269,14 @@ export default function IncidentsPage({ incidents, total, loading, loadingMore, 
               {/* Right meta */}
               <div className="flex flex-row-reverse items-center justify-between gap-2 sm:flex-col sm:items-end shrink-0">
                 <div className="flex items-center gap-2">
-                  <span className={`text-[10px] font-semibold px-2 py-0.5 border ${sev.badge}`}>
+                  <span className={`text-xs font-semibold px-2 py-0.5 border ${sev.badge}`}>
                     {sev.label}
                   </span>
-                  <span className={`text-[10px] font-semibold px-2 py-0.5 border ${stCfg.style}`}>
+                  <span className={`text-xs font-semibold px-2 py-0.5 border ${stCfg.style}`}>
                     {stCfg.label}
                   </span>
                 </div>
-                <div className="flex items-center gap-1 text-[11px] text-[var(--color-brand-muted)]">
+                <div className="flex items-center gap-1 text-xs text-[var(--color-brand-muted)]">
                   <Clock size={10} /> {timeAgo(inc.last_seen)}
                 </div>
               </div>
