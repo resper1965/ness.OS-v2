@@ -19,6 +19,7 @@ def test_dashboard_problems_requires_authentication():
 
     assert client.get("/api/dashboard/problems").status_code == 401
     assert client.get("/api/dashboard/sources").status_code == 401
+    assert client.get("/api/ops/stack-health").status_code == 401
 
 
 def test_dashboard_problems_rejects_client_role():
@@ -29,3 +30,4 @@ def test_dashboard_problems_rejects_client_role():
 
     assert client.get("/api/dashboard/problems").status_code == 403
     assert client.get("/api/dashboard/sources").status_code == 403
+    assert client.get("/api/ops/stack-health").status_code == 403

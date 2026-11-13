@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type ElementType } from 'react';
 import { ArrowUpRight, Database, RefreshCw, Server, Shield, Ticket } from 'lucide-react';
+import StackHealthPanel, { type StackHealthData } from './StackHealthPanel';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
 
@@ -64,21 +65,34 @@ export default function CoreDashboard({ authHeader, onModuleSwitch }: {
   onModuleSwitch: (module: 'infraops' | 'secops') => void;
 }) {
   const [sources, setSources] = useState<Sources | null>(null);
+  const [stackHealth, setStackHealth] = useState<StackHealthData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE}/api/dashboard/sources`, { credentials: 'include', headers: authHeader });
-      if (response.status === 401 || response.status === 403) {
+      const [sourcesResponse, stackResponse] = await Promise.all([
+        fetch(`${API_BASE}/api/dashboard/sources`, { credentials: 'include', headers: authHeader }),
+        fetch(`${API_BASE}/api/ops/stack-health`, { credentials: 'include', headers: authHeader }),
+      ]);
+
+      if (sourcesResponse.status === 401 || sourcesResponse.status === 403 || stackResponse.status === 401 || stackResponse.status === 403) {
         setSources(null);
+        setStackHealth(null);
         throw new Error('Sessão sem acesso às fontes operacionais');
       }
-      if (!response.ok) throw new Error('Falha ao consultar as fontes operacionais');
-      const payload = await response.json() as { sources: Sources };
-      if (!payload.sources) throw new Error('Resposta de fontes inválida');
-      setSources(payload.sources);
+
+      if (!sourcesResponse.ok) throw new Error('Falha ao consultar as fontes operacionais');
+      const sourcesPayload = await sourcesResponse.json() as { sources: Sources };
+      if (!sourcesPayload.sources) throw new Error('Resposta de fontes inválida');
+      setSources(sourcesPayload.sources);
+
+      if (!stackResponse.ok) throw new Error('Falha ao consultar a saúde das stacks');
+      const stackPayload = await stackResponse.json() as StackHealthData;
+      if (!stackPayload.summary || !Array.isArray(stackPayload.stacks)) throw new Error('Resposta de stack health inválida');
+      setStackHealth(stackPayload);
+
       setError(null);
     } catch (cause) {
       setSources(previous => previous && Object.fromEntries(
@@ -87,6 +101,7 @@ export default function CoreDashboard({ authHeader, onModuleSwitch }: {
           source.status === 'ok' ? { ...source, status: 'degraded', stale: true, error_code: 'dashboard_unreachable' } : source,
         ]),
       ) as Sources);
+      setStackHealth(previous => previous);
       setError(cause instanceof Error ? cause.message : 'Falha ao consultar as fontes operacionais');
     } finally {
       setLoading(false);
@@ -123,6 +138,8 @@ export default function CoreDashboard({ authHeader, onModuleSwitch }: {
       <SourceLine icon={Ticket} title="GLPI" source={glpi} />
       <SourceLine icon={Shield} title="SecOps / Wazuh" source={sources?.wazuh} onOpen={() => onModuleSwitch('secops')} />
     </section>
+
+    <StackHealthPanel data={stackHealth} />
 
     <section className="mt-6 border border-white/[0.09] bg-white/[0.02] p-5 sm:p-6" aria-label="Leituras operacionais">
       <h2 className="text-sm font-semibold">Leituras disponíveis</h2>
