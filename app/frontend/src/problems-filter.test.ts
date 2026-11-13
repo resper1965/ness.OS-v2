@@ -36,3 +36,14 @@ describe('incident filter', () => {
     expect(incidentQuery({ period: 'all', status: 'open', sev: '5,4', q: ' db 1 ' })).toBe('&status=open&severity=5,4&q=db%201');
   });
 });
+
+import { customerMatrix } from './components/CoreDashboard';
+
+describe('customer matrix', () => {
+  it('counts per severity and puts the worst customer first', () => {
+    const m = customerMatrix([{ ...list[0], customer: 'A' }, { ...list[3], customer: 'A' }, list[1]]);
+    expect(m.map(([c]) => c)).toEqual(['Sem cliente', 'A']);
+    expect(m[1][1][3]).toBe(1);
+    expect(m[1][1][2]).toBe(1);
+  });
+});
