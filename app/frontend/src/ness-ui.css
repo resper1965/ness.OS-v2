@@ -2,11 +2,11 @@
    BlueDot único, raio 0, sem gradiente/sombra. O redesenho troca este arquivo e
    os componentes *View; hooks e http ficam intactos. */
 .nx {
-  --nx-paper: #0b1326; --nx-surface: #162244; --nx-surface-2: #1e2d52;
-  --nx-line: rgba(255, 255, 255, .10);
+  --nx-paper: #0e1116; --nx-surface: #16191f; --nx-surface-2: #1e232b;
+  --nx-line: rgba(255, 255, 255, .14);
   --nx-ink: #f1f5f9; --nx-ink-2: #cbd5e1; --nx-ink-3: #94a3b8; --nx-ink-4: #8fa0b6;
   --nx-accent: #00ade8; --nx-accent-ink: #04121c;
-  --nx-ok: #10b981; --nx-warn: #f59e0b; --nx-bad: #ef4444;
+  --nx-ok: #10b981; --nx-warn: #f59e0b; --nx-bad: #f87171;
   --nx-head: "Montserrat Variable", "Montserrat", system-ui, sans-serif;
   --nx-body: "Inter Variable", "Inter", system-ui, sans-serif;
   --nx-mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, monospace;

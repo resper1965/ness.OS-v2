@@ -46,16 +46,16 @@ function SourceLine({ icon: Icon, title, source, onOpen }: {
   source?: SourceStatus;
   onOpen?: () => void;
 }) {
-  const tone = source?.status === 'ok' ? 'text-emerald-300' : source?.status === 'degraded' ? 'text-amber-300' : 'text-white/45';
+  const tone = source?.status === 'ok' ? 'text-emerald-300' : source?.status === 'degraded' ? 'text-amber-300' : 'text-brand-muted';
   return <div className="flex items-center gap-3 border-b border-white/[0.06] py-4 last:border-b-0">
     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white/[0.05] text-[#00ADE8]"><Icon size={16} /></div>
     <div className="min-w-0 flex-1">
       <p className="text-sm font-medium text-white">{title}</p>
-      <p className="mt-1 text-xs text-white/45">{lastSuccess(source)}</p>
+      <p className="mt-1 text-xs text-brand-muted">{lastSuccess(source)}</p>
       {source?.error_code && ['degraded', 'down'].includes(source.status) && <p className="mt-1 text-xs text-amber-300">Falha: {source.error_code}</p>}
     </div>
     <span className={`text-right text-xs ${tone}`}>{sourceLabel(source)}</span>
-    {onOpen && <button type="button" onClick={onOpen} className="rounded-md p-2 text-white/55 hover:text-white" aria-label={`Abrir ${title}`}><ArrowUpRight size={15} /></button>}
+    {onOpen && <button type="button" onClick={onOpen} className="rounded-md p-2 text-brand-muted hover:text-white" aria-label={`Abrir ${title}`}><ArrowUpRight size={15} /></button>}
   </div>;
 }
 
@@ -111,13 +111,13 @@ export default function CoreDashboard({ authHeader, onModuleSwitch }: {
 
   return <div className="min-h-full bg-[#090c13] px-5 py-6 text-white sm:px-8 lg:px-10">
     <header className="flex flex-wrap items-end justify-between gap-4 border-b border-white/[0.08] pb-5">
-      <div><h1 className="text-2xl font-semibold">Visão geral</h1><p className="mt-1 text-sm text-white/45">Valores e última coleta válida de cada fonte.</p></div>
+      <div><h1 className="text-2xl font-semibold">Visão geral</h1><p className="mt-1 text-sm text-brand-muted">Valores e última coleta válida de cada fonte.</p></div>
       <button type="button" onClick={() => { void refresh(); }} disabled={loading} className="inline-flex items-center gap-2 rounded-md border border-white/[0.10] px-3 py-2 text-xs text-white/70 disabled:opacity-50"><RefreshCw size={13} className={loading ? 'animate-spin' : ''} />Tentar novamente</button>
     </header>
 
     {error && <p role="alert" className="mt-5 border border-amber-400/30 bg-amber-400/10 p-3 text-sm text-amber-200">{error}. {sources ? 'Dados desatualizados exibidos abaixo.' : 'Nenhum dado válido disponível.'}</p>}
     <section className="mt-7 border border-white/[0.09] bg-white/[0.02] p-5 sm:p-6" aria-label="Estado das fontes">
-      <div className="mb-3 flex items-center justify-between"><h2 className="text-sm font-semibold">Fontes operacionais</h2>{loading && <span role="status" className="text-xs text-white/45">Consultando fontes…</span>}</div>
+      <div className="mb-3 flex items-center justify-between"><h2 className="text-sm font-semibold">Fontes operacionais</h2>{loading && <span role="status" className="text-xs text-brand-muted">Consultando fontes…</span>}</div>
       <SourceLine icon={Server} title="Zabbix" source={zabbix} onOpen={() => onModuleSwitch('infraops')} />
       <SourceLine icon={Database} title="Atera" source={atera} onOpen={() => onModuleSwitch('infraops')} />
       <SourceLine icon={Ticket} title="GLPI" source={glpi} />
@@ -126,7 +126,7 @@ export default function CoreDashboard({ authHeader, onModuleSwitch }: {
 
     <section className="mt-6 border border-white/[0.09] bg-white/[0.02] p-5 sm:p-6" aria-label="Leituras operacionais">
       <h2 className="text-sm font-semibold">Leituras disponíveis</h2>
-      <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">{readings.map(item => <div key={item.label} className="border-l border-white/[0.12] pl-4"><p className="text-xs text-white/45">{item.label}</p><p className="mt-2 text-2xl font-semibold tabular-nums">{item.value}</p><p className={`mt-1 text-xs ${item.source?.stale ? 'text-amber-300' : 'text-white/45'}`}>{sourceLabel(item.source)}</p></div>)}</div>
+      <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">{readings.map(item => <div key={item.label} className="border-l border-white/[0.12] pl-4"><p className="text-xs text-brand-muted">{item.label}</p><p className="mt-2 text-2xl font-semibold tabular-nums">{item.value}</p><p className={`mt-1 text-xs ${item.source?.stale ? 'text-amber-300' : 'text-brand-muted'}`}>{sourceLabel(item.source)}</p></div>)}</div>
     </section>
   </div>;
 }

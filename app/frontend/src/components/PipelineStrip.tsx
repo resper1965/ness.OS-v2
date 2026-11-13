@@ -31,7 +31,7 @@ const NODES: {
 function StatusIcon({ status }: { status: string }) {
   if (status === 'ok')           return <CheckCircle2 size={11} className="text-emerald-400" />;
   if (status === 'error')        return <AlertCircle  size={11} className="text-red-400" />;
-  return <Minus size={10} className="text-white/20" />;
+  return <Minus size={10} className="text-brand-muted" />;
 }
 
 function PipelineNode({
@@ -44,9 +44,9 @@ function PipelineNode({
   const st = rawStatus === 'disabled' ? 'unconfigured' : rawStatus === 'degraded' ? 'error' : rawStatus;
 
   const styles = {
-    ok:           { ring: 'ring-emerald-500/30', bg: 'bg-emerald-500/10', icon: 'text-emerald-400', text: 'text-emerald-400', dot: 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]' },
-    error:        { ring: 'ring-red-500/30',     bg: 'bg-red-500/10',     icon: 'text-red-400',     text: 'text-red-400',     dot: 'bg-red-400 shadow-[0_0_8px_rgba(239,68,68,0.8)]' },
-    unconfigured: { ring: 'ring-white/5',         bg: 'bg-white/[0.03]',   icon: 'text-white/20',    text: 'text-white/25',    dot: 'bg-white/15' },
+    ok:           { ring: 'ring-emerald-500/30', bg: 'bg-emerald-500/10', icon: 'text-emerald-400', text: 'text-emerald-400', dot: 'bg-emerald-400' },
+    error:        { ring: 'ring-red-500/30',     bg: 'bg-red-500/10',     icon: 'text-red-400',     text: 'text-red-400',     dot: 'bg-red-400' },
+    unconfigured: { ring: 'ring-white/5',         bg: 'bg-white/[0.03]',   icon: 'text-brand-muted',    text: 'text-brand-muted',    dot: 'bg-white/15' },
   }[st];
 
   return (
@@ -69,13 +69,13 @@ function PipelineNode({
         {/* Label */}
         <div className="text-center">
           <p className={`text-[11px] font-semibold ${styles.text} leading-tight`}>{label}</p>
-          <p className="text-[9px] text-white/20 mt-0.5 leading-tight">{description}</p>
+          <p className="text-[10px] text-brand-muted mt-0.5 leading-tight">{description}</p>
         </div>
 
         {/* Status row */}
         <div className="flex items-center gap-1">
           <StatusIcon status={st} />
-          <span className={`text-[9px] font-medium ${styles.text} capitalize`}>
+          <span className={`text-[10px] font-medium ${styles.text} capitalize`}>
             {st === 'unconfigured' ? 'N/C' : st === 'ok' ? 'Online' : 'Erro'}
           </span>
         </div>
@@ -122,7 +122,7 @@ export default function PipelineStrip({
             Fluxo de incidentes
           </span>
           {!loading && data && (
-            <span className={`text-[9px] font-semibold px-2 py-0.5 rounded-full
+            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full
               ${allOk
                 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
                 : hasError
@@ -139,9 +139,7 @@ export default function PipelineStrip({
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
-            background: allOk
-              ? 'radial-gradient(ellipse at 50% 50%, rgba(16,185,129,0.03) 0%, transparent 70%)'
-              : 'transparent'
+            background: 'transparent'
           }}
         />
       </div>

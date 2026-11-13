@@ -119,7 +119,7 @@ export default function PushNotificationToggle() {
         transition-all duration-200 select-none border border-white/[0.04]
         ${isSubscribed 
           ? 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/15 hover:text-emerald-300' 
-          : 'bg-white/[0.03] text-white/50 hover:bg-white/[0.06] hover:text-white/80'}
+          : 'bg-white/[0.03] text-brand-muted hover:bg-white/[0.06] hover:text-white/80'}
       `}
     >
       {loading ? (

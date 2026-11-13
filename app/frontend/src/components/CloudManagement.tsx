@@ -158,7 +158,7 @@ export default function CloudManagement() {
               <tab.icon size={16} />
               {tab.label}
               {activeTab === tab.id && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--color-brand-primary)] glow-primary rounded-t-full" />
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--color-brand-primary)] rounded-t-full" />
               )}
             </button>
           ))}
@@ -172,7 +172,7 @@ export default function CloudManagement() {
               placeholder="Buscar..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="bg-white/[0.03] border border-white/[0.06] rounded-lg py-1.5 pl-9 pr-4 text-xs text-white placeholder:text-white/20 focus:outline-none focus:border-[var(--color-brand-primary)]/40 focus:bg-white/[0.05] transition-all w-48 focus:w-64"
+              className="bg-white/[0.03] border border-white/[0.06] rounded-lg py-1.5 pl-9 pr-4 text-xs text-white placeholder:text-brand-muted focus:border-[var(--color-brand-primary)]/40 focus:bg-white/[0.05] transition-all w-48 focus:w-64"
             />
           </div>
           <button onClick={fetchData} className="p-1.5 rounded-lg bg-white/[0.03] border border-white/[0.06] text-[var(--color-brand-muted)] hover:text-white transition-all">
@@ -189,13 +189,13 @@ export default function CloudManagement() {
               <div key={instance.instanceId} className="glass rounded-2xl p-5 hover:border-white/[0.12] transition-all group relative overflow-hidden">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-5">
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center border ${instance.status === 'running' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-white/5 border-white/10 text-white/30'}`}>
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center border ${instance.status === 'running' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-white/5 border-white/10 text-brand-muted'}`}>
                       <Cpu size={24} />
                     </div>
                     <div>
                       <div className="flex items-center gap-3">
                         <h3 className="font-bold text-white text-lg">{instance.displayName}</h3>
-                        <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-md border ${instance.status === 'running' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-white/5 border-white/10 text-white/40'}`}>{instance.status}</span>
+                        <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-md border ${instance.status === 'running' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-white/5 border-white/10 text-brand-muted'}`}>{instance.status}</span>
                       </div>
                       <div className="flex items-center gap-4 mt-1 text-xs text-[var(--color-brand-muted)]">
                         <span className="flex items-center gap-1"><Network size={12}/> {instance.ipConfig?.v4?.ip}</span>

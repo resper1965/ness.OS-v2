@@ -29,7 +29,7 @@ export default function NotificationInbox({ version = 0 }: { version?: number })
         <span className="ml-auto" aria-label={`${pending} sem reconhecimento`}>{pending}</span>
       </summary>
       <ul className="mt-2 space-y-1">
-        {items.length === 0 && <li className="text-white/40">Nenhum aviso.</li>}
+        {items.length === 0 && <li className="text-brand-muted">Nenhum aviso.</li>}
         {items.map(i => (
           <li key={i.incident_id}>
             <a href={`/?view=incidents&id=${encodeURIComponent(i.incident_id)}`} className="flex justify-between gap-2 hover:underline">
