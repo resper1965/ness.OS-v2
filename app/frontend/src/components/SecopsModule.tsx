@@ -124,7 +124,7 @@ function CveCard({ cve }: { cve: CveItem }) {
             </span>
             <span className="text-[10px] font-mono text-brand-muted">{cve.id}</span>
             {cve.exploited_wild && (
-              <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 bg-red-500 text-white uppercase tracking-wider animate-pulse">
+              <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 bg-[#F87171] text-[#04121c] uppercase tracking-wider">
                 <Zap size={8} /> Exploração ativa
               </span>
             )}
