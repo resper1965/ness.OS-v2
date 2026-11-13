@@ -40,10 +40,11 @@ export default function LoginPage() {
     if (code) {
       setSsoLoading(true);
       setError('');
+      // A URL volta antes da troca: o shell monta assim que o usuário chega e lê ?view= dali.
+      const back = sessionStorage.getItem('oidc_return') ?? '';
+      sessionStorage.removeItem('oidc_return');
+      window.history.replaceState({}, document.title, `/${back.startsWith('?') ? back : ''}`);
       exchangeCodeForToken(code, returnedState ?? '')
-        .then(() => {
-          window.history.replaceState({}, document.title, window.location.pathname.replace('/callback', '/'));
-        })
         .catch((err) => {
           setError(err instanceof Error ? err.message : 'Falha na autenticação SSO');
           setSsoLoading(false);
