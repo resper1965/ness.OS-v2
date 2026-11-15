@@ -110,3 +110,17 @@
   .nx-dense.nx-cards tbody tr:hover td { background: none; }
 }
 .nx-group th { background: var(--nx-paper); color: var(--nx-ink-2); text-transform: none; letter-spacing: 0; font: 600 12px/1 var(--nx-mono); }
+/* SOC: faixas de nível no padrão do dashboard do Wazuh, ranking em barras e histograma empilhado. */
+.nx-b-critical { background: #ef4444; } .nx-b-high { background: #f97316; }
+.nx-b-medium { background: var(--nx-warn); } .nx-b-low { background: var(--nx-ink-4); }
+.nx-legend { display: flex; flex-wrap: wrap; gap: 12px; margin: 0; padding: 0; list-style: none; font-size: 12px; }
+.nx-legend li { display: inline-flex; align-items: center; gap: 6px; }
+.nx-legend i { width: 10px; height: 10px; }
+.nx-evo { display: flex; align-items: flex-end; gap: 2px; height: 160px; }
+.nx-evo-col { flex: 1; min-width: 2px; height: 100%; display: flex; flex-direction: column-reverse; }
+.nx-evo-axis { display: flex; justify-content: space-between; margin-top: 6px; }
+.nx-rank { margin: 0; padding: 8px 16px; list-style: none; display: grid; gap: 8px; }
+.nx-rank li { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(60px, 1fr) auto; align-items: center; gap: 12px; }
+.nx-rank-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nx-rank-bar { height: 6px; background: var(--nx-surface-2); }
+.nx-rank-bar > span { display: block; height: 100%; background: var(--nx-accent); }

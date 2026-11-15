@@ -1021,3 +1021,154 @@ async def list_soc_decisions(
             for d in decisions
         ],
     }
+
+
+# ── Painel SOC (estilo dashboard do Wazuh) ──────────────────────────────────
+
+# Faixas do dashboard do Wazuh: crítico 15+, alto 12-14, médio 7-11, baixo 0-6.
+SOC_BANDS = (("critical", 15), ("high", 12), ("medium", 7), ("low", 0))
+SOC_OVERVIEW_CAP = 5000
+
+
+def _band(level: int) -> str:
+    return next(name for name, floor in SOC_BANDS if level >= floor)
+
+
+def _top(counter: dict[str, int], n: int = 8) -> list[dict[str, Any]]:
+    return [
+        {"key": k, "count": v}
+        for k, v in sorted(counter.items(), key=lambda kv: (-kv[1], kv[0]))[:n]
+    ]
+
+
+def summarize_soc(
+    rows: list[dict[str, Any]], hours: int, now: datetime
+) -> dict[str, Any]:
+    """Agrega decisões de triagem no formato do painel: faixas, série por hora e tops.
+    Cada linha: created_at, customer_id, agent_name, classification, action_taken, rule."""
+    bucket_s = 3600 if hours <= 48 else 86400
+    start = now - timedelta(hours=hours)
+    n_buckets = -(-hours * 3600 // bucket_s)
+    series = [
+        {
+            "t": (start + timedelta(seconds=i * bucket_s)).isoformat(),
+            **{b: 0 for b, _ in SOC_BANDS},
+        }
+        for i in range(n_buckets)
+    ]
+    bands = {b: 0 for b, _ in SOC_BANDS}
+    agents: dict[str, int] = {}
+    customers: dict[str, int] = {}
+    tactics: dict[str, int] = {}
+    rules: dict[str, dict[str, Any]] = {}
+    auth_fail = auth_ok = pending = archived = 0
+    events = []
+    for r in rows:
+        rule = r.get("rule") if isinstance(r.get("rule"), dict) else {}
+        try:
+            level = int(rule.get("level") or 0)
+        except (TypeError, ValueError):
+            level = 0
+        band = _band(level)
+        bands[band] += 1
+        i = int((r["created_at"] - start).total_seconds() // bucket_s)
+        if 0 <= i < n_buckets:
+            series[i][band] += 1
+        agent = r.get("agent_name") or "—"
+        agents[agent] = agents.get(agent, 0) + 1
+        cust = r.get("customer_id") or "sem_cliente"
+        customers[cust] = customers.get(cust, 0) + 1
+        mitre = rule.get("mitre") if isinstance(rule.get("mitre"), dict) else {}
+        for t in mitre.get("tactic") or []:
+            tactics[str(t)] = tactics.get(str(t), 0) + 1
+        groups = rule.get("groups") or []
+        auth_fail += (
+            "authentication_failed" in groups or "authentication_failures" in groups
+        )
+        auth_ok += "authentication_success" in groups
+        pending += r.get("action_taken") == "PENDING_TENANT_REVIEW"
+        archived += r.get("action_taken") == "ARCHIVE_NO_LLM"
+        rid = str(rule.get("id") or "—")
+        entry = rules.setdefault(
+            rid,
+            {
+                "id": rid,
+                "description": rule.get("description") or "",
+                "level": level,
+                "count": 0,
+            },
+        )
+        entry["count"] += 1
+        if len(events) < 100:
+            events.append(
+                {
+                    "id": r.get("id"),
+                    "created_at": r["created_at"].isoformat(),
+                    "agent": agent,
+                    "customer_id": r.get("customer_id"),
+                    "rule_id": rid,
+                    "description": rule.get("description") or "",
+                    "level": level,
+                    "band": band,
+                    "tactics": [str(t) for t in mitre.get("tactic") or []],
+                    "classification": r.get("classification"),
+                    "action": r.get("action_taken"),
+                }
+            )
+    return {
+        "hours": hours,
+        "bucket_seconds": bucket_s,
+        "total": len(rows),
+        "truncated": len(rows) >= SOC_OVERVIEW_CAP,
+        "bands": bands,
+        "auth_failures": auth_fail,
+        "auth_successes": auth_ok,
+        "pending_tenant_review": pending,
+        "archived_no_llm": archived,
+        "series": series,
+        "top_agents": _top(agents),
+        "top_customers": _top(customers),
+        "top_tactics": _top(tactics),
+        "top_rules": sorted(rules.values(), key=lambda x: (-x["count"], -x["level"]))[
+            :10
+        ],
+        "events": events,
+    }
+
+
+@router.get("/overview")
+async def soc_overview(
+    hours: int = Query(24, ge=1, le=720),
+    customer_id: str | None = Query(None),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_noc),
+) -> dict[str, Any]:
+    """Painel SOC: alertas triados na janela, agregados como no dashboard do Wazuh.
+
+    ponytail: agrega em Python até SOC_OVERVIEW_CAP linhas (mais recentes); acima disso
+    `truncated` sinaliza e o upgrade é GROUP BY no Postgres sobre raw_alert->'rule'."""
+    now = datetime.now(UTC)
+    where = [SocDecision.created_at >= now - timedelta(hours=hours)]
+    if scope := resolve_tenant_scope(current_user, customer_id):
+        where.append(SocDecision.customer_id == scope)
+    rows = (
+        (
+            await db.execute(
+                select(
+                    SocDecision.id,
+                    SocDecision.created_at,
+                    SocDecision.customer_id,
+                    SocDecision.agent_name,
+                    SocDecision.classification,
+                    SocDecision.action_taken,
+                    SocDecision.raw_alert["rule"].label("rule"),
+                )
+                .where(*where)
+                .order_by(SocDecision.created_at.desc())
+                .limit(SOC_OVERVIEW_CAP)
+            )
+        )
+        .mappings()
+        .all()
+    )
+    return summarize_soc([dict(r) for r in rows], hours, now)

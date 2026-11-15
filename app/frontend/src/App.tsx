@@ -5,10 +5,9 @@ import CloudManagement from './components/CloudManagement';
 import PipelineStrip from './components/PipelineStrip';
 import IncidentsPage, { incidentQuery, readIncidentFilter, writeIncidentFilter } from './components/IncidentsPage';
 import TenantSelector from './components/TenantSelector';
-import SecurityAlerts from './components/SecurityAlerts';
 import ProblemsView, { type Problem } from './components/ProblemsView';
 import LoginPage from './components/LoginPage';
-import SecopsModule from './components/SecopsModule';
+import SocView from './components/SocView';
 import CoreDashboard from './components/CoreDashboard';
 import { debounce } from './debounce';
 import { useAuth } from './hooks/useAuth';
@@ -25,8 +24,8 @@ const API_BASE = import.meta.env.VITE_API_URL ?? '';
 type View = 'overview' | 'monitoring' | 'cloud' | 'incidents' | 'secops' | 'contracts' | 'customers';
 
 const TITLES: Record<View, string> = {
-  overview: 'Visão geral', monitoring: 'Monitoramento', cloud: 'Nuvem', incidents: 'Incidentes',
-  secops: 'Segurança', contracts: 'Contratos', customers: 'Clientes',
+  overview: 'Visão geral', monitoring: 'NOC', cloud: 'Nuvem', incidents: 'Incidentes',
+  secops: 'SOC', contracts: 'Contratos', customers: 'Clientes',
 };
 
 // A tela vive na URL (?view=) para recarregar, voltar e compartilhar link; papel decide o que pode abrir.
@@ -276,10 +275,10 @@ function AppShellBody({ AUTH, logout, user }: {
         <nav className="flex flex-col gap-1 flex-1" aria-label="Navegação principal">
           {isOperator && <SidebarItem icon={LayoutDashboard} label="Visão geral" active={currentView === 'overview'} onClick={() => setCurrentView('overview')} />}
           <p className="px-3 mt-3 mb-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-brand-muted select-none">Operação</p>
-          {isOperator && <SidebarItem icon={Activity} label="Monitoramento" active={currentView === 'monitoring'} onClick={() => setCurrentView('monitoring')} />}
+          {isOperator && <SidebarItem icon={Activity} label="NOC" active={currentView === 'monitoring'} onClick={() => setCurrentView('monitoring')} />}
           <SidebarItem icon={ShieldAlert} label="Incidentes" active={currentView === 'incidents'} onClick={() => setCurrentView('incidents')} />
           {isOperator && <SidebarItem icon={Cloud} label="Nuvem" active={currentView === 'cloud'} onClick={() => setCurrentView('cloud')} />}
-          {isOperator && <SidebarItem icon={Shield} label="Segurança" active={currentView === 'secops'} onClick={() => setCurrentView('secops')} />}
+          {isOperator && <SidebarItem icon={Shield} label="SOC" active={currentView === 'secops'} onClick={() => setCurrentView('secops')} />}
           {canReadCadastros && <>
           <p className="px-3 mt-3 mb-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-brand-muted select-none">Cadastros</p>
           <SidebarItem icon={FileText} label="Contratos" active={currentView === 'contracts'} onClick={() => setCurrentView('contracts')} />
@@ -421,7 +420,7 @@ function AppShellBody({ AUTH, logout, user }: {
 
           {/* ── n.secops ── */}
           {currentView === 'secops' && (
-            <><div className="px-4 pt-4 md:px-8"><SecurityAlerts /></div><SecopsModule /></>
+            <SocView />
           )}
 
         </div>
