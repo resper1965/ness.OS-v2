@@ -355,7 +355,7 @@ function AppShellBody({ AUTH, logout, user }: {
               aria-label="Abrir menu"
               aria-controls="main-nav"
               aria-expanded={navOpen}
-              className="md:hidden p-2.5 -ml-1 rounded-lg text-white/70 hover:bg-white/[0.06]"
+              className="md:hidden p-3 -ml-2 rounded-lg text-white/70 hover:bg-white/[0.06]"
             >
               <Menu size={18} />
             </button>
@@ -374,7 +374,7 @@ function AppShellBody({ AUTH, logout, user }: {
               else void fetchData();
             }}
             aria-label="Atualizar dados"
-            className="p-2.5 md:p-1.5 shrink-0 rounded-lg hover:bg-white/[0.06] text-[var(--color-brand-muted)] hover:text-white transition-all duration-200"
+            className="p-3.5 -mr-2 md:mr-0 md:p-1.5 shrink-0 rounded-lg hover:bg-white/[0.06] text-[var(--color-brand-muted)] hover:text-white transition-all duration-200"
             style={{ transitionProperty: 'color, background, transform', transitionDuration: '300ms' }}
           >
             <RefreshCw size={14} />
