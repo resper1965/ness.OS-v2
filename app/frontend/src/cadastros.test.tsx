@@ -4,6 +4,8 @@ import ContractsScreen from './components/ContractsScreen';
 import CustomersScreen from './components/CustomersScreen';
 import ContractsView from './components/contracts/ContractsView';
 import CustomersView from './components/customers/CustomersView';
+import dashboardSrc from './components/CoreDashboard.tsx?raw';
+import incidentsSrc from './components/IncidentsPage.tsx?raw';
 import { ApiError, scrub } from './http';
 import { maskEmail, maskPhone } from './format';
 import { createContactsStore, type Contact } from './hooks/useCustomers';
@@ -191,6 +193,12 @@ describe('test_no_vendor_name_in_ui', () => {
       customersMarkup(true, { editingId: 'new' }),
     ];
     for (const html of pages) expect(html).not.toMatch(VENDORS);
+  });
+  it('keeps vendor names out of visible text in dashboard and incidents', () => {
+    for (const src of [dashboardSrc, incidentsSrc]) {
+      // Texto visível: entre tags, ou rótulo de string em tupla/JSX; chaves de API minúsculas ficam de fora.
+      expect(src).not.toMatch(/>[^<{]*(Zabbix|Wazuh|GLPI)|'(Zabbix|Wazuh|GLPI)[^']*'/);
+    }
   });
   it('scrubs vendor names from server messages', () => {
     expect(scrub('Falha no Wazuh e no Resend')).not.toMatch(VENDORS);

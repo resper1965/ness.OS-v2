@@ -299,7 +299,7 @@ function AppShellBody({ AUTH, logout, user }: {
             >
               {connectionError
                 ? <><WifiOff size={11} /> Sem conexão</>
-                : <><div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                : <><div className="w-1.5 h-1.5 rounded-full bg-[var(--color-brand-success)]" />
                     {lastUpdate
                       ? `Sincronizado ${lastUpdate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
                       : 'Conectando à API...'}</>
@@ -437,7 +437,7 @@ export default function App() {
     return (
       <div className="min-h-screen bg-[var(--color-brand-base)] flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-2 border-[#00ADE8]/30 border-t-[#00ADE8] rounded-full animate-spin" />
+          <div role="status" className="w-32 h-1 bg-[var(--color-brand-elevated)]"><span className="sr-only">Carregando…</span></div>
           <BrandMark size="sm" className="opacity-60" />
         </div>
       </div>

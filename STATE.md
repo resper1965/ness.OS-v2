@@ -4,7 +4,7 @@
 
 **Estágio:** em andamento
 
-**Próximo passo:** validar NOC e SOC com dado real no Hub (promovido `3aecc41` em 16/11: API + frontend); a partir de 23/11, apagar n8n/Evolution (parados em 16/11) com backup e OK "apaga". Depois: painel da Contabo #260, retirar o Authentik e migrar as telas antigas para o kit `.nx`.
+**Próximo passo:** validar NOC e SOC com dado real no Hub (promovido `3aecc41` em 16/11: API + frontend); a partir de 23/11, apagar n8n/Evolution (parados em 16/11) com backup e OK "apaga". Depois: painel da Contabo #260, retirar o Authentik e migrar as telas antigas para o kit `.nx` (DS 2.0.1: parte 1 em `refactor/ds-2.0.1`; faltam App, TenantSelector, Login, Push, Cloud e Incidentes).
 
 ## Quadro (atualizado a cada task fechada)
 

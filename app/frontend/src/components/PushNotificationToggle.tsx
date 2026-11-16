@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Bell, BellRing, Loader2 } from 'lucide-react';
+import { Bell, BellRing } from 'lucide-react';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
 
@@ -123,9 +123,9 @@ export default function PushNotificationToggle() {
       `}
     >
       {loading ? (
-        <Loader2 size={13} className="animate-spin text-[#00ADE8] shrink-0" />
+        <Bell size={13} className="shrink-0 opacity-40" aria-hidden />
       ) : isSubscribed ? (
-        <BellRing size={13} className="shrink-0 text-emerald-400 animate-pulse" />
+        <BellRing size={13} className="shrink-0 text-emerald-400" />
       ) : (
         <Bell size={13} className="shrink-0" />
       )}
