@@ -50,6 +50,7 @@ async def _set_state(incident_id: int, state: str, **tags) -> None:
     async with SessionLocal() as session:
         async with session.begin():
             inc = await session.get(Incident, incident_id, with_for_update=True)
+            assert inc is not None
             if _tag(inc, "ninf_ticket_state") != "pending":
                 return
             inc.tags = {**inc.tags, "ninf_ticket_state": state, **tags}
@@ -84,6 +85,7 @@ async def _open(glpi: GLPIClient, inc: Incident, now: datetime, reopen_h: int) -
     if (
         link
         and link.state == "auto_closed"
+        and link.closed_at is not None
         and link.closed_at >= now - timedelta(hours=reopen_h)
     ):
         await glpi.reopen_ticket(
@@ -94,6 +96,7 @@ async def _open(glpi: GLPIClient, inc: Incident, now: datetime, reopen_h: int) -
                 row = await session.get(
                     TicketLink, (entity_id, key), with_for_update=True
                 )
+                assert row is not None
                 row.state, row.closed_at, row.source_resolved_at = "open", None, None
         await alerts.attach_incident(inc.id, entity_id, key, link.ticket_id)
         return "reopened"
@@ -133,6 +136,7 @@ async def _open(glpi: GLPIClient, inc: Incident, now: datetime, reopen_h: int) -
                 row.closed_at = row.source_resolved_at = None
                 row.last_seen = now
             db_inc = await session.get(Incident, inc.id, with_for_update=True)
+            assert db_inc is not None
             db_inc.deskmanager_ticket_id = str(ticket_id)
             db_inc.tags = {**db_inc.tags, "ninf_ticket_state": "opened"}
             session.add(
@@ -205,7 +209,7 @@ async def _notify_symptoms(glpi: GLPIClient) -> int:
         try:
             await glpi.change_active_entity(int(_tag(cause, "ninf_entity_id")))
             await glpi.add_comment(
-                ticket_id=int(cause.deskmanager_ticket_id),
+                ticket_id=int(cause.deskmanager_ticket_id or 0),
                 content=f"<p>Alertas afetados por esta causa:</p><ul>{lines}</ul>",
                 private=False,
             )
@@ -216,6 +220,7 @@ async def _notify_symptoms(glpi: GLPIClient) -> int:
             async with session.begin():
                 for s in items:
                     row = await session.get(Incident, s.id, with_for_update=True)
+                    assert row is not None
                     row.tags = {**row.tags, "ninf_notified": "1"}
         sent += 1
     return sent

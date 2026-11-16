@@ -560,6 +560,7 @@ async def _async_process_alert_v1(
 
     async with SessionLocal() as session:
         db_incident = await session.get(Incident, incident_id)
+        assert db_incident is not None
         event_data = {
             "id": str(db_incident.id),
             "fingerprint": fingerprint,
@@ -600,9 +601,11 @@ async def attach_incident(
     async with SessionLocal() as session:
         async with session.begin():
             incident = await session.get(Incident, incident_id, with_for_update=True)
+            assert incident is not None
             if (incident.tags or {}).get("ninf_ticket_state") != "pending":
                 return
             link = await session.get(TicketLink, (entity_id, key), with_for_update=True)
+            assert link is not None
             link.occurrences += 1
             link.last_seen = datetime.now(timezone.utc)
             incident.deskmanager_ticket_id = str(ticket_id)
@@ -743,7 +746,7 @@ async def close_ticket_if_recovered(entity_id: int, key: str, now: datetime) -> 
                 content=f"Resolvido na origem (Zabbix) às {now:%H:%M} UTC.",
                 private=False,
             )
-            values = {"source_resolved_at": now}
+            values: dict[str, Any] = {"source_resolved_at": now}
         else:
             await glpi.solve_ticket(
                 ticket_id, f"Resolvido na origem (Zabbix) às {now:%H:%M} UTC."
@@ -754,6 +757,7 @@ async def close_ticket_if_recovered(entity_id: int, key: str, now: datetime) -> 
     async with SessionLocal() as session:
         async with session.begin():
             row = await session.get(TicketLink, (entity_id, key), with_for_update=True)
+            assert row is not None
             if row.ticket_id == ticket_id and row.state == "open":
                 for name, value in values.items():
                     setattr(row, name, value)
