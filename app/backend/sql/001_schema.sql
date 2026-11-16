@@ -137,6 +137,7 @@ CREATE INDEX idx_incidents_fingerprint ON n_infraops_incidents (fingerprint);
 CREATE INDEX idx_incidents_status      ON n_infraops_incidents (status) WHERE status != 'resolved';
 CREATE INDEX idx_incidents_host        ON n_infraops_incidents (host_id);
 CREATE INDEX idx_incidents_last_seen   ON n_infraops_incidents (last_seen DESC);
+CREATE INDEX ix_incidents_zabbix_event ON n_infraops_incidents ((tags->>'ninf_zabbix_event_id'));
 
 CREATE TRIGGER trg_incidents_updated_at
     BEFORE UPDATE ON n_infraops_incidents

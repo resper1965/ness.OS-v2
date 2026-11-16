@@ -2,11 +2,11 @@
 
 @theme {
   /* ── Brand Core ─────────────────────── */
-  --color-brand-base:      #080810;
-  --color-brand-surface:   #0F0F1A;
-  --color-brand-elevated:  #161625;
-  --color-brand-border:    rgba(255,255,255,0.06);
-  --color-brand-border-md: rgba(255,255,255,0.10);
+  --color-brand-base:      #0E1116;
+  --color-brand-surface:   #16191F;
+  --color-brand-elevated:  #1E232B;
+  --color-brand-border:    rgba(255,255,255,0.14);
+  --color-brand-border-md: rgba(255,255,255,0.14);
 
   /* ── Brand Accent ───────────────────── */
   --color-brand-primary:   #00ADE8;
@@ -18,39 +18,33 @@
   --color-brand-success-dim: rgba(16,185,129,0.12);
   --color-brand-warning:   #F59E0B;
   --color-brand-warning-dim: rgba(245,158,11,0.12);
-  --color-brand-danger:    #EF4444;
-  --color-brand-danger-dim: rgba(239,68,68,0.12);
+  --color-brand-danger:    #F87171;
+  --color-brand-danger-dim: rgba(248,113,113,0.16);
 
   /* ── Text ────────────────────────────── */
   --color-brand-text:      #F1F5F9;
-  --color-brand-muted:     #64748B;
+  --color-brand-muted:     #8FA0B6;
   --color-brand-subtle:    #334155;
 
   /* ── Fonts ──────────────────────────── */
-  --font-sans: 'Fira Sans', system-ui, sans-serif;
-  --font-mono: 'Fira Code', monospace;
+  --font-sans: 'Inter Variable', 'Inter', system-ui, sans-serif;
+  --font-head: 'Montserrat Variable', 'Montserrat', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace;
+
+  /* ness. DS: raio 0 em tudo; rounded-full fica só para o ponto de estado. */
+  --radius-xs: 0; --radius-sm: 0; --radius-md: 0; --radius-lg: 0; --radius-xl: 0; --radius-2xl: 0; --radius-3xl: 0; --radius-4xl: 0;
 }
 
 /* ── Base ──────────────────────────────── */
 @layer base {
   body {
-    background: radial-gradient(circle at 0% 0%, #0f172a 0%, #020617 100%);
+    background: var(--color-brand-base);
     color: var(--color-brand-text);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 
-  /* Subtle noise texture overlay */
-  body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
-    pointer-events: none;
-    z-index: 0;
-    opacity: 0.4;
-  }
 }
 
 * { box-sizing: border-box; }
@@ -88,24 +82,17 @@
 .animate-pulse-dot  { animation: pulse-dot 2s ease-in-out infinite; }
 .animate-flow       { animation: flow-arrow 1.5s ease-in-out infinite; }
 
-.glass-card {
-  @apply bg-slate-900/40 backdrop-blur-md border border-white/10 rounded-2xl transition-all duration-300;
-}
-
-.glass-card:hover {
-  @apply bg-slate-900/60 border-white/20 shadow-2xl shadow-blue-500/10 -translate-y-0.5;
-}
 
 .metric-card {
-  @apply bg-slate-900/40 backdrop-blur-md border border-white/10 rounded-2xl transition-all duration-300 p-6 flex flex-col gap-4 relative overflow-hidden;
+  @apply bg-brand-surface border border-brand-border p-6 flex flex-col gap-4 relative overflow-hidden;
 }
 
 .sidebar-item {
-  @apply flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 cursor-pointer text-slate-400 hover:text-white hover:bg-white/5 font-medium;
+  @apply flex items-center gap-3 px-4 py-3 transition-colors duration-150 cursor-pointer text-slate-300 hover:text-white hover:bg-white/5 font-medium;
 }
 
 .sidebar-item.active {
-  @apply bg-blue-600/15 text-blue-400 border border-blue-500/20 shadow-[0_0_20px_-5px_rgba(59,130,246,0.3)];
+  @apply text-brand-primary bg-white/5 shadow-[inset_2px_0_0_var(--color-brand-primary)];
 }
 
 .status-badge {
@@ -116,20 +103,12 @@ code, .font-mono {
   font-family: var(--font-mono);
 }
 
-/* ── Glass card ────────────────────────── */
-.glass {
-  background: rgba(255,255,255,0.03);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+/* ── Superfície (ex-glass): chapada, hairline, sem blur ── */
+.glass, .glass-md {
+  background: var(--color-brand-surface);
   border: 1px solid var(--color-brand-border);
 }
-.glass-md {
-  background: rgba(255,255,255,0.05);
-  backdrop-filter: blur(16px);
-  border: 1px solid var(--color-brand-border-md);
-}
 
-/* ── Glow effects ───────────────────────── */
-.glow-primary { box-shadow: 0 0 20px var(--color-brand-primary-glow); }
-.glow-success { box-shadow: 0 0 16px rgba(16,185,129,0.25); }
-.glow-danger  { box-shadow: 0 0 16px rgba(239,68,68,0.25); }
+/* Foco visível obrigatório (ness. DS) */
+:focus-visible { outline: 2px solid var(--color-brand-primary); outline-offset: 2px; }
+h1, h2, h3 { font-family: var(--font-head); }

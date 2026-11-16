@@ -97,6 +97,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { verifier, challenge } = await createPkce();
     sessionStorage.setItem(OIDC_STATE_KEY, oidcState);
     sessionStorage.setItem(OIDC_VERIFIER_KEY, verifier);
+    // Volta para a tela pedida (?view=...) depois do callback; só a query, nunca outro caminho ou origem.
+    sessionStorage.setItem('oidc_return', window.location.search);
     
     const q = new URLSearchParams({
       client_id: cfg.client_id,

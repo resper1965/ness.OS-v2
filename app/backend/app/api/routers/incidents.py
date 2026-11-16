@@ -190,6 +190,8 @@ async def list_incidents(
     status: str | None = Query(default=None),
     tenant_id: str | None = Query(default=None),
     assignee: int | None = Query(default=None),
+    severity: str | None = Query(default=None, pattern=r"^[0-5](,[0-5])*$"),
+    q: str | None = Query(default=None, max_length=200),
     from_: str | None = Query(default=None, alias="from"),
     to: str | None = Query(default=None),
     current_user: User = Depends(get_current_user),
@@ -210,6 +212,20 @@ async def list_incidents(
             criteria.append(Incident.status == status)
         if assignee is not None:
             criteria.append(Incident.assigned_user_id == assignee)
+        if severity:
+            criteria.append(
+                Incident.severity.in_({int(s) for s in severity.split(",")})
+            )
+        if q and q.strip():
+            like = (
+                "%"
+                + q.strip()
+                .replace("\\", "\\\\")
+                .replace("%", "\\%")
+                .replace("_", "\\_")
+                + "%"
+            )
+            criteria.append(Incident.title.ilike(like) | Incident.host_name.ilike(like))
         if since:
             criteria.append(Incident.first_seen >= since)
         if until:

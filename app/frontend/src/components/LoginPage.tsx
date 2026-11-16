@@ -7,7 +7,7 @@ import { useAuth } from '../hooks/useAuth';
 import BrandMark from './BrandMark';
 
 const inputCls =
-  'w-full px-4 py-3 text-sm text-white bg-[#0b1326] border border-white/15 placeholder:text-[#8fa0b6] focus:outline-none focus:border-[#00ADE8]';
+  'w-full px-4 py-3 text-sm text-white bg-brand-base border border-white/15 placeholder:text-[#8fa0b6] focus:border-[#00ADE8]';
 
 const Spinner = ({ cls }: { cls: string }) => (
   <svg className={`animate-spin ${cls}`} viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -40,10 +40,11 @@ export default function LoginPage() {
     if (code) {
       setSsoLoading(true);
       setError('');
+      // A URL volta antes da troca: o shell monta assim que o usuário chega e lê ?view= dali.
+      const back = sessionStorage.getItem('oidc_return') ?? '';
+      sessionStorage.removeItem('oidc_return');
+      window.history.replaceState({}, document.title, `/${back.startsWith('?') ? back : ''}`);
       exchangeCodeForToken(code, returnedState ?? '')
-        .then(() => {
-          window.history.replaceState({}, document.title, window.location.pathname.replace('/callback', '/'));
-        })
         .catch((err) => {
           setError(err instanceof Error ? err.message : 'Falha na autenticação SSO');
           setSsoLoading(false);
@@ -65,7 +66,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0b1326] px-4 py-8">
+    <div className="min-h-screen flex items-center justify-center bg-brand-base px-4 py-8">
       <div className="w-full max-w-sm border border-white/10 bg-[#162244] p-8">
         <div className="mb-8 text-center">
           <BrandMark size="lg" />

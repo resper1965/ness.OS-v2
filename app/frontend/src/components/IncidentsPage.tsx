@@ -1,21 +1,21 @@
 import React from 'react';
 import { timeAgo } from '../access';
-import { ShieldAlert, CheckCircle, Clock, Server, AlertTriangle, RefreshCw } from 'lucide-react';
+import { ShieldAlert, CheckCircle, AlertTriangle } from 'lucide-react';
 
 const SEVERITY_CONFIG: Record<string, { badge: string; dot: string; label: string }> = {
-  disaster:       { badge: 'bg-red-500/15 border-red-500/40 text-red-400',     dot: 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.9)]',         label: 'Desastre' },
-  high:           { badge: 'bg-red-400/10 border-red-400/30 text-red-400',     dot: 'bg-red-400 shadow-[0_0_6px_rgba(248,113,113,0.7)]',        label: 'Alta' },
-  average:        { badge: 'bg-orange-400/10 border-orange-400/25 text-orange-400', dot: 'bg-orange-400 shadow-[0_0_6px_rgba(251,146,60,0.6)]', label: 'Média' },
-  warning:        { badge: 'bg-yellow-400/10 border-yellow-400/25 text-yellow-400', dot: 'bg-yellow-400 shadow-[0_0_5px_rgba(250,204,21,0.5)]', label: 'Aviso' },
+  disaster:       { badge: 'bg-red-500/15 border-red-500/40 text-red-400',     dot: 'bg-red-500',         label: 'Desastre' },
+  high:           { badge: 'bg-red-400/10 border-red-400/30 text-red-400',     dot: 'bg-red-400',        label: 'Alta' },
+  average:        { badge: 'bg-orange-400/10 border-orange-400/25 text-orange-400', dot: 'bg-orange-400', label: 'Média' },
+  warning:        { badge: 'bg-yellow-400/10 border-yellow-400/25 text-yellow-400', dot: 'bg-yellow-400', label: 'Aviso' },
   info:           { badge: 'bg-blue-400/10 border-blue-400/20 text-blue-400',  dot: 'bg-blue-400',                                              label: 'Info' },
-  not_classified: { badge: 'bg-white/5 border-white/10 text-white/30',         dot: 'bg-white/20',                                              label: 'N/C' },
+  not_classified: { badge: 'bg-white/5 border-white/10 text-brand-muted',         dot: 'bg-white/20',                                              label: 'N/C' },
 };
 
 const STATUS_CONFIG: Record<string, { label: string; style: string }> = {
   open:     { label: 'Aberto',    style: 'bg-red-500/10 text-red-400 border-red-500/20' },
   acknowledged: { label: 'Reconhecido', style: 'bg-amber-500/10 text-amber-300 border-amber-500/20' },
   resolved: { label: 'Resolvido', style: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' },
-  closed:   { label: 'Fechado',   style: 'bg-white/5 text-white/30 border-white/10' },
+  closed:   { label: 'Fechado',   style: 'bg-white/5 text-brand-muted border-white/10' },
 };
 
 const STAGES = [
@@ -30,7 +30,7 @@ function IncidentTimeline({ stage }: { stage: string }) {
   const currentIdx = Math.max(0, STAGE_ORDER.indexOf(stage));
   return (
     <div className="flex items-center mt-3 pt-3 border-t border-white/[0.04]">
-      <span className="text-[9px] text-white/25 uppercase tracking-wider mr-3 shrink-0">Fluxo</span>
+      <span className="text-[10px] text-brand-muted uppercase tracking-wider mr-3 shrink-0">Fluxo</span>
       <div className="flex items-center flex-1">
         {STAGES.map((s, i) => {
           const done    = i <= currentIdx;
@@ -39,20 +39,20 @@ function IncidentTimeline({ stage }: { stage: string }) {
             <React.Fragment key={s.key}>
               <div className="flex flex-col items-center group relative">
                 <div role="img" aria-label={s.label} title={s.label} className={`
-                  w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold
+                  w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold
                   transition-all duration-300
                   ${done
                     ? current
                       ? 'bg-[var(--color-brand-primary)] text-white ring-2 ring-[var(--color-brand-primary)]/40 ring-offset-1 ring-offset-[var(--color-brand-surface)]'
                       : 'bg-[var(--color-brand-primary)]/20 border border-[var(--color-brand-primary)]/40 text-[var(--color-brand-primary)]'
-                    : 'bg-white/[0.04] border border-white/10 text-white/20'
+                    : 'bg-white/[0.04] border border-white/10 text-brand-muted'
                   }
                 `}>
                   {i < currentIdx ? '✓' : s.shortLabel}
                 </div>
                 {/* Tooltip */}
                 <div className="absolute bottom-full mb-1.5 hidden group-hover:block z-50 pointer-events-none">
-                  <div className="bg-[#0c0c18] border border-white/10 rounded px-2 py-1 text-[9px] text-white/60 whitespace-nowrap shadow-xl">
+                  <div className="bg-[var(--color-brand-elevated)] border border-white/10 rounded px-2 py-1 text-xs text-slate-300 whitespace-nowrap shadow-xl">
                     {s.label}
                   </div>
                 </div>
@@ -110,9 +110,42 @@ const ACTION_LABEL: Record<Action, string> = {
   resolve: 'Resolveu',
   close: 'Encerrou',
 };
-interface Props { incidents: Incident[]; total: number; loading: boolean; loadingMore: boolean; error: string | null; canAct: boolean; onChanged: () => void | Promise<void>; onLoadMore: () => void | Promise<void>; initialActiveId?: string | null; }
+export interface IncidentFilter { period: '24h' | '7d' | '30d' | 'all'; status: '' | 'open' | 'resolved'; sev: string; q: string }
+const PERIOD_HOURS = { '24h': 24, '7d': 168, '30d': 720, all: 0 } as const;
 
-export default function IncidentsPage({ incidents, total, loading, loadingMore, error, canAct, onChanged, onLoadMore, initialActiveId = null }: Props) {
+// Padrão 24h: o histórico tem ~128 mil linhas e quase todas antigas; sem recorte a fila não informa nada.
+export function readIncidentFilter(search: string): IncidentFilter {
+  const p = new URLSearchParams(search);
+  const period = p.get('periodo');
+  const status = p.get('estado');
+  return {
+    period: period === '7d' || period === '30d' || period === 'all' ? period : '24h',
+    status: status === 'open' || status === 'resolved' ? status : '',
+    sev: /^[0-5](,[0-5])*$/.test(p.get('sev') ?? '') ? p.get('sev')! : '',
+    q: p.get('q') ?? '',
+  };
+}
+
+export function writeIncidentFilter(f: IncidentFilter) {
+  const url = new URL(window.location.href);
+  url.searchParams.set('periodo', f.period);
+  for (const [k, v] of [['estado', f.status], ['sev', f.sev], ['q', f.q]]) {
+    if (v) url.searchParams.set(k, v); else url.searchParams.delete(k);
+  }
+  window.history.replaceState(null, '', url);
+}
+
+export function incidentQuery(f: IncidentFilter, now = Date.now()): string {
+  const h = PERIOD_HOURS[f.period];
+  return (h ? `&from=${encodeURIComponent(new Date(now - h * 3600_000).toISOString())}` : '')
+    + (f.status ? `&status=${f.status}` : '')
+    + (f.sev ? `&severity=${f.sev}` : '')
+    + (f.q.trim() ? `&q=${encodeURIComponent(f.q.trim())}` : '');
+}
+
+interface Props { incidents: Incident[]; total: number; loading: boolean; loadingMore: boolean; error: string | null; canAct: boolean; onChanged: () => void | Promise<void>; onLoadMore: () => void | Promise<void>; initialActiveId?: string | null; filter: IncidentFilter; onFilter: (f: IncidentFilter) => void; }
+
+export default function IncidentsPage({ incidents, total, loading, loadingMore, error, canAct, onChanged, onLoadMore, initialActiveId = null, filter, onFilter }: Props) {
   // "Aberto de verdade": o status só muda pelo GLPI; o Zabbix já recuperado não conta.
   const openCount = incidents.filter(i => i.status === 'open' && i.source_status !== 'resolved').length;
   // ponytail: o caso do link da notificação só expande se estiver entre os carregados da lista;
@@ -173,6 +206,34 @@ export default function IncidentsPage({ incidents, total, loading, loadingMore, 
 
   return (
     <div className="space-y-4 animate-fade-in">
+      <div role="search" aria-label="Filtrar incidentes" className="flex flex-wrap items-center gap-3 border-b border-white/[0.08] pb-3">
+        <div role="group" aria-label="Período" className="flex">
+          {(['24h', '7d', '30d', 'all'] as const).map(p => (
+            <button key={p} type="button" aria-pressed={filter.period === p} onClick={() => onFilter({ ...filter, period: p })}
+              className={`px-3 h-10 md:h-8 text-xs border -ml-px first:ml-0 ${filter.period === p ? 'border-[#00ADE8] text-[#00ADE8] bg-[#00ADE8]/10 relative' : 'border-white/[0.14] text-slate-300 hover:text-white'}`}>
+              {p === 'all' ? 'Tudo' : p}
+            </button>
+          ))}
+        </div>
+        <form role="none" className="flex-1 basis-full md:basis-auto md:flex-none" onSubmit={e => { e.preventDefault(); onFilter({ ...filter, q: String(new FormData(e.currentTarget).get('q') ?? '') }); }}>
+          <label className="flex items-center gap-2 h-10 md:h-8 px-2 border border-white/[0.14] text-xs text-slate-300 focus-within:outline focus-within:outline-2 focus-within:outline-[#00ADE8]">
+            <span className="sr-only">Buscar host ou título</span>
+            <input name="q" type="search" defaultValue={filter.q} placeholder="Host ou título (Enter)" className="bg-transparent outline-none text-white w-full md:w-48 text-base md:text-xs" />
+          </label>
+        </form>
+        <label className="flex items-center gap-2 text-xs text-slate-300">Severidade
+          <select value={filter.sev} onChange={e => onFilter({ ...filter, sev: e.target.value })}
+            className="h-10 md:h-8 px-2 bg-[var(--color-brand-base)] border border-white/[0.14] text-white text-base md:text-xs">
+            <option value="">Todas</option><option value="5,4">Desastre + alta</option><option value="3">Média</option><option value="2">Atenção</option><option value="1,0">Info</option>
+          </select>
+        </label>
+        <label className="flex items-center gap-2 text-xs text-slate-300">Estado
+          <select value={filter.status} onChange={e => onFilter({ ...filter, status: e.target.value as IncidentFilter['status'] })}
+            className="h-10 md:h-8 px-2 bg-[var(--color-brand-base)] border border-white/[0.14] text-white text-base md:text-xs">
+            <option value="">Todos</option><option value="open">Aberto</option><option value="resolved">Resolvido</option>
+          </select>
+        </label>
+      </div>
       {/* Page subtitle / stats bar */}
       {!loading && !error && (
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-1">
@@ -198,9 +259,9 @@ export default function IncidentsPage({ incidents, total, loading, loadingMore, 
 
       {/* Loading skeleton */}
       {loading && (
-        <div className="space-y-3">
-          {[1,2,3].map(i => (
-            <div key={i} className="h-28 bg-white/[0.03] rounded-xl border border-white/[0.05] animate-pulse" />
+        <div className="space-y-1">
+          {[1,2,3,4,5,6].map(i => (
+            <div key={i} className="h-7 bg-white/[0.03] animate-pulse" />
           ))}
         </div>
       )}
@@ -218,137 +279,121 @@ export default function IncidentsPage({ incidents, total, loading, loadingMore, 
         </div>
       )}
 
-      {/* Incident cards */}
-      {!loading && incidents.map((inc, idx) => {
-        const sev   = SEVERITY_CONFIG[inc.severity] ?? SEVERITY_CONFIG.not_classified;
-        const stCfg = STATUS_CONFIG[inc.status] ?? STATUS_CONFIG.open;
-        return (
-          <div
-            key={inc.id}
-            className="
-              bg-[var(--color-brand-surface)] border border-white/[0.06]
-              rounded-xl p-4 hover:border-white/[0.10]
-              hover:shadow-[0_4px_24px_rgba(0,0,0,0.3)]
-              transition-all duration-300 md:hover:-translate-y-0.5
-              animate-fade-in
-            "
-            style={{ animationDelay: `${idx * 40}ms` }}
-          >
-            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-              {/* Left */}
-              <div className="flex items-start gap-3 min-w-0">
-                <div className={`mt-1 w-2.5 h-2.5 rounded-full shrink-0 ${sev.dot}`} />
-                <div className="min-w-0">
-                  <p className="font-semibold text-sm text-white/90 leading-snug">{inc.title}</p>
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 min-w-0">
-                    <span className="flex items-center gap-1 text-[11px] text-[var(--color-brand-muted)] break-all">
-                      <Server size={10} className="shrink-0" /> {inc.host_name}
-                    </span>
-                    {inc.alert_count > 1 && (
-                      <span className="flex items-center gap-1 text-[11px] text-[var(--color-brand-muted)]">
-                        <RefreshCw size={9} /> {inc.alert_count}×
-                      </span>
-                    )}
-                  </div>
-                  {inc.client && <p className="mt-1 text-[11px] text-[var(--color-brand-muted)]">{inc.client}</p>}
-                  {inc.asset && <p className="mt-1 text-[11px] text-[var(--color-brand-muted)]">Ativo: {inc.asset.name} · Responsável: {inc.asset.owner || (inc.asset.owner_group_id ? `Equipe GLPI #${inc.asset.owner_group_id}` : 'Não cadastrado')}</p>}
-                  {inc.solution && <p className="mt-2 whitespace-pre-wrap text-xs text-white/70">Solução: {inc.solution}</p>}
-                  {inc.ticket_id && (
-                    <a
-                      href={`https://n-ticket.ness.com.br/front/ticket.form.php?id=${encodeURIComponent(inc.ticket_id)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="mt-2 inline-block py-2 sm:py-0 text-xs text-[var(--color-brand-primary)] hover:underline"
-                    >
-                      Abrir chamado GLPI #{inc.ticket_id}
-                    </a>
-                  )}
-                </div>
-              </div>
-
-              {/* Right meta */}
-              <div className="flex flex-row-reverse items-center justify-between gap-2 sm:flex-col sm:items-end shrink-0">
-                <div className="flex items-center gap-2">
-                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${sev.badge}`}>
-                    {sev.label}
-                  </span>
-                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${stCfg.style}`}>
-                    {stCfg.label}
-                  </span>
-                </div>
-                <div className="flex items-center gap-1 text-[11px] text-[var(--color-brand-muted)]">
-                  <Clock size={10} /> {timeAgo(inc.last_seen)}
-                </div>
-              </div>
-            </div>
-
-            {/* Pipeline timeline */}
-            <IncidentTimeline stage={inc.pipeline_stage} />
-            <button
-              type="button"
-              className="mt-3 -mb-1 py-2 sm:py-0 text-xs text-[var(--color-brand-primary)] hover:underline"
-              aria-expanded={activeId === inc.id}
-              aria-controls={`incident-detail-${inc.id}`}
-              onClick={() => { setNote(''); setActiveId(activeId === inc.id ? null : inc.id); }}
-            >
-              {activeId === inc.id ? 'Ocultar detalhes' : 'Ver detalhes'}
-            </button>
-            {activeId === inc.id && (
-              <div id={`incident-detail-${inc.id}`} className="mt-3 border-t border-white/[0.06] pt-3 space-y-2 text-xs text-white/70">
-                {detailLoading && <p role="status">Carregando detalhes...</p>}
-                {detailError && <p role="alert" className="text-red-400">{detailError}</p>}
-                {detail && (
-                  <>
-                    <p className="whitespace-pre-wrap">{detail.description || 'Sem descrição da origem.'}</p>
-                    <p>Host Zabbix #{detail.host_id} · Trigger #{detail.trigger_id} · Evento #{detail.source_event_id || 'indisponível'}</p>
-                    {detail.source_url && (
-                      <a href={detail.source_url} target="_blank" rel="noopener noreferrer" className="inline-block text-[var(--color-brand-primary)] hover:underline">
-                        Abrir evento no Zabbix
-                      </a>
-                    )}
-                    <p>Sincronização da resolução: {detail.resolution_sync_status || 'sem atualização registrada'}</p>
-                    <p>Estado Zabbix: {detail.source_status === 'resolved' ? `sinal recuperado em ${detail.source_recovered_at || 'horário indisponível'}` : detail.source_status === 'problem' ? 'problema ativo' : 'não registrado'}</p>
-                    <p>Responsável no Hub: {detail.assigned_user_id ? `usuário #${detail.assigned_user_id}` : 'não atribuído'}</p>
-                    {canAct && (
-                      <div className="space-y-2 border-t border-white/[0.06] pt-3">
-                        <label htmlFor={`incident-note-${inc.id}`} className="block">Comentário ou justificativa</label>
-                        <textarea
-                          id={`incident-note-${inc.id}`}
-                          value={note}
-                          onChange={event => setNote(event.target.value)}
-                          maxLength={2000}
-                          rows={2}
-                          className="w-full rounded-md border border-white/15 bg-black/20 p-2 text-white"
-                        />
-                        <div className="flex flex-wrap gap-2">
-                          {detail.status === 'open' && <button type="button" disabled={acting} onClick={() => void submitAction('acknowledge')} className="rounded border border-white/20 px-3 py-2.5 sm:px-2 sm:py-1 disabled:opacity-50">Reconhecer</button>}
-                          {detail.status !== 'closed' && <button type="button" disabled={acting} onClick={() => void submitAction('assign_self')} className="rounded border border-white/20 px-3 py-2.5 sm:px-2 sm:py-1 disabled:opacity-50">Assumir</button>}
-                          <button type="button" disabled={acting || !note.trim()} onClick={() => void submitAction('comment')} className="rounded border border-white/20 px-3 py-2.5 sm:px-2 sm:py-1 disabled:opacity-50">Registrar comentário</button>
-                          {!detail.ticket_id && ['open', 'acknowledged'].includes(detail.status) && <button type="button" disabled={acting || !note.trim()} onClick={() => void submitAction('resolve')} className="rounded border border-white/20 px-3 py-2.5 sm:px-2 sm:py-1 disabled:opacity-50">Resolver</button>}
-                          {detail.status === 'resolved' && (!detail.ticket_id || detail.resolution_sync_status === 'synced') && <button type="button" disabled={acting} onClick={() => void submitAction('close')} className="rounded border border-white/20 px-3 py-2.5 sm:px-2 sm:py-1 disabled:opacity-50">Encerrar</button>}
-                        </div>
-                      </div>
-                    )}
-                    <div className="border-t border-white/[0.06] pt-3">
-                      <p className="font-semibold text-white/80">Ações registradas</p>
-                      {detail.actions.length === 0 && <p className="mt-1">Nenhuma ação registrada.</p>}
-                      <ol className="mt-2 space-y-2">
-                        {detail.actions.map(action => (
-                          <li key={action.id} className="border-l border-white/15 pl-3">
-                            <span className="font-medium text-white/80">{ACTION_LABEL[action.action as Action] ?? action.action}</span>
-                            <span> · {action.actor_user_id ? `usuário #${action.actor_user_id}` : action.actor_source} · {new Date(action.created_at).toLocaleString('pt-BR')}</span>
-                            {action.note && <p className="whitespace-pre-wrap">{action.note}</p>}
-                          </li>
-                        ))}
-                      </ol>
-                    </div>
-                  </>
+      {!loading && incidents.length > 0 && (
+        <table className="nx-cards w-full border-collapse text-xs">
+          <thead className="sticky top-0 z-[1] bg-[var(--color-brand-base)]">
+            <tr className="text-left text-[10px] uppercase tracking-[0.12em] text-[var(--color-brand-muted)] border-b border-white/[0.14]">
+              <th scope="col" className="px-2 py-2 font-medium">Severidade</th>
+              <th scope="col" className="px-2 py-2 font-medium">Estado</th>
+              <th scope="col" className="px-2 py-2 font-medium">Cliente</th>
+              <th scope="col" className="px-2 py-2 font-medium">Host</th>
+              <th scope="col" className="px-2 py-2 font-medium w-full">Incidente</th>
+              <th scope="col" className="px-2 py-2 font-medium">Etapa</th>
+              <th scope="col" className="px-2 py-2 font-medium">Chamado</th>
+              <th scope="col" className="px-2 py-2 font-medium">Último</th>
+            </tr>
+          </thead>
+          <tbody>
+            {incidents.map(inc => {
+              const sev = SEVERITY_CONFIG[inc.severity] ?? SEVERITY_CONFIG.not_classified;
+              const stCfg = STATUS_CONFIG[inc.status] ?? STATUS_CONFIG.open;
+              const open = activeId === inc.id;
+              return (
+                <React.Fragment key={inc.id}>
+                  <tr className={`border-b border-white/[0.06] align-middle hover:bg-white/[0.03] ${open ? 'bg-white/[0.04]' : ''}`}>
+                    <td className="px-2 py-1.5 whitespace-nowrap"><span className={`px-1.5 py-0.5 border ${sev.badge}`}>{sev.label}</span></td>
+                    <td className="px-2 py-1.5 whitespace-nowrap">
+                      <span className={`px-1.5 py-0.5 border ${stCfg.style}`}>{stCfg.label}</span>
+                      {inc.source_status === 'resolved' && <span className="ml-1 text-emerald-400">· recuperado</span>}
+                    </td>
+                    <td className="px-2 py-1.5 whitespace-nowrap text-slate-300">{inc.client || '—'}</td>
+                    <td className="px-2 py-1.5 whitespace-nowrap font-mono text-slate-300">{inc.host_name}</td>
+                    <td className="nx-main px-2 py-1.5">
+                      <button
+                        type="button"
+                        className="text-left text-white/90 hover:text-[var(--color-brand-primary)] hover:underline"
+                        aria-expanded={open}
+                        aria-controls={`incident-detail-${inc.id}`}
+                        onClick={() => { setNote(''); setActiveId(open ? null : inc.id); }}
+                      >
+                        {inc.title}
+                      </button>
+                      {inc.alert_count > 1 && <span className="ml-2 text-[var(--color-brand-muted)]">{inc.alert_count}×</span>}
+                    </td>
+                    <td className="px-2 py-1.5 whitespace-nowrap text-slate-300">{STAGES.find(s => s.key === inc.pipeline_stage)?.label ?? '—'}</td>
+                    <td className="px-2 py-1.5 whitespace-nowrap font-mono">
+                      {inc.ticket_id
+                        ? <a href={`https://n-ticket.ness.com.br/front/ticket.form.php?id=${encodeURIComponent(inc.ticket_id)}`} target="_blank" rel="noopener noreferrer" className="text-[var(--color-brand-primary)] hover:underline">#{inc.ticket_id}<span className="sr-only"> (abre em nova aba)</span></a>
+                        : <span className="text-[var(--color-brand-muted)]">—</span>}
+                    </td>
+                    <td className="px-2 py-1.5 whitespace-nowrap text-[var(--color-brand-muted)]" title={inc.last_seen ? new Date(inc.last_seen).toLocaleString('pt-BR') : undefined}>{timeAgo(inc.last_seen)}</td>
+                  </tr>
+                  {open && (
+                    <tr className="border-b border-white/[0.06] bg-white/[0.02]">
+                      <td colSpan={8} className="px-4 pb-4">
+                        <IncidentTimeline stage={inc.pipeline_stage} />
+                        {inc.asset && <p className="mt-2 text-[var(--color-brand-muted)]">Ativo: {inc.asset.name} · Responsável: {inc.asset.owner || (inc.asset.owner_group_id ? `Equipe GLPI #${inc.asset.owner_group_id}` : 'Não cadastrado')}</p>}
+                        {inc.solution && <p className="mt-2 whitespace-pre-wrap text-white/70">Solução: {inc.solution}</p>}
+          <div id={`incident-detail-${inc.id}`} className="mt-3 border-t border-white/[0.06] pt-3 space-y-2 text-xs text-white/70">
+            {detailLoading && <p role="status">Carregando detalhes...</p>}
+            {detailError && <p role="alert" className="text-red-400">{detailError}</p>}
+            {detail && (
+              <>
+                <p className="whitespace-pre-wrap">{detail.description || 'Sem descrição da origem.'}</p>
+                <p>Host Zabbix #{detail.host_id} · Trigger #{detail.trigger_id} · Evento #{detail.source_event_id || 'indisponível'}</p>
+                {detail.source_url && (
+                  <a href={detail.source_url} target="_blank" rel="noopener noreferrer" className="inline-block text-[var(--color-brand-primary)] hover:underline">
+                    Abrir evento no Zabbix
+                  </a>
                 )}
-              </div>
+                <p>Sincronização da resolução: {detail.resolution_sync_status || 'sem atualização registrada'}</p>
+                <p>Estado Zabbix: {detail.source_status === 'resolved' ? `sinal recuperado em ${detail.source_recovered_at || 'horário indisponível'}` : detail.source_status === 'problem' ? 'problema ativo' : 'não registrado'}</p>
+                <p>Responsável no Hub: {detail.assigned_user_id ? `usuário #${detail.assigned_user_id}` : 'não atribuído'}</p>
+                {canAct && (
+                  <div className="space-y-2 border-t border-white/[0.06] pt-3">
+                    <label htmlFor={`incident-note-${inc.id}`} className="block">Comentário ou justificativa</label>
+                    <textarea
+                      id={`incident-note-${inc.id}`}
+                      value={note}
+                      onChange={event => setNote(event.target.value)}
+                      maxLength={2000}
+                      rows={2}
+                      className="w-full rounded-md border border-white/15 bg-black/20 p-2 text-white"
+                    />
+                    <div className="flex flex-wrap gap-2">
+                      {detail.status === 'open' && <button type="button" disabled={acting} onClick={() => void submitAction('acknowledge')} className="rounded border border-white/20 px-3 py-2.5 sm:px-2 sm:py-1 disabled:opacity-50">Reconhecer</button>}
+                      {detail.status !== 'closed' && <button type="button" disabled={acting} onClick={() => void submitAction('assign_self')} className="rounded border border-white/20 px-3 py-2.5 sm:px-2 sm:py-1 disabled:opacity-50">Assumir</button>}
+                      <button type="button" disabled={acting || !note.trim()} onClick={() => void submitAction('comment')} className="rounded border border-white/20 px-3 py-2.5 sm:px-2 sm:py-1 disabled:opacity-50">Registrar comentário</button>
+                      {!detail.ticket_id && ['open', 'acknowledged'].includes(detail.status) && <button type="button" disabled={acting || !note.trim()} onClick={() => void submitAction('resolve')} className="rounded border border-white/20 px-3 py-2.5 sm:px-2 sm:py-1 disabled:opacity-50">Resolver</button>}
+                      {detail.status === 'resolved' && (!detail.ticket_id || detail.resolution_sync_status === 'synced') && <button type="button" disabled={acting} onClick={() => void submitAction('close')} className="rounded border border-white/20 px-3 py-2.5 sm:px-2 sm:py-1 disabled:opacity-50">Encerrar</button>}
+                    </div>
+                  </div>
+                )}
+                <div className="border-t border-white/[0.06] pt-3">
+                  <p className="font-semibold text-white/80">Ações registradas</p>
+                  {detail.actions.length === 0 && <p className="mt-1">Nenhuma ação registrada.</p>}
+                  <ol className="mt-2 space-y-2">
+                    {detail.actions.map(action => (
+                      <li key={action.id} className="border-l border-white/15 pl-3">
+                        <span className="font-medium text-white/80">{ACTION_LABEL[action.action as Action] ?? action.action}</span>
+                        <span> · {action.actor_user_id ? `usuário #${action.actor_user_id}` : action.actor_source} · {new Date(action.created_at).toLocaleString('pt-BR')}</span>
+                        {action.note && <p className="whitespace-pre-wrap">{action.note}</p>}
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              </>
             )}
           </div>
-        );
-      })}
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
       {!loading && incidents.length < total && (
         <button type="button" disabled={loadingMore} onClick={() => void onLoadMore()} className="w-full rounded-xl border border-white/15 px-4 py-3 text-sm text-white/80 hover:border-white/30 disabled:opacity-50">
           {loadingMore ? 'Carregando...' : 'Carregar mais incidentes'}

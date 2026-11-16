@@ -5,15 +5,16 @@ import '../../ness-ui.css';
 
 export const ICON = { size: 14, strokeWidth: 1.5, 'aria-hidden': true } as const;
 
-export const Screen = ({ children }: { children: ReactNode }) => <div className="nx">{children}</div>;
+export const Screen = ({ fill, children }: { fill?: boolean; children: ReactNode }) => <div className={fill ? 'nx nx-fill' : 'nx'}>{children}</div>;
 
 // Marca de produto: minúscula, ponto interno sempre em BlueDot.
 export const ProductMark = () => <>n<span style={{ color: 'var(--nx-accent)' }}>.</span>infraops</>;
 
-export function PageHeader({ title, kicker, actions }: { title: string; kicker: string; actions?: ReactNode }) {
+// O título da tela fica na banda do shell (h1); aqui só o kicker e as ações.
+export function PageHeader({ kicker, actions }: { title: string; kicker: string; actions?: ReactNode }) {
   return (
     <div className="nx-head">
-      <div><span className="nx-meta"><ProductMark /> · {kicker}</span><h1>{title}</h1></div>
+      <div><span className="nx-meta"><ProductMark /> · {kicker}</span></div>
       {actions && <div className="nx-actions">{actions}</div>}
     </div>
   );

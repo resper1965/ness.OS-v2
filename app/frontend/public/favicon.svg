@@ -1,7 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 100 100" role="img" aria-label="ness. n.infraops">
-  <!-- Mesmas proporções de app/frontend/scripts/gen-pwa-icons.py: fundo chapado,
-       raio 0, "n" em text-primary e o ponto da marca em BlueDot. -->
-  <rect width="100" height="100" fill="#0B1326"/>
-  <path d="M19.2 91.3V33.5A18.6 18.6 0 0 1 56.4 33.5V91.3" fill="none" stroke="#F1F5F9" stroke-width="12.4"/>
-  <circle cx="77.1" cy="81.4" r="9.9" fill="#00ADE8"/>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="n."><title>n.</title><rect width="64" height="64" fill="#0B1326"></rect><g transform="translate(4.34 47.35) scale(0.5818)"><path fill="#F1F5F9" d="M18.70 0L9.10 0L9.10-53L18.30-53L18.30-45Q20.80-48.40 24.80-50.60L24.80-50.60Q30.20-53.50 37.40-53.50L37.40-53.50Q43.90-53.50 48.85-51Q53.80-48.50 56.60-43.40Q59.40-38.30 59.40-30.50L59.40-30.50L59.40 0L49.80 0L49.80-29.40Q49.80-37.10 46.05-41Q42.30-44.90 35.50-44.90L35.50-44.90Q30.40-44.90 26.60-42.90Q22.80-40.90 20.75-37Q18.70-33.10 18.70-27.30L18.70-27.30L18.70 0Z"></path><path fill="#00ADE8" transform="translate(-1.4 0)" d="M79.20 0.70L79.20 0.70Q75.80 0.70 73.40-1.65Q71-4 71-7.60L71-7.60Q71-11.40 73.40-13.65Q75.80-15.90 79.20-15.90L79.20-15.90Q82.60-15.90 85-13.65Q87.40-11.40 87.40-7.60L87.40-7.60Q87.40-4 85-1.65Q82.60 0.70 79.20 0.70Z"></path></g></svg>

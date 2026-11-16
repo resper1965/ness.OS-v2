@@ -1,15 +1,13 @@
-import { Activity, ShieldAlert, Settings, Cloud, RefreshCw,
-         WifiOff, Monitor, AlertTriangle, CheckCircle, BarChart3,
-         Cpu, LogOut, BookOpen, FileText, Users, Menu } from 'lucide-react';
+import { Activity, ShieldAlert, Cloud, RefreshCw, LayoutDashboard, Shield,
+         WifiOff, AlertTriangle, LogOut, FileText, Users, Menu } from 'lucide-react';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import CloudManagement from './components/CloudManagement';
 import PipelineStrip from './components/PipelineStrip';
-import IncidentsPage from './components/IncidentsPage';
+import IncidentsPage, { incidentQuery, readIncidentFilter, writeIncidentFilter } from './components/IncidentsPage';
 import TenantSelector from './components/TenantSelector';
-import SecurityAlerts from './components/SecurityAlerts';
+import ProblemsView, { type Problem } from './components/ProblemsView';
 import LoginPage from './components/LoginPage';
-import SecopsModule from './components/SecopsModule';
-import ModuleSwitcher, { type NessModule } from './components/ModuleSwitcher';
+import SocView from './components/SocView';
 import CoreDashboard from './components/CoreDashboard';
 import { debounce } from './debounce';
 import { useAuth } from './hooks/useAuth';
@@ -23,30 +21,20 @@ import CustomersScreen from './components/CustomersScreen';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
 
-const SEVERITY_BG: Record<string, string> = {
-  disaster:       'bg-red-500/15 border-red-500/30 text-red-400',
-  high:           'bg-red-400/10 border-red-400/25 text-red-400',
-  average:        'bg-orange-400/10 border-orange-400/25 text-orange-400',
-  warning:        'bg-yellow-400/10 border-yellow-400/25 text-yellow-400',
-  info:           'bg-blue-400/10 border-blue-400/25 text-blue-400',
-  not_classified: 'bg-white/5 border-white/10 text-white/40',
+type View = 'overview' | 'monitoring' | 'cloud' | 'incidents' | 'secops' | 'contracts' | 'customers';
+
+const TITLES: Record<View, string> = {
+  overview: 'Visão geral', monitoring: 'NOC', cloud: 'Nuvem', incidents: 'Incidentes',
+  secops: 'SOC', contracts: 'Contratos', customers: 'Clientes',
 };
 
-const SEVERITY_DOT: Record<string, string> = {
-  disaster:       'bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.8)]',
-  high:           'bg-red-400 shadow-[0_0_5px_rgba(248,113,113,0.6)]',
-  average:        'bg-orange-400 shadow-[0_0_5px_rgba(251,146,60,0.6)]',
-  warning:        'bg-yellow-400 shadow-[0_0_4px_rgba(250,204,21,0.5)]',
-  info:           'bg-blue-400',
-  not_classified: 'bg-white/30',
-};
-
-const SEVERITY_LABEL: Record<string, string> = {
-  disaster: 'Desastre', high: 'Alta', average: 'Média',
-  warning: 'Aviso', info: 'Info', not_classified: 'N/C',
-};
-
-type View = 'dashboard' | 'cloud' | 'incidents' | 'contracts' | 'customers';
+// A tela vive na URL (?view=) para recarregar, voltar e compartilhar link; papel decide o que pode abrir.
+export function allowedView(v: string | null, isOperator: boolean, canCadastros: boolean): View {
+  if (v === 'incidents') return v;
+  if ((v === 'contracts' || v === 'customers') && canCadastros) return v;
+  if (isOperator && (v === 'overview' || v === 'monitoring' || v === 'cloud' || v === 'secops')) return v;
+  return isOperator ? 'overview' : 'incidents';
+}
 
 interface Summary {
   hosts_active: number;
@@ -56,17 +44,6 @@ interface Summary {
   problems_total: number;
 }
 
-interface Problem {
-  id: string; title: string; severity: string;
-  severity_level: number; host: string; clock: number; acknowledged: boolean;
-}
-
-// ─── Helpers ───────────────────────────────────────────────────────────────
-function formatNumber(n: number): string {
-  if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
-  if (n >= 1000) return `${(n / 1000).toFixed(0)}k`;
-  return String(n);
-}
 
 // ─── Sidebar Item ────────────────────────────────────────────────────────────
 function SidebarItem({
@@ -81,155 +58,29 @@ function SidebarItem({
       disabled={disabled || !onClick}
       aria-current={active ? 'page' : undefined}
       aria-disabled={disabled ? 'true' : undefined}
-      title={disabled ? 'Em breve' : undefined}
       className={`
         w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left
         transition-all duration-200 relative group select-none
         ${active
           ? 'text-white'
           : disabled || !onClick
-            ? 'text-white/20 cursor-not-allowed'
+            ? 'text-brand-muted cursor-not-allowed'
             : 'text-[var(--color-brand-muted)] hover:text-white/90 hover:bg-white/[0.04]'
         }
       `}
       style={active ? {
-        background: 'linear-gradient(90deg, rgba(0,173,232,0.14) 0%, rgba(0,173,232,0.04) 100%)',
+        background: 'rgba(0,173,232,0.12)',
       } : {}}
     >
       {active && (
         <span
           className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-6 rounded-r-full"
-          style={{ background: '#00ADE8', boxShadow: '0 0 8px rgba(0,173,232,0.7)' }}
+          style={{ background: '#00ADE8' }}
         />
       )}
       <Icon size={18} className={active ? 'text-[#00ADE8]' : ''} />
       <span className={`font-medium text-sm ${active ? 'text-white' : 'text-slate-400'}`}>{label}</span>
-      {disabled && (
-        <span className="ml-auto text-[9px] font-medium px-1.5 py-0.5 rounded bg-white/[0.04] text-white/20 leading-none">
-          breve
-        </span>
-      )}
     </button>
-  );
-}
-
-// ─── Metric Card ─────────────────────────────────────────────────────────────
-function MetricCard({
-  title, value, status = 'neutral', loading = false, icon: Icon, suffix = '',
-}: {
-  title: string; value: string | number; suffix?: string;
-  status?: 'success' | 'danger' | 'warning' | 'neutral';
-  loading?: boolean; icon?: React.ElementType;
-}) {
-  const colors = {
-    success: { text: 'text-emerald-400', glow: 'rgba(16,185,129,0.15)', border: 'border-emerald-500/15' },
-    danger:  { text: 'text-red-400',     glow: 'rgba(239,68,68,0.15)',  border: 'border-red-500/15'     },
-    warning: { text: 'text-yellow-400',  glow: 'rgba(245,158,11,0.12)', border: 'border-yellow-500/15'  },
-    neutral: { text: 'text-white',       glow: 'transparent',           border: 'border-transparent'    },
-  }[status];
-
-  return (
-    <div
-      className={`
-        relative bg-[var(--color-brand-surface)] border border-white/[0.06]
-        ${colors.border} rounded-xl p-5 flex flex-col gap-3 overflow-hidden
-        hover:border-white/10 transition-all duration-300 hover:-translate-y-0.5
-        hover:shadow-[0_8px_30px_rgba(0,0,0,0.3)] group
-      `}
-      style={status !== 'neutral' ? {
-        boxShadow: `inset 0 1px 0 rgba(255,255,255,0.04), 0 0 0 1px rgba(255,255,255,0.03)`,
-      } : {}}
-    >
-      {/* Top glow */}
-      {status !== 'neutral' && (
-        <div
-          className="absolute top-0 inset-x-0 h-px rounded-t-xl"
-          style={{ background: `linear-gradient(90deg, transparent, ${colors.glow.replace('0.15', '0.5')}, transparent)` }}
-        />
-      )}
-
-      {/* Header row */}
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-[var(--color-brand-muted)] uppercase tracking-wider">
-          {title}
-        </span>
-        {Icon && (
-          <div className={`p-1.5 rounded-md bg-white/[0.04] ${colors.text} opacity-60 group-hover:opacity-100 transition-opacity`}>
-            <Icon size={13} />
-          </div>
-        )}
-      </div>
-
-      {/* Value */}
-      {loading ? (
-        <div className="h-9 w-20 bg-white/[0.06] rounded-lg animate-pulse" />
-      ) : (
-        <div className={`text-3xl font-bold tracking-tight ${colors.text} tabular-nums`}>
-          {value}<span className="text-base font-medium opacity-60 ml-1">{suffix}</span>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── Problem Row ─────────────────────────────────────────────────────────────
-function ProblemRow({ p }: { p: Problem }) {
-  return (
-    <div
-      role="article"
-      aria-label={`Alerta: ${p.title}`}
-      className="
-        flex items-center justify-between px-3 py-2.5 rounded-lg
-        border border-transparent hover:border-white/[0.06] hover:bg-white/[0.025]
-        transition-all duration-200 group
-      "
-    >
-      <div className="flex items-center gap-3 min-w-0">
-        <div className={`w-2 h-2 rounded-full shrink-0 ${SEVERITY_DOT[p.severity] || 'bg-gray-500'}`} />
-        <div className="min-w-0">
-          <p className="font-medium text-sm truncate text-white/90 group-hover:text-white transition-colors">
-            {p.title}
-          </p>
-          <p className="text-[11px] text-[var(--color-brand-muted)] mt-0.5 truncate">{p.host}</p>
-        </div>
-      </div>
-
-      <div className="flex items-center gap-2.5 shrink-0 ml-4">
-        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${SEVERITY_BG[p.severity] || ''}`}>
-          {SEVERITY_LABEL[p.severity] || p.severity}
-        </span>
-        <span className="text-[11px] text-[var(--color-brand-muted)] tabular-nums w-8 text-right">
-          {access.timeAgo(p.clock)}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-// ─── Section Card ─────────────────────────────────────────────────────────────
-function SectionCard({ title, count, children, loading }: {
-  title: string; count?: number; children: React.ReactNode; loading?: boolean;
-}) {
-  return (
-    <div className="bg-[var(--color-brand-surface)] border border-white/[0.06] rounded-xl overflow-hidden">
-      <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/[0.04]">
-        <span className="text-[11px] font-semibold text-[var(--color-brand-muted)] uppercase tracking-[0.12em]">
-          {title}
-        </span>
-        {count !== undefined && (
-          <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-white/[0.05] text-[var(--color-brand-muted)]">
-            {count}
-          </span>
-        )}
-      </div>
-      <div className="p-3">
-        {loading ? (
-          <div className="space-y-2 p-2">
-            {[1,2,3].map(i => <div key={i} className="h-11 bg-white/[0.04] rounded-lg animate-pulse" />)}
-          </div>
-        ) : children}
-      </div>
-    </div>
   );
 }
 
@@ -244,10 +95,23 @@ function AppShellBody({ AUTH, logout, user }: {
   // Link da notificação push: /?view=incidents&id=N abre o caso (o backend revalida o acesso).
   const linkParams = new URLSearchParams(window.location.search);
   const linkedIncident = linkParams.get('view') === 'incidents' ? linkParams.get('id') : null;
-  const startOnIncidents = linkParams.get('view') === 'incidents';
-  const [activeModule, setActiveModule] = useState<NessModule>(isOperator && !startOnIncidents ? 'core' : 'infraops');
-  const [currentView, setCurrentView] = useState<View>(isOperator && !startOnIncidents ? 'dashboard' : 'incidents');
+  const canReadCadastros = access.canReadCadastros(user?.role);
+  const [currentView, setView] = useState<View>(() => allowedView(linkParams.get('view'), isOperator, canReadCadastros));
+  const setCurrentView = useCallback((v: View) => {
+    setView(v);
+    const url = new URL(window.location.href);
+    if (url.searchParams.get('view') === v) return;
+    url.search = `?view=${v}`;
+    window.history.pushState(null, '', url);
+  }, []);
+  useEffect(() => {
+    const onPop = () => setView(allowedView(new URLSearchParams(window.location.search).get('view'), isOperator, canReadCadastros));
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, [isOperator, canReadCadastros]);
+  useEffect(() => { document.title = `${TITLES[currentView]} · ness.OS`; }, [currentView]);
   const [selectedTenant, setSelectedTenant] = useState<string | null>(null);
+  const [incidentFilter, setIncidentFilter] = useState(() => readIncidentFilter(window.location.search));
   const [navOpen, setNavOpen] = useState(false);
   // Recarrega a caixa de avisos: evento SSE de incidente ou ação no caso.
   const [inboxVersion, setInboxVersion] = useState(0);
@@ -261,6 +125,7 @@ function AppShellBody({ AUTH, logout, user }: {
   const [incidentsMoreLoading, setIncidentsMoreLoading] = useState(false);
   const [incidentsError, setIncidentsError] = useState<string | null>(null);
   const incidentsRequest = useRef(0);
+  const incidentsSince = useRef(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [cadastrosTick, setCadastrosTick] = useState(0);
@@ -275,7 +140,7 @@ function AppShellBody({ AUTH, logout, user }: {
     try {
       const [summaryRes, problemsRes, pipelineRes] = await Promise.all([
         fetch(`${API_BASE}/api/dashboard/summary`, { credentials: 'include', headers: AUTH }),
-        fetch(`${API_BASE}/api/dashboard/problems?limit=15`, { credentials: 'include', headers: AUTH }),
+        fetch(`${API_BASE}/api/dashboard/problems?limit=2000`, { credentials: 'include', headers: AUTH }),
         fetch(`${API_BASE}/api/dashboard/pipeline-status`, { credentials: 'include', headers: AUTH }),
       ]);
       if (!summaryRes.ok || !problemsRes.ok) throw new Error('API error');
@@ -299,7 +164,9 @@ function AppShellBody({ AUTH, logout, user }: {
     try {
       const tenant = access.tenantScope(user?.role, selectedTenant);
       const scope = tenant ? `&tenant_id=${encodeURIComponent(tenant)}` : '';
-      const res = await fetch(`${API_BASE}/api/incidents?limit=20&offset=${offset}${scope}`, { credentials: 'include', headers: AUTH });
+      // O corte do período fica fixo durante a paginação; senão a janela anda e a próxima página pula linhas.
+      if (offset === 0) incidentsSince.current = Date.now();
+      const res = await fetch(`${API_BASE}/api/incidents?limit=20&offset=${offset}${scope}${incidentQuery(incidentFilter, incidentsSince.current)}`, { credentials: 'include', headers: AUTH });
       if (!res.ok) throw new Error();
       const data = await res.json();
       if (requestId !== incidentsRequest.current) return;
@@ -315,7 +182,7 @@ function AppShellBody({ AUTH, logout, user }: {
         setIncidentsMoreLoading(false);
       }
     }
-  }, [AUTH, selectedTenant, isOperator]);
+  }, [AUTH, selectedTenant, isOperator, incidentFilter]);
 
   useEffect(() => {
     fetchData();
@@ -371,7 +238,7 @@ function AppShellBody({ AUTH, logout, user }: {
   }, [user, fetchData, fetchIncidents, selectedTenant, currentView, isOperator, logout]);
 
   // Gaveta mobile: fecha ao trocar de tela e com Esc.
-  useEffect(() => { setNavOpen(false); }, [currentView, activeModule]);
+  useEffect(() => { setNavOpen(false); }, [currentView]);
   useEffect(() => {
     if (!navOpen) return;
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setNavOpen(false); };
@@ -380,7 +247,6 @@ function AppShellBody({ AUTH, logout, user }: {
   }, [navOpen]);
 
   const hasCritical = summary && summary.problems_critical > 0;
-  const canReadCadastros = access.canReadCadastros(user?.role);
   const connectionError = isOperator ? error : incidentsError;
 
   return (
@@ -392,11 +258,10 @@ function AppShellBody({ AUTH, logout, user }: {
       <aside id="main-nav" className={`w-60 border-r border-white/[0.05] bg-[var(--color-brand-base)] flex flex-col py-5 px-3 gap-6 shrink-0 overflow-y-auto
         fixed inset-y-0 left-0 z-40 transition-[transform,visibility] duration-200 pt-[max(1.25rem,env(safe-area-inset-top))]
         md:static md:z-10 md:translate-x-0 ${navOpen ? 'translate-x-0' : '-translate-x-full max-md:invisible'}`}>
-        <div className="absolute top-0 left-0 right-0 h-40 bg-[var(--color-brand-primary)] opacity-[0.03] blur-3xl pointer-events-none" />
 
         <div className="px-2 py-1">
           <BrandMark size="md" />
-          <p className="mt-1 text-[10px] font-medium tracking-wide text-white/40">operações de tecnologia</p>
+          <p className="mt-1 text-xs font-medium tracking-wide text-brand-muted">operações de tecnologia</p>
         </div>
 
         <div className="px-2">
@@ -408,34 +273,17 @@ function AppShellBody({ AUTH, logout, user }: {
         </div>
 
         <nav className="flex flex-col gap-1 flex-1" aria-label="Navegação principal">
-          {/* Grupo principal */}
-          <p className="px-3 mb-1 text-[9px] font-semibold uppercase tracking-[0.15em] text-white/20 select-none">
-            Principal
-          </p>
-          {isOperator && <SidebarItem icon={Activity} label="Dashboard" active={activeModule === 'infraops' && currentView === 'dashboard'} onClick={() => { setActiveModule('infraops'); setCurrentView('dashboard'); }} />}
-          {isOperator && <SidebarItem icon={Cloud} label="Nuvem" active={activeModule === 'infraops' && currentView === 'cloud'} onClick={() => { setActiveModule('infraops'); setCurrentView('cloud'); }} />}
-          <SidebarItem icon={ShieldAlert} label="Incidentes"      active={activeModule === 'infraops' && currentView === 'incidents'} onClick={() => { setActiveModule('infraops'); setCurrentView('incidents'); }} />
-
-          <div className="my-3 border-t border-white/[0.04]" />
-
-          {/* Grupo sistema */}
-          <p className="px-3 mb-1 text-[9px] font-semibold uppercase tracking-[0.15em] text-white/20 select-none">
-            Sistema
-          </p>
-          <a
-            href="/platform"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium text-white/40 hover:text-white/80 hover:bg-white/[0.04] transition-all duration-150 select-none"
-            title="Documentação da plataforma ness.OS"
-          >
-            <BookOpen size={14} className="shrink-0" />
-            <span>Plataforma</span>
-            <span className="ml-auto text-[9px] text-white/20">↗</span>
-          </a>
-          {canReadCadastros && <SidebarItem icon={FileText} label="Contratos" active={activeModule === 'infraops' && currentView === 'contracts'} onClick={() => { setActiveModule('infraops'); setCurrentView('contracts'); }} />}
-          {canReadCadastros && <SidebarItem icon={Users} label="Clientes" active={activeModule === 'infraops' && currentView === 'customers'} onClick={() => { setActiveModule('infraops'); setCurrentView('customers'); }} />}
-          <SidebarItem icon={Settings} label="Configurações" disabled />
+          {isOperator && <SidebarItem icon={LayoutDashboard} label="Visão geral" active={currentView === 'overview'} onClick={() => setCurrentView('overview')} />}
+          <p className="px-3 mt-3 mb-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-brand-muted select-none">Operação</p>
+          {isOperator && <SidebarItem icon={Activity} label="NOC" active={currentView === 'monitoring'} onClick={() => setCurrentView('monitoring')} />}
+          <SidebarItem icon={ShieldAlert} label="Incidentes" active={currentView === 'incidents'} onClick={() => setCurrentView('incidents')} />
+          {isOperator && <SidebarItem icon={Cloud} label="Nuvem" active={currentView === 'cloud'} onClick={() => setCurrentView('cloud')} />}
+          {isOperator && <SidebarItem icon={Shield} label="SOC" active={currentView === 'secops'} onClick={() => setCurrentView('secops')} />}
+          {canReadCadastros && <>
+          <p className="px-3 mt-3 mb-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-brand-muted select-none">Cadastros</p>
+          <SidebarItem icon={FileText} label="Contratos" active={currentView === 'contracts'} onClick={() => setCurrentView('contracts')} />
+          <SidebarItem icon={Users} label="Clientes" active={currentView === 'customers'} onClick={() => setCurrentView('customers')} />
+          </>}
         </nav>
 
         {/* ── User card + Logout ── */}
@@ -470,14 +318,14 @@ function AppShellBody({ AUTH, logout, user }: {
               </div>
               {/* Info */}
               <div className="flex-1 min-w-0">
-                <p className="text-[11px] font-medium text-white/80 truncate">
+                <p className="text-xs font-medium text-white/80 truncate">
                   {user.full_name ?? user.email}
                 </p>
-                <span className={`text-[9px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-full ${
+                <span className={`text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 ${
                   user.role === 'admin' ? 'bg-[#00ADE8]/15 text-[#00ADE8]'
                   : user.role === 'noc' ? 'bg-emerald-500/15 text-emerald-400'
                   : user.role === 'soc' ? 'bg-amber-500/15 text-amber-400'
-                  : 'bg-white/10 text-white/40'
+                  : 'bg-white/10 text-brand-muted'
                 }`}>{user.role}</span>
               </div>
               {/* Logout */}
@@ -485,7 +333,7 @@ function AppShellBody({ AUTH, logout, user }: {
                 onClick={logout}
                 title="Sair"
                 aria-label="Sair da conta"
-                className="p-1.5 rounded-lg text-white/30 hover:text-red-400 hover:bg-red-500/10 transition-all duration-200 shrink-0"
+                className="p-1.5 rounded-lg text-brand-muted hover:text-red-400 hover:bg-red-500/10 transition-all duration-200 shrink-0"
               >
                 <LogOut size={13} />
               </button>
@@ -496,31 +344,23 @@ function AppShellBody({ AUTH, logout, user }: {
 
       {/* ══ Main ══ */}
       <main className="flex-1 min-w-0 flex flex-col h-dvh overflow-hidden relative">
-        {/* Background glow — muda por módulo */}
-        <div className="absolute top-0 inset-x-0 h-64 pointer-events-none"
-          style={{ background: `radial-gradient(ellipse at 50% -20%, ${
-            activeModule === 'core'     ? 'rgba(99,102,241,0.07)' :
-            activeModule === 'infraops' ? 'rgba(59,130,246,0.06)' :
-            activeModule === 'secops'   ? 'rgba(239,68,68,0.06)' :
-                                          'rgba(16,185,129,0.06)'
-          } 0%, transparent 70%)` }} />
 
         {/* ── Header ── */}
-        <header className="h-14 box-content pt-[env(safe-area-inset-top)] border-b border-white/[0.05] flex items-center justify-between gap-2 px-3 md:px-8 z-10 shrink-0"
-          style={{ background: 'rgba(8,8,16,0.7)', backdropFilter: 'blur(12px)' }}>
+        <header className="h-16 box-content pt-[env(safe-area-inset-top)] border-b border-white/[0.05] flex items-center justify-between gap-2 px-3 md:px-8 z-10 shrink-0"
+          style={{ background: 'var(--color-brand-base)' }}>
           <div className="flex items-center gap-2 md:gap-3 min-w-0">
             <button
               onClick={() => setNavOpen(true)}
               aria-label="Abrir menu"
               aria-controls="main-nav"
               aria-expanded={navOpen}
-              className="md:hidden p-2.5 -ml-1 rounded-lg text-white/70 hover:bg-white/[0.06]"
+              className="md:hidden p-3 -ml-2 rounded-lg text-white/70 hover:bg-white/[0.06]"
             >
               <Menu size={18} />
             </button>
-            <ModuleSwitcher active={activeModule} onChange={setActiveModule} scoped={!isOperator} />
-            {activeModule !== 'core' && hasCritical && activeModule === 'infraops' && (
-              <span role="status" aria-label={`${summary!.problems_critical} alertas críticos`} className="flex shrink-0 items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-red-500/15 border border-red-500/30 text-red-400">
+            <h1 className="text-xl font-semibold tracking-[-0.02em] truncate">{TITLES[currentView]}</h1>
+            {hasCritical && (currentView === 'overview' || currentView === 'monitoring') && (
+              <span role="status" aria-label={`${summary!.problems_critical} alertas críticos`} className="flex shrink-0 items-center gap-1 text-xs font-semibold px-2 py-0.5 bg-red-500/15 border border-red-500/30 text-red-400">
                 <AlertTriangle size={9} /> {summary!.problems_critical}<span className="hidden sm:inline">{summary!.problems_critical === 1 ? ' alerta crítico' : ' alertas críticos'}</span>
               </span>
             )}
@@ -528,12 +368,12 @@ function AppShellBody({ AUTH, logout, user }: {
 
           <button
             onClick={() => {
-              if (currentView === 'cloud' || currentView === 'contracts' || currentView === 'customers') setCadastrosTick(t => t + 1);
+              if (currentView === 'cloud' || currentView === 'contracts' || currentView === 'customers' || currentView === 'secops') setCadastrosTick(t => t + 1);
               else if (currentView === 'incidents') void fetchIncidents();
               else void fetchData();
             }}
             aria-label="Atualizar dados"
-            className="p-2.5 md:p-1.5 shrink-0 rounded-lg hover:bg-white/[0.06] text-[var(--color-brand-muted)] hover:text-white transition-all duration-200"
+            className="p-3.5 -mr-2 md:mr-0 md:p-1.5 shrink-0 rounded-lg hover:bg-white/[0.06] text-[var(--color-brand-muted)] hover:text-white transition-all duration-200"
             style={{ transitionProperty: 'color, background, transform', transitionDuration: '300ms' }}
           >
             <RefreshCw size={14} />
@@ -544,76 +384,16 @@ function AppShellBody({ AUTH, logout, user }: {
         <div className="flex-1 overflow-auto z-10">
 
           {/* ── ness.OS Core ── */}
-          {activeModule === 'core' && (
-            <CoreDashboard
-              authHeader={AUTH}
-              onModuleSwitch={(mod) => setActiveModule(mod)}
-            />
+          {currentView === 'overview' && (
+            <CoreDashboard authHeader={AUTH} problems={problems} hosts={summary?.hosts_active} observedAt={lastUpdate}
+              pipeline={<PipelineStrip data={pipeline} loading={pipelineLoading} />} />
           )}
 
           {/* ── n.infraops ── */}
-          {activeModule === 'infraops' && !['contracts', 'customers', 'cloud'].includes(currentView) && (
-          <div className="p-4 md:p-8 max-w-6xl space-y-5 animate-fade-in">
-
-            {currentView === 'dashboard' && (
-              <>
-                {/* Alertas de Segurança e Desatualização do Ambiente */}
-                <SecurityAlerts />
-
-                {/* Pipeline Strip */}
-                <PipelineStrip data={pipeline} loading={pipelineLoading} />
-
-                {/* Metric Cards */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <MetricCard
-                    icon={Monitor}
-                    title="Hosts Ativos"
-                    value={summary ? formatNumber(summary.hosts_active) : '—'}
-                    loading={loading}
-                  />
-                  <MetricCard
-                    icon={Cpu}
-                    title="Itens Monitorados"
-                    value={summary ? formatNumber(summary.items_total) : '—'}
-                    loading={loading}
-                  />
-                  <MetricCard
-                    icon={AlertTriangle}
-                    title="Críticos"
-                    value={summary ? summary.problems_critical : '—'}
-                    status={summary && summary.problems_critical > 0 ? 'danger' : 'success'}
-                    loading={loading}
-                  />
-                  <MetricCard
-                    icon={BarChart3}
-                    title="Alertas Totais"
-                    value={summary ? summary.problems_total : '—'}
-                    status={summary && summary.problems_total > 5 ? 'warning' : 'neutral'}
-                    loading={loading}
-                  />
-                </div>
-
-                {/* Alertas */}
-                <SectionCard
-                  title="Alertas Ativos"
-                  count={summary?.problems_total}
-                  loading={loading && !error}
-                >
-                  {error && (
-                    <div className="flex items-center gap-2 text-red-400 text-sm p-3 m-1 rounded-lg bg-red-500/10 border border-red-500/20">
-                      <WifiOff size={14} /> {error}
-                    </div>
-                  )}
-                  {!loading && !error && problems.length === 0 && (
-                    <div className="flex flex-col items-center justify-center py-10 gap-2">
-                      <CheckCircle size={28} className="text-emerald-400 opacity-60" />
-                      <p className="text-sm text-[var(--color-brand-muted)]">Nenhum problema ativo</p>
-                    </div>
-                  )}
-                  {problems.map(p => <ProblemRow key={p.id} p={p} />)}
-                </SectionCard>
-              </>
-            )}
+          {currentView === 'monitoring' && <ProblemsView problems={problems} loading={loading} error={error} observedAt={lastUpdate}
+            hosts={summary?.hosts_active} items={summary?.items_total} />}
+          {currentView === 'incidents' && (
+          <div className="p-4 md:p-6 space-y-5 animate-fade-in">
 
             {currentView === 'incidents' && (
               <IncidentsPage
@@ -626,18 +406,20 @@ function AppShellBody({ AUTH, logout, user }: {
                 initialActiveId={linkedIncident}
                 onChanged={() => { setInboxVersion(v => v + 1); return fetchIncidents(); }}
                 onLoadMore={() => fetchIncidents(incidents.length)}
+                filter={incidentFilter}
+                onFilter={f => { setIncidentFilter(f); writeIncidentFilter(f); }}
               />
             )}
 
           </div>
           )} {/* /infraops */}
-          {activeModule === 'infraops' && currentView === 'cloud' && <CloudManagement refreshKey={cadastrosTick} />}
-          {activeModule === 'infraops' && currentView === 'contracts' && <ContractsScreen role={user?.role} refreshKey={cadastrosTick} />}
-          {activeModule === 'infraops' && currentView === 'customers' && <CustomersScreen role={user?.role} refreshKey={cadastrosTick} />}
+          {currentView === 'cloud' && <CloudManagement refreshKey={cadastrosTick} />}
+          {currentView === 'contracts' && <ContractsScreen role={user?.role} refreshKey={cadastrosTick} />}
+          {currentView === 'customers' && <CustomersScreen role={user?.role} refreshKey={cadastrosTick} />}
 
           {/* ── n.secops ── */}
-          {activeModule === 'secops' && (
-            <SecopsModule />
+          {currentView === 'secops' && (
+            <SocView refreshKey={cadastrosTick} />
           )}
 
         </div>
@@ -652,7 +434,7 @@ export default function App() {
   // Enquanto valida token salvo, mostrar loading minimal
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-[#08111f] flex items-center justify-center">
+      <div className="min-h-screen bg-[var(--color-brand-base)] flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-2 border-[#00ADE8]/30 border-t-[#00ADE8] rounded-full animate-spin" />
           <BrandMark size="sm" className="opacity-60" />

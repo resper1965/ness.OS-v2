@@ -497,6 +497,8 @@ ON CONFLICT DO NOTHING""",
     CONSTRAINT ck_customer_contacts_severity CHECK (notify_severity_min BETWEEN 1 AND 5)
 )""",
             """CREATE INDEX IF NOT EXISTS ix_n_infraops_customer_contacts_customer_id ON n_infraops_customer_contacts (customer_id)""",
+            # Problemas ativos do Zabbix -> incidente/cliente/chamado (tela Monitoramento).
+            """CREATE INDEX IF NOT EXISTS ix_incidents_zabbix_event ON n_infraops_incidents ((tags->>'ninf_zabbix_event_id'))""",
         ):
             await conn.execute(text(ddl))
         await apply_sla_sql(conn)
