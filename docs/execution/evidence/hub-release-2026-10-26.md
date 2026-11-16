@@ -143,3 +143,14 @@ mostram o erro na tela em vez de tela branca (#244).
 Verificação: `/` 200 com 4.057 bytes (antes 1.203 — o vigia embutido aparece 3×), bundle novo
 `/assets/index-BDbPhZ4n.js` 200 (402 KB), `manifest.json` 200 listando os quatro ícones,
 `/icons/icon-192.png` e `/icons/icon-maskable-512.png` 200, `/ready` 200.
+
+## Promoção 3aecc41 (16/11/2026) — API + frontend
+
+Lote de `4a72949` a `3aecc41` (32 commits): remoção do n8n/WhatsApp (#250), backend do SSO Entra (#252, #258), problemas com cliente/chamado (#267), visão global (#268), celular em cartões e painel SOC com menus NOC/SOC (#272). Migração aditiva: índice `ix_incidents_zabbix_event`. OK do Ricardo: "promove". Imagens do `publish-hub-images` run #29.
+
+- API e workers: `ghcr.io/resper1965/ninf-api@sha256:2bc66c90e4db586ab100ea2da0c505f2256674eaf7c94b84dfb062b5f3d2d87d`. `aiops-promote-hub-api.sh`: `promotion=PASS`, `backup_set=20261116T134453-0300` (backup novo, GLPI parado durante o backup), release anterior `4a72949`, `hub_http=401`. `ninf-api` com 0 reinícios.
+- Frontend: `ghcr.io/resper1965/ninf-frontend@sha256:c1104b69745764ee24206357bbeabe551b9c672df9543c5b3d1797d8137744a7`, troca de `NINF_FRONTEND_IMAGE` no `.env` da release `3aecc41` e no canônico `/opt/n-infraops/app/.env` (que também recebeu o `NINF_API_IMAGE` novo). Backup em `change-backups/frontend-20261116T162744/`. Só `ninf-frontend` recriado; Hub `/` 200.
+- Rollback: API `docker compose -p app -f releases/4a72949…/app/docker-compose.yml -f …/docker-compose.tickets.yml up -d --no-deps --force-recreate api worker-alerts worker-ml`; frontend `NINF_FRONTEND_IMAGE=…@sha256:a130c225…` nos dois `.env` e recriar o contêiner.
+- A segunda execução do script às 16:08 saiu na guarda `target_dir` já existente, sem efeito; o log `/tmp/promo-3aecc41.log` ficou vazio e a evidência vale pelo `evidence/promotion-context.txt` da release.
+- `ninf-n8n`, `ninf-evolution` e `ninf-evolution-manager` (fora do código desde #250) parados em 16/11 com `restart=no`, sem apagar contêiner, volume ou banco; Hub 200. Religar: `docker start <nome>`. `ninf-glpi-maintenance-gateway` não é órfão (vem de `docker-compose.glpi-maintenance.yml`) e segue `healthy`.
+- Pendente (a partir de 23/11, com OK "apaga"): copiar `n8n-data`, `evolution-instances`, `evolution-store` e o banco `evolution` para `change-backups`, depois remover contêineres, volumes e banco.
