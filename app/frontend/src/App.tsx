@@ -59,27 +59,18 @@ function SidebarItem({
       aria-current={active ? 'page' : undefined}
       aria-disabled={disabled ? 'true' : undefined}
       className={`
-        w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left
-        transition-all duration-200 relative group select-none
+        w-full flex items-center gap-3 px-3 py-2.5 text-left
+        transition-colors duration-150 select-none
         ${active
-          ? 'text-white'
+          ? 'text-brand-text shadow-[inset_2px_0_0_var(--color-brand-primary)]'
           : disabled || !onClick
             ? 'text-brand-muted cursor-not-allowed'
-            : 'text-[var(--color-brand-muted)] hover:text-white/90 hover:bg-white/[0.04]'
+            : 'text-brand-text-3 hover:text-brand-text hover:bg-brand-surface'
         }
       `}
-      style={active ? {
-        background: 'rgba(0,173,232,0.12)',
-      } : {}}
     >
-      {active && (
-        <span
-          className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-6 rounded-r-full"
-          style={{ background: '#00ADE8' }}
-        />
-      )}
-      <Icon size={18} className={active ? 'text-[#00ADE8]' : ''} />
-      <span className={`font-medium text-sm ${active ? 'text-white' : 'text-slate-400'}`}>{label}</span>
+      <Icon size={16} strokeWidth={1.5} className={active ? 'text-brand-primary' : ''} />
+      <span className="font-medium text-sm">{label}</span>
     </button>
   );
 }
@@ -255,7 +246,7 @@ function AppShellBody({ AUTH, logout, user }: {
       {navOpen && <div className="fixed inset-0 z-30 bg-black/60 md:hidden" onClick={() => setNavOpen(false)} aria-hidden="true" />}
 
       {/* ══ Sidebar (gaveta no mobile) ══ */}
-      <aside id="main-nav" className={`w-60 border-r border-white/[0.05] bg-[var(--color-brand-base)] flex flex-col py-5 px-3 gap-6 shrink-0 overflow-y-auto
+      <aside id="main-nav" className={`w-[232px] border-r border-brand-border bg-[var(--color-brand-base)] flex flex-col py-5 px-3 gap-6 shrink-0 overflow-y-auto
         fixed inset-y-0 left-0 z-40 transition-[transform,visibility] duration-200 pt-[max(1.25rem,env(safe-area-inset-top))]
         md:static md:z-10 md:translate-x-0 ${navOpen ? 'translate-x-0' : '-translate-x-full max-md:invisible'}`}>
 
@@ -268,7 +259,7 @@ function AppShellBody({ AUTH, logout, user }: {
           {isOperator && currentView === 'incidents' ? (
             <TenantSelector selectedTenant={selectedTenant} onSelect={setSelectedTenant} />
           ) : (
-            <p className="text-xs text-white/60">{isOperator ? 'Operação global' : 'Minha empresa'}</p>
+            <p className="text-xs text-brand-text-3">{isOperator ? 'Operação global' : 'Minha empresa'}</p>
           )}
         </div>
 
@@ -294,12 +285,12 @@ function AppShellBody({ AUTH, logout, user }: {
 
           {/* Status de conexão */}
           <div role="status" aria-live="polite">
-            <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs
-              ${connectionError ? 'bg-red-500/10 text-red-400' : 'bg-white/[0.03] text-[var(--color-brand-muted)]'}`}
+            <div className={`flex items-center gap-2 px-3 py-2 text-xs border-l-2
+              ${connectionError ? 'border-brand-danger text-brand-danger' : 'border-transparent text-brand-muted'}`}
             >
               {connectionError
                 ? <><WifiOff size={11} /> Sem conexão</>
-                : <><div className="w-1.5 h-1.5 rounded-full bg-[var(--color-brand-success)]" />
+                : <><div className="w-2 h-2 rounded-full bg-brand-success" />
                     {lastUpdate
                       ? `Sincronizado ${lastUpdate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
                       : 'Conectando à API...'}</>
@@ -309,31 +300,26 @@ function AppShellBody({ AUTH, logout, user }: {
 
           {/* User info + logout */}
           {user && (
-            <div className="flex items-center gap-2 px-2 py-2 rounded-xl bg-white/[0.04] border border-white/[0.06]">
+            <div className="flex items-center gap-2 px-2 py-2 bg-brand-surface border border-brand-border">
               {/* Avatar */}
-              <div className="w-7 h-7 rounded-full bg-[#00ADE8]/20 border border-[#00ADE8]/30 flex items-center justify-center shrink-0">
-                <span className="text-[10px] font-bold text-[#00ADE8] uppercase">
+              <div className="w-7 h-7 rounded-full border border-brand-primary flex items-center justify-center shrink-0">
+                <span className="text-[10px] font-semibold text-brand-primary uppercase">
                   {user.full_name?.charAt(0) ?? user.email.charAt(0)}
                 </span>
               </div>
               {/* Info */}
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-white/80 truncate">
+                <p className="text-xs font-medium text-brand-text-2 truncate">
                   {user.full_name ?? user.email}
                 </p>
-                <span className={`text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 ${
-                  user.role === 'admin' ? 'bg-[#00ADE8]/15 text-[#00ADE8]'
-                  : user.role === 'noc' ? 'bg-emerald-500/15 text-emerald-400'
-                  : user.role === 'soc' ? 'bg-amber-500/15 text-amber-400'
-                  : 'bg-white/10 text-brand-muted'
-                }`}>{user.role}</span>
+                <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-brand-muted">{user.role}</span>
               </div>
               {/* Logout */}
               <button
                 onClick={logout}
                 title="Sair"
                 aria-label="Sair da conta"
-                className="p-1.5 rounded-lg text-brand-muted hover:text-red-400 hover:bg-red-500/10 transition-all duration-200 shrink-0"
+                className="p-1.5 text-brand-muted hover:text-brand-danger transition-colors shrink-0"
               >
                 <LogOut size={13} />
               </button>
@@ -346,7 +332,7 @@ function AppShellBody({ AUTH, logout, user }: {
       <main className="flex-1 min-w-0 flex flex-col h-dvh overflow-hidden relative">
 
         {/* ── Header ── */}
-        <header className="h-16 box-content pt-[env(safe-area-inset-top)] border-b border-white/[0.05] flex items-center justify-between gap-2 px-3 md:px-8 z-10 shrink-0"
+        <header className="h-16 box-content pt-[env(safe-area-inset-top)] border-b border-brand-border flex items-center justify-between gap-2 px-3 md:px-8 z-10 shrink-0"
           style={{ background: 'var(--color-brand-base)' }}>
           <div className="flex items-center gap-2 md:gap-3 min-w-0">
             <button
@@ -354,13 +340,13 @@ function AppShellBody({ AUTH, logout, user }: {
               aria-label="Abrir menu"
               aria-controls="main-nav"
               aria-expanded={navOpen}
-              className="md:hidden p-3 -ml-2 rounded-lg text-white/70 hover:bg-white/[0.06]"
+              className="md:hidden p-3 -ml-2 text-brand-text-2 hover:bg-brand-surface"
             >
               <Menu size={18} />
             </button>
             <h1 className="text-xl font-semibold tracking-[-0.02em] truncate">{TITLES[currentView]}</h1>
             {hasCritical && (currentView === 'overview' || currentView === 'monitoring') && (
-              <span role="status" aria-label={`${summary!.problems_critical} alertas críticos`} className="flex shrink-0 items-center gap-1 text-xs font-semibold px-2 py-0.5 bg-red-500/15 border border-red-500/30 text-red-400">
+              <span role="status" aria-label={`${summary!.problems_critical} alertas críticos`} className="flex shrink-0 items-center gap-1 text-xs font-semibold px-2 py-0.5 border border-brand-danger text-brand-danger">
                 <AlertTriangle size={9} /> {summary!.problems_critical}<span className="hidden sm:inline">{summary!.problems_critical === 1 ? ' alerta crítico' : ' alertas críticos'}</span>
               </span>
             )}
@@ -373,8 +359,7 @@ function AppShellBody({ AUTH, logout, user }: {
               else void fetchData();
             }}
             aria-label="Atualizar dados"
-            className="p-3.5 -mr-2 md:mr-0 md:p-1.5 shrink-0 rounded-lg hover:bg-white/[0.06] text-[var(--color-brand-muted)] hover:text-white transition-all duration-200"
-            style={{ transitionProperty: 'color, background, transform', transitionDuration: '300ms' }}
+            className="p-3.5 -mr-2 md:mr-0 md:p-1.5 shrink-0 hover:bg-brand-surface text-brand-muted hover:text-brand-text transition-colors"
           >
             <RefreshCw size={14} />
           </button>
@@ -437,7 +422,7 @@ export default function App() {
     return (
       <div className="min-h-screen bg-[var(--color-brand-base)] flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
-          <div role="status" className="w-32 h-1 bg-[var(--color-brand-elevated)]"><span className="sr-only">Carregando…</span></div>
+          <div role="status" className="w-32 h-1 bg-brand-elevated"><span className="sr-only">Carregando…</span></div>
           <BrandMark size="sm" className="opacity-60" />
         </div>
       </div>

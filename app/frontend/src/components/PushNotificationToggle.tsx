@@ -115,26 +115,24 @@ export default function PushNotificationToggle() {
       onClick={handleTogglePush}
       disabled={loading}
       className={`
-        w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left text-xs font-medium
-        transition-all duration-200 select-none border border-white/[0.04]
-        ${isSubscribed 
-          ? 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/15 hover:text-emerald-300' 
-          : 'bg-white/[0.03] text-brand-muted hover:bg-white/[0.06] hover:text-white/80'}
+        w-full flex items-center gap-3 px-3 py-2 text-left text-xs font-medium
+        transition-colors select-none border border-brand-border hover:border-brand-primary
+        ${isSubscribed ? 'text-brand-success' : 'text-brand-muted hover:text-brand-text'}
       `}
     >
       {loading ? (
         <Bell size={13} className="shrink-0 opacity-40" aria-hidden />
       ) : isSubscribed ? (
-        <BellRing size={13} className="shrink-0 text-emerald-400" />
+        <BellRing size={13} className="shrink-0" />
       ) : (
         <Bell size={13} className="shrink-0" />
       )}
       <span className="flex-1">
         {loading 
-          ? 'Processando...' 
+          ? 'Processando…' 
           : isSubscribed 
-            ? 'Alertas Push Ativados' 
-            : 'Ativar Alertas Push'}
+            ? 'Alertas no navegador ativos' 
+            : 'Ativar alertas no navegador'}
       </span>
     </button>
   );
