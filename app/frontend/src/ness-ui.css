@@ -69,6 +69,8 @@
 .nx-kpis > div { background: var(--nx-surface); padding: 12px 16px; display: grid; gap: 6px; }
 .nx-kpis dt { font: 500 10px/1 var(--nx-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--nx-ink-4); }
 .nx-kpis dd { margin: 0; font: 600 24px/1 var(--nx-mono); font-variant-numeric: tabular-nums; }
+/* KPIs fixos no topo enquanto a Visão geral rola. */
+.nx-kpis.nx-sticky { position: sticky; top: 0; z-index: 6; }
 .nx-kpis dd.bad, .nx-bad { color: var(--nx-bad); }
 .nx-filters { position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding: 12px 0; margin-bottom: 12px; background: var(--nx-paper); border-bottom: 1px solid var(--nx-line); }
 .nx-search { display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 10px; min-width: 240px; flex: 1; max-width: 360px; border: 1px solid var(--nx-line); color: var(--nx-ink-3); }
