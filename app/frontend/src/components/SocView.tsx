@@ -113,10 +113,10 @@ function Evolution({ data }: { data: SocOverview }) {
   );
 }
 
-export default function SocView() {
+export default function SocView({ refreshKey = 0 }: { refreshKey?: number }) {
   const [hours, setHours] = useState(24);
   const [customer, setCustomer] = useState('');
-  const [customers, setCustomers] = useState<string[]>([]);
+  const [customers, setCustomers] = useState<{ id: string; name: string }[]>([]);
   const [q, setQ] = useState('');
   const [band, setBand] = useState<Band | ''>('');
   const [data, setData] = useState<SocOverview | null>(null);
@@ -128,9 +128,13 @@ export default function SocView() {
       const qs = new URLSearchParams({ hours: String(hours), ...(customer && { customer_id: customer }) });
       const next = await request<SocOverview>(`/api/secops/overview?${qs}`);
       setData(next); setError(null); setAt(new Date().toISOString());
-      if (!customer) setCustomers(next.top_customers.map(c => c.key).filter(c => c !== NO_CUSTOMER));
     } catch (e) { setError(asApiError(e)); }
-  }, [hours, customer]);
+  }, [hours, customer, refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Lista completa de clientes: o ranking do painel corta em 8.
+  useEffect(() => {
+    request<{ id: string; name: string }[]>('/api/tenants/list').then(setCustomers, () => setCustomers([]));
+  }, []);
 
   useEffect(() => {
     void load();
@@ -151,7 +155,7 @@ export default function SocView() {
         <label className="nx-field nx-inline">Cliente
           <select value={customer} onChange={e => setCustomer(e.target.value)}>
             <option value="">Todos</option>
-            {customers.map(c => <option key={c} value={c}>{c}</option>)}
+            {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         </label>
         <span className="nx-meta">{at ? `Atualizado ${timeAgo(at)}` : 'Consultando…'}</span>

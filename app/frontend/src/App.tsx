@@ -368,7 +368,7 @@ function AppShellBody({ AUTH, logout, user }: {
 
           <button
             onClick={() => {
-              if (currentView === 'contracts' || currentView === 'customers') setCadastrosTick(t => t + 1);
+              if (currentView === 'contracts' || currentView === 'customers' || currentView === 'secops') setCadastrosTick(t => t + 1);
               else if (currentView === 'incidents') void fetchIncidents();
               else void fetchData();
             }}
@@ -420,7 +420,7 @@ function AppShellBody({ AUTH, logout, user }: {
 
           {/* ── n.secops ── */}
           {currentView === 'secops' && (
-            <SocView />
+            <SocView refreshKey={cadastrosTick} />
           )}
 
         </div>
