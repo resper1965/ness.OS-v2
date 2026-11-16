@@ -1,6 +1,6 @@
 # ADR 0006 — Canal mobile técnico e Evolution como fallback
 
-- Status: aceita
+- Status: aceita; o fallback Evolution foi retirado em 16/11/2026 (#250). A PWA com push é o único canal técnico.
 - Data: 20/08/2026
 - Decisor: Ricardo Esper
 

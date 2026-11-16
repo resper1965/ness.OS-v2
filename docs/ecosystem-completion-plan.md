@@ -4,6 +4,7 @@
 > Escopo: ativos existentes, infraestrutura Contabo escalonada, aplicações especializadas e produto ness.OS
 > Horizonte: 18 semanas para a primeira operação integrada; crescimento até 5.000 endpoints acionado por métricas
 > Estado: aprovado por Ricardo Esper; Gate 0 em andamento
+> Atualização 16/11/2026: n8n e Evolution saíram (#250), o Authentik sai após o D+2 do Zabbix (ADR 0015). Inventário de VPS e clientes por fase: [arquitetura oficial](architecture/ness-os-official-architecture.md#estado--16112026).
 > Fonte visual: [`docs/presentations/ness-os-infrastructure-5000-endpoints.html`](presentations/ness-os-infrastructure-5000-endpoints.html)
 
 ## 1. Objetivo

@@ -4,7 +4,7 @@
 
 **Estágio:** em andamento
 
-**Próximo passo:** validar NOC e SOC com dado real no Hub (promovido `3aecc41` em 16/11: API + frontend); a partir de 23/11, apagar n8n/Evolution (parados em 16/11) com backup e OK "apaga". Depois: painel da Contabo #260, retirar o Authentik e migrar as telas antigas para o kit `.nx`.
+**Próximo passo:** validar NOC e SOC com dado real no Hub (promovido `3aecc41` em 16/11: API + frontend); a partir de 23/11, apagar n8n/Evolution (parados em 16/11) com backup e OK "apaga". Documentos atualizados em 16/11 (apps que saíram, VPS e clientes por fase na arquitetura oficial). Depois: painel da Contabo #260, retirar o Authentik e migrar as telas antigas para o kit `.nx`.
 
 ## Quadro (atualizado a cada task fechada)
 
