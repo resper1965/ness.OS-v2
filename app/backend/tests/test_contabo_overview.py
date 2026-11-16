@@ -92,3 +92,24 @@ def test_overview_old_snapshot_and_timeline():
         "by": "x@ness.com.br",
         "fields": ["status"],
     }
+
+
+def test_overview_groups_servers_by_customer_tag():
+    o = build_overview(
+        _raw(tags={"cliente:Alupar": [1, 2], "cliente:Ionic": [1], "prod": [1]}), NOW
+    )
+    by = {c["name"]: c for c in o["customers"]}
+    assert by["Alupar"]["servers"] == ["aiops", "zbx"]
+    assert by["Alupar"]["level"] == "bad" and by["Ionic"]["level"] == "ok"
+    assert o["customers"][0]["name"] == "Alupar"
+    assert set(by) == {"Alupar", "Ionic"}
+
+
+def test_overview_untagged_servers_listed_last():
+    o = build_overview(_raw(tags={"cliente:Ionic": [1]}), NOW)
+    assert o["customers"][-1] == {
+        "name": None,
+        "servers": ["zbx"],
+        "level": "bad",
+        "risks": 4,
+    }

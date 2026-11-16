@@ -8,14 +8,15 @@ interface Risk { level: 'bad' | 'warn'; kind: string; target: string; detail: st
 interface Instance {
   id: number; name: string; status: string; product: string | null; region: string | null; ipv4: string | null;
   cpu: number | null; ram_gb: number; disk_gb: number; cancel_date: string | null; error: string | null;
-  firewalls: string[]; networks: string[]; snapshots: number | null; snapshot_age_days: number | null;
+  firewalls: string[]; networks: string[]; snapshots: number | null; snapshot_age_days: number | null; customers: string[];
 }
+interface Customer { name: string | null; servers: string[]; level: 'bad' | 'warn' | 'ok'; risks: number }
 interface Storage { id: string; name: string; status: string; region: string | null; total_tb: number | null; used_tb: number | null; used_pct: number | null; objects: number | null }
 interface Event { at: string | null; kind: string; action: string; target: string; by: string | null; fields: string[] }
 export interface Overview {
   observed_at: string;
   fleet: { instances: number; statuses: Record<string, number>; cpu: number; ram_gb: number; disk_gb: number; regions: string[]; firewalls: number; networks: number };
-  risks: Risk[]; instances: Instance[]; storages: Storage[]; events: Event[];
+  customers: Customer[]; risks: Risk[]; instances: Instance[]; storages: Storage[]; events: Event[];
 }
 
 const STATUS_TONE: Record<string, Tone> = { running: 'ok', stopped: 'warn', error: 'bad', rescue: 'warn' };
@@ -61,6 +62,22 @@ export default function CloudManagement({ refreshKey }: { refreshKey?: number })
       {loading && !data && <Skeleton rows={6} />}
 
       {data && f && <>
+        <Panel title="Clientes" meta={<Badge tone={data.customers.some((c) => c.level === 'bad') ? 'bad' : 'neutral'}>{data.customers.filter((c) => c.name).length}</Badge>} flush>
+          {data.customers.length === 0 ? <Empty title="Nenhum servidor." /> : (
+            <table className="nx-table">
+              <thead><tr><th scope="col">Cliente</th><th scope="col">Situação</th><th scope="col">Servidores</th></tr></thead>
+              <tbody>{data.customers.map((c) => (
+                <tr key={c.name ?? ''}>
+                  <td>{c.name ? <strong>{c.name}</strong> : <Badge tone="warn">sem cliente</Badge>}</td>
+                  <td><Badge tone={c.level}>{c.level === 'ok' ? 'ok' : `${c.risks} ${c.risks === 1 ? 'risco' : 'riscos'}`}</Badge></td>
+                  <td className="nx-muted">{c.servers.join(', ')}</td>
+                </tr>
+              ))}</tbody>
+            </table>
+          )}
+          {data.customers.some((c) => !c.name) && <p className="nx-muted" style={{ padding: '8px 16px' }}>Para vincular, crie no painel da Contabo a tag <code>cliente:Nome</code> e atribua ao servidor.</p>}
+        </Panel>
+
         <Panel title="Frota">
           <div className="nx-grid">
             <Stat label="Servidores" value={num(f.instances)} />
@@ -96,7 +113,7 @@ export default function CloudManagement({ refreshKey }: { refreshKey?: number })
                 <thead><tr><th scope="col">Servidor</th><th scope="col">Estado</th><th scope="col">Plano</th><th scope="col">Recursos</th><th scope="col">Firewall</th><th scope="col">Snapshot</th></tr></thead>
                 <tbody>{rows.map((i) => (
                   <tr key={i.id}>
-                    <td><strong>{i.name}</strong><div className="nx-mono nx-muted">{i.ipv4 ?? '—'} · {i.region ?? '—'}</div></td>
+                    <td><strong>{i.name}</strong>{i.customers.length > 0 && <span className="nx-muted"> · {i.customers.join(', ')}</span>}<div className="nx-mono nx-muted">{i.ipv4 ?? '—'} · {i.region ?? '—'}</div></td>
                     <td><Badge tone={STATUS_TONE[i.status] ?? 'neutral'}>{i.status}</Badge>{i.cancel_date && <div className="nx-muted">cancela {fmtDate(i.cancel_date)}</div>}</td>
                     <td>{i.product ?? '—'}</td>
                     <td className="nx-mono" style={{ fontVariantNumeric: 'tabular-nums' }}>{i.cpu ?? '—'} vCPU · {i.ram_gb} GB · {i.disk_gb} GB</td>

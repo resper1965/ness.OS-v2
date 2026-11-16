@@ -128,6 +128,8 @@ SNAPSHOT_MAX_AGE_DAYS = 7
 STORAGE_WARN_PCT = 80
 AUDIT_DAYS = 7
 _INACTIVE = {"uninstalled", "cancelled"}
+# Tag da Contabo que liga servidor a cliente: `cliente:<nome>` (várias por servidor = compartilhado).
+CUSTOMER_TAG = "cliente:"
 
 
 def _parse(ts: str | None) -> datetime | None:
@@ -150,6 +152,12 @@ def build_overview(raw: dict[str, Any], now: datetime) -> dict[str, Any]:
     for net in raw["networks"]:
         for inst in net.get("instances") or []:
             net_of.setdefault(inst.get("instanceId"), []).append(net.get("name") or "")
+
+    cust_of: dict[int, list[str]] = {}
+    for tag, ids in (raw.get("tags") or {}).items():
+        if tag.lower().startswith(CUSTOMER_TAG):
+            for iid in ids:
+                cust_of.setdefault(iid, []).append(tag[len(CUSTOMER_TAG) :].strip())
 
     rows, risks = [], []
     for i in instances:
@@ -178,6 +186,7 @@ def build_overview(raw: dict[str, Any], now: datetime) -> dict[str, Any]:
             "error": i.get("errorMessage") or None,
             "firewalls": fw_of.get(iid, []),
             "networks": net_of.get(iid, []),
+            "customers": sorted(cust_of.get(iid, [])),
             "snapshots": None if snaps is None else len(snaps),
             "snapshot_age_days": age,
         }
@@ -286,7 +295,27 @@ def build_overview(raw: dict[str, Any], now: datetime) -> dict[str, Any]:
             statuses.get(r["status"] or "unknown", 0) + 1
         )
     risks.sort(key=lambda r: r["level"] != "bad")
+    worst: dict[str, str] = {}
+    for r in risks:
+        if worst.get(r["target"]) != "bad":
+            worst[r["target"]] = r["level"]
+    customers: dict[str, dict[str, Any]] = {}
+    for r in rows:
+        for c in r["customers"] or [""]:
+            e = customers.setdefault(
+                c, {"name": c or None, "servers": [], "level": "ok", "risks": 0}
+            )
+            e["servers"].append(r["name"])
+            e["risks"] += sum(1 for x in risks if x["target"] == r["name"])
+            lv = worst.get(r["name"], "ok")
+            if lv == "bad" or (lv == "warn" and e["level"] == "ok"):
+                e["level"] = lv
+    rank = {"bad": 0, "warn": 1, "ok": 2}
     return {
+        "customers": sorted(
+            customers.values(),
+            key=lambda c: (c["name"] is None, rank[c["level"]], c["name"] or ""),
+        ),
         "observed_at": now.isoformat(),
         "fleet": {
             "instances": len(rows),
@@ -322,6 +351,7 @@ def get_overview(client: ContaboAPIClient = Depends(get_contabo_client)):
                 "storages": ex.submit(client.get, "/object-storages", page),
                 "firewalls": ex.submit(client.get, "/firewalls", page),
                 "networks": ex.submit(client.get, "/private-networks", page),
+                "tags": ex.submit(client.get, "/tags", page),
                 "a_instance": ex.submit(client.get, "/compute/instances/audits", since),
                 "a_firewall": ex.submit(client.get, "/firewalls/audits", since),
                 "a_snapshot": ex.submit(client.get, "/compute/snapshots/audits", since),
@@ -342,7 +372,20 @@ def get_overview(client: ContaboAPIClient = Depends(get_contabo_client)):
                 )
                 for s in data["storages"]
             }
+            tag_f = {
+                t["name"]: ex.submit(
+                    client.get,
+                    f"/tags/{t['tagId']}/assignments",
+                    {"size": 200, "resourceType": "instance"},
+                )
+                for t in data["tags"]
+                if (t.get("name") or "").lower().startswith(CUSTOMER_TAG)
+            }
             snapshots = {iid: fu.result().get("data", []) for iid, fu in snap_f.items()}
+            tags = {
+                name: [int(a["resourceId"]) for a in fu.result().get("data", [])]
+                for name, fu in tag_f.items()
+            }
             stats = {}
             for sid, fu in stat_f.items():
                 d = fu.result().get("data") or [{}]
@@ -357,6 +400,7 @@ def get_overview(client: ContaboAPIClient = Depends(get_contabo_client)):
             "networks": data["networks"],
             "snapshots": snapshots,
             "storage_stats": stats,
+            "tags": tags,
             "audits": {
                 "instância": data["a_instance"],
                 "firewall": data["a_firewall"],
