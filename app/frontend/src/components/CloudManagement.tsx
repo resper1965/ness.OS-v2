@@ -78,7 +78,7 @@ export default function CloudManagement() {
         <div className="space-y-3">
           {healthAlerts.map((alert, idx) => (
             <div key={idx} className={`
-              flex items-center gap-4 p-4 rounded-xl border animate-slide-left
+              flex items-center gap-4 p-4 rounded-xl border animate-fade-in
               ${alert.type === 'danger' ? 'bg-red-500/10 border-red-500/20 text-red-400' : 'bg-orange-500/10 border-orange-500/20 text-orange-400'}
             `}>
               <alert.icon size={20} />
@@ -175,8 +175,8 @@ export default function CloudManagement() {
               className="bg-white/[0.03] border border-white/[0.06] rounded-lg py-1.5 pl-9 pr-4 text-xs text-white placeholder:text-brand-muted focus:border-[var(--color-brand-primary)]/40 focus:bg-white/[0.05] transition-all w-48 focus:w-64"
             />
           </div>
-          <button onClick={fetchData} className="p-1.5 rounded-lg bg-white/[0.03] border border-white/[0.06] text-[var(--color-brand-muted)] hover:text-white transition-all">
-            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+          <button onClick={fetchData} disabled={loading} aria-label="Atualizar" className="p-1.5 rounded-lg bg-white/[0.03] border border-white/[0.06] text-[var(--color-brand-muted)] hover:text-white transition-all">
+            <RefreshCw size={14} className={loading ? 'opacity-40' : ''} />
           </button>
         </div>
       </div>

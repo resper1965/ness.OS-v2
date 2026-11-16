@@ -11,7 +11,6 @@
   /* ── Brand Accent ───────────────────── */
   --color-brand-primary:   #00ADE8;
   --color-brand-primary-dim: rgba(0,173,232,0.12);
-  --color-brand-primary-glow: rgba(0,173,232,0.25);
 
   /* ── Semantic Status ────────────────── */
   --color-brand-success:   #10B981;
@@ -54,7 +53,7 @@
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
   background: var(--color-brand-subtle);
-  border-radius: 99px;
+  border-radius: 0;
 }
 ::-webkit-scrollbar-thumb:hover { background: var(--color-brand-primary); }
 
@@ -63,41 +62,12 @@
   from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-@keyframes slide-in-left {
-  from { opacity: 0; transform: translateX(-8px); }
-  to   { opacity: 1; transform: translateX(0); }
-}
-@keyframes pulse-dot {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(59,130,246,0.4); }
-  50%       { box-shadow: 0 0 0 5px rgba(59,130,246,0); }
-}
-@keyframes flow-arrow {
-  0%   { opacity: 0.2; transform: translateX(-4px); }
-  50%  { opacity: 1;   transform: translateX(0px); }
-  100% { opacity: 0.2; transform: translateX(4px); }
-}
 
-.animate-fade-in    { animation: fade-in 0.25s ease both; }
-.animate-slide-left { animation: slide-in-left 0.2s ease both; }
-.animate-pulse-dot  { animation: pulse-dot 2s ease-in-out infinite; }
-.animate-flow       { animation: flow-arrow 1.5s ease-in-out infinite; }
+/* ness. DS: rise 200ms, ease-out; sem movimento com prefers-reduced-motion. */
+.animate-fade-in { animation: fade-in .2s cubic-bezier(.16,1,.3,1) both; }
+@media (prefers-reduced-motion: reduce) { .animate-fade-in { animation: none; } }
 
 
-.metric-card {
-  @apply bg-brand-surface border border-brand-border p-6 flex flex-col gap-4 relative overflow-hidden;
-}
-
-.sidebar-item {
-  @apply flex items-center gap-3 px-4 py-3 transition-colors duration-150 cursor-pointer text-slate-300 hover:text-white hover:bg-white/5 font-medium;
-}
-
-.sidebar-item.active {
-  @apply text-brand-primary bg-white/5 shadow-[inset_2px_0_0_var(--color-brand-primary)];
-}
-
-.status-badge {
-  @apply px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider;
-}
 
 code, .font-mono {
   font-family: var(--font-mono);

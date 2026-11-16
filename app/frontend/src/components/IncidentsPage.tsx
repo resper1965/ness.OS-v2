@@ -52,7 +52,7 @@ function IncidentTimeline({ stage }: { stage: string }) {
                 </div>
                 {/* Tooltip */}
                 <div className="absolute bottom-full mb-1.5 hidden group-hover:block z-50 pointer-events-none">
-                  <div className="bg-[var(--color-brand-elevated)] border border-white/10 rounded px-2 py-1 text-xs text-slate-300 whitespace-nowrap shadow-xl">
+                  <div className="bg-[var(--color-brand-elevated)] border border-white/10 rounded px-2 py-1 text-xs text-slate-300 whitespace-nowrap">
                     {s.label}
                   </div>
                 </div>
@@ -340,14 +340,14 @@ export default function IncidentsPage({ incidents, total, loading, loadingMore, 
             {detail && (
               <>
                 <p className="whitespace-pre-wrap">{detail.description || 'Sem descrição da origem.'}</p>
-                <p>Host Zabbix #{detail.host_id} · Trigger #{detail.trigger_id} · Evento #{detail.source_event_id || 'indisponível'}</p>
+                <p>Host #{detail.host_id} · Gatilho #{detail.trigger_id} · Evento #{detail.source_event_id || 'indisponível'}</p>
                 {detail.source_url && (
                   <a href={detail.source_url} target="_blank" rel="noopener noreferrer" className="inline-block text-[var(--color-brand-primary)] hover:underline">
-                    Abrir evento no Zabbix
+                    Abrir evento na origem
                   </a>
                 )}
                 <p>Sincronização da resolução: {detail.resolution_sync_status || 'sem atualização registrada'}</p>
-                <p>Estado Zabbix: {detail.source_status === 'resolved' ? `sinal recuperado em ${detail.source_recovered_at || 'horário indisponível'}` : detail.source_status === 'problem' ? 'problema ativo' : 'não registrado'}</p>
+                <p>Estado na origem: {detail.source_status === 'resolved' ? `sinal recuperado em ${detail.source_recovered_at || 'horário indisponível'}` : detail.source_status === 'problem' ? 'problema ativo' : 'não registrado'}</p>
                 <p>Responsável no Hub: {detail.assigned_user_id ? `usuário #${detail.assigned_user_id}` : 'não atribuído'}</p>
                 {canAct && (
                   <div className="space-y-2 border-t border-white/[0.06] pt-3">

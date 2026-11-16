@@ -84,9 +84,9 @@ export default function CoreDashboard({ authHeader, problems, hosts, observedAt,
       {/* ponytail: totais saem da lista limitada a 2.000 (hoje ~800); upgrade path: agregado na API (F2/F3). */}
       {problems.length >= 2000 && <div className="nx-alert warn" role="alert">Mais de 2.000 problemas ativos: as contagens abaixo são parciais.</div>}
 
-      <Panel title="Fontes" meta={<span className="nx-meta">Zabbix {observedAt ? timeAgo(observedAt.toISOString()) : 'sem leitura'}</span>} flush>
+      <Panel title="Fontes" meta={<span className="nx-meta">Monitoramento {observedAt ? timeAgo(observedAt.toISOString()) : 'sem leitura'}</span>} flush>
         <ol className="nx-flow">
-          {([['zabbix', 'Zabbix', 'Monitoramento de infraestrutura'], ['wazuh', 'Wazuh', 'Eventos de segurança'], ['glpi', 'GLPI', 'Chamados']] as const).map(([k, label, role]) => {
+          {([['zabbix', 'Monitoramento', 'Infraestrutura'], ['wazuh', 'Segurança', 'Eventos de segurança'], ['glpi', 'Chamados', 'Fila de atendimento']] as const).map(([k, label, role]) => {
             const s = sources?.[k];
             const [tone, text] = s ? SOURCE[s.status] : ['neutral', 'Sem leitura'] as [Tone, string];
             return (

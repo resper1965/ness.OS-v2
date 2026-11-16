@@ -9,13 +9,6 @@ import BrandMark from './BrandMark';
 const inputCls =
   'w-full px-4 py-3 text-sm text-white bg-brand-base border border-white/15 placeholder:text-[#8fa0b6] focus:border-[#00ADE8]';
 
-const Spinner = ({ cls }: { cls: string }) => (
-  <svg className={`animate-spin ${cls}`} viewBox="0 0 24 24" fill="none" aria-hidden>
-    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-  </svg>
-);
-
 export default function LoginPage() {
   const { login, loginWithSSO, exchangeCodeForToken } = useAuth();
   const [email, setEmail] = useState('');
@@ -75,8 +68,8 @@ export default function LoginPage() {
 
         {ssoLoading ? (
           <div className="flex flex-col items-center justify-center py-10 gap-4" role="status">
-            <Spinner cls="w-8 h-8 text-[#00ADE8]" />
-            <span className="text-[#cbd5e1] text-sm">Autenticando via SSO...</span>
+            <div className="w-32 h-1 bg-[var(--color-brand-elevated)]" aria-hidden />
+            <span className="text-[#cbd5e1] text-sm">Autenticando…</span>
           </div>
         ) : (
           <>
@@ -118,7 +111,7 @@ export default function LoginPage() {
                 </div>
                 <button type="submit" disabled={loading}
                   className="w-full py-3 text-sm font-semibold text-[#f1f5f9] border border-white/20 hover:border-[#00ADE8] disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
-                  {loading ? <span className="flex items-center justify-center gap-2"><Spinner cls="w-4 h-4" />Entrando…</span> : 'Entrar'}
+                  {loading ? 'Entrando…' : 'Entrar'}
                 </button>
               </form>
             </details>
