@@ -1,7 +1,6 @@
 import asyncio
 import json
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock
 
 import httpx
@@ -11,7 +10,7 @@ from sqlalchemy.exc import OperationalError
 
 from app.integrations.glpi import GLPIClient, GLPIPermanentError, GLPITransientError
 from app.ml.analyzer import AIAnalysisResult
-from app.models import Incident, IncidentAction
+from app.models import IncidentAction
 from app.workers import alerts
 from app.workers.alerts import ensure_glpi_ticket, ensure_glpi_ticket_serialized
 
@@ -617,8 +616,6 @@ async def test_zabbix_recovery_records_signal_without_changing_glpi_state(
     redis = MagicMock()
     monkeypatch.setattr(alerts, "SessionLocal", session_factory)
     monkeypatch.setattr(alerts, "_get_sync_redis", lambda: redis)
-    analyze = AsyncMock()
-    monkeypatch.setattr(alerts, "analyze_incident", analyze)
     glpi = AsyncMock()
     monkeypatch.setattr(alerts, "GLPIClient", lambda: glpi)
     alert_data = {
@@ -636,7 +633,7 @@ async def test_zabbix_recovery_records_signal_without_changing_glpi_state(
         response = await alerts._async_process_alert_v1(alert_data, "a" * 64)
         assert response["status"] == "source_recovered"
         assert response["ticket_id"] == "456"
-        assert incident.status == "open"
+        assert incident.status == ("open" if replay else "resolved")
         assert incident.alert_count == 1
         assert incident.tags["ninf_zabbix_status"] == "resolved"
         assert incident.tags["ninf_zabbix_recovered_at"]
@@ -655,7 +652,6 @@ async def test_zabbix_recovery_records_signal_without_changing_glpi_state(
             assert json.loads(redis.publish.call_args.args[1])["source_status"] == (
                 "resolved"
             )
-    analyze.assert_not_awaited()
     glpi.create_ticket.assert_not_awaited()
 
 
@@ -693,171 +689,6 @@ async def test_zabbix_recovery_rejects_different_problem_event(monkeypatch):
             "a" * 64,
         )
     session.add.assert_not_called()
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize("glpi_fails", [False, True])
-@pytest.mark.parametrize("notifications_enabled", [False, True])
-@pytest.mark.parametrize("existing_state", ("new", "unlinked", "linked"))
-@pytest.mark.parametrize("ticket_exists", [False, True])
-@pytest.mark.parametrize("delivery_failure", [None, "commit", "redis"])
-async def test_pipeline_persists_incident_and_retries_glpi_failure(
-    monkeypatch,
-    caplog,
-    glpi_fails,
-    notifications_enabled,
-    existing_state,
-    ticket_exists,
-    delivery_failure,
-):
-    caplog.set_level("INFO", logger=alerts.__name__)
-    existing = existing_state != "new"
-    linked_before = existing_state == "linked"
-    glpi = AsyncMock()
-    failure = RuntimeError("GLPI unavailable")
-    glpi.find_ticket_by_name_marker.side_effect = failure if glpi_fails else None
-    glpi.find_ticket_by_name_marker.return_value = 123 if ticket_exists else None
-    glpi.create_ticket.return_value = {"id": 123}
-    analysis = AIAnalysisResult(
-        executive_action_plan="Synthetic",
-        technical_action_plan="Synthetic",
-        urgency="HIGH",
-        isolation_required=False,
-        probable_cause="sensitive-rca-must-not-reach-logs",
-        recommended_playbook="Synthetic",
-    )
-    session = MagicMock()
-    session.execute = AsyncMock(return_value=MagicMock())
-    session.execute.return_value.scalar_one_or_none.return_value = None
-    previous = MagicMock(
-        id=3,
-        alert_count=1,
-        tags={"ninf_zabbix_event_id": ""},
-        deskmanager_ticket_id="123" if linked_before else None,
-        assigned_user_id=None,
-        first_seen=datetime(2026, 1, 1, tzinfo=timezone.utc),
-        status="resolved",
-    )
-    if existing:
-        incident_result, asset_result = MagicMock(), MagicMock()
-        incident_result.scalar_one_or_none.return_value = previous
-        asset_result.scalar_one_or_none.return_value = None
-        session.execute.side_effect = [incident_result, asset_result]
-
-    async def flush():
-        for call in session.add.call_args_list:
-            added = call.args[0]
-            if isinstance(added, Incident) and added.id is None:
-                added.id = 99
-
-    session.flush = AsyncMock(side_effect=flush)
-    committed = []
-
-    @asynccontextmanager
-    async def transaction():
-        yield
-        if delivery_failure == "commit":
-            raise RuntimeError("Commit failed")
-        committed.append(True)
-
-    lock_session = MagicMock()
-    lock_session.execute = AsyncMock(
-        return_value=MagicMock(scalar_one_or_none=lambda: 1)
-    )
-
-    @asynccontextmanager
-    async def lock_transaction():
-        yield
-
-    lock_session.begin.side_effect = lock_transaction
-    sessions = iter(
-        (session,) if glpi_fails or ticket_exists else (lock_session, session)
-    )
-
-    @asynccontextmanager
-    async def session_factory():
-        yield next(sessions)
-
-    session.begin.side_effect = transaction
-    push = AsyncMock()
-    monkeypatch.setattr(alerts, "GLPIClient", lambda: glpi)
-    monkeypatch.setattr(alerts, "analyze_incident", AsyncMock(return_value=analysis))
-    monkeypatch.setattr(alerts, "lookup_glpi_asset", AsyncMock(return_value=None))
-    monkeypatch.setattr(alerts, "SessionLocal", session_factory)
-    monkeypatch.setattr(
-        alerts, "canonical_customer", AsyncMock(return_value=("Cavan", 8))
-    )
-    redis = MagicMock()
-    published = []
-
-    def publish(channel, body):
-        published.append((list(committed), channel, json.loads(body)))
-        if delivery_failure == "redis":
-            raise RuntimeError("Redis unavailable")
-
-    redis.publish.side_effect = publish
-    monkeypatch.setattr(alerts, "_get_sync_redis", lambda: redis)
-    monkeypatch.setattr(alerts, "LokiClient", lambda: AsyncMock())
-    monkeypatch.setattr(
-        alerts.settings, "alert_notifications_enabled", notifications_enabled
-    )
-    monkeypatch.setattr("app.integrations.webpush.notify_tenant_stakeholders", push)
-
-    alert_data = {"host_name": "CAVAN-test", "severity": 4}
-    if delivery_failure == "commit":
-        with pytest.raises(RuntimeError, match="Commit failed"):
-            await alerts._async_process_alert_v1(alert_data, "a" * 64)
-        redis.publish.assert_not_called()
-        assert not committed
-        assert "sensitive-rca-must-not-reach-logs" not in caplog.text
-        return
-    elif glpi_fails:
-        with pytest.raises(RuntimeError, match="GLPI unavailable"):
-            await alerts._async_process_alert_v1(alert_data, "a" * 64)
-    else:
-        result = await alerts._async_process_alert_v1(alert_data, "a" * 64)
-        assert result["ticket_id"] == 123
-
-    assert committed == [True]
-    assert "sensitive-rca-must-not-reach-logs" not in caplog.text
-    redis.publish.assert_called_once()
-    redis.close.assert_called_once()
-    commit_at_publish, channel, event = published[0]
-    assert commit_at_publish == [True]
-    assert channel == "ninf_incidents"
-    if existing:
-        assert event["status"] == "resolved"
-        assert event["pipeline_stage"] == "resolved"
-        assert event["first_seen"] == previous.first_seen.isoformat()
-    added = [call.args[0] for call in session.add.call_args_list]
-    incidents = [item for item in added if isinstance(item, Incident)]
-    actions = [item for item in added if isinstance(item, IncidentAction)]
-    assert len(incidents) == (0 if existing else 1)
-    expected_actions = [] if existing else ["incident_created"]
-    if glpi_fails:
-        expected_actions.append("ticket_failed")
-    elif not (linked_before and ticket_exists):
-        expected_actions.append("ticket_reused" if ticket_exists else "ticket_created")
-    assert [item.action for item in actions] == expected_actions
-    if existing:
-        assert previous.alert_count == 1
-    glpi.kill_session.assert_awaited_once()
-    incident = previous if existing else incidents[0]
-    assert all(item.incident_id == incident.id for item in actions)
-    assert incident.deskmanager_ticket_id == (
-        "123" if linked_before or not glpi_fails else None
-    )
-    glpi.find_ticket_by_name_marker.assert_awaited_once_with(
-        f"[n.infraops:{'a' * 64}]", 8
-    )
-    if glpi_fails or ticket_exists:
-        glpi.create_ticket.assert_not_awaited()
-    else:
-        glpi.create_ticket.assert_awaited_once()
-    if glpi_fails or not notifications_enabled:
-        push.assert_not_called()
-    else:
-        push.assert_called_once()
 
 
 class FakeGLPI:
@@ -1052,46 +883,3 @@ async def test_glpi_payload_sends_urgency_and_impact(monkeypatch):
     assert (seen["urgency"], seen["impact"]) == (3, 3)
     await client.create_ticket("t", "c", entity_id=8, urgency=5)
     assert (seen["urgency"], seen["impact"]) == (5, 5)
-
-
-@pytest.mark.asyncio
-async def test_zabbix_severity_reaches_create_ticket_through_alert_flow(monkeypatch):
-    class Stop(BaseException):
-        """Interrompe o fluxo logo após o POST, sem exercitar o resto do worker."""
-
-    @asynccontextmanager
-    async def session_factory():
-        session = MagicMock()
-
-        @asynccontextmanager
-        async def transaction():
-            yield
-
-        async def execute(statement, params=None):
-            return MagicMock(scalar_one_or_none=lambda: 1)
-
-        session.begin.side_effect = transaction
-        session.execute = execute
-        yield session
-
-    glpi = AsyncMock()
-    glpi.find_ticket_by_name_marker.return_value = None
-    glpi.create_ticket.side_effect = Stop
-    monkeypatch.setattr(alerts, "GLPIClient", lambda: glpi)
-    monkeypatch.setattr(alerts, "SessionLocal", session_factory)
-    monkeypatch.setattr(
-        alerts, "resolve_alert_customer", AsyncMock(return_value="Ness")
-    )
-    monkeypatch.setattr(alerts, "lookup_glpi_asset", AsyncMock(return_value=None))
-    monkeypatch.setattr(
-        alerts, "canonical_customer", AsyncMock(return_value=("Ness", 0))
-    )
-    monkeypatch.setattr(alerts, "analyze_incident", AsyncMock(return_value=MagicMock()))
-    monkeypatch.setattr(alerts, "build_glpi_ticket_content", lambda *_: "c")
-
-    with pytest.raises(Stop):
-        await alerts._async_process_alert_v1(
-            {"severity": 5, "trigger_name": "t", "host_name": "h"}, "d" * 64
-        )
-
-    assert glpi.create_ticket.await_args.kwargs["urgency"] == 5

@@ -4,7 +4,7 @@
 
 **Estágio:** em andamento
 
-**Próximo passo:** cutover do Zabbix em 14/11 23h (roteiro #225; A1, A6 e A10 com o Ismael). Depois do D+2: promover a API (correção da IA + painel da Contabo #260), retirar o Authentik e migrar as telas antigas para o kit `.nx`. Hub já no ness. design system (tema #262, logo #261, navegação única #263) e com SSO pelo Cloudflare Access.
+**Próximo passo:** gate D+2 do Zabbix (17/11 ~14:10). Se passar: promover a API e a regra de chamados (PR desta branch; Task 8 do plano 2026-11-15, com frase), e aplicar as dependências por site no Zabbix depois da revisão do Ismael.
 
 ## Quadro (atualizado a cada task fechada)
 

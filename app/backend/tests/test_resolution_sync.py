@@ -95,7 +95,7 @@ async def test_resolution_commits_human_solution_before_ack_and_replay_is_idempo
     session = AsyncMock()
     session.add = MagicMock()
     results = []
-    for item in (incident, report, incident):
+    for item in (incident, report, None, incident, None):  # None = sem vínculo
         r = MagicMock()
         r.scalar_one_or_none.return_value = item
         results.append(r)
