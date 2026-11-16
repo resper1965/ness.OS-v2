@@ -4,7 +4,7 @@
 
 **Estágio:** em andamento
 
-**Próximo passo:** cutover do Zabbix em 14/11 23h (roteiro #225; A1, A6 e A10 com o Ismael). Depois do D+2: promover a API (correção da IA + painel da Contabo #260), retirar o Authentik e migrar as telas antigas para o kit `.nx`. Hub já no ness. design system (tema #262, logo #261, navegação única #263) e com SSO pelo Cloudflare Access. Celular: tabelas de visão geral, monitoramento e incidentes viram cartões abaixo de 768px. SOC: painel no estilo Wazuh (`/api/secops/overview`), menus renomeados para NOC e SOC.
+**Próximo passo:** validar NOC e SOC com dado real no Hub (promovido `3aecc41` em 16/11: API + frontend) e retirar os contêineres órfãos do n8n/Evolution com OK. Depois: painel da Contabo #260, retirar o Authentik e migrar as telas antigas para o kit `.nx`.
 
 ## Quadro (atualizado a cada task fechada)
 
