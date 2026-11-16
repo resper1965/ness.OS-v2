@@ -1,9 +1,10 @@
 # ness.OS
 
 Monorepo da plataforma operacional ness.: Zabbix para monitoração, GLPI para
-ativos e atendimento, Authentik para identidade, Psono para segredos e Hub para
-incidentes e visões por perfil. Node-RED, Wazuh e Google Workspace integram o
-programa conforme seus próprios gates. A presença de código ou configuração
+ativos e atendimento, Entra ID para identidade (ADR 0015), Psono para segredos
+e Hub para incidentes e visões por perfil. Wazuh e Microsoft 365 integram o
+programa conforme seus próprios gates. n8n, Evolution e WhatsApp saíram em
+16/11/2026 (#250); o Authentik sai após o D+2 do corte do Zabbix. A presença de código ou configuração
 não significa que a capacidade esteja liberada em produção.
 
 O estado factual e datado está em [docs/execution/ness-os-status.md](docs/execution/ness-os-status.md).

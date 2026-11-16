@@ -1,5 +1,7 @@
 # Estado real das VPS (as built)
 
+> **16/11/2026:** `ninf-n8n`, `ninf-evolution` e `ninf-evolution-manager` estão parados e fora do código (#250); `n8n.` e `waba.` não têm mais destino. Inventário atual das VPS: [arquitetura oficial](../../docs/architecture/ness-os-official-architecture.md#estado--16112026).
+>
 > **Estado atual:** seção [Snapshot de 27/10/2026](#snapshot-de-27102026), gerada por `infra/scripts/as-built-collect.sh`. O texto abaixo dela é o levantamento manual de 20/08 e fica como histórico.
 >
 > Levantamento somente leitura realizado em 20/08/2026. Este documento descreve o estado observado nessa data; não substitui monitoramento contínuo. Valores secretos foram deliberadamente omitidos.
