@@ -45,49 +45,51 @@ export default function TenantSelector({ selectedTenant, onSelect }: Props) {
       <button
         onClick={() => setIsOpen(!isOpen)}
         disabled={loading}
-        className="w-full flex items-center gap-3 px-3 py-2 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.06] transition-all group"
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
+        className="w-full flex items-center gap-3 px-3 py-2 bg-brand-surface border border-brand-border hover:border-brand-primary transition-colors"
       >
-        <div className="p-2 rounded-lg bg-[var(--color-brand-primary-dim)] text-[var(--color-brand-primary)]">
-          <Building2 size={16} />
+        <div className="p-2 text-brand-primary">
+          <Building2 size={16} strokeWidth={1.5} />
         </div>
         <div className="flex-1 text-left">
-          <p className="text-[10px] font-bold text-[var(--color-brand-muted)] uppercase tracking-wider">Contexto</p>
-          <p className="text-sm font-bold text-white truncate">
-            {loading ? 'Carregando…' : currentTenant ? currentTenant.name : 'Todos os Clientes'}
+          <p className="font-mono text-[10px] text-brand-muted uppercase tracking-[0.12em]">Contexto</p>
+          <p className="text-sm font-semibold text-brand-text truncate">
+            {loading ? 'Carregando…' : currentTenant ? currentTenant.name : 'Todos os clientes'}
           </p>
         </div>
-        <ChevronDown size={14} className={`text-[var(--color-brand-muted)] transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown size={14} className={`text-brand-muted ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {isOpen && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
-          <div className="absolute top-full left-0 right-0 mt-2 z-50 glass rounded-xl border border-white/[0.08] shadow-2xl py-2 overflow-hidden animate-fade-in">
+          <div className="absolute top-full left-0 right-0 mt-2 z-50 bg-brand-surface border border-brand-border shadow-lg py-2 overflow-hidden animate-fade-in">
             <button
               onClick={() => { onSelect(null); setIsOpen(false); }}
-              className="w-full flex items-center justify-between px-4 py-2.5 text-sm font-medium text-white hover:bg-white/[0.05] transition-all"
+              className="w-full flex items-center justify-between gap-3 px-4 py-2.5 text-sm font-medium text-brand-text hover:bg-brand-elevated"
             >
-              <div className="flex items-center gap-3">
-                <Users size={14} className="text-[var(--color-brand-muted)]" />
-                Todos os Clientes
+              <div className="flex items-center gap-3 text-left whitespace-nowrap">
+                <Users size={14} strokeWidth={1.5} className="text-brand-muted" />
+                Todos os clientes
               </div>
-              {!selectedTenant && <Check size={14} className="text-[var(--color-brand-primary)]" />}
+              {!selectedTenant && <Check size={14} className="text-brand-primary" />}
             </button>
             
-            <div className="h-px bg-white/[0.04] my-1" />
+            <div className="h-px bg-brand-border my-1" />
             
             <div className="max-h-60 overflow-y-auto no-scrollbar">
               {tenants.map(t => (
                 <button
                   key={t.id}
                   onClick={() => { onSelect(t.id); setIsOpen(false); }}
-                  className="w-full flex items-center justify-between px-4 py-2.5 text-sm font-medium text-white hover:bg-white/[0.05] transition-all"
+                  className="w-full flex items-center justify-between gap-3 px-4 py-2.5 text-sm font-medium text-brand-text hover:bg-brand-elevated"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="w-1.5 h-1.5 rounded-full bg-[var(--color-brand-primary)]" />
+                  <div className="flex items-center gap-3 text-left whitespace-nowrap">
+                    <div className="w-2 h-2 rounded-full bg-brand-primary" />
                     {t.name}
                   </div>
-                  {selectedTenant === t.id && <Check size={14} className="text-[var(--color-brand-primary)]" />}
+                  {selectedTenant === t.id && <Check size={14} className="text-brand-primary" />}
                 </button>
               ))}
             </div>

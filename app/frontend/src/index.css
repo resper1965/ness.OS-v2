@@ -10,6 +10,8 @@
 
   /* ── Brand Accent ───────────────────── */
   --color-brand-primary:   #00ADE8;
+  --color-brand-primary-hover: #008EBF;
+  --color-brand-accent-ink: #04121C;
   --color-brand-primary-dim: rgba(0,173,232,0.12);
 
   /* ── Semantic Status ────────────────── */
@@ -22,6 +24,8 @@
 
   /* ── Text ────────────────────────────── */
   --color-brand-text:      #F1F5F9;
+  --color-brand-text-2:    #CBD5E1;
+  --color-brand-text-3:    #94A3B8;
   --color-brand-muted:     #8FA0B6;
   --color-brand-subtle:    #334155;
 
