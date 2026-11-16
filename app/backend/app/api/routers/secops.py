@@ -1045,11 +1045,12 @@ def summarize_soc(
     rows: list[dict[str, Any]], hours: int, now: datetime
 ) -> dict[str, Any]:
     """Agrega decisões de triagem no formato do painel: faixas, série por hora e tops.
-    Cada linha: created_at, customer_id, agent_name, classification, action_taken, rule."""
+    Cada linha: created_at, customer_id, agent_name, classification, action_taken, rule.
+    """
     bucket_s = 3600 if hours <= 48 else 86400
     start = now - timedelta(hours=hours)
     n_buckets = -(-hours * 3600 // bucket_s)
-    series = [
+    series: list[dict[str, Any]] = [
         {
             "t": (start + timedelta(seconds=i * bucket_s)).isoformat(),
             **{b: 0 for b, _ in SOC_BANDS},
@@ -1062,9 +1063,10 @@ def summarize_soc(
     tactics: dict[str, int] = {}
     rules: dict[str, dict[str, Any]] = {}
     auth_fail = auth_ok = pending = archived = 0
-    events = []
+    events: list[dict[str, Any]] = []
     for r in rows:
-        rule = r.get("rule") if isinstance(r.get("rule"), dict) else {}
+        raw_rule = r.get("rule")
+        rule: dict[str, Any] = raw_rule if isinstance(raw_rule, dict) else {}
         try:
             level = int(rule.get("level") or 0)
         except (TypeError, ValueError):
@@ -1078,7 +1080,8 @@ def summarize_soc(
         agents[agent] = agents.get(agent, 0) + 1
         cust = r.get("customer_id") or "sem_cliente"
         customers[cust] = customers.get(cust, 0) + 1
-        mitre = rule.get("mitre") if isinstance(rule.get("mitre"), dict) else {}
+        raw_mitre = rule.get("mitre")
+        mitre: dict[str, Any] = raw_mitre if isinstance(raw_mitre, dict) else {}
         for t in mitre.get("tactic") or []:
             tactics[str(t)] = tactics.get(str(t), 0) + 1
         groups = rule.get("groups") or []
