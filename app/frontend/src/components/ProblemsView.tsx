@@ -69,7 +69,7 @@ function Row({ p, hide }: { p: Problem; hide: ProblemFilter['group'] }) {
       <td><Badge tone={s.tone}>{s.label}</Badge></td>
       {hide !== 'customer' && <td>{customerOf(p)}</td>}
       {hide !== 'host' && <td className="nx-mono">{p.host}</td>}
-      <td>{p.title}</td>
+      <td className="nx-main">{p.title}</td>
       <td className="nx-mono" title={new Date(p.clock * 1000).toLocaleString('pt-BR')}>{timeAgo(p.clock)}</td>
       <td>{p.acknowledged ? <Badge tone="ok">Sim</Badge> : <span className="nx-muted">Não</span>}</td>
       <td className="nx-mono">{p.ticket_id
@@ -149,7 +149,7 @@ export default function ProblemsView({ problems, loading, error, observedAt, hos
       >
         {loading && !problems.length ? <div className="nx-skel" aria-label="Carregando" /> :
           !rows.length ? <div className="nx-empty">{problems.length ? 'Nenhum problema com esses filtros.' : 'Nenhum problema ativo.'}</div> :
-          <table className="nx-table nx-dense">
+          <table className="nx-table nx-dense nx-cards">
             <thead><tr><th>Severidade</th>{f.group !== 'customer' && <th>Cliente</th>}{f.group !== 'host' && <th>Host</th>}<th>Problema</th><th>Desde</th><th>Reconhecido</th><th>Chamado</th></tr></thead>
             {groups ? groups.map(([host, list]) => (
               <tbody key={host}>

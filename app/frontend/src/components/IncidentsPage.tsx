@@ -210,26 +210,26 @@ export default function IncidentsPage({ incidents, total, loading, loadingMore, 
         <div role="group" aria-label="Período" className="flex">
           {(['24h', '7d', '30d', 'all'] as const).map(p => (
             <button key={p} type="button" aria-pressed={filter.period === p} onClick={() => onFilter({ ...filter, period: p })}
-              className={`px-3 h-8 text-xs border -ml-px first:ml-0 ${filter.period === p ? 'border-[#00ADE8] text-[#00ADE8] bg-[#00ADE8]/10 relative' : 'border-white/[0.14] text-slate-300 hover:text-white'}`}>
+              className={`px-3 h-10 md:h-8 text-xs border -ml-px first:ml-0 ${filter.period === p ? 'border-[#00ADE8] text-[#00ADE8] bg-[#00ADE8]/10 relative' : 'border-white/[0.14] text-slate-300 hover:text-white'}`}>
               {p === 'all' ? 'Tudo' : p}
             </button>
           ))}
         </div>
-        <form role="none" onSubmit={e => { e.preventDefault(); onFilter({ ...filter, q: String(new FormData(e.currentTarget).get('q') ?? '') }); }}>
-          <label className="flex items-center gap-2 h-8 px-2 border border-white/[0.14] text-xs text-slate-300 focus-within:outline focus-within:outline-2 focus-within:outline-[#00ADE8]">
+        <form role="none" className="flex-1 basis-full md:basis-auto md:flex-none" onSubmit={e => { e.preventDefault(); onFilter({ ...filter, q: String(new FormData(e.currentTarget).get('q') ?? '') }); }}>
+          <label className="flex items-center gap-2 h-10 md:h-8 px-2 border border-white/[0.14] text-xs text-slate-300 focus-within:outline focus-within:outline-2 focus-within:outline-[#00ADE8]">
             <span className="sr-only">Buscar host ou título</span>
-            <input name="q" type="search" defaultValue={filter.q} placeholder="Host ou título (Enter)" className="bg-transparent outline-none text-white w-48" />
+            <input name="q" type="search" defaultValue={filter.q} placeholder="Host ou título (Enter)" className="bg-transparent outline-none text-white w-full md:w-48 text-base md:text-xs" />
           </label>
         </form>
         <label className="flex items-center gap-2 text-xs text-slate-300">Severidade
           <select value={filter.sev} onChange={e => onFilter({ ...filter, sev: e.target.value })}
-            className="h-8 px-2 bg-[var(--color-brand-base)] border border-white/[0.14] text-white text-xs">
+            className="h-10 md:h-8 px-2 bg-[var(--color-brand-base)] border border-white/[0.14] text-white text-base md:text-xs">
             <option value="">Todas</option><option value="5,4">Desastre + alta</option><option value="3">Média</option><option value="2">Atenção</option><option value="1,0">Info</option>
           </select>
         </label>
         <label className="flex items-center gap-2 text-xs text-slate-300">Estado
           <select value={filter.status} onChange={e => onFilter({ ...filter, status: e.target.value as IncidentFilter['status'] })}
-            className="h-8 px-2 bg-[var(--color-brand-base)] border border-white/[0.14] text-white text-xs">
+            className="h-10 md:h-8 px-2 bg-[var(--color-brand-base)] border border-white/[0.14] text-white text-base md:text-xs">
             <option value="">Todos</option><option value="open">Aberto</option><option value="resolved">Resolvido</option>
           </select>
         </label>
@@ -280,7 +280,7 @@ export default function IncidentsPage({ incidents, total, loading, loadingMore, 
       )}
 
       {!loading && incidents.length > 0 && (
-        <table className="w-full border-collapse text-xs">
+        <table className="nx-cards w-full border-collapse text-xs">
           <thead className="sticky top-0 z-[1] bg-[var(--color-brand-base)]">
             <tr className="text-left text-[10px] uppercase tracking-[0.12em] text-[var(--color-brand-muted)] border-b border-white/[0.14]">
               <th scope="col" className="px-2 py-2 font-medium">Severidade</th>
@@ -308,7 +308,7 @@ export default function IncidentsPage({ incidents, total, loading, loadingMore, 
                     </td>
                     <td className="px-2 py-1.5 whitespace-nowrap text-slate-300">{inc.client || '—'}</td>
                     <td className="px-2 py-1.5 whitespace-nowrap font-mono text-slate-300">{inc.host_name}</td>
-                    <td className="px-2 py-1.5">
+                    <td className="nx-main px-2 py-1.5">
                       <button
                         type="button"
                         className="text-left text-white/90 hover:text-[var(--color-brand-primary)] hover:underline"
