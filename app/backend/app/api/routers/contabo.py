@@ -161,9 +161,8 @@ def build_overview(raw: dict[str, Any], now: datetime) -> dict[str, Any]:
 
     rows, risks = [], []
     for i in instances:
-        iid, name = i.get("instanceId"), i.get("displayName") or i.get("name") or str(
-            i.get("instanceId")
-        )
+        iid = i.get("instanceId")
+        name = i.get("displayName") or i.get("name") or str(iid)
         snaps = raw["snapshots"].get(iid)
         last = max(
             (d for d in (_parse(s.get("createdDate")) for s in snaps or []) if d),
