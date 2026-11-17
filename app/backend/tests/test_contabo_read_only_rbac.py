@@ -46,15 +46,15 @@ def test_platform_admin_dependency_accepts_platform_admin():
     assert require_platform_admin(user) is user
 
 
-def test_dashboard_does_not_fetch_or_return_secrets():
+def test_overview_does_not_fetch_or_return_secrets():
     paths: list[str] = []
 
     class Client:
-        def get(self, path: str):
+        def get(self, path: str, params=None):
             paths.append(path)
             return {"data": []}
 
-    payload = contabo.get_dashboard_full(Client())
+    payload = contabo.get_overview(Client())
     assert "secrets" not in payload
     assert "/secrets" not in paths
 
@@ -64,12 +64,12 @@ def test_dashboard_does_not_fetch_or_return_secrets():
     (
         lambda client: contabo.list_instances(client),
         lambda client: contabo.get_cloud_summary(client),
-        lambda client: contabo.get_dashboard_full(client),
+        lambda client: contabo.get_overview(client),
     ),
 )
 def test_contabo_failures_do_not_expose_provider_error(operation):
     class FailingClient:
-        def get(self, _: str):
+        def get(self, _: str, params=None):
             raise RuntimeError("Bearer provider-secret")
 
     with pytest.raises(HTTPException) as error:
