@@ -1,6 +1,6 @@
 # IA no tratamento de chamados — design
 
-> Data: 17/11/2026. Estado: **proposta**, aguarda aprovação do Ricardo.
+> Data: 17/11/2026. Estado: **aprovado pelo Ricardo em 17/11/2026**.
 > Base: `origin/main` em 17/11. Não autoriza instalação, compra nem ativação em produção.
 > Marcação: **[Ricardo]** = decidido por ele (aqui ou em ADR/spec citada); **[proposta]** = decisão do autor, revisável.
 
@@ -137,7 +137,11 @@ métrica medida por 30 dias e OK do Ricardo.
   payload bruto só vai quando a etapa precisa dele (ex.: `full_log` do Wazuh), e passa pela
   sanitização.
 - **Por cliente:** uma opção "IA externa permitida", ligada por padrão. Para o cliente que não permite,
-  a etapa de IA é pulada e o chamado segue normal. **[proposta; ver pergunta 1]**
+  a etapa de IA é pulada e o chamado segue normal. **[Ricardo, 17/11]**
+- **Teto de custo:** global. Ao atingir o teto, a etapa de IA é pulada, o chamado segue normal e o Ricardo
+  recebe um alerta. O valor inicial é o limite atual da chave (US$ 50/mês). **[Ricardo, 17/11]**
+- **Urgência no NOC:** a F1 tira do `ml/analyzer.py` o poder de subir a urgência da notificação. A
+  discordância vira só registro de divergência. Avisar a operação antes da promoção. **[Ricardo, 17/11]**
 - **Ferramenta de cliente:** o dado do cliente só é usado no tenant dele. Ao contratar, o cliente
   declara se a ferramenta pode ir à IA externa.
 - **O que fica fora:**
