@@ -187,3 +187,15 @@ async def test_soc_invalid_reply_falls_back(monkeypatch, content):
     _mock(monkeypatch, "AsyncClient", {"choices": [{"message": {"content": content}}]})
     got = await soc_agent.triage_wazuh_alert({"rule": {"id": "1"}}, "t")
     assert got["classification"] == "HIGH" and got["confidence"] == 0.5
+
+
+def test_request_asks_usage_accounting_and_returns_model(monkeypatch):
+    reply = {
+        "model": "m",
+        "choices": [{"message": {"content": "hi"}}],
+        "usage": {"cost": 0.1},
+    }
+    sent = _mock(monkeypatch, "Client", reply)
+    _, usage = llm.chat_completion("sys", "usr")
+    assert json.loads(sent[0].content)["usage"] == {"include": True}
+    assert usage == {"cost": 0.1, "model": "m"}

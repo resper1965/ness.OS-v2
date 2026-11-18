@@ -74,6 +74,7 @@ def test_defaults_equal_legacy_constants():
         "queue_max_age_seconds": 300,
         "worker_failure_window_seconds": 900,
         "probe_timeout_seconds": 20,
+        "ai_monthly_budget_cents": 5000,
     }
     assert (health.MAX_SOURCE_AGE_SECONDS, health.MAX_QUEUE_AGE_SECONDS) == (900, 300)
     assert (health.WORKER_FAILURE_WINDOW_SECONDS, health.PROBE_TIMEOUT_SECONDS) == (

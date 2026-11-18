@@ -1,4 +1,5 @@
 import json
+import time
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
@@ -135,3 +136,19 @@ def test_embedding_uses_header_and_redacts_input(monkeypatch, caplog):
 
 def test_missing_log_source_does_not_invent_evidence():
     assert postmortem._fetch_related_logs("10882", "9") == []
+
+
+def test_log_ai_call_returns_call_with_cost_and_model():
+    usage = {
+        "prompt_tokens": 10,
+        "completion_tokens": 5,
+        "cost": 0.0012,
+        "model": "google/gemini-2.5-flash",
+    }
+    call = ai_context.log_ai_call("k", "ok", time.perf_counter(), usage)
+    assert call.cost_usd == 0.0012
+    assert call.model == "google/gemini-2.5-flash"
+    assert call.latency_ms >= 0
+    assert (call.prompt_tokens, call.completion_tokens) == (10, 5)
+    bare = ai_context.log_ai_call("k", "error", time.perf_counter())
+    assert bare.cost_usd is None and bare.model is None

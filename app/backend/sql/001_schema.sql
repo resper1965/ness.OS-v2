@@ -627,6 +627,39 @@ VALUES
     ('source_max_age_seconds', 900),
     ('queue_max_age_seconds', 300),
     ('worker_failure_window_seconds', 900),
-    ('probe_timeout_seconds', 20)
+    ('probe_timeout_seconds', 20),
+    ('ai_monthly_budget_cents', 5000)
 ON CONFLICT (key) DO NOTHING;
 -- params:end
+-- ai:begin
+CREATE TABLE IF NOT EXISTS n_ai_decisions (
+    id                BIGSERIAL PRIMARY KEY,
+    kind              VARCHAR(32) NOT NULL,
+    customer_id       VARCHAR(128) NOT NULL,
+    incident_id       BIGINT,
+    soc_decision_id   BIGINT,
+    ticket_id         VARCHAR(64),
+    source_ref        VARCHAR(255) NOT NULL,
+    outcome           VARCHAR(24) NOT NULL,
+    model             VARCHAR(128),
+    prompt_version    VARCHAR(32) NOT NULL,
+    request           JSONB NOT NULL DEFAULT '{}',
+    response          JSONB NOT NULL DEFAULT '{}',
+    rule_value        VARCHAR(32),
+    model_value       VARCHAR(32),
+    divergent         BOOLEAN NOT NULL DEFAULT false,
+    latency_ms        INTEGER,
+    prompt_tokens     INTEGER,
+    completion_tokens INTEGER,
+    cost_usd          NUMERIC(10,6),
+    feedback          VARCHAR(16),
+    feedback_user_id  BIGINT,
+    feedback_at       TIMESTAMPTZ,
+    final_label       VARCHAR(64),
+    created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_ai_decisions_ref ON n_ai_decisions (kind, source_ref);
+CREATE INDEX IF NOT EXISTS ix_ai_decisions_customer_created ON n_ai_decisions (customer_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS ix_ai_decisions_incident ON n_ai_decisions (incident_id) WHERE incident_id IS NOT NULL;
+ALTER TABLE n_infraops_customers ADD COLUMN IF NOT EXISTS ai_external_allowed BOOLEAN NOT NULL DEFAULT true;
+-- ai:end
