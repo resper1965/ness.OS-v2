@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from decimal import Decimal, InvalidOperation
+from typing import Any
 
 from sqlalchemy import func, literal_column
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -76,7 +77,7 @@ async def record_ai_decision(
         cost_usd=_cost(call.cost_usd),
     )
     old, new = AIDecision.__table__.c, insert.excluded
-    stmt = insert.on_conflict_do_update(
+    stmt: Any = insert.on_conflict_do_update(
         index_elements=["kind", "source_ref"],
         set_={
             # a+b, or whichever is set, NULL only when both are NULL

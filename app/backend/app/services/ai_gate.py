@@ -32,7 +32,7 @@ async def ai_gate(session: AsyncSession, customer_name: str) -> str | None:
         select(func.coalesce(func.sum(AIDecision.cost_usd), 0)).where(in_month)
     )
     limit_cents = (await platform_params(session))["ai_monthly_budget_cents"]
-    if Decimal(spent) * 100 < limit_cents:
+    if Decimal(spent or 0) * 100 < limit_cents:
         return None
 
     already_alerted = await session.scalar(
@@ -41,7 +41,7 @@ async def ai_gate(session: AsyncSession, customer_name: str) -> str | None:
         .limit(1)
     )
     if already_alerted is None:
-        await _alert(f"{now:%Y-%m}", Decimal(spent), limit_cents)
+        await _alert(f"{now:%Y-%m}", Decimal(spent or 0), limit_cents)
     return "skipped_budget"
 
 

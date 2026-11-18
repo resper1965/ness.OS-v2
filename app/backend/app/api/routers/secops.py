@@ -893,7 +893,7 @@ async def triage_alert(
             503, "Decisão não registrada; despacho não realizado"
         ) from e
 
-    if ai_call is not None:
+    if ai_call is not None and tenant:
         await _record_soc_ai(
             db,
             tenant=tenant,

@@ -185,6 +185,6 @@ async def metrics(
     cents = (await platform_params(db))["ai_monthly_budget_cents"]
     return {
         "window_days": days,
-        "budget": {"month_cost_usd": float(spent), "limit_usd": cents / 100},
+        "budget": {"month_cost_usd": float(spent or 0), "limit_usd": cents / 100},
         "by_kind": by_kind,
     }

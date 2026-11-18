@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import enum
 from datetime import date, datetime, time
+from decimal import Decimal
 from typing import Any
 
 from pgvector.sqlalchemy import Vector
@@ -635,7 +636,7 @@ class AIDecision(Base):
     latency_ms: Mapped[int | None] = mapped_column(Integer)
     prompt_tokens: Mapped[int | None] = mapped_column(Integer)
     completion_tokens: Mapped[int | None] = mapped_column(Integer)
-    cost_usd: Mapped[float | None] = mapped_column(Numeric(10, 6))
+    cost_usd: Mapped[Decimal | None] = mapped_column(Numeric(10, 6))
     feedback: Mapped[str | None] = mapped_column(String(16))
     feedback_user_id: Mapped[int | None] = mapped_column(BigInteger)
     feedback_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
