@@ -666,8 +666,7 @@ ALTER TABLE n_infraops_customers ADD COLUMN IF NOT EXISTS ai_external_allowed BO
 -- repeat:begin
 ALTER TABLE n_infraops_incidents
     ADD COLUMN IF NOT EXISTS repeat_of_id BIGINT REFERENCES n_infraops_incidents(id);
-DROP INDEX IF EXISTS ix_incidents_open_root;
-CREATE INDEX ix_incidents_open_root
+CREATE INDEX IF NOT EXISTS ix_incidents_open_root
     ON n_infraops_incidents (host_id, trigger_id)
     WHERE repeat_of_id IS NULL AND status NOT IN ('resolved', 'closed');
 -- repeat:end
