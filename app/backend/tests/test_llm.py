@@ -127,7 +127,9 @@ async def test_soc_uses_llm(monkeypatch):
         {"choices": [{"message": {"content": json.dumps(triage)}}]},
     )
     alert = {"rule": {"id": "1", "level": 3}}
-    assert await soc_agent.triage_wazuh_alert(alert, "t") == triage
+    got = await soc_agent.triage_wazuh_alert(alert, "t")
+    assert {k: v for k, v in got.items() if k[0] != "_"} == triage
+    assert got["_ai_call"].outcome == "ok"
 
 
 def test_postmortem_uses_llm(monkeypatch):

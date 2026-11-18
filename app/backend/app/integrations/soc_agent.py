@@ -3,12 +3,12 @@ import json
 import logging
 import math
 import time
-from typing import Any, TypedDict
+from typing import Any, NotRequired, TypedDict
 
 import httpx
 
 from app.config import get_settings
-from app.core.ai_context import AIRequestV1, _observed_at, log_ai_call
+from app.core.ai_context import AICall, AIRequestV1, _observed_at, log_ai_call
 from app.integrations.llm import achat_completion
 
 logger = logging.getLogger(__name__)
@@ -118,23 +118,52 @@ def _manual_fallback(alert: dict[str, Any], reason: str) -> TriageResult:
 
 
 async def triage_wazuh_alert(
-    alert_payload: dict[str, Any], tenant: str
+    alert_payload: dict[str, Any], tenant: str, skip: str | None = None
 ) -> TriageResult:
     """Triagem de um alerta Wazuh via LLM. `tenant` vem do vínculo administrativo,
-    nunca do payload. Nunca levanta: falha do modelo devolve fallback manual."""
+    nunca do payload. Nunca levanta: falha do modelo devolve fallback manual.
+    Com `skip` (outcome da porta de IA), devolve o fallback sem chamar o modelo."""
+    started = time.perf_counter()
+    try:
+        ai_req: AIRequestV1 | None = wazuh_ai_request(alert_payload, tenant)
+    except Exception as exc:
+        logger.error("Wazuh AI request build failed: %s", type(exc).__name__)
+        ai_req = None
+    ai_request = ai_req.model_dump(mode="json") if ai_req else {}
+
+    def done(result: TriageResult, outcome: str, usage=None) -> TriageResult:
+        result["_ai_call"] = log_ai_call("soc_triage", outcome, started, usage)
+        result["_ai_request"] = ai_request
+        return result
+
+    description = alert_payload.get("description", "Sem descrição")
+    if skip:
+        return done(
+            {
+                "classification": "HIGH",
+                "confidence": 0.5,
+                "summary": f"Alerta Wazuh: {description}. Triagem automática não executada ({skip}).",
+                "action_taken": "Criar ticket de triagem manual",
+            },
+            skip,
+        )
     if not settings.llm_api_key:
         logger.warning(
             "LLM API key não configurada para triagem SOC. Usando fallback padrão."
         )
-        return {
-            "classification": "HIGH",
-            "confidence": 0.5,
-            "summary": f"Alerta Wazuh: {alert_payload.get('description', 'Sem descrição')}. Triagem automática indisponível devido a chave de API ausente.",
-            "action_taken": "Criar ticket de triagem manual",
-        }
+        return done(
+            {
+                "classification": "HIGH",
+                "confidence": 0.5,
+                "summary": f"Alerta Wazuh: {description}. Triagem automática indisponível devido a chave de API ausente.",
+                "action_taken": "Criar ticket de triagem manual",
+            },
+            "no_key",
+        )
+    if ai_req is None:
+        return done(_manual_fallback(alert_payload, "RequestBuildFailed"), "error")
 
-    ai_request = wazuh_ai_request(alert_payload, tenant)
-    user = f"Alerta Wazuh a ser analisado:\n{json.dumps(ai_request.model_dump(mode='json'), indent=2, ensure_ascii=False)}"
+    user = f"Alerta Wazuh a ser analisado:\n{json.dumps(ai_request, indent=2, ensure_ascii=False)}"
     schema = {
         "type": "OBJECT",
         "properties": {
@@ -149,7 +178,6 @@ async def triage_wazuh_alert(
         "required": ["classification", "confidence", "summary", "action_taken"],
     }
 
-    started = time.perf_counter()
     usage: dict[str, Any] = {}
     outcome = "error"
     try:
@@ -171,11 +199,10 @@ async def triage_wazuh_alert(
             triage_data.get("classification"),
             triage_data.get("confidence"),
         )
-        return triage_data
     except SignalRejected as exc:
         logger.error(
             "Sinal %s: resultado do modelo rejeitado | campo=%s valor=%s",
-            ai_request.source_event_id,
+            ai_req.source_event_id,
             exc.field,
             # texto livre do modelo pode ecoar dado do alerta: só tipo e tamanho
             (
@@ -184,13 +211,12 @@ async def triage_wazuh_alert(
                 else f"<{type(exc.value).__name__} len={len(str(exc.value))}>"
             ),
         )
-        return _manual_fallback(alert_payload, "SignalRejected")
+        triage_data = _manual_fallback(alert_payload, "SignalRejected")
     except Exception as exc:
         logger.error(
             "Sinal %s: falha na triagem via LLM: %s",
-            ai_request.source_event_id,
+            ai_req.source_event_id,
             type(exc).__name__,
         )
-        return _manual_fallback(alert_payload, type(exc).__name__)
-    finally:
-        log_ai_call("soc_triage", outcome, started, usage)
+        triage_data = _manual_fallback(alert_payload, type(exc).__name__)
+    return done(triage_data, outcome, usage)

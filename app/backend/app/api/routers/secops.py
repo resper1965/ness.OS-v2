@@ -16,6 +16,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
+from app.core.ai_context import AICall
 from app.core.dependencies import (
     require_authenticated,
     require_noc,
@@ -26,10 +27,14 @@ from app.database import get_db
 from app.integrations.zabbix import ZabbixClient
 from app.models.models import SocDecision, TenantMapping
 from app.models.users import User
+from app.services.ai_decisions import record_ai_decision
+from app.services.ai_gate import ai_gate
 from app.services.policy_params import CONTRACT_DEFAULTS, get_params
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/secops", tags=["secops"])
+
+PROMPT_VERSION_SOC = "soc-2026-11-17"
 
 # ── CVE Intelligence Database (OSINT 06/07/2026) ────────────────────────────
 CVE_DATABASE = [
@@ -795,6 +800,8 @@ async def triage_alert(
         params["soc_attend_min_level"].value,
     )
 
+    ai_call = None
+    ai_request: dict[str, Any] = {}
     if tenant is None:
         triage_result: dict[str, Any] = {
             "classification": "PENDING_REVIEW",
@@ -829,7 +836,11 @@ async def triage_alert(
         )
     else:
         # Falha do modelo devolve fallback manual; o despacho não depende dele
-        triage_result = dict(await triage_wazuh_alert(payload, tenant))
+        triage_result = dict(
+            await triage_wazuh_alert(payload, tenant, skip=await _ai_skip(db, tenant))
+        )
+        ai_call = triage_result.pop("_ai_call", None)
+        ai_request = triage_result.pop("_ai_request", {})
         triage_result["risk_score"] = eval_result.risk_score
         triage_result["llm_bypassed"] = False
     triage_result["attendance_required"] = must_attend
@@ -882,10 +893,82 @@ async def triage_alert(
             503, "Decisão não registrada; despacho não realizado"
         ) from e
 
+    if ai_call is not None:
+        await _record_soc_ai(
+            db,
+            tenant=tenant,
+            source_ref=dedup_key or f"soc:{decision.id}",
+            decision_id=decision.id,
+            call=ai_call,
+            request=ai_request,
+            result=triage_result,
+            engine_action=eval_result.action.value,
+        )
+
     triage_result["decision_id"] = decision.id
     triage_result["corrective_action_approved"] = False
 
     return triage_result
+
+
+def soc_divergent(engine_action: str, classification: str) -> bool:
+    """Motor e modelo em lados opostos (vocabulários diferentes, sem igualdade direta)."""
+    return (engine_action == "TRIAGE_L2" and classification in {"FP", "LOW"}) or (
+        engine_action == "TRIAGE_L1" and classification in {"HIGH", "CRIT"}
+    )
+
+
+async def _ai_skip(db: AsyncSession, tenant: str) -> str | None:
+    """Outcome da porta de IA; sem chave a porta nem roda, e qualquer falha pula o modelo."""
+    if not settings.llm_api_key:
+        return None  # soc_agent registra no_key
+    try:
+        async with db.begin_nested():  # falha na consulta não aborta a transação
+            return await ai_gate(db, tenant)
+    except Exception as exc:
+        logger.warning("AI gate failed, skipping model: %s", type(exc).__name__)
+        return "error"
+
+
+async def _record_soc_ai(
+    db: AsyncSession,
+    *,
+    tenant: str,
+    source_ref: str,
+    decision_id: int,
+    call: AICall,
+    request: dict[str, Any],
+    result: dict[str, Any],
+    engine_action: str,
+) -> None:
+    """Registro depois do commit da SocDecision; falha vira log, nunca muda a resposta."""
+    ok = call.outcome == "ok"
+    try:
+        await record_ai_decision(
+            db,
+            kind="soc_triage",
+            customer_id=tenant,
+            source_ref=source_ref,
+            call=call,
+            prompt_version=PROMPT_VERSION_SOC,
+            request=request,
+            response=(
+                {
+                    k: result[k]
+                    for k in ("classification", "confidence", "summary", "action_taken")
+                }
+                if ok
+                else {}
+            ),
+            rule_value=engine_action,
+            model_value=result["classification"] if ok else None,
+            soc_decision_id=decision_id,
+            divergent=ok and soc_divergent(engine_action, result["classification"]),
+        )
+        await db.commit()
+    except Exception as exc:
+        logger.error("Falha ao registrar decisão de IA SOC: %s", type(exc).__name__)
+        await db.rollback()
 
 
 def _attendance_required(

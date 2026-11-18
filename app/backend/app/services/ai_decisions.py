@@ -41,10 +41,13 @@ async def record_ai_decision(
     incident_id: int | None = None,
     soc_decision_id: int | None = None,
     ticket_id: str | None = None,
+    divergent: bool | None = None,
 ) -> int | None:
     """Id da linha nova, ou None no replay ou em falha (logada; o chamador segue).
 
     Replay (retry do Celery) soma custo e tokens e completa ticket/incidente.
+    `divergent`, quando informado, prevalece sobre rule_value != model_value
+    (vocabulários diferentes, ex.: SOC).
     """
     insert = pg_insert(AIDecision).values(
         kind=kind,
@@ -60,9 +63,13 @@ async def record_ai_decision(
         response=response,
         rule_value=rule_value,
         model_value=model_value,
-        divergent=rule_value is not None
-        and model_value is not None
-        and rule_value != model_value,
+        divergent=(
+            divergent
+            if divergent is not None
+            else rule_value is not None
+            and model_value is not None
+            and rule_value != model_value
+        ),
         latency_ms=call.latency_ms,
         prompt_tokens=call.prompt_tokens,
         completion_tokens=call.completion_tokens,
