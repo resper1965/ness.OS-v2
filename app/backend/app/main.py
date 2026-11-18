@@ -34,6 +34,7 @@ try:
 except ImportError:
     contabo_router = None  # type: ignore
     _has_contabo = False
+from app.api.routers.ai import router as ai_router
 from app.api.routers.assets import router as assets_router
 from app.api.routers.atera import router as atera_router
 from app.api.routers.auth import router as auth_router
@@ -141,6 +142,7 @@ app.include_router(assets_router, prefix="/api/assets", tags=["infraops-assets"]
 app.include_router(atera_router)  # prefix: /api/rmm/atera
 
 # --- n.secops ---
+app.include_router(ai_router)  # prefix: /api/ai
 app.include_router(secops_router)  # prefix: /api/secops
 
 # --- Auth (compartilhado) ---

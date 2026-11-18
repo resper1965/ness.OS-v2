@@ -341,7 +341,12 @@ class GLPIClient:
         ):
             raise ValueError("GLPI ticket ownership mismatch")
         if int(ticket["status"]) not in (5, 6):
-            return {"resolved": False, "solution": "", "solution_id": None}
+            return {
+                "resolved": False,
+                "solution": "",
+                "solution_id": None,
+                "category_id": None,
+            }
         solutions = await self.list_items(f"Ticket/{ticket_id}/ITILSolution")
         # Status 4 is a refused solution in GLPI; do not import it as applied.
         accepted = [s for s in solutions if int(s.get("status", 0)) != 4]
@@ -352,6 +357,7 @@ class GLPIClient:
             "resolved": True,
             "solution": "".join(parser.parts).strip(),
             "solution_id": str(latest["id"]) if latest else None,
+            "category_id": ticket.get("itilcategories_id") or None,
         }
 
     async def create_ticket(

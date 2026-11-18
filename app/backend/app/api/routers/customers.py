@@ -32,6 +32,7 @@ class CustomerPatch(BaseModel):
     display_name: NonBlank | None = None
     glpi_entity_id: int | None = None
     active: bool | None = None
+    ai_external_allowed: bool | None = None
 
 
 class AliasIn(BaseModel):
@@ -43,6 +44,7 @@ def _fields(c: Customer) -> dict:
         "display_name": c.display_name,
         "glpi_entity_id": c.glpi_entity_id,
         "active": c.active,
+        "ai_external_allowed": c.ai_external_allowed,
     }
 
 
