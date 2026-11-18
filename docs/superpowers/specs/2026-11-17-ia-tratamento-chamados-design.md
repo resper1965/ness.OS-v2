@@ -1,7 +1,8 @@
 # IA no tratamento de chamados — design
 
 > Data: 17/11/2026. Estado: **aprovado pelo Ricardo em 17/11/2026**.
-> **F1 entregue na branch `feat/ia-chamados-f1`** (commits `37d13ae` a `44450bc`; fecha com `docs: fecha F1 da IA nos chamados`). PR: a abrir. Falta promover (aviso à operação em [ai-f1-aviso-operacao.md](../../execution/ai-f1-aviso-operacao.md) e OK do Ricardo).
+> **F1 na `main` (#280).** Falta promover (aviso à operação em [ai-f1-aviso-operacao.md](../../execution/ai-f1-aviso-operacao.md) e OK do Ricardo).
+> **Revisado em 18/11/2026 [Ricardo]:** laço único NOC/SOC no lugar de SOAR/AIOps de regra; correlação por regra substituída por repetição + sugestão do investigador; Action1 como contexto, sinal e braço; inventário do GLPI como eixo.
 > Base: `origin/main` em 17/11. Não autoriza instalação, compra nem ativação em produção.
 > Marcação: **[Ricardo]** = decidido por ele (aqui ou em ADR/spec citada); **[proposta]** = decisão do autor, revisável.
 
@@ -43,21 +44,53 @@ Já decididas em ADR ou spec, e valem para toda fonte nova:
    ADR 0022). **[Ricardo]**
 6. **Toda chamada à IA passa por `AIRequestV1`:** campos explícitos, sanitização e métrica. **[Ricardo, #99]**
 
-## 4. O caminho único
+## 4. O laço único (NOC e SOC) **[Ricardo, 18/11]**
+
+O SOAR de playbook (SOC) e o AIOps de regra fixa e runbook (NOC) estão vencidos. O fluxo pré-escrito não cobre
+o caso real e a manutenção não acaba. No lugar entra **um laço só para NOC e SOC**: um investigador (IA) que
+lê o contexto, propõe a ação, o humano aprova e o executor roda.
 
 ```
-fonte ─► adaptador ─► sinal v1 ─► cliente ─► dedup + correlação ─► atendimento (regra)
-                                                                         │
-                        GLPI ◄── chamado ◄── enriquecimento (IA) ◄──────┘
-                                     │
-                proposta de ação (IA) ─► aprovação humana ─► executor (Action1 etc.)
-                                     │
-                      encerramento ─► retorno do analista ─► métricas
+fonte ─► adaptador ─► sinal v1 ─► cliente (regra) ─► dedup/repetição (regra) ─► atendimento e urgência (regra)
+                                                                                     │
+          GLPI ◄── chamado ◄── investigador (IA, ferramentas de leitura) ◄───────────┘
+                     │
+                     ├─► proposta de ação ─► aprovação humana ─► executor (Action1) ─► verificação ─► chamado
+                     └─► encerramento ─► retorno do analista ─► métricas (F1)
 ```
 
-**[proposta]** Toda fonte entra como **sinal v1** (`docs/specs/signal-contract-v1.md`). O Zabbix passa a
-emitir o envelope internamente (`signal_type = zabbix.problem`), sem mudar o webhook nem o comportamento
-de hoje. Assim correlação, IA e métricas são escritas uma vez só.
+**Fica determinístico** (controle, não automação): cliente, atendimento, urgência, dedup por evento e
+repetição de sinal de estado, lista de ações proibidas, aprovação humana, teto de custo e registro de toda
+decisão (F1).
+
+**Vira trabalho do investigador (N1/N2), não regra:** dizer que alertas são o mesmo incidente, linha do tempo,
+causa provável com o histórico do mesmo cliente e proposta de ação.
+
+### 4.1 Perfil por fonte
+
+O laço é um só; cada fonte declara um perfil. Tratar o Wazuh como um "Zabbix com outro nome" quebra o desenho.
+
+| | Zabbix (NOC) | Wazuh (SOC) | Action1 (endpoint) |
+|---|---|---|---|
+| Tipo de sinal | **estado** (abre e se recupera) | **evento** (não se recupera) | **pendência** (patch, vulnerabilidade, reboot, agente sem contato) |
+| Filtro antes do chamado | quase tudo vira chamado | política SOC (arquiva, atende por nível/score, amostra semanal) | agregado por cliente e por ciclo, nunca um chamado por máquina |
+| Repetição | o mesmo trigger no mesmo host = o mesmo problema (acompanhamento) | a mesma regra no mesmo agente = possível ataque em curso (sinal, nunca silenciado) | a mesma pendência = a mesma linha do ciclo |
+| Encerramento | recuperação na origem | veredito humano (FP/verdadeiro) | **verificação** depois da execução ("instalado" ≠ "corrigido", ADR 0021) |
+| Acerto da IA | categoria ITIL no GLPI | veredito FP no Hub | verificação pós-execução |
+| Dado ao modelo | trigger, métrica | `full_log` sanitizado (usuário, IP, comando) | inventário; **a chave do BitLocker nunca sai do Action1** |
+| Ferramentas do investigador | histórico do Zabbix, chamados do cliente | eventos relacionados, reputação, MITRE | — (o Action1 é ferramenta dos outros) |
+
+### 4.2 Papéis das integrações
+
+| Integração | Papel no laço |
+|---|---|
+| Zabbix, Wazuh | **olhos**: fontes de sinal |
+| Action1 | **contexto** (leitura do endpoint para o investigador), **sinal** (pendências) e **braço** (executor do que foi aprovado), nessa ordem de entrada |
+| GLPI | **registro** do atendimento e **inventário** (cadastro mestre, ADR 0002): é a ferramenta de contexto comum a todas as fontes |
+| Hub | o laço: cliente, regra, investigador, aprovação, registro e medição |
+
+O ganho de juntar tudo no Hub é o caso cruzado no mesmo cliente e no mesmo host (ex.: o Zabbix acusa disco
+caindo enquanto o Wazuh vê um processo cifrando arquivos e o Action1 mostra um software instalado ontem). Só o Hub vê os três.
 
 ## 5. Onde a IA entra, etapa por etapa
 
@@ -75,31 +108,27 @@ O nível de autonomia de cada etapa é fixo:
 |---|---|---|---|
 | Adaptador / normalização | N0 em produção | Pode ajudar a *escrever* o mapeamento de uma ferramenta nova, em desenvolvimento, com revisão. | Mapeamento errado em tempo real é invisível. |
 | Resolução de cliente | N0 | — | Regra 1. |
-| Dedup e correlação | N0 para agrupar, N1 para explicar | Resume o grupo ("50 eventos, 3 hosts, mesmo switch"). | Regra determinística é auditável e resolve a maior parte da tempestade. |
-| Atendimento e urgência | N1 | Marca **divergência** quando a leitura do modelo discorda da regra. Vai para revisão; não muda nada. | Regra 2. A divergência calibra a regra (entrega E1 do plano Vigil). |
-| Enriquecimento do chamado | N1 | Resumo, causa provável, próximos passos e chamados parecidos do **mesmo cliente** (pgvector). Tudo marcado como IA. | Ganho direto de tempo do analista. Já existe no NOC. |
-| Investigação L2 (SOC) | N1 | Linha do tempo e hipóteses (Vigil, se o ADR 0022 passar). | Só casos graves; custo controlado. |
-| Proposta de ação | N3 | Propõe ação de uma **lista fechada** por executor. O analista aprova; o executor roda; o resultado volta ao chamado. | Regra 4. |
-| Encerramento | N2 | Rascunho da solução e do texto ao cliente; quem fecha é o humano. O fechamento automático continua **só** pela recuperação da origem (ex.: recovery do Zabbix), sem IA. | Fechar errado esconde problema. |
+| Dedup e repetição | N0 | — | Identidade do sinal, não juízo. |
+| Agrupamento de incidentes | N2 | Sugere "estes chamados são o mesmo incidente"; o técnico vincula no GLPI. | Agrupar errado esconde problema; sugestão errada custa um clique. |
+| Atendimento e urgência | N1 | Marca **divergência** quando a leitura do modelo discorda da regra (F1). | Regra 2. |
+| Investigação (NOC e SOC) | N1 | Linha do tempo, causa provável, chamados parecidos do **mesmo cliente**, com ferramentas de leitura (Zabbix, Wazuh, inventário do GLPI, Action1). | Substitui o playbook. Custo controlado pelo teto da F1. |
+| Proposta de ação | N3 | Propõe a ação; o analista aprova; o executor roda; a verificação volta ao chamado. O controle é uma **lista de ações proibidas** por executor, não uma lista fechada de playbooks. | Regra 4. |
+| Encerramento | N2 | Rascunho da solução e do texto ao cliente; quem fecha é o humano. O fechamento automático continua **só** pela recuperação da origem, sem IA. | Fechar errado esconde problema. |
 | Atendimento ao técnico no GLPI | N2 | Plugin `nessai`, como está. | Já existe. |
 
-## 6. Correlação **[proposta]**
+## 6. Repetição e agrupamento **[Ricardo, 18/11]**
 
-É o maior ganho e não usa IA.
+A correlação por regra fixa (mesmo host ou mesmo trigger numa janela) **sai do design**. Ela juntaria
+problemas distintos do mesmo servidor e esconderia o segundo quando o técnico fechasse o primeiro, e refaz o que
+o Zabbix 7.0 já faz na origem (dependência entre triggers, correlação global).
 
-- Um **grupo** junta sinais do mesmo cliente dentro de uma janela de tempo, quando uma destas condições bate:
-  - mesmo host;
-  - hosts ligados pela mesma dependência cadastrada (no GLPI ou no Zabbix);
-  - mesma regra ou trigger em vários hosts.
-- **O grupo abre um chamado só.** Os sinais seguintes entram como acompanhamento do mesmo chamado.
-- Janela e critérios ficam por cliente, em tabela editável, no padrão de contratos e SLA (#198).
-- Sinal de severidade maior que a do grupo **sobe a urgência** do chamado e notifica de novo. Nunca é
-  engolido em silêncio.
-- **Nunca agrupa entre clientes diferentes.**
-- **Fechamento automático do grupo:** só quando **todos** os sinais do grupo se recuperam na origem. Antes
-  disso, cada recuperação vira acompanhamento. **[proposta — o mais seguro contra "fechar escondendo problema"]**
-- **Critério de dependência:** entra na F2 só se o dado já estiver cadastrado, com fonte única no GLPI
-  (cadastro mestre). Sem dado, a F2 começa com "mesmo host" e "mesma regra em vários hosts". **[proposta]**
+- **Repetição (N0, só sinal de estado):** um problema novo do **mesmo trigger no mesmo host**, com o chamado
+  anterior ainda aberto, vira acompanhamento desse chamado (flapping). Severidade maior sobe a urgência e
+  notifica de novo. Nunca entre clientes.
+- **Supressão na origem:** a dependência entre triggers fica configurada no Zabbix, não no Hub.
+- **Agrupamento entre problemas distintos:** sugestão do investigador (N2), vinculada pelo técnico no GLPI.
+- **Primeiro medir:** a F2 mede quantos chamados por cliente e por host caem em janelas curtas, a partir do
+  histórico. Sem tempestade medida, nada além da repetição é construído.
 
 ## 7. Registro e medição **[proposta]**
 
@@ -150,21 +179,22 @@ métrica medida por 30 dias e OK do Ricardo.
     provedor;
   - o embedding do post-mortem passa a usar o `AIRequestV1`.
 
-## 9. Fonte nova (ferramenta de cliente) **[proposta]**
+## 9. Fonte nova e inventário **[proposta]**
 
 Integrar uma fonte é:
 
-1. Escrever o **adaptador**:
-   - por **push**, com webhook e chave por fonte;
-   - ou por **pull**, com coleta agendada.
-2. Fazer o adaptador emitir sinal v1.
-3. Cadastrar o vínculo `source_id` → cliente em `n_infraops_tenant_mappings`.
-4. Cadastrar o esquema de severidade da fonte e a regra de atendimento dela.
-5. Montar a lista de campos permitidos para a IA.
+1. Escrever o **adaptador** (push com webhook e chave por fonte, ou pull agendado) que emite sinal v1.
+2. Cadastrar o vínculo `source_id` → cliente em `n_infraops_tenant_mappings`.
+3. Declarar o **perfil** (seção 4.1): tipo de sinal, filtro, repetição, encerramento, campos permitidos à IA.
+4. Dizer se ela também é **ferramenta de contexto** (leitura para o investigador) ou **executor**.
 
-**Nada muda no núcleo.** O adaptador é um arquivo em `integrations/`, no padrão dos que já existem.
-Quando chegar o terceiro adaptador de push parecido, avaliar um adaptador genérico configurável (rule of
-three).
+**Nada muda no núcleo.** O adaptador é um arquivo em `integrations/`. No terceiro adaptador de push parecido,
+avaliar um adaptador genérico (rule of three).
+
+**Inventário do GLPI como eixo:** toda fonte se liga ao mesmo ativo do GLPI (cadastro mestre). Hoje só o
+Zabbix tem esse elo (`Asset.zabbix_host_id` ↔ item do GLPI, `cmdb_sync`). Wazuh (agent) e Action1 (endpoint)
+precisam do mesmo elo, sem casar por IP compartilhado. Explorar integrações do inventário (dono, contrato,
+dependências, software) fica para depois da F3, em spec própria. **[Ricardo, 18/11]**
 
 ## 10. Fases
 
@@ -172,14 +202,14 @@ Cada fase vale sozinha e tem gate de promoção normal do Hub.
 
 | Fase | Entrega | Pronto quando |
 |---|---|---|
-| F1 | Registro de decisão de IA + retorno do analista + métricas, começando pelo Zabbix (inclui a E1 do plano Vigil). | Toda análise do NOC está no banco; a tela mostra as métricas da seção 7 com dado real. |
-| F2 | O Zabbix emite sinal v1 internamente e entra a correlação. | A tempestade de teste vira um chamado; sinais ÷ chamados medidos. |
-| F3 | O Wazuh entra pelo mesmo caminho até o GLPI, com chave de máquina. | Um alerta real do tenant `ness` gera chamado com enriquecimento e decisão registrada. |
-| F4 | `remediators/*` do Hub aposentado (ADR 0021: o Hub não executa). Action1 em **leitura**: patch e vulnerabilidade viram sinais. A IA propõe uma ação da lista fechada; a execução N3 fica atrás da aprovação. | Homologação do ADR 0021, itens 1 a 3; uma ação aprovada roda e o resultado volta ao chamado. |
-| F5 | Primeira ferramenta de cliente pela seção 9. | Integrada sem mudar o núcleo. |
-| F6 | Investigação L2, se o ADR 0022 for aceito. | Conforme o plano Vigil (E2 e E3). |
+| F1 | Registro de decisão de IA, retorno do analista e métricas (inclui a E1 do plano Vigil). **Entregue (#280).** | Toda análise do NOC está no banco; a tela mostra as métricas. |
+| F2 | Repetição do mesmo trigger no mesmo host vira acompanhamento; medição de tempestade (sinais ÷ chamados e consulta histórica). | Repetição testada; relatório de tempestade com dado real. |
+| F3 | Investigador N1 para o NOC, com ferramentas de leitura (Zabbix, chamados e inventário do GLPI). Avaliado pela F1. O Vigil (ADR 0022) concorre a esta peça. | Metade das análises marcada como útil em 30 dias, sem dado cruzado entre clientes. |
+| F4 | Sinal v1 como entrada comum (Zabbix e Wazuh; o tipo de sinal define o perfil). Wazuh no mesmo laço até o GLPI, com a triagem da política SOC na frente do chamado; o investigador ganha as ferramentas do SOC. | Um alerta real do tenant `ness` gera chamado com investigação e decisão registrada. |
+| F5 | Action1: contexto → sinais de pendência → executor N3 com lista de ações proibidas. `remediators/*` aposentado. | Homologação do ADR 0021 (itens 1 a 3, credencial só de leitura, licença acima de 200 aprovada); uma ação aprovada roda e a verificação volta ao chamado. |
+| F6 | Primeira ferramenta de cliente pela seção 9. Inventário do GLPI como eixo comum (spec própria). | Integrada sem mudar o núcleo. |
 
-Ordem: F1 vem antes de tudo, porque sem medição não dá para dizer se o resto ajuda.
+Ordem: medir (F1) → repetição (F2) → investigar (F3, F4) → agir (F5).
 
 ## 11. Objetivos, não-objetivos e anti-objetivos
 
@@ -193,6 +223,7 @@ Ordem: F1 vem antes de tudo, porque sem medição não dá para dizer se o resto
   - novo provedor de IA;
   - cliente acessando a IA;
   - IA decidindo cliente, atendimento, urgência ou fechamento;
+  - playbook pré-escrito (SOAR) ou correlação por regra fixa;
   - N4.
 - **Anti-objetivos.** Mesmo que funcione, é fracasso se:
   - a IA silenciar ou rebaixar um alerta;
@@ -204,6 +235,6 @@ Ordem: F1 vem antes de tudo, porque sem medição não dá para dizer se o resto
 ## 12. Fica com quem constrói
 
 - Esquema das tabelas de decisão de IA e de grupo, e se o `SocDecision` é estendido ou generalizado.
-- Valores iniciais de janela e critérios de correlação; lista fechada de ações do Action1.
+- Lista de ações proibidas por executor; ferramentas do investigador por fonte.
 - Formato do botão de retorno no GLPI: plugin `nessai` ou link para o Hub.
 - Versão de prompt como arquivo versionado ou como tabela.
