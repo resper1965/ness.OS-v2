@@ -1,7 +1,7 @@
 # IA no tratamento de chamados — design
 
 > Data: 17/11/2026. Estado: **aprovado pelo Ricardo em 17/11/2026**.
-> **F1 na `main` (#280).** Falta promover (aviso à operação em [ai-f1-aviso-operacao.md](../../execution/ai-f1-aviso-operacao.md) e OK do Ricardo).
+> **F1 na `main` (#280).** Falta promover (aviso à operação em [ai-f1-aviso-operacao.md](../../execution/ai-f1-aviso-operacao.md) e OK do Ricardo). F2 na branch feat/ia-chamados-f2; PR: a abrir.
 > **Revisado em 18/11/2026 [Ricardo]:** laço único NOC/SOC no lugar de SOAR/AIOps de regra; correlação por regra substituída por repetição + sugestão do investigador; Action1 como contexto, sinal e braço; inventário do GLPI como eixo.
 > Base: `origin/main` em 17/11. Não autoriza instalação, compra nem ativação em produção.
 > Marcação: **[Ricardo]** = decidido por ele (aqui ou em ADR/spec citada); **[proposta]** = decisão do autor, revisável.

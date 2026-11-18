@@ -4,13 +4,14 @@
 
 **Estágio:** em andamento
 
-**Próximo passo:** promover a F1 da IA nos chamados (branch `feat/ia-chamados-f1`, PR a abrir) depois do [aviso à operação](docs/execution/ai-f1-aviso-operacao.md) e do OK do Ricardo; em seguida, F2 (correlação). Depois: validar NOC e SOC com dado real no Hub (promovido `3aecc41` em 16/11: API + frontend); a partir de 23/11, apagar n8n/Evolution (parados em 16/11) com backup e OK "apaga". Documentos atualizados em 16/11 (apps que saíram, VPS e clientes por fase na arquitetura oficial). Depois: painel da Contabo #260, retirar o Authentik e migrar as telas antigas para o kit `.nx`.
+**Próximo passo:** promover F2 com a flag desligada; rodar a consulta de tempestade; ligar após aviso e OK do Ricardo; depois F3 (investigador do NOC). Depois: validar NOC e SOC com dado real no Hub (promovido `3aecc41` em 16/11: API + frontend); a partir de 23/11, apagar n8n/Evolution (parados em 16/11) com backup e OK "apaga". Documentos atualizados em 16/11 (apps que saíram, VPS e clientes por fase na arquitetura oficial). Depois: painel da Contabo #260, retirar o Authentik e migrar as telas antigas para o kit `.nx`.
 
 ## Quadro (atualizado a cada task fechada)
 
 Tasks do [plano de execução](docs/superpowers/plans/2026-10-26-ness-os-execution-plan.md).
 
 ### Feito
+- F2 da IA nos chamados (18/11, na branch `feat/ia-chamados-f2`, **ainda não promovida**): repetição do alerta Zabbix vira acompanhamento do chamado aberto (flag `NINF_ZABBIX_REPEAT_FOLLOWUP_ENABLED`, desligada), métrica sinais ÷ chamados na tela "IA" e consulta de tempestade — [aviso](docs/execution/ai-f2-aviso-operacao.md), [consulta](docs/execution/ai-f2-tempestade.sql)
 - F1 da IA nos chamados (17/11, na branch `feat/ia-chamados-f1`, **ainda não promovida**): registro de toda decisão de IA em `n_ai_decisions` (NOC e SOC, com divergência motor × modelo = E1 do Vigil), retorno do analista, métricas na tela "IA", opt-out por cliente e teto mensal com alerta. A IA do NOC não sobe mais urgência nem push — [spec](docs/superpowers/specs/2026-11-17-ia-tratamento-chamados-design.md), [aviso](docs/execution/ai-f1-aviso-operacao.md)
 - Dados por cliente editáveis fechados (plano #195): T1 clientes e apelidos (#199), T2 regras de grupo de hosts (#200), T3 modalidade efetiva, T4 parâmetros de atendimento, T5 contatos do cliente (#200), T6 documentação e fechamento. Spec final em [contratos-sla-editaveis.md](docs/specs/contratos-sla-editaveis.md) com modelo, chaves, checklist de promoção e o que continua fora.
 - Promoção `1346b06` (06/11, OK do Ricardo): contratos/SLA/calendário editáveis (#198), clientes e apelidos (#199), regras de grupo de hosts e contatos (#200); `promotion=PASS`, seeds conferidos (13 clientes, 22 apelidos, 3 políticas, 4 passos). Calendário comercial padrão 08–20; "sem cliente" = 720 min. Rollback: release `1175954`.
