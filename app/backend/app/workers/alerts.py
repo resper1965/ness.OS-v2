@@ -392,7 +392,7 @@ def build_glpi_ticket_content(alert_data: Dict[str, Any], analysis: Any) -> str:
 <p><b>Host:</b> {host_name} ({host_ip})</p>
 <p><b>Severidade do Alerta:</b> {severity}</p>
 <p><b>Causa Provável:</b> {cause}</p>
-<p><b>Urgência de IA:</b> {urgency}</p>
+<p><b>Opinião da IA (urgência):</b> {urgency}</p>
 <p><b>Isolamento Requerido:</b> {"Sim" if analysis.isolation_required else "Não"}</p>
 <hr/>
 <h3>Plano de Ação Executivo:</h3>

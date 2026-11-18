@@ -115,6 +115,44 @@ async def test_postmortem_uses_authoritative_identity(monkeypatch, case):
         assert "tags" not in context
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize("skip", ["skipped_customer", None])
+async def test_postmortem_respects_ai_gate(monkeypatch, skip):
+    ctx = {
+        "fingerprint": "fp",
+        "deskmanager_ticket_id": "7",
+        "customer_name": "Cavan",
+        "title": "t",
+        "host_name": "h",
+    }
+    report = SimpleNamespace(
+        model_dump=lambda mode: {},
+        prompt_tokens=0,
+        completion_tokens=0,
+        summary="s",
+        root_cause="r",
+    )
+    gen = MagicMock(return_value=report)
+    emb = MagicMock(return_value=[])
+    monkeypatch.setattr(
+        ai_context, "trusted_postmortem_context", AsyncMock(return_value=ctx)
+    )
+    monkeypatch.setattr(postmortem, "_ai_skip", AsyncMock(return_value=skip))
+    monkeypatch.setattr(
+        postmortem, "_async_fetch_host_metrics", AsyncMock(return_value=[])
+    )
+    monkeypatch.setattr(postmortem, "_async_save_report", AsyncMock())
+    monkeypatch.setattr(postmortem, "generate_postmortem", gen)
+    monkeypatch.setattr(postmortem, "generate_embedding", emb)
+    out = await postmortem._async_generate_postmortem_report({"fingerprint": "fp"})
+    if skip:
+        gen.assert_not_called()
+        emb.assert_not_called()
+        assert "pulada por política" in out["summary"]
+    else:
+        gen.assert_called_once()
+
+
 def test_embedding_uses_header_and_redacts_input(monkeypatch, caplog):
     monkeypatch.setattr(gemini.settings, "gemini_api_key", "synthetic-key")
 

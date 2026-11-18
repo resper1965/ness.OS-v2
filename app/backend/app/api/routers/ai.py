@@ -7,7 +7,7 @@ from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
-from sqlalchemy import Float, TIMESTAMP, cast, func, select
+from sqlalchemy import TIMESTAMP, Float, case, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import require_noc, resolve_tenant_scope
@@ -115,10 +115,17 @@ async def metrics(
     ]
     d = AIDecision
     # Resolution time comes from the linked incident; no incident or tag = no MTTR sample.
-    resolved_at = cast(
-        Incident.tags["glpi_resolved_at"].astext, TIMESTAMP(timezone=True)
+    # Malformed tags and negative durations (resolved before created) are no sample.
+    raw = Incident.tags["glpi_resolved_at"].astext
+    resolved_at = case(
+        (raw.op("~")(r"^\d{4}-\d{2}-\d{2}T"), cast(raw, TIMESTAMP(timezone=True)))
     )
-    minutes = func.extract("epoch", resolved_at - d.created_at).cast(Float) / 60
+    minutes = case(
+        (
+            resolved_at >= d.created_at,
+            func.extract("epoch", resolved_at - d.created_at).cast(Float) / 60,
+        )
+    )
     useful = d.feedback == "useful"
     kinds = (
         await db.execute(
@@ -133,10 +140,8 @@ async def metrics(
                 func.coalesce(func.sum(d.cost_usd), 0),
                 func.count().filter(d.cost_usd.is_(None), d.outcome.in_(CALLED)),
                 func.avg(d.latency_ms),
-                func.avg(minutes).filter(useful, resolved_at.is_not(None)),
-                func.avg(minutes).filter(
-                    d.feedback.is_distinct_from("useful"), resolved_at.is_not(None)
-                ),
+                func.avg(minutes).filter(useful),
+                func.avg(minutes).filter(d.feedback.is_distinct_from("useful")),
             )
             .select_from(d)
             .outerjoin(Incident, Incident.id == d.incident_id)

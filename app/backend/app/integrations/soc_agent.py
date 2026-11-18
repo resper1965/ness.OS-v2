@@ -3,12 +3,12 @@ import json
 import logging
 import math
 import time
-from typing import Any, NotRequired, TypedDict
+from typing import Any, TypedDict
 
 import httpx
 
 from app.config import get_settings
-from app.core.ai_context import AICall, AIRequestV1, _observed_at, log_ai_call
+from app.core.ai_context import AIRequestV1, _observed_at, log_ai_call
 from app.integrations.llm import achat_completion
 
 logger = logging.getLogger(__name__)

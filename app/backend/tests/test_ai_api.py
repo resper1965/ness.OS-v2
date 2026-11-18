@@ -188,6 +188,8 @@ async def test_metrics_mttr_uses_glpi_resolved_at(api, maker):
                         {"glpi_resolved_at": (NOW + timedelta(minutes=90)).isoformat()},
                     ),
                     (3, {}),
+                    (5, {"glpi_resolved_at": "not-a-date"}),
+                    (6, {"glpi_resolved_at": (NOW - timedelta(hours=1)).isoformat()}),
                 )
             ]
         )
@@ -198,9 +200,13 @@ async def test_metrics_mttr_uses_glpi_resolved_at(api, maker):
         _row(2, incident_id=2, created_at=NOW),
         _row(3, incident_id=3, created_at=NOW),
         _row(4, created_at=NOW),
+        _row(5, incident_id=5, created_at=NOW),
+        _row(6, incident_id=6, feedback="useful", created_at=NOW),
     )
     async with api(NOC) as c:
-        k = (await c.get("/api/ai/metrics")).json()["by_kind"]["incident_analysis"]
+        r = await c.get("/api/ai/metrics")
+        assert r.status_code == 200
+        k = r.json()["by_kind"]["incident_analysis"]
     assert k["mttr_minutes"]["useful"] == pytest.approx(30)
     assert k["mttr_minutes"]["other"] == pytest.approx(90)
 

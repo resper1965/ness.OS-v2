@@ -27,6 +27,7 @@ async def ai_gate(session: AsyncSession, customer_name: str) -> str | None:
     now = datetime.now(timezone.utc)
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     in_month = AIDecision.created_at >= month_start
+    # ponytail: full scan of n_ai_decisions per alert; upgrade path: index on created_at (or monthly rollup) when volume demands.
     spent = await session.scalar(
         select(func.coalesce(func.sum(AIDecision.cost_usd), 0)).where(in_month)
     )
