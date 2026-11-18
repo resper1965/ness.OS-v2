@@ -2,6 +2,7 @@
 
 import json
 import os
+from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock
 
 import httpx
@@ -58,13 +59,13 @@ async def maker():
 CALL = AICall("incident_analysis", "ok", "m", 12, 10, 5, 1e9)
 
 
-async def _record(session, **kw):
+async def _record(session, call=CALL, **kw):
     return await record_ai_decision(
         session,
         kind="incident_analysis",
         customer_id="acme",
         source_ref="fp:1",
-        call=CALL,
+        call=call,
         prompt_version="v",
         request={},
         response={},
@@ -76,7 +77,7 @@ async def _record(session, **kw):
 
 async def test_record_marks_divergence_and_is_idempotent(maker):
     async with maker() as s, s.begin():
-        first = await _record(s)
+        first = await _record(s, incident_id=5)
         assert await _record(s) is None
     assert first is not None
     async with maker() as s:
@@ -84,6 +85,17 @@ async def test_record_marks_divergence_and_is_idempotent(maker):
     assert len(rows) == 1
     assert rows[0].divergent is True
     assert rows[0].cost_usd is None  # absurd cost never breaks NUMERIC(10,6)
+
+    retry = AICall("incident_analysis", "ok", "m", 12, 10, 5, 0.01)
+    async with maker() as s, s.begin():
+        assert await _record(s, call=retry, ticket_id="77") is None
+        assert await _record(s, call=retry, incident_id=9) is None
+    async with maker() as s:
+        rows = (await s.execute(select(AIDecision))).scalars().all()
+    assert len(rows) == 1
+    assert rows[0].cost_usd == Decimal("0.02")
+    assert (rows[0].prompt_tokens, rows[0].completion_tokens) == (40, 20)
+    assert (rows[0].ticket_id, rows[0].incident_id) == ("77", 5)
 
 
 async def test_record_failure_does_not_abort_transaction(maker):
@@ -155,3 +167,49 @@ async def test_worker_records_decision_with_incident_and_ticket(maker, monkeypat
         row.request
     )
     assert row.response["urgency"] == "CRITICAL"
+
+
+async def test_worker_gate_error_records_no_model_opinion(maker, monkeypatch):
+    def forbidden(**kwargs):
+        raise AssertionError("No provider call when the gate fails")
+
+    monkeypatch.setattr(httpx, "AsyncClient", forbidden)
+    monkeypatch.setattr(llm.settings, "llm_api_key", "synthetic-key")
+    monkeypatch.setattr(alerts, "SessionLocal", maker)
+    monkeypatch.setattr(alerts, "ai_gate", AsyncMock(side_effect=RuntimeError))
+    monkeypatch.setattr(alerts, "GLPIClient", lambda: AsyncMock())
+    monkeypatch.setattr(
+        alerts, "ensure_glpi_ticket_serialized", AsyncMock(return_value=(77, True))
+    )
+    monkeypatch.setattr(
+        alerts, "canonical_customer", AsyncMock(return_value=("Acme", 8))
+    )
+    monkeypatch.setattr(alerts, "resolve_alert_customer", AsyncMock(return_value="A"))
+    monkeypatch.setattr(alerts, "lookup_glpi_asset", AsyncMock(return_value=None))
+    monkeypatch.setattr(alerts, "_get_sync_redis", lambda: MagicMock())
+    monkeypatch.setattr(alerts, "LokiClient", lambda: AsyncMock())
+
+    alert = {"host_name": "h", "trigger_name": "t", "severity": 5, "event_id": "7"}
+    await alerts._async_process_alert_v1(alert, "g" * 64)
+
+    async with maker() as s:
+        row = (await s.execute(select(AIDecision))).scalar_one()
+    assert (row.outcome, row.rule_value, row.model_value) == ("error", "CRITICAL", None)
+    assert row.divergent is False and row.response == {}
+
+
+async def test_worker_without_key_skips_gate(monkeypatch):
+    gate = AsyncMock()
+    monkeypatch.setattr(llm.settings, "llm_api_key", "")
+    monkeypatch.setattr(alerts, "ai_gate", gate)
+    analyze = AsyncMock(side_effect=StopAsyncIteration)  # stop right after analysis
+    monkeypatch.setattr(alerts, "analyze_incident", analyze)
+    monkeypatch.setattr(alerts, "resolve_alert_customer", AsyncMock(return_value="A"))
+    monkeypatch.setattr(
+        alerts, "canonical_customer", AsyncMock(return_value=("Acme", 8))
+    )
+    monkeypatch.setattr(alerts, "lookup_glpi_asset", AsyncMock(return_value=None))
+    with pytest.raises(StopAsyncIteration):
+        await alerts._async_process_alert_v1({"severity": 4}, "h" * 64)
+    gate.assert_not_awaited()
+    assert analyze.await_args.kwargs["skip"] is None

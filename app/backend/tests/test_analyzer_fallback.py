@@ -123,3 +123,13 @@ async def test_skip_makes_no_http_call(monkeypatch):
     assert result._call.outcome == "skipped_budget"
     assert result._request["tenant"] == "Acme"
     assert "entity_id" not in str(result._request)
+
+
+@pytest.mark.asyncio
+async def test_request_build_failure_never_raises(monkeypatch):
+    def boom(*_args):
+        raise ValueError("bad payload")
+
+    monkeypatch.setattr(analyzer, "incident_ai_request", boom)
+    result = await analyzer.analyze_incident({"severity": 4}, skip="skipped_customer")
+    assert result._request == {} and result.urgency == "HIGH"

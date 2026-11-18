@@ -96,9 +96,13 @@ async def analyze_incident(
     `urgency` é a opinião crua do modelo; a prioridade vem só da origem.
     Com `skip` (outcome da porta), devolve triagem manual sem chamar o modelo.
     """
-    ai_request = incident_ai_request(
-        incident_data, (customer_metadata or {}).get("customer_name")
-    ).model_dump(mode="json")
+    try:
+        ai_request = incident_ai_request(
+            incident_data, (customer_metadata or {}).get("customer_name")
+        ).model_dump(mode="json")
+    except Exception as exc:
+        logger.error("AI request build failed: %s", type(exc).__name__)
+        ai_request = {}
     started = time.perf_counter()
 
     if skip or not settings.llm_api_key:

@@ -435,7 +435,7 @@ async def _async_process_alert_v1(
     analysis = await analyze_incident(
         incident_data=alert_data,
         customer_metadata={"customer_name": customer_name, "entity_id": entity_id},
-        skip=await _ai_skip(customer_name),
+        skip=await _ai_skip(customer_name) if settings.llm_api_key else None,
     )
     logger.info("Análise IA concluída")
 
@@ -573,7 +573,13 @@ async def _async_process_alert_v1(
                     response=analysis.model_dump() if call.outcome == "ok" else {},
                     rule_value=source_urgency(alert_data),
                     model_value=(
-                        "ISOLATE" if analysis.isolation_required else analysis.urgency
+                        None
+                        if call.outcome != "ok"
+                        else (
+                            "ISOLATE"
+                            if analysis.isolation_required
+                            else analysis.urgency
+                        )
                     ),
                     incident_id=db_incident.id,
                     ticket_id=str(ticket_id) if ticket_id else None,

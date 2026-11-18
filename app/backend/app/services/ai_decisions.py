@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from decimal import Decimal, InvalidOperation
 
+from sqlalchemy import func, literal_column
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -41,37 +42,49 @@ async def record_ai_decision(
     soc_decision_id: int | None = None,
     ticket_id: str | None = None,
 ) -> int | None:
-    """Id da linha nova, ou None no replay ou em falha (logada; o chamador segue)."""
-    stmt = (
-        pg_insert(AIDecision)
-        .values(
-            kind=kind,
-            customer_id=customer_id,
-            incident_id=incident_id,
-            soc_decision_id=soc_decision_id,
-            ticket_id=ticket_id,
-            source_ref=source_ref,
-            outcome=call.outcome,
-            model=call.model,
-            prompt_version=prompt_version,
-            request=request,
-            response=response,
-            rule_value=rule_value,
-            model_value=model_value,
-            divergent=rule_value is not None
-            and model_value is not None
-            and rule_value != model_value,
-            latency_ms=call.latency_ms,
-            prompt_tokens=call.prompt_tokens,
-            completion_tokens=call.completion_tokens,
-            cost_usd=_cost(call.cost_usd),
-        )
-        .on_conflict_do_nothing(index_elements=["kind", "source_ref"])
-        .returning(AIDecision.id)
+    """Id da linha nova, ou None no replay ou em falha (logada; o chamador segue).
+
+    Replay (retry do Celery) soma custo e tokens e completa ticket/incidente.
+    """
+    insert = pg_insert(AIDecision).values(
+        kind=kind,
+        customer_id=customer_id,
+        incident_id=incident_id,
+        soc_decision_id=soc_decision_id,
+        ticket_id=ticket_id,
+        source_ref=source_ref,
+        outcome=call.outcome,
+        model=call.model,
+        prompt_version=prompt_version,
+        request=request,
+        response=response,
+        rule_value=rule_value,
+        model_value=model_value,
+        divergent=rule_value is not None
+        and model_value is not None
+        and rule_value != model_value,
+        latency_ms=call.latency_ms,
+        prompt_tokens=call.prompt_tokens,
+        completion_tokens=call.completion_tokens,
+        cost_usd=_cost(call.cost_usd),
     )
+    old, new = AIDecision.__table__.c, insert.excluded
+    stmt = insert.on_conflict_do_update(
+        index_elements=["kind", "source_ref"],
+        set_={
+            # a+b, or whichever is set, NULL only when both are NULL
+            k: func.coalesce(old[k] + new[k], old[k], new[k])
+            for k in ("cost_usd", "prompt_tokens", "completion_tokens")
+        }
+        | {
+            "ticket_id": func.coalesce(new.ticket_id, old.ticket_id),
+            "incident_id": func.coalesce(old.incident_id, new.incident_id),
+        },
+    ).returning(AIDecision.id, literal_column("xmax = 0"))
     try:
         async with session.begin_nested():
-            return (await session.execute(stmt)).scalar_one_or_none()
+            row_id, inserted = (await session.execute(stmt)).one()
+            return row_id if inserted else None
     except Exception:  # noqa: BLE001 — registro nunca derruba o chamado
         logger.exception("ai decision not recorded: %s %s", kind, source_ref)
         return None
