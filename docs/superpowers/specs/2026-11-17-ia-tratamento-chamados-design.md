@@ -1,6 +1,7 @@
 # IA no tratamento de chamados — design
 
 > Data: 17/11/2026. Estado: **aprovado pelo Ricardo em 17/11/2026**.
+> **F1 entregue na branch `feat/ia-chamados-f1`** (commits `37d13ae` a `44450bc`; fecha com `docs: fecha F1 da IA nos chamados`). PR: a abrir. Falta promover (aviso à operação em [ai-f1-aviso-operacao.md](../../execution/ai-f1-aviso-operacao.md) e OK do Ricardo).
 > Base: `origin/main` em 17/11. Não autoriza instalação, compra nem ativação em produção.
 > Marcação: **[Ricardo]** = decidido por ele (aqui ou em ADR/spec citada); **[proposta]** = decisão do autor, revisável.
 
