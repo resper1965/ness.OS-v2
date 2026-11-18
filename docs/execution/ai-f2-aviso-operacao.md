@@ -17,3 +17,6 @@ Status: **não promovida; flag desligada por padrão.** Ligar só após este avi
 - **Antes de ligar:** rodar [ai-f2-tempestade.sql](ai-f2-tempestade.sql) (`psql -f`, conta só de leitura) e anexar o resultado.
 - **Migração:** aditiva (`python -m app.migrate`): coluna `repeat_of_id` e índice em `n_infraops_incidents`.
 - **Rollback:** desligar a flag; coluna e índice podem ficar.
+- **Migração e escrita:** o `CREATE INDEX` e a FK travam brevemente a escrita em `n_infraops_incidents`; no tamanho atual leva segundos.
+- **Flag desligada depois de usada:** uma repetição reentregue pode abrir chamado próprio.
+- **Imagem antiga:** o `resolve_ticket` antigo não resolve repetições já gravadas; elas ficam abertas no Hub e devem ser fechadas à mão.

@@ -125,6 +125,7 @@ o Zabbix 7.0 já faz na origem (dependência entre triggers, correlação global
 - **Repetição (N0, só sinal de estado):** um problema novo do **mesmo trigger no mesmo host**, com o chamado
   anterior ainda aberto, vira acompanhamento desse chamado (flapping). Severidade maior sobe a urgência e
   notifica de novo. Nunca entre clientes.
+  **Na F2:** a repetição comenta e notifica pela regra da F1 (severidade da origem); subir a urgência do chamado raiz fica para a F3 [proposta].
 - **Supressão na origem:** a dependência entre triggers fica configurada no Zabbix, não no Hub.
 - **Agrupamento entre problemas distintos:** sugestão do investigador (N2), vinculada pelo técnico no GLPI.
 - **Primeiro medir:** a F2 mede quantos chamados por cliente e por host caem em janelas curtas, a partir do

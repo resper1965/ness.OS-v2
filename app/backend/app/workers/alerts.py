@@ -468,20 +468,22 @@ async def _async_process_alert_v1(
     root_id: int | None = None
     root_ticket: str | None = None
     followup_done = False
+    repeat_closed = False
     if settings.zabbix_repeat_followup_enabled:
         try:
             async with SessionLocal() as session:
                 stored = (
                     await session.execute(
-                        select(Incident.repeat_of_id, Incident.tags).where(
-                            Incident.fingerprint == fingerprint
-                        )
+                        select(
+                            Incident.repeat_of_id, Incident.status, Incident.tags
+                        ).where(Incident.fingerprint == fingerprint)
                     )
                 ).one_or_none()
                 if stored is not None and stored.repeat_of_id is not None:
                     # Sticky link: a redelivered repeat keeps its root even if that
                     # root has since been resolved; the followup is posted at most once.
                     tags = stored.tags or {}
+                    repeat_closed = stored.status in ("resolved", "closed")
                     found = (
                         stored.repeat_of_id,
                         tags.get("ninf_repeat_ticket_id"),
@@ -501,7 +503,10 @@ async def _async_process_alert_v1(
                         else (None, None, False)
                     )
             if found[0] is not None and found[1]:
-                root_id, root_ticket, followup_done = found
+                if str(found[1]).isdigit():
+                    root_id, root_ticket, followup_done = found
+                else:
+                    logger.warning("Repeat root ticket id is not numeric; ignoring")
         except Exception as exc:
             logger.warning("Repeat root lookup failed: %s", type(exc).__name__)
     is_repeat = root_id is not None
@@ -529,7 +534,7 @@ async def _async_process_alert_v1(
     glpi_error = None
     if is_repeat:
         ticket_id = int(str(root_ticket))
-        if not followup_done:
+        if not followup_done and not repeat_closed:
             # ponytail: a crash between the POST and the commit duplicates one
             # followup; upgrade path: a marker in the text and a lookup before POST.
             # ponytail: if GLPI's solution webhook is lost the root stays open in the
@@ -537,6 +542,7 @@ async def _async_process_alert_v1(
             # upgrade path: read the ticket status before commenting.
             try:
                 await glpi.init_session()
+                await glpi.change_active_entity(entity_id)
                 await glpi.add_comment(
                     ticket_id,
                     escape(

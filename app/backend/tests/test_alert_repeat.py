@@ -50,6 +50,7 @@ class Glpi:
         self.tickets: dict[str, int] = {}
         self.creates = 0
         self.followups: list[tuple[int, str]] = []
+        self.entities: list[int] = []
         self.fail_create = 0
         self.fail_comment = 0
 
@@ -60,7 +61,7 @@ class Glpi:
         return True
 
     async def change_active_entity(self, entity_id):
-        return None
+        self.entities.append(entity_id)
 
     async def find_ticket_by_name_marker(self, marker, entity_id):
         return self.tickets.get(marker)
@@ -75,6 +76,8 @@ class Glpi:
         return {"id": ticket_id}
 
     async def add_comment(self, ticket_id, content, private=False):
+        if not private:
+            self.comment_entity = self.entities[-1] if self.entities else None
         if private:  # the creation note, not a followup
             return {"id": 1}
         if self.fail_comment:
@@ -162,6 +165,7 @@ async def test_repeat_same_host_trigger_is_followup(env):
     assert glpi.creates == 1
     assert len(glpi.followups) == 1
     ticket, body = glpi.followups[0]
+    assert glpi.comment_entity == 8  # the customer's entity, set before the comment
     assert ticket == 101 and "srv-&lt;1&gt;" in body and "evento 2" in body
     assert result["ticket_id"] == 101
     root, repeat = await incident(maker, 1), await incident(maker, 2)
@@ -177,6 +181,7 @@ async def test_repeat_same_host_trigger_is_followup(env):
             )
         ).scalar_one()
     assert (row.outcome, row.model_value) == ("skipped_repeat", None)
+    assert row.ticket_id is None
 
 
 async def test_flapping_after_recovery_is_followup(env):
@@ -324,3 +329,27 @@ async def test_flag_off_keeps_ticket_per_event(env, monkeypatch):
     assert (glpi.creates, glpi.followups) == (2, [])
     assert gate.await_count == 2
     assert (await incident(maker, 2)).repeat_of_id is None
+
+
+async def test_non_numeric_root_ticket_is_not_a_root(env):
+    maker, glpi, _, _ = env
+    await problem(1)
+    async with maker() as s, s.begin():
+        (await s.get(Incident, (await incident(maker, 1)).id)).deskmanager_ticket_id = (
+            "T-1"
+        )
+    await problem(2)
+    assert (glpi.creates, glpi.followups) == (2, [])
+    assert (await incident(maker, 2)).repeat_of_id is None
+
+
+async def test_redelivered_repeat_already_resolved_skips_followup(env):
+    maker, glpi, _, _ = env
+    await problem(1)
+    glpi.fail_comment = 1
+    with pytest.raises(GLPITransientError):
+        await problem(2)  # linked, followup never confirmed
+    async with maker() as s, s.begin():
+        (await s.get(Incident, (await incident(maker, 2)).id)).status = "resolved"
+    await problem(2)
+    assert glpi.followups == []

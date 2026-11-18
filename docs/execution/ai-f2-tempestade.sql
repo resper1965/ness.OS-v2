@@ -1,5 +1,6 @@
 -- Tempestade de alertas por cliente, últimos 30 dias (só leitura, um SELECT).
 -- Para que serve: decidir se a repetição (F2) basta ou se a F3 precisa sugerir agrupamento.
+-- Antes de rodar: SET statement_timeout = '120s';
 -- Como rodar: psql -f ai-f2-tempestade.sql, com conta só de leitura, no banco do Hub.
 -- Como ler: burst_10m perto de incidents = há tempestade (o investigador da F3 deve
 -- sugerir agrupamento); caso contrário, a repetição basta.
@@ -19,19 +20,22 @@ SELECT
   count(*) AS incidents,
   count(*) FILTER (WHERE EXISTS (
     SELECT 1 FROM n_infraops_incidents o
-    WHERE COALESCE(o.tags ->> 'ninf_customer_name', '(sem cliente)') = i.customer
+    WHERE o.first_seen >= now() - interval '30 days'
+      AND COALESCE(o.tags ->> 'ninf_customer_name', '(sem cliente)') = i.customer
       AND (o.first_seen, o.id) < (i.first_seen, i.id)
       AND o.first_seen >= i.first_seen - interval '10 minutes'
   )) AS burst_10m,
   count(*) FILTER (WHERE EXISTS (
     SELECT 1 FROM n_infraops_incidents o
-    WHERE o.host_id = i.host_id
+    WHERE o.first_seen >= now() - interval '30 days'
+      AND o.host_id = i.host_id
       AND (o.first_seen, o.id) < (i.first_seen, i.id)
       AND o.first_seen >= i.first_seen - interval '30 minutes'
   )) AS same_host_30m,
   count(*) FILTER (WHERE EXISTS (
     SELECT 1 FROM n_infraops_incidents o
-    WHERE o.host_id = i.host_id
+    WHERE o.first_seen >= now() - interval '30 days'
+      AND o.host_id = i.host_id
       AND o.trigger_id = i.trigger_id
       AND (o.first_seen, o.id) < (i.first_seen, i.id)
       AND CASE
