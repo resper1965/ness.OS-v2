@@ -38,7 +38,7 @@ function contractsState(over = {}) {
 }
 const noop = new Proxy({}, { get: () => () => undefined }) as never;
 
-const customer: Customer = { id: 7, key: 'acme', display_name: 'Acme', glpi_entity_id: 12, active: true, aliases: ['acme', 'acme sa'] };
+const customer: Customer = { id: 7, key: 'acme', display_name: 'Acme', glpi_entity_id: 12, active: true, aliases: ['acme', 'acme sa'], ai_external_allowed: false };
 const contact: Contact = { id: 3, customer_id: 7, name: 'Maria Souza', email: 'maria.souza@acme.com.br', phone: '+55 11 91234-5678', role: 'TI', notify_severity_min: 3, active: true };
 
 function customersMarkup(canEdit = true, contactsOver = {}) {
@@ -128,7 +128,7 @@ describe('test_canonical_alias_removal_shows_message', () => {
     stubFetch(() => json(409, { detail: 'Entidade GLPI já em uso' }));
     const { store, actions } = createCustomersStore();
     store.set({ editing: 'edit', selectedId: 7, customers: [customer] });
-    await expect(actions.save({ key: 'acme', display_name: 'Acme', entity_id: '12', active: true })).resolves.toBe(false);
+    await expect(actions.save({ key: 'acme', display_name: 'Acme', entity_id: '12', active: true, ai_external_allowed: false })).resolves.toBe(false);
     expect(store.get().actionError).toBe('Entidade de atendimento já em uso por outro cliente ativo');
   });
 });
