@@ -18,9 +18,16 @@ from app.database import SessionLocal
 from app.integrations.glpi import GLPIClient, GLPIPermanentError, GLPITransientError
 from app.integrations.loki import LokiClient
 from app.integrations.zabbix import ZabbixClient
-from app.ml.analyzer import analyze_incident
-from app.models import Asset, Customer, HostgroupRule, Incident, IncidentAction
+from app.models import (
+    Asset,
+    Customer,
+    HostgroupRule,
+    Incident,
+    IncidentAction,
+    TicketLink,
+)
 from app.services.customers import AmbiguousCustomer, resolve_active_customer
+from app.services.ticket_policy import dedup_key, site_from_hostgroups
 from app.workers.celery_app import celery_app
 
 logger = logging.getLogger(__name__)
@@ -187,8 +194,10 @@ async def canonical_customer(customer_name: str) -> tuple[str, int]:
     return customer.display_name, customer.glpi_entity_id
 
 
-async def resolve_alert_customer(alert_data: Dict[str, Any]) -> str:
+async def resolve_alert_customer(alert_data: Dict[str, Any]) -> tuple[str, str | None]:
+    """(cliente, site `[ Cliente ] [ Site ]`) pelos grupos do host no Zabbix."""
     host_id = alert_data.get("host_id")
+    site = None
     if host_id:
         hosts = await ZabbixClient()._call(
             "host.get",
@@ -196,14 +205,17 @@ async def resolve_alert_customer(alert_data: Dict[str, Any]) -> str:
         )
         if len(hosts) != 1:
             raise ValueError("Host Zabbix não encontrado ou não autorizado")
+        groups = hosts[0].get("hostgroups", [])
+        site = site_from_hostgroups([g.get("name", "") for g in groups])
         async with SessionLocal() as session:
-            customer = await customer_from_hostgroups(
-                session, hosts[0].get("hostgroups", [])
-            )
+            customer = await customer_from_hostgroups(session, groups)
         if customer:
-            return customer
-    return resolve_customer_name(
-        alert_data.get("host_name", ""), alert_data.get("tags", {})
+            return customer, site
+    return (
+        resolve_customer_name(
+            alert_data.get("host_name", ""), alert_data.get("tags", {})
+        ),
+        site,
     )
 
 
@@ -286,13 +298,19 @@ async def ensure_glpi_ticket_serialized(
     content: str,
     linked_item: dict | None = None,
     urgency: int = 3,
+    lookup_first: bool = True,
 ) -> tuple[int, bool]:
-    """Reserve one POST durably after lookup, before GLPI creation."""
+    """Reserve one POST durably after lookup, before GLPI creation.
+
+    lookup_first=False: o chamador já sabe (vínculo local) que não há chamado; a
+    busca por marcador só roda se a reserva já foi consumida (POST incerto).
+    """
     await glpi.change_active_entity(entity_id)
     marker = f"[n.infraops:{fingerprint}]"
-    existing_id = await glpi.find_ticket_by_name_marker(marker, entity_id)
-    if existing_id is not None:
-        return existing_id, False
+    if lookup_first:
+        existing_id = await glpi.find_ticket_by_name_marker(marker, entity_id)
+        if existing_id is not None:
+            return existing_id, False
 
     identity = f"glpi-ticket:{entity_id}:{fingerprint}".encode("utf-8")
     lock_key = int.from_bytes(
@@ -402,131 +420,89 @@ def build_glpi_ticket_content(alert_data: Dict[str, Any], analysis: Any) -> str:
 """
 
 
+SEVERITY_NAMES = {
+    0: "not_classified",
+    1: "info",
+    2: "warning",
+    3: "average",
+    4: "high",
+    5: "disaster",
+}
+
+
 async def _async_process_alert_v1(
     alert_data: Dict[str, Any], fingerprint: str
 ) -> Dict[str, Any]:
+    """Grava o incidente para o painel; chamado só pelo decisor (ticket_decider).
+
+    Repetição de um gatilho com chamado aberto vira comentário nesse chamado.
+    """
     if str(alert_data.get("status", "PROBLEM")).upper() in {"RESOLVED", "OK"}:
         return await _async_process_recovery(alert_data, fingerprint)
 
-    # 1. Resolver o cliente do ativo
     host_name = alert_data.get("host_name", "")
-    customer_name, entity_id = await canonical_customer(
-        await resolve_alert_customer(alert_data)
+    customer, site = await resolve_alert_customer(alert_data)
+    customer_name, entity_id = await canonical_customer(customer)
+    key = dedup_key(
+        entity_id,
+        str(alert_data.get("host_id", "")),
+        str(alert_data.get("trigger_id", "")),
     )
-    linked_item = await lookup_glpi_asset(alert_data.get("host_id", ""), customer_name)
-
+    severity = int(alert_data.get("severity", 3))
+    event_id = str(alert_data.get("event_id", ""))
     logger.info(
         "Processando alerta v1 | Cliente: %s | Entity ID: %d", customer_name, entity_id
     )
 
-    # 2. Executar análise IA estruturada
-    analysis = await analyze_incident(
-        incident_data=alert_data,
-        customer_metadata={"customer_name": customer_name, "entity_id": entity_id},
-    )
-    logger.info("Análise IA concluída")
-
-    # 3. Abrir chamado no GLPI
-    glpi = GLPIClient()
-
-    ticket_title = f"[AIOps] {alert_data.get('trigger_name', 'Alerta')}"
-    ticket_content = build_glpi_ticket_content(alert_data, analysis)
-
-    ticket_id = None
-    ticket_created = False
-    glpi_error = None
     try:
-        await glpi.init_session()
-        category_id = resolve_glpi_category_id(alert_data)
-        ticket_id, ticket_created = await ensure_glpi_ticket_serialized(
-            glpi,
-            fingerprint=fingerprint,
-            entity_id=entity_id,
-            category_id=category_id,
-            title=ticket_title,
-            content=ticket_content,
-            linked_item=linked_item,
-            urgency=glpi_urgency(alert_data.get("severity")),
-        )
-        logger.info(
-            "Ticket GLPI %s com ID: %s | Categoria ID: %s",
-            "criado" if ticket_created else "reutilizado",
-            ticket_id,
-            category_id,
-        )
-    except Exception as e:
-        glpi_error = e
-        logger.error(
-            "Erro ao criar ticket no GLPI durante o processamento do alerta: %s", e
-        )
-    finally:
-        await glpi.kill_session()
-
-    # 4. Web Push (passo 7) só para HIGH/CRITICAL ou isolamento, e só com ticket criado
-    notify = (
-        settings.alert_notifications_enabled
-        and glpi_error is None
-        and (analysis.urgency in ("HIGH", "CRITICAL") or analysis.isolation_required)
-    )
-
-    # 4.5. Grafana Loki: Persistência de Inteligência Operacional (Com labels de baixa cardinalidade)
-    try:
-        loki = LokiClient()
-        loki_labels = {
-            "tenant_id": customer_name,
-            "source": "aiops_engine",
-            "severity": analysis.urgency.lower(),
-        }
-        loki_payload = {
-            "alert": alert_data,
-            "analysis": analysis.model_dump(),
-            "ticket_id": ticket_id,
-            "processed_at": datetime.now(timezone.utc).isoformat(),
-        }
-        await loki.send_json_log(
-            tenant_id=customer_name, log_data=loki_payload, labels=loki_labels
+        await LokiClient().send_json_log(
+            tenant_id=customer_name,
+            log_data={
+                "alert": alert_data,
+                "processed_at": datetime.now(timezone.utc).isoformat(),
+            },
+            labels={
+                "tenant_id": customer_name,
+                "source": "aiops_engine",
+                "severity": SEVERITY_NAMES.get(severity, "unknown"),
+            },
         )
     except Exception as e:
         logger.error("Erro ao enviar logs estruturados para o Grafana Loki: %s", e)
 
-    # 5. Persistir/Atualizar incidente no PostgreSQL local
     async with SessionLocal() as session:
         async with session.begin():
-            stmt = select(Incident).where(Incident.fingerprint == fingerprint)
-            result = await session.execute(stmt)
-            db_incident = result.scalar_one_or_none()
+            db_incident = (
+                await session.execute(
+                    select(Incident).where(Incident.fingerprint == fingerprint)
+                )
+            ).scalar_one_or_none()
             incident_created = db_incident is None
-            previous_ticket_id = (
-                db_incident.deskmanager_ticket_id if db_incident else None
-            )
-
             now = datetime.now(timezone.utc)
-
-            asset_stmt = select(Asset).where(
-                Asset.zabbix_host_id == alert_data.get("host_id", ""),
-                Asset.customer_id == customer_name.lower().strip(),
-            )
-            asset_result = await session.execute(asset_stmt)
-            db_asset = asset_result.scalar_one_or_none()
+            db_asset = (
+                await session.execute(
+                    select(Asset).where(
+                        Asset.zabbix_host_id == alert_data.get("host_id", ""),
+                        Asset.customer_id == customer_name.lower().strip(),
+                    )
+                )
+            ).scalar_one_or_none()
             asset_id = db_asset.id if db_asset else None
 
             if db_incident:
                 db_incident.asset_id = asset_id
-                previous_event = (db_incident.tags or {}).get("ninf_zabbix_event_id")
-                if previous_event != str(alert_data.get("event_id", "")):
+                if (db_incident.tags or {}).get("ninf_zabbix_event_id") != event_id:
                     db_incident.alert_count += 1
                 db_incident.last_seen = now
                 db_incident.updated_at = now
-                if ticket_id:
-                    db_incident.deskmanager_ticket_id = str(ticket_id)
             else:
                 db_incident = Incident(
                     fingerprint=fingerprint,
                     title=alert_data.get("trigger_name", "Unknown"),
-                    severity=int(alert_data.get("severity", 3)),
+                    severity=severity,
                     status="open",
                     host_id=alert_data.get("host_id", ""),
-                    host_name=alert_data.get("host_name", ""),
+                    host_name=host_name,
                     trigger_id=alert_data.get("trigger_id", ""),
                     asset_id=asset_id,
                     alert_count=1,
@@ -534,17 +510,19 @@ async def _async_process_alert_v1(
                     last_seen=now,
                     sanitized_description=alert_data.get("trigger_description", ""),
                     tags=alert_data.get("tags", {}),
-                    deskmanager_ticket_id=str(ticket_id) if ticket_id else None,
                 )
                 session.add(db_incident)
 
+            old = db_incident.tags or {}
             db_incident.tags = {
-                **(db_incident.tags or {}),
+                **old,
                 "ninf_customer_name": customer_name,
-                "ninf_zabbix_event_id": str(alert_data.get("event_id", "")),
-                "ninf_zabbix_status": (db_incident.tags or {}).get(
-                    "ninf_zabbix_status", "problem"
-                ),
+                "ninf_entity_id": entity_id,
+                "ninf_dedup_key": key,
+                "ninf_zabbix_event_id": event_id,
+                "ninf_zabbix_status": old.get("ninf_zabbix_status", "problem"),
+                "ninf_ticket_state": old.get("ninf_ticket_state", "pending"),
+                **({"ninf_site": site} if site else {}),
             }
             await session.flush()
             if incident_created:
@@ -555,142 +533,103 @@ async def _async_process_alert_v1(
                         action="incident_created",
                         new_status=db_incident.status,
                         new_assignee_id=db_incident.assigned_user_id,
-                        note=f"event={alert_data.get('event_id', '')}",
+                        note=f"event={event_id}",
                     )
                 )
-            if glpi_error is not None:
-                session.add(
-                    IncidentAction(
-                        incident_id=db_incident.id,
-                        actor_source="glpi",
-                        action="ticket_failed",
-                        previous_status=db_incident.status,
-                        new_status=db_incident.status,
-                        previous_assignee_id=db_incident.assigned_user_id,
-                        new_assignee_id=db_incident.assigned_user_id,
-                        note=f"error={type(glpi_error).__name__}",
-                    )
-                )
-            elif ticket_id and (
-                ticket_created or str(ticket_id) != str(previous_ticket_id)
-            ):
-                session.add(
-                    IncidentAction(
-                        incident_id=db_incident.id,
-                        actor_source="glpi",
-                        action="ticket_created" if ticket_created else "ticket_reused",
-                        previous_status=db_incident.status,
-                        new_status=db_incident.status,
-                        previous_assignee_id=db_incident.assigned_user_id,
-                        new_assignee_id=db_incident.assigned_user_id,
-                        note=f"ticket={ticket_id} entity={entity_id}",
-                    )
-                )
+            link = await session.get(TicketLink, (entity_id, key))
+            pending = db_incident.tags["ninf_ticket_state"] == "pending"
+            attach_to = link.ticket_id if link and link.state == "open" else None
+            incident_id = db_incident.id
 
-            # Capture persisted values before the session closes.
-            severity_map = {
-                0: "not_classified",
-                1: "info",
-                2: "warning",
-                3: "average",
-                4: "high",
-                5: "disaster",
-            }
-            event_data = {
-                "id": str(db_incident.id),
-                "fingerprint": fingerprint,
-                "title": alert_data.get("trigger_name", "Unknown"),
-                "severity": severity_map.get(
-                    int(alert_data.get("severity", 3)), "unknown"
+    if attach_to and pending:
+        glpi = GLPIClient()
+        try:
+            await glpi.init_session()
+            await glpi.change_active_entity(entity_id)
+            await glpi.add_comment(
+                ticket_id=attach_to,
+                content=(
+                    f"Voltou a ocorrer às {datetime.now(timezone.utc):%H:%M} UTC "
+                    f"(evento {escape(event_id)})."
                 ),
-                "severity_level": int(alert_data.get("severity", 3)),
-                "host_name": host_name,
-                "client": customer_name,
-                "tenant_id": customer_name.lower().strip(),
-                "status": db_incident.status,
-                "source_status": db_incident.tags["ninf_zabbix_status"],
-                "ticket_id": db_incident.deskmanager_ticket_id,
-                "pipeline_stage": (
-                    "resolved"
-                    if db_incident.status == "resolved"
-                    else (
-                        "ticket_opened"
-                        if db_incident.deskmanager_ticket_id
-                        else "incident_created"
-                    )
-                ),
-                "alert_count": db_incident.alert_count,
-                "first_seen": db_incident.first_seen.isoformat(),
-                "last_seen": now.isoformat(),
-                "analysis": {
-                    "probable_cause": getattr(analysis, "probable_cause", ""),
-                    "urgency": getattr(analysis, "urgency", "AVERAGE"),
-                    "isolation_required": getattr(
-                        analysis, "isolation_required", False
-                    ),
-                    "executive_action_plan": getattr(
-                        analysis, "executive_action_plan", ""
-                    ),
-                },
-            }
+                private=False,
+            )
+        finally:
+            await glpi.kill_session()
+        await attach_incident(incident_id, entity_id, key, attach_to)
 
-            # 7. Disparar Web Push para stakeholders do tenant se for HIGH/CRITICAL ou isolamento urgente
-            if notify:
-                try:
-                    from app.integrations.webpush import notify_tenant_stakeholders
-
-                    push_title = (
-                        f"Alerta Crítico: {alert_data.get('trigger_name', 'Incidente')}"
-                    )
-                    push_body = f"Host {host_name} precisa de atenção urgente. IA sugere: {analysis.executive_action_plan[:100]}..."
-
-                    # Cria loop de eventos se não houver um rodando na thread (caso do Celery worker)
-                    try:
-                        loop = asyncio.get_running_loop()
-                        loop.create_task(
-                            notify_tenant_stakeholders(
-                                tenant_id=customer_name.lower().strip(),
-                                title=push_title,
-                                body=push_body,
-                                incident_id=str(db_incident.id),
-                                fingerprint=fingerprint,
-                                severity=analysis.urgency.lower(),
-                            )
-                        )
-                    except RuntimeError:
-                        # Se não houver loop rodando na thread, roda de forma síncrona
-                        asyncio.run(
-                            notify_tenant_stakeholders(
-                                tenant_id=customer_name.lower().strip(),
-                                title=push_title,
-                                body=push_body,
-                                incident_id=str(db_incident.id),
-                                fingerprint=fingerprint,
-                                severity=analysis.urgency.lower(),
-                            )
-                        )
-                except Exception as e:
-                    logger.error(f"Erro ao disparar Web Push para stakeholders: {e}")
-
-            result_data = {
-                "id": db_incident.id,
-                "fingerprint": fingerprint,
-                "ticket_id": ticket_id,
-            }
-
-    # A failed commit must never announce an incident that was not persisted.
+    async with SessionLocal() as session:
+        db_incident = await session.get(Incident, incident_id)
+        assert db_incident is not None
+        event_data = {
+            "id": str(db_incident.id),
+            "fingerprint": fingerprint,
+            "title": db_incident.title,
+            "severity": SEVERITY_NAMES.get(severity, "unknown"),
+            "severity_level": severity,
+            "host_name": host_name,
+            "client": customer_name,
+            "tenant_id": customer_name.lower().strip(),
+            "status": db_incident.status,
+            "source_status": db_incident.tags["ninf_zabbix_status"],
+            "ticket_id": db_incident.deskmanager_ticket_id,
+            "pipeline_stage": (
+                "resolved"
+                if db_incident.status == "resolved"
+                else (
+                    "ticket_opened"
+                    if db_incident.deskmanager_ticket_id
+                    else "incident_created"
+                )
+            ),
+            "alert_count": db_incident.alert_count,
+            "first_seen": db_incident.first_seen.isoformat(),
+            "last_seen": db_incident.last_seen.isoformat(),
+        }
     _publish_incident_event(event_data)
+    return {
+        "id": incident_id,
+        "fingerprint": fingerprint,
+        "ticket_id": attach_to,
+    }
 
-    # Commit the local incident even when GLPI is unavailable, then let Celery retry.
-    if glpi_error is not None:
-        raise glpi_error
-    return result_data
+
+async def attach_incident(
+    incident_id: int, entity_id: int, key: str, ticket_id: int
+) -> None:
+    """Liga o incidente ao chamado aberto da mesma chave e conta a ocorrência."""
+    async with SessionLocal() as session:
+        async with session.begin():
+            incident = await session.get(Incident, incident_id, with_for_update=True)
+            assert incident is not None
+            if (incident.tags or {}).get("ninf_ticket_state") != "pending":
+                return
+            link = await session.get(TicketLink, (entity_id, key), with_for_update=True)
+            assert link is not None
+            link.occurrences += 1
+            link.last_seen = datetime.now(timezone.utc)
+            incident.deskmanager_ticket_id = str(ticket_id)
+            incident.tags = {**incident.tags, "ninf_ticket_state": "attached"}
+            session.add(
+                IncidentAction(
+                    incident_id=incident.id,
+                    actor_source="glpi",
+                    action="ticket_reused",
+                    previous_status=incident.status,
+                    new_status=incident.status,
+                    previous_assignee_id=incident.assigned_user_id,
+                    new_assignee_id=incident.assigned_user_id,
+                    note=f"ticket={ticket_id} entity={entity_id}",
+                )
+            )
 
 
 async def _async_process_recovery(
     alert_data: Dict[str, Any], fingerprint: str
 ) -> Dict[str, Any]:
-    """Record Zabbix recovery; GLPI remains authoritative for ticket resolution."""
+    """Recuperação no Zabbix: resolve no Hub, libera sintomas e fecha o chamado intocado."""
+    now = datetime.now(timezone.utc)
+    event_data = None
     async with SessionLocal() as session:
         async with session.begin():
             incident = (
@@ -709,45 +648,119 @@ async def _async_process_recovery(
                 or incident.trigger_id != str(alert_data.get("trigger_id"))
             ):
                 raise ValueError("Recovery does not match original Zabbix event")
+            entity_id = tags.get("ninf_entity_id")
+            key = tags.get("ninf_dedup_key")
             result = {
                 "id": incident.id,
                 "fingerprint": fingerprint,
                 "ticket_id": incident.deskmanager_ticket_id,
                 "status": "source_recovered",
             }
-            if tags.get("ninf_zabbix_status") == "resolved":
-                return result
-            now = datetime.now(timezone.utc)
-            incident.tags = {
-                **tags,
-                "ninf_zabbix_status": "resolved",
-                "ninf_zabbix_recovered_at": now.isoformat(),
-            }
-            incident.last_seen = now
-            incident.updated_at = now
-            session.add(
-                IncidentAction(
-                    incident_id=incident.id,
-                    actor_source="zabbix",
-                    action="zabbix_recovered",
-                    previous_status=incident.status,
-                    new_status=incident.status,
-                    previous_assignee_id=incident.assigned_user_id,
-                    new_assignee_id=incident.assigned_user_id,
-                    note=f"event={alert_data.get('event_id')}",
+            if tags.get("ninf_zabbix_status") != "resolved":
+                previous_status = incident.status
+                incident.tags = {
+                    **tags,
+                    "ninf_zabbix_status": "resolved",
+                    "ninf_zabbix_recovered_at": now.isoformat(),
+                }
+                if incident.status not in ("resolved", "closed"):
+                    incident.status = "resolved"
+                incident.last_seen = now
+                incident.updated_at = now
+                session.add(
+                    IncidentAction(
+                        incident_id=incident.id,
+                        actor_source="zabbix",
+                        action="zabbix_recovered",
+                        previous_status=previous_status,
+                        new_status=incident.status,
+                        previous_assignee_id=incident.assigned_user_id,
+                        new_assignee_id=incident.assigned_user_id,
+                        note=f"event={alert_data.get('event_id')}",
+                    )
                 )
-            )
-            event_data = {
-                "id": str(incident.id),
-                "fingerprint": fingerprint,
-                "tenant_id": tags.get("ninf_customer_name", "").lower().strip(),
-                "status": incident.status,
-                "ticket_id": incident.deskmanager_ticket_id,
-                "source_status": "resolved",
-                "source_recovered_at": now.isoformat(),
-            }
-    _publish_incident_event(event_data)
+                # Causa resolvida: sintomas ainda ativos voltam à fila com carência nova.
+                symptoms = (
+                    await session.execute(
+                        select(Incident)
+                        .where(
+                            Incident.tags["ninf_cause_incident_id"].astext
+                            == str(incident.id),
+                            Incident.tags["ninf_ticket_state"].astext == "symptom",
+                            Incident.tags["ninf_zabbix_status"].astext == "problem",
+                        )
+                        .with_for_update()
+                    )
+                ).scalars()
+                for symptom in symptoms:
+                    symptom.tags = {
+                        **symptom.tags,
+                        "ninf_ticket_state": "pending",
+                        "ninf_grace_from": now.isoformat(),
+                    }
+                event_data = {
+                    "id": str(incident.id),
+                    "fingerprint": fingerprint,
+                    "tenant_id": tags.get("ninf_customer_name", "").lower().strip(),
+                    "status": incident.status,
+                    "ticket_id": incident.deskmanager_ticket_id,
+                    "source_status": "resolved",
+                    "source_recovered_at": now.isoformat(),
+                }
+    if event_data:
+        _publish_incident_event(event_data)
+    if entity_id is not None and key:
+        await close_ticket_if_recovered(int(entity_id), key, now)
     return result
+
+
+async def close_ticket_if_recovered(entity_id: int, key: str, now: datetime) -> None:
+    """Chave sem incidente ativo: soluciona o chamado se nenhum técnico mexeu.
+
+    Com técnico, só comenta uma vez (source_resolved_at); o técnico fecha.
+    Falha do GLPI propaga para o retry da task (o vínculo segue `open`).
+    """
+    async with SessionLocal() as session:
+        link = await session.get(TicketLink, (entity_id, key))
+        if link is None or link.state != "open" or link.source_resolved_at:
+            return
+        active = await session.scalar(
+            select(Incident.id)
+            .where(
+                Incident.tags["ninf_dedup_key"].astext == key,
+                Incident.tags["ninf_entity_id"].astext == str(entity_id),
+                Incident.tags["ninf_zabbix_status"].astext == "problem",
+            )
+            .limit(1)
+        )
+        if active is not None:
+            return
+    ticket_id = link.ticket_id
+    glpi = GLPIClient()
+    try:
+        await glpi.init_session()
+        await glpi.change_active_entity(entity_id)
+        if await glpi.has_technician(ticket_id):
+            await glpi.add_comment(
+                ticket_id=ticket_id,
+                content=f"Resolvido na origem (Zabbix) às {now:%H:%M} UTC.",
+                private=False,
+            )
+            values: dict[str, Any] = {"source_resolved_at": now}
+        else:
+            await glpi.solve_ticket(
+                ticket_id, f"Resolvido na origem (Zabbix) às {now:%H:%M} UTC."
+            )
+            values = {"state": "auto_closed", "closed_at": now}
+    finally:
+        await glpi.kill_session()
+    async with SessionLocal() as session:
+        async with session.begin():
+            row = await session.get(TicketLink, (entity_id, key), with_for_update=True)
+            assert row is not None
+            if row.ticket_id == ticket_id and row.state == "open":
+                for name, value in values.items():
+                    setattr(row, name, value)
 
 
 async def _has_persisted_inhibition_completion(

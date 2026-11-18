@@ -8,7 +8,7 @@ from sqlalchemy import select
 from app.database import SessionLocal
 from app.integrations.glpi import GLPIClient
 from app.integrations.zabbix import ZabbixClient
-from app.models import Incident, IncidentAction, IncidentReport
+from app.models import Incident, IncidentAction, IncidentReport, TicketLink
 from app.services.customers import resolve_glpi_entity_id
 
 
@@ -76,6 +76,16 @@ async def resolve_ticket(ticket_id: str, redis) -> dict:
         )
         incident.tags = tags
         incident.status = "resolved"
+        # Fechado por técnico: a próxima ocorrência abre chamado novo (não reabre).
+        link = (
+            await session.execute(
+                select(TicketLink).where(
+                    TicketLink.ticket_id == int(ticket_id), TicketLink.state == "open"
+                )
+            )
+        ).scalar_one_or_none()
+        if link is not None:
+            link.state, link.closed_at = "closed", datetime.now(timezone.utc)
         if imported:
             session.add(
                 IncidentAction(

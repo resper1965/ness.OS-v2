@@ -4,7 +4,7 @@
 
 **Estágio:** em andamento
 
-**Próximo passo:** validar NOC e SOC com dado real no Hub (promovido `3aecc41` em 16/11: API + frontend); a partir de 23/11, apagar n8n/Evolution (parados em 16/11) com backup e OK "apaga". Documentos atualizados em 16/11 (apps que saíram, VPS e clientes por fase na arquitetura oficial). Depois: painel da Contabo #260, retirar o Authentik e migrar as telas antigas para o kit `.nx`.
+**Próximo passo:** promover a regra de chamados (este PR, com a frase "promove 271 e 260"); depois, validar NOC e SOC com dado real no Hub, retirar o Authentik e, a partir de 27/11, desligar o Wazuh da Hostinger após a virada.
 
 ## Quadro (atualizado a cada task fechada)
 
