@@ -72,7 +72,7 @@ export default function CoreDashboard({ authHeader, problems, hosts, observedAt,
 
   return (
     <Screen>
-      <dl className="nx-kpis">
+      <dl className="nx-kpis nx-sticky">
         <div><dt>Problemas ativos</dt><dd>{problems.length}</dd></div>
         <div><dt>Desastre + alta</dt><dd className={severe ? 'bad' : ''}>{severe}</dd></div>
         <div><dt>Graves sem reconhecer</dt><dd className={unacked ? 'bad' : ''}>{unacked}</dd></div>
@@ -129,7 +129,7 @@ export default function CoreDashboard({ authHeader, problems, hosts, observedAt,
 
       <Panel title="Incidentes das últimas 24h" meta={<span className="nx-actions"><span className="nx-meta">mais graves primeiro</span><button type="button" className="nx-btn nx-link" onClick={() => go('incidents')}>Ver todos</button></span>} flush>
         {!recent.length ? <div className="nx-empty">Nenhum incidente nas últimas 24h.</div> :
-          <table className="nx-table nx-dense">
+          <table className="nx-table nx-dense nx-cards">
             <thead><tr><th>Severidade</th><th>Cliente</th><th>Host</th><th>Incidente</th><th>Chamado</th><th>Último</th></tr></thead>
             <tbody>{recent.map(i => {
               const s = SEVERITIES.find(x => x.level === i.severity_level) ?? SEVERITIES[5];
@@ -138,7 +138,7 @@ export default function CoreDashboard({ authHeader, problems, hosts, observedAt,
                   <td><Badge tone={s.tone}>{s.label}</Badge></td>
                   <td>{i.client || '—'}</td>
                   <td className="nx-mono">{i.host_name}</td>
-                  <td>{i.title}</td>
+                  <td className="nx-main">{i.title}</td>
                   <td className="nx-mono">{i.ticket_id ? `#${i.ticket_id}` : '—'}</td>
                   <td className="nx-mono">{timeAgo(i.last_seen)}</td>
                 </tr>

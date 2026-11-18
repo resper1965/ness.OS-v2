@@ -7,7 +7,7 @@
 | [0003](0003-datto-primary-rmm.md) | SuperOps como candidato RMM-alvo | Provisória |
 | [0004](0004-recovery-objectives.md) | RPO, RTO e Object Storage | Aceita |
 | [0005](0005-github-source-of-truth.md) | GitHub como fonte oficial | Aceita |
-| [0006](0006-mobile-channel-and-evolution-fallback.md) | PWA mobile primária e Evolution fallback | Aceita |
+| [0006](0006-mobile-channel-and-evolution-fallback.md) | PWA mobile primária (fallback Evolution retirado em 16/11/2026) | Aceita |
 | [0007](0007-authentik-central-identity.md) | Authentik como identidade central | Substituída pela 0015 |
 | [0008](0008-capacity-slo-and-maintenance.md) | Capacidade, SLO e manutenção | Aceita |
 | [0009](0009-open-source-and-secrets-vault.md) | Open source e cofre de segredos | Aceita |

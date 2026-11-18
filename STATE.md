@@ -4,7 +4,7 @@
 
 **Estágio:** em andamento
 
-**Próximo passo:** gate D+2 do Zabbix (17/11 ~14:10). Se passar: promover a API e a regra de chamados (PR desta branch; Task 8 do plano 2026-11-15, com frase), e aplicar as dependências por site no Zabbix depois da revisão do Ismael.
+**Próximo passo:** promover a regra de chamados (este PR, com a frase "promove 271 e 260"); depois, validar NOC e SOC com dado real no Hub, retirar o Authentik e, a partir de 27/11, desligar o Wazuh da Hostinger após a virada.
 
 ## Quadro (atualizado a cada task fechada)
 
