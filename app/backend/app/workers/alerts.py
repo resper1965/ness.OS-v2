@@ -10,7 +10,7 @@ from uuid import uuid4
 
 from celery.exceptions import Retry
 from redis import Redis
-from sqlalchemy import select, text
+from sqlalchemy import func, select, text
 from sqlalchemy.exc import OperationalError
 
 from app.config import get_settings
@@ -414,6 +414,40 @@ async def _ai_skip(customer_name: str) -> str | None:
         return "error"
 
 
+async def find_open_root(
+    session: Any,
+    *,
+    customer_name: str,
+    host_id: str,
+    trigger_id: str,
+    fingerprint: str,
+) -> Incident | None:
+    """Newest open root incident with a GLPI ticket for the same customer/host/trigger."""
+    # A signal already persisted as a root keeps that path on retry (its ticket or
+    # ticket reservation must not be orphaned).
+    if await session.scalar(
+        select(Incident.id).where(
+            Incident.fingerprint == fingerprint, Incident.repeat_of_id.is_(None)
+        )
+    ):
+        return None
+    return await session.scalar(
+        select(Incident)
+        .where(
+            Incident.repeat_of_id.is_(None),
+            Incident.status != "resolved",
+            Incident.deskmanager_ticket_id.is_not(None),
+            Incident.host_id == host_id,
+            Incident.trigger_id == trigger_id,
+            func.lower(Incident.tags["ninf_customer_name"].astext)
+            == customer_name.lower(),
+            Incident.fingerprint != fingerprint,
+        )
+        .order_by(Incident.first_seen.desc())
+        .limit(1)
+    )
+
+
 async def _async_process_alert_v1(
     alert_data: Dict[str, Any], fingerprint: str
 ) -> Dict[str, Any]:
@@ -431,11 +465,42 @@ async def _async_process_alert_v1(
         "Processando alerta v1 | Cliente: %s | Entity ID: %d", customer_name, entity_id
     )
 
+    root = None
+    root_id = root_ticket = None
+    followup_done = False
+    if settings.zabbix_repeat_followup_enabled:
+        try:
+            async with SessionLocal() as session:
+                root = await find_open_root(
+                    session,
+                    customer_name=customer_name,
+                    host_id=str(alert_data.get("host_id", "")),
+                    trigger_id=str(alert_data.get("trigger_id", "")),
+                    fingerprint=fingerprint,
+                )
+                if root is not None:
+                    root_id, root_ticket = root.id, root.deskmanager_ticket_id
+                    followup_done = (
+                        await session.scalar(
+                            select(Incident.tags["ninf_repeat_followup"].astext).where(
+                                Incident.fingerprint == fingerprint
+                            )
+                        )
+                        == "done"
+                    )
+        except Exception as exc:
+            logger.warning("Repeat root lookup failed: %s", type(exc).__name__)
+            root = None
+
     # 2. Executar análise IA estruturada (a porta nunca segura o chamado)
+    if root is not None:
+        skip: str | None = "skipped_repeat"  # outcome, like the gate's skipped_*
+    else:
+        skip = await _ai_skip(customer_name) if settings.llm_api_key else None
     analysis = await analyze_incident(
         incident_data=alert_data,
         customer_metadata={"customer_name": customer_name, "entity_id": entity_id},
-        skip=await _ai_skip(customer_name) if settings.llm_api_key else None,
+        skip=skip,
     )
     logger.info("Análise IA concluída")
 
@@ -448,32 +513,58 @@ async def _async_process_alert_v1(
     ticket_id = None
     ticket_created = False
     glpi_error = None
-    try:
-        await glpi.init_session()
-        category_id = resolve_glpi_category_id(alert_data)
-        ticket_id, ticket_created = await ensure_glpi_ticket_serialized(
-            glpi,
-            fingerprint=fingerprint,
-            entity_id=entity_id,
-            category_id=category_id,
-            title=ticket_title,
-            content=ticket_content,
-            linked_item=linked_item,
-            urgency=glpi_urgency(alert_data.get("severity")),
-        )
-        logger.info(
-            "Ticket GLPI %s com ID: %s | Categoria ID: %s",
-            "criado" if ticket_created else "reutilizado",
-            ticket_id,
-            category_id,
-        )
-    except Exception as e:
-        glpi_error = e
-        logger.error(
-            "Erro ao criar ticket no GLPI durante o processamento do alerta: %s", e
-        )
-    finally:
-        await glpi.kill_session()
+    if root is not None:
+        ticket_id = int(str(root_ticket))
+        if not followup_done:
+            # ponytail: a crash between the POST and the commit duplicates one
+            # followup; upgrade path: a marker in the text and a lookup before POST.
+            # ponytail: if GLPI's solution webhook is lost the root stays open in the
+            # Hub and the followup lands on a solved ticket (GLPI reopens or ignores);
+            # upgrade path: read the ticket status before commenting.
+            try:
+                await glpi.init_session()
+                await glpi.add_comment(
+                    ticket_id,
+                    escape(
+                        f"Repetição do alerta: {alert_data.get('host_name', '')} — "
+                        f"{alert_data.get('trigger_name', '')} "
+                        f"(severidade {alert_data.get('severity', '')}, "
+                        f"evento {alert_data.get('event_id', '')})"
+                    ),
+                )
+                followup_done = True
+            except Exception as e:
+                glpi_error = e
+                logger.error("Erro ao comentar repetição no GLPI: %s", e)
+            finally:
+                await glpi.kill_session()
+    else:
+        try:
+            await glpi.init_session()
+            category_id = resolve_glpi_category_id(alert_data)
+            ticket_id, ticket_created = await ensure_glpi_ticket_serialized(
+                glpi,
+                fingerprint=fingerprint,
+                entity_id=entity_id,
+                category_id=category_id,
+                title=ticket_title,
+                content=ticket_content,
+                linked_item=linked_item,
+                urgency=glpi_urgency(alert_data.get("severity")),
+            )
+            logger.info(
+                "Ticket GLPI %s com ID: %s | Categoria ID: %s",
+                "criado" if ticket_created else "reutilizado",
+                ticket_id,
+                category_id,
+            )
+        except Exception as e:
+            glpi_error = e
+            logger.error(
+                "Erro ao criar ticket no GLPI durante o processamento do alerta: %s", e
+            )
+        finally:
+            await glpi.kill_session()
 
     # 4. Web Push (passo 7) só pela severidade da origem, e só com ticket criado
     notify = (
@@ -502,6 +593,9 @@ async def _async_process_alert_v1(
     except Exception as e:
         logger.error("Erro ao enviar logs estruturados para o Grafana Loki: %s", e)
 
+    # A repeat never owns the root's ticket: resolve_ticket looks incidents up by it.
+    own_ticket_id = None if root is not None else ticket_id
+
     # 5. Persistir/Atualizar incidente no PostgreSQL local
     async with SessionLocal() as session:
         async with session.begin():
@@ -511,6 +605,11 @@ async def _async_process_alert_v1(
             incident_created = db_incident is None
             previous_ticket_id = (
                 db_incident.deskmanager_ticket_id if db_incident else None
+            )
+            previous_followup = (
+                (db_incident.tags or {}).get("ninf_repeat_followup")
+                if db_incident
+                else None
             )
 
             now = datetime.now(timezone.utc)
@@ -530,8 +629,8 @@ async def _async_process_alert_v1(
                     db_incident.alert_count += 1
                 db_incident.last_seen = now
                 db_incident.updated_at = now
-                if ticket_id:
-                    db_incident.deskmanager_ticket_id = str(ticket_id)
+                if own_ticket_id:
+                    db_incident.deskmanager_ticket_id = str(own_ticket_id)
             else:
                 db_incident = Incident(
                     fingerprint=fingerprint,
@@ -547,7 +646,9 @@ async def _async_process_alert_v1(
                     last_seen=now,
                     sanitized_description=alert_data.get("trigger_description", ""),
                     tags=alert_data.get("tags", {}),
-                    deskmanager_ticket_id=str(ticket_id) if ticket_id else None,
+                    deskmanager_ticket_id=(
+                        str(own_ticket_id) if own_ticket_id else None
+                    ),
                 )
                 session.add(db_incident)
 
@@ -559,6 +660,14 @@ async def _async_process_alert_v1(
                     "ninf_zabbix_status", "problem"
                 ),
             }
+            if settings.zabbix_repeat_followup_enabled:
+                db_incident.repeat_of_id = root_id
+            if root is not None:
+                db_incident.tags = {
+                    **db_incident.tags,
+                    "ninf_repeat_ticket_id": root_ticket,
+                    **({"ninf_repeat_followup": "done"} if followup_done else {}),
+                }
             await session.flush()
             call = analysis._call
             if call is not None:
@@ -608,6 +717,20 @@ async def _async_process_alert_v1(
                         note=f"error={type(glpi_error).__name__}",
                     )
                 )
+            elif root is not None:
+                if followup_done and previous_followup != "done":
+                    session.add(
+                        IncidentAction(
+                            incident_id=db_incident.id,
+                            actor_source="glpi",
+                            action="repeat_followup",
+                            previous_status=db_incident.status,
+                            new_status=db_incident.status,
+                            previous_assignee_id=db_incident.assigned_user_id,
+                            new_assignee_id=db_incident.assigned_user_id,
+                            note=f"root={root_id} ticket={root_ticket}",
+                        )
+                    )
             elif ticket_id and (
                 ticket_created or str(ticket_id) != str(previous_ticket_id)
             ):
@@ -646,13 +769,17 @@ async def _async_process_alert_v1(
                 "tenant_id": customer_name.lower().strip(),
                 "status": db_incident.status,
                 "source_status": db_incident.tags["ninf_zabbix_status"],
-                "ticket_id": db_incident.deskmanager_ticket_id,
+                "ticket_id": (
+                    root_ticket
+                    if root is not None
+                    else db_incident.deskmanager_ticket_id
+                ),
                 "pipeline_stage": (
                     "resolved"
                     if db_incident.status == "resolved"
                     else (
                         "ticket_opened"
-                        if db_incident.deskmanager_ticket_id
+                        if db_incident.deskmanager_ticket_id or root is not None
                         else "incident_created"
                     )
                 ),

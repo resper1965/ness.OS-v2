@@ -186,6 +186,9 @@ class Incident(Base):
 
     # Ticket externo
     deskmanager_ticket_id: Mapped[str | None] = mapped_column(String(64))
+    repeat_of_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("n_infraops_incidents.id")
+    )
 
     # Timestamps controle
     created_at: Mapped[datetime] = mapped_column(

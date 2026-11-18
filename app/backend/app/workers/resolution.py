@@ -95,6 +95,28 @@ async def resolve_ticket(ticket_id: str, redis) -> dict:
                     note=f"ticket={ticket_id} solution={solution_id}",
                 )
             )
+        repeats = (
+            await session.execute(
+                select(Incident).where(
+                    Incident.repeat_of_id == incident.id,
+                    Incident.status != "resolved",
+                )
+            )
+        ).scalars()
+        for repeat in repeats:
+            session.add(
+                IncidentAction(
+                    incident_id=repeat.id,
+                    actor_source="glpi",
+                    action="root_resolved",
+                    previous_status=repeat.status,
+                    new_status="resolved",
+                    previous_assignee_id=repeat.assigned_user_id,
+                    new_assignee_id=repeat.assigned_user_id,
+                    note=f"ticket={ticket_id}",
+                )
+            )
+            repeat.status = "resolved"
         await session.commit()
 
         event_id = tags.get("ninf_zabbix_event_id")
