@@ -60,6 +60,7 @@ async def test_missing_key_preserves_source_priority_without_http(
 
     monkeypatch.setattr(httpx, "AsyncClient", forbidden)
     result = await analyzer.analyze_incident({"severity": severity})
+    assert result._call.outcome == "no_key"
     assert result.urgency == urgency
     assert result.isolation_required is False
     assert "Triagem manual" in result.probable_cause
@@ -69,12 +70,12 @@ async def test_missing_key_preserves_source_priority_without_http(
 @pytest.mark.parametrize(
     "ai_urgency,expected,manual",
     [
-        ("LOW", "CRITICAL", False),
+        ("LOW", "LOW", False),
         ("CRITICAL", "CRITICAL", False),
         ("URGENT", "CRITICAL", True),
     ],
 )
-async def test_model_cannot_downgrade_critical_event(
+async def test_model_urgency_is_not_raised_to_source(
     monkeypatch, ai_urgency, expected, manual
 ):
     import json
@@ -101,3 +102,24 @@ async def test_model_cannot_downgrade_critical_event(
     result = await analyzer.analyze_incident({"severity": 5})
     assert result.urgency == expected
     assert ("Triagem manual" in result.probable_cause) is manual
+    assert result._call.outcome == ("error" if manual else "ok")
+    assert result._request["severity"] == "5"
+
+
+@pytest.mark.asyncio
+async def test_skip_makes_no_http_call(monkeypatch):
+    monkeypatch.setattr(llm.settings, "llm_api_key", "synthetic-key")
+
+    def forbidden(**kwargs):
+        raise AssertionError("No provider call when the gate skips the model")
+
+    monkeypatch.setattr(httpx, "AsyncClient", forbidden)
+    result = await analyzer.analyze_incident(
+        {"severity": 4, "event_id": "9"},
+        customer_metadata={"customer_name": "Acme", "entity_id": 8},
+        skip="skipped_budget",
+    )
+    assert "Triagem manual" in result.probable_cause
+    assert result._call.outcome == "skipped_budget"
+    assert result._request["tenant"] == "Acme"
+    assert "entity_id" not in str(result._request)

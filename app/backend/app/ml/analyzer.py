@@ -4,10 +4,10 @@ import time
 from typing import Any, Dict, List, Literal, Optional
 
 import httpx
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, PrivateAttr
 
 from app.config import get_settings
-from app.core.ai_context import incident_ai_request, log_ai_call
+from app.core.ai_context import AICall, incident_ai_request, log_ai_call
 from app.core.sanitizer import sanitize_value
 from app.integrations.llm import achat_completion
 
@@ -16,7 +16,7 @@ settings = get_settings()
 
 _TIMEOUT = httpx.Timeout(connect=10.0, read=20.0, write=10.0, pool=5.0)
 Urgency = Literal["LOW", "MEDIUM", "HIGH", "CRITICAL"]
-URGENCY_ORDER = ("LOW", "MEDIUM", "HIGH", "CRITICAL")
+PROMPT_VERSION_NOC = "noc-2026-11-17"
 
 
 class AIAnalysisResult(BaseModel):
@@ -37,6 +37,8 @@ class AIAnalysisResult(BaseModel):
     recommended_playbook: str = Field(
         ..., description="Nome do playbook aplicável sugerido"
     )
+    _call: AICall | None = PrivateAttr(default=None)
+    _request: dict = PrivateAttr(default_factory=dict)
 
 
 _ANALYZER_SYSTEM_PROMPT = """Você é um especialista em AIOps e SecOps sênior da ness.
@@ -87,14 +89,25 @@ async def analyze_incident(
     incident_data: Dict[str, Any],
     customer_metadata: Optional[Dict[str, Any]] = None,
     playbooks: Optional[List[str]] = None,
+    skip: Optional[str] = None,
 ) -> AIAnalysisResult:
     """Realiza análise estruturada do incidente usando LLM.
 
-    Retorna um objeto Pydantic com a triagem estruturada do incidente.
+    `urgency` é a opinião crua do modelo; a prioridade vem só da origem.
+    Com `skip` (outcome da porta), devolve triagem manual sem chamar o modelo.
     """
-    if not settings.llm_api_key:
-        logger.warning("LLM indisponível: triagem manual com severidade de origem.")
-        return manual_triage(incident_data)
+    ai_request = incident_ai_request(
+        incident_data, (customer_metadata or {}).get("customer_name")
+    ).model_dump(mode="json")
+    started = time.perf_counter()
+
+    if skip or not settings.llm_api_key:
+        if not skip:
+            logger.warning("LLM indisponível: triagem manual com severidade de origem.")
+        analysis = manual_triage(incident_data)
+        analysis._call = log_ai_call("incident_analysis", skip or "no_key", started)
+        analysis._request = ai_request
+        return analysis
 
     # Lista de playbooks padrão/disponíveis
     available_playbooks = playbooks or [
@@ -106,12 +119,9 @@ async def analyze_incident(
         "Análise de Conectividade VPN / IPSec Reset",
     ]
 
-    ai_request = incident_ai_request(
-        incident_data, (customer_metadata or {}).get("customer_name")
-    )
     prompt = f"""
 # Dados do Incidente:
-{json.dumps(ai_request.model_dump(mode="json"), indent=2, ensure_ascii=False)}
+{json.dumps(ai_request, indent=2, ensure_ascii=False)}
 
 # Escopo: somente o incidente atual; sem credenciais ou cadastro do cliente.
 
@@ -144,7 +154,6 @@ Gere a análise estruturada em JSON correspondente ao incidente acima.
         ],
     }
 
-    started = time.perf_counter()
     usage: Dict[str, Any] = {}
     outcome = "error"
     try:
@@ -159,14 +168,10 @@ Gere a análise estruturada em JSON correspondente ao incidente acima.
 
         data = json.loads(raw_text)
         analysis = AIAnalysisResult(**data)
-        minimum = source_urgency(incident_data)
-        if URGENCY_ORDER.index(analysis.urgency) < URGENCY_ORDER.index(minimum):
-            analysis.urgency = minimum
         outcome = "ok"
-        return analysis
-
     except Exception as exc:
         logger.error("Falha ao rodar analisador IA: %s", type(exc).__name__)
-        return manual_triage(incident_data)
-    finally:
-        log_ai_call("incident_analysis", outcome, started, usage)
+        analysis = manual_triage(incident_data)
+    analysis._call = log_ai_call("incident_analysis", outcome, started, usage)
+    analysis._request = ai_request
+    return analysis
