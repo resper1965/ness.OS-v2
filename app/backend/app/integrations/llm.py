@@ -45,6 +45,7 @@ def _request(system, user, json_schema, temperature, max_tokens):
         "temperature": temperature,
         "max_tokens": max_tokens,
         "provider": {"data_collection": "deny"},
+        "usage": {"include": True},  # OpenRouter: cost in the response usage
     }
     if json_schema:
         # else OpenRouter treats response_format as a soft hint
@@ -74,7 +75,10 @@ def _parse(response: httpx.Response) -> tuple[str, dict[str, Any]]:
         raise LLMBadResponse("invalid LLM response body") from exc
     if not text:  # 200 with {"error":...}, empty choices or null content
         raise LLMBadResponse("empty LLM completion")
-    return text, result.get("usage") or {}
+    usage = result.get("usage") or {}
+    if result.get("model"):
+        usage = {**usage, "model": result["model"]}
+    return text, usage
 
 
 def chat_completion(

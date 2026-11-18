@@ -24,12 +24,27 @@ from sqlalchemy import text
 from app.config import get_settings
 from app.core.sanitizer import sanitize
 from app.database import SessionLocal
-from app.integrations.gemini import generate_embedding, generate_postmortem
+from app.integrations.gemini import (
+    fallback_postmortem,
+    generate_embedding,
+    generate_postmortem,
+)
 from app.models import IncidentReport
+from app.services.ai_gate import ai_gate
 from app.workers.celery_app import celery_app
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
+
+
+async def _ai_skip(customer_name: str) -> str | None:
+    """Outcome da porta de IA; qualquer falha pula o modelo."""
+    try:
+        async with SessionLocal() as session:
+            return await ai_gate(session, customer_name.lower().strip())
+    except Exception as exc:
+        logger.warning("AI gate failed, skipping model: %s", type(exc).__name__)
+        return "error"
 
 
 async def _async_generate_postmortem_report(
@@ -56,21 +71,29 @@ async def _async_generate_postmortem_report(
         trigger_id=incident_data.get("trigger_id", ""),
     )
 
-    # --- 3. Buscar incidentes similares via pgvector ---
-    similar = await _async_fetch_similar_incidents(
-        title=incident_data.get("title", ""),
-        description=incident_data.get("sanitized_description", "")
-        or incident_data.get("trigger_description", ""),
-        fingerprint=fingerprint,
-    )
+    skip = await _ai_skip(incident_data["customer_name"])
+    if skip:
+        report = fallback_postmortem(
+            incident_data,
+            "Análise de IA pulada por política do cliente ou teto de custo.",
+            f"**Motivo:** {skip}",
+        )
+    else:
+        # --- 3. Buscar incidentes similares via pgvector ---
+        similar = await _async_fetch_similar_incidents(
+            title=incident_data.get("title", ""),
+            description=incident_data.get("sanitized_description", "")
+            or incident_data.get("trigger_description", ""),
+            fingerprint=fingerprint,
+        )
 
-    # --- 4+5. Chamar Gemini ---
-    report = generate_postmortem(
-        incident=incident_data,
-        metrics=metrics,
-        related_logs=logs,
-        similar_incidents=similar,
-    )
+        # --- 4+5. Chamar Gemini ---
+        report = generate_postmortem(
+            incident=incident_data,
+            metrics=metrics,
+            related_logs=logs,
+            similar_incidents=similar,
+        )
 
     # --- 6. Persistir no PostgreSQL ---
     await _async_save_report(report.model_dump(mode="json"))

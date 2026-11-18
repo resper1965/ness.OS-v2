@@ -49,6 +49,7 @@ class Settings(BaseSettings):
     resend_api_url: str = "https://api.resend.com"
     email_timeout_seconds: float = 10.0
     email_max_attempts: int = 3
+    ai_budget_alert_email: str = ""
 
     # --- Webhooks ---
     webhook_api_key: str = ""

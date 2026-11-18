@@ -18,8 +18,10 @@ from app.database import SessionLocal
 from app.integrations.glpi import GLPIClient, GLPIPermanentError, GLPITransientError
 from app.integrations.loki import LokiClient
 from app.integrations.zabbix import ZabbixClient
-from app.ml.analyzer import analyze_incident
+from app.ml.analyzer import PROMPT_VERSION_NOC, analyze_incident, source_urgency
 from app.models import Asset, Customer, HostgroupRule, Incident, IncidentAction
+from app.services.ai_decisions import record_ai_decision
+from app.services.ai_gate import ai_gate
 from app.services.customers import AmbiguousCustomer, resolve_active_customer
 from app.workers.celery_app import celery_app
 
@@ -390,7 +392,7 @@ def build_glpi_ticket_content(alert_data: Dict[str, Any], analysis: Any) -> str:
 <p><b>Host:</b> {host_name} ({host_ip})</p>
 <p><b>Severidade do Alerta:</b> {severity}</p>
 <p><b>Causa Provável:</b> {cause}</p>
-<p><b>Urgência de IA:</b> {urgency}</p>
+<p><b>Opinião da IA (urgência):</b> {urgency}</p>
 <p><b>Isolamento Requerido:</b> {"Sim" if analysis.isolation_required else "Não"}</p>
 <hr/>
 <h3>Plano de Ação Executivo:</h3>
@@ -400,6 +402,16 @@ def build_glpi_ticket_content(alert_data: Dict[str, Any], analysis: Any) -> str:
 <h3>Playbook Recomendado:</h3>
 <p><code>{playbook}</code></p>
 """
+
+
+async def _ai_skip(customer_name: str) -> str | None:
+    """Outcome da porta de IA; qualquer falha pula o modelo e o chamado segue."""
+    try:
+        async with SessionLocal() as session:
+            return await ai_gate(session, customer_name.lower().strip())
+    except Exception as exc:
+        logger.warning("AI gate failed, skipping model: %s", type(exc).__name__)
+        return "error"
 
 
 async def _async_process_alert_v1(
@@ -419,10 +431,11 @@ async def _async_process_alert_v1(
         "Processando alerta v1 | Cliente: %s | Entity ID: %d", customer_name, entity_id
     )
 
-    # 2. Executar análise IA estruturada
+    # 2. Executar análise IA estruturada (a porta nunca segura o chamado)
     analysis = await analyze_incident(
         incident_data=alert_data,
         customer_metadata={"customer_name": customer_name, "entity_id": entity_id},
+        skip=await _ai_skip(customer_name) if settings.llm_api_key else None,
     )
     logger.info("Análise IA concluída")
 
@@ -462,11 +475,11 @@ async def _async_process_alert_v1(
     finally:
         await glpi.kill_session()
 
-    # 4. Web Push (passo 7) só para HIGH/CRITICAL ou isolamento, e só com ticket criado
+    # 4. Web Push (passo 7) só pela severidade da origem, e só com ticket criado
     notify = (
         settings.alert_notifications_enabled
         and glpi_error is None
-        and (analysis.urgency in ("HIGH", "CRITICAL") or analysis.isolation_required)
+        and source_urgency(alert_data) in ("HIGH", "CRITICAL")
     )
 
     # 4.5. Grafana Loki: Persistência de Inteligência Operacional (Com labels de baixa cardinalidade)
@@ -475,7 +488,7 @@ async def _async_process_alert_v1(
         loki_labels = {
             "tenant_id": customer_name,
             "source": "aiops_engine",
-            "severity": analysis.urgency.lower(),
+            "severity": source_urgency(alert_data).lower(),
         }
         loki_payload = {
             "alert": alert_data,
@@ -547,6 +560,30 @@ async def _async_process_alert_v1(
                 ),
             }
             await session.flush()
+            call = analysis._call
+            if call is not None:
+                await record_ai_decision(
+                    session,
+                    kind="incident_analysis",
+                    customer_id=customer_name.lower().strip(),
+                    source_ref=f"{fingerprint}:{alert_data.get('event_id', '')}",
+                    call=call,
+                    prompt_version=PROMPT_VERSION_NOC,
+                    request=analysis._request,
+                    response=analysis.model_dump() if call.outcome == "ok" else {},
+                    rule_value=source_urgency(alert_data),
+                    model_value=(
+                        None
+                        if call.outcome != "ok"
+                        else (
+                            "ISOLATE"
+                            if analysis.isolation_required
+                            else analysis.urgency
+                        )
+                    ),
+                    incident_id=db_incident.id,
+                    ticket_id=str(ticket_id) if ticket_id else None,
+                )
             if incident_created:
                 session.add(
                     IncidentAction(
@@ -654,7 +691,7 @@ async def _async_process_alert_v1(
                                 body=push_body,
                                 incident_id=str(db_incident.id),
                                 fingerprint=fingerprint,
-                                severity=analysis.urgency.lower(),
+                                severity=source_urgency(alert_data).lower(),
                             )
                         )
                     except RuntimeError:
@@ -666,7 +703,7 @@ async def _async_process_alert_v1(
                                 body=push_body,
                                 incident_id=str(db_incident.id),
                                 fingerprint=fingerprint,
-                                severity=analysis.urgency.lower(),
+                                severity=source_urgency(alert_data).lower(),
                             )
                         )
                 except Exception as e:

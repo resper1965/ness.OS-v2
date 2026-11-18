@@ -17,7 +17,14 @@ from app.api.routers import secops
 from app.core.dependencies import get_current_user
 from app.database import Base, get_db
 from app.main import app
-from app.models.models import SocDecision, TenantMapping
+from app.models.models import (
+    AIDecision,
+    Customer,
+    CustomerAlias,
+    PlatformParam,
+    SocDecision,
+    TenantMapping,
+)
 from app.models.users import UserRole
 
 URL = os.environ.get("NINF_TEST_PG_URL")
@@ -31,7 +38,14 @@ pytestmark = [
 async def sessions():
     engine = create_async_engine(URL)
     async with engine.begin() as c:
-        tabs = [TenantMapping.__table__, SocDecision.__table__]  # sem pgvector
+        tabs = [  # sem pgvector
+            TenantMapping.__table__,
+            SocDecision.__table__,
+            Customer.__table__,
+            CustomerAlias.__table__,
+            PlatformParam.__table__,
+            AIDecision.__table__,
+        ]
         await c.run_sync(lambda sc: Base.metadata.drop_all(sc, tables=tabs))
         await c.run_sync(lambda sc: Base.metadata.create_all(sc, tables=tabs))
         # mesmo DDL de app/migrate.py
@@ -76,7 +90,7 @@ async def test_concurrent_triage_dedups_once(sessions, monkeypatch):
     await _map(sessions, [("cavan", "g-cavan")])
     calls = {"llm": 0}
 
-    async def slow_llm(payload, tenant):
+    async def slow_llm(payload, tenant, skip=None):
         calls["llm"] += 1
         await asyncio.sleep(0.5)  # janela para a corrida
         return {
@@ -272,3 +286,125 @@ async def test_burst_with_same_freq_key_counts_in_series(sessions, monkeypatch):
         app.dependency_overrides.clear()
     assert [r.status_code for r in rs] == [200] * 4, [r.text for r in rs]
     assert sorted(seen) == [0, 1, 2, 3]  # cada alerta enxerga os anteriores
+
+
+async def _triage_via_api(sessions, monkeypatch, alerts, model_class="FP"):
+    """Triagem de ponta a ponta com o modelo simulado no transporte HTTP do soc_agent."""
+    import json
+
+    from app.integrations import soc_agent
+
+    monkeypatch.setattr(soc_agent.settings, "llm_api_key", "k")
+    http = {"n": 0}
+
+    async def model(*a, **k):
+        http["n"] += 1
+        reply = {
+            "classification": model_class,
+            "confidence": 0.9,
+            "summary": "s",
+            "action_taken": "a",
+        }
+        return json.dumps(reply), {"model": "m1", "cost": 0.002}
+
+    async def no_intel(_):
+        return {"abuseipdb": None, "virustotal": None}
+
+    monkeypatch.setattr(soc_agent, "achat_completion", model)
+    monkeypatch.setattr("app.integrations.threat_intel.enrich_ip", no_intel)
+    monkeypatch.setattr("app.integrations.threat_intel.enrich_hash", no_intel)
+
+    async def db():
+        async with sessions() as s:
+            yield s
+
+    app.dependency_overrides[get_db] = db
+    app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(
+        id=7, role=UserRole.soc, tenant_id=None
+    )
+    try:
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://t"
+        ) as c:
+            return http, [
+                (await c.post("/api/secops/triage", json=a)).json() for a in alerts
+            ]
+    finally:
+        app.dependency_overrides.clear()
+
+
+async def test_triage_records_ai_decision_linked_to_soc_decision(sessions, monkeypatch):
+    await _map(sessions, [("cavan", "g-cavan")])
+    alert = {
+        "id": "1700000000.111",
+        "manager": {"name": "m1"},
+        "agent": {"id": "001", "name": "pc", "group": ["g-cavan"]},
+        "rule": {"id": "100100", "level": 14},
+        "timestamp": "2026-11-02T10:00:00Z",
+    }
+    monkeypatch.setattr(
+        secops._triage_engine,
+        "evaluate_alert",
+        lambda **kw: SimpleNamespace(
+            action=secops.TriageAction.TRIAGE_L2, risk_score=90
+        ),
+    )
+    http, (out,) = await _triage_via_api(sessions, monkeypatch, [alert])
+
+    assert out["attendance_required"] is True and http["n"] == 1
+    assert not any(k.startswith("_ai") for k in out)
+    async with sessions() as s:
+        dec = (await s.execute(select(SocDecision))).scalar_one()
+        row = (await s.execute(select(AIDecision))).scalar_one()
+    assert out["decision_id"] == dec.id and row.soc_decision_id == dec.id
+    assert row.kind == "soc_triage" and row.customer_id == "cavan"
+    assert row.source_ref == dec.dedup_key and row.prompt_version == "soc-2026-11-17"
+    assert row.outcome == "ok" and row.model == "m1"
+    assert row.model_value == "FP" and row.rule_value == "TRIAGE_L2"
+    assert row.divergent is True  # motor L2, modelo FP
+    assert row.response["classification"] == "FP"
+    assert not any(k.startswith("_ai") for k in dec.raw_alert)
+
+
+async def test_archived_and_pending_do_not_record(sessions, monkeypatch):
+    await _map(sessions, [("cavan", "g-cavan")])
+    archived = {
+        "id": "1.1",
+        "agent": {"id": "001", "name": "pc", "group": ["g-cavan"]},
+        "rule": {"id": "100200", "level": 3},
+    }
+    pending = {
+        "id": "2.2",
+        "agent": {"id": "002", "name": "pc", "group": ["sem-vinculo"]},
+        "rule": {"id": "100200", "level": 14},
+    }
+    http, outs = await _triage_via_api(sessions, monkeypatch, [archived, pending])
+
+    assert [o["action_taken"] for o in outs] == [
+        "ARCHIVE_NO_LLM",
+        "PENDING_TENANT_REVIEW",
+    ]
+    assert http["n"] == 0
+    async with sessions() as s:
+        assert (
+            await s.execute(select(func.count()).select_from(AIDecision))
+        ).scalar() == 0
+
+
+async def test_disabled_customer_records_skip_without_divergence(sessions, monkeypatch):
+    await _map(sessions, [("cavan", "g-cavan")])
+    async with sessions() as s:
+        s.add(Customer(key="cavan", display_name="Cavan", ai_external_allowed=False))
+        await s.commit()
+    alert = {
+        "id": "3.3",
+        "agent": {"id": "001", "name": "pc", "group": ["g-cavan"]},
+        "rule": {"id": "100100", "level": 14},
+    }
+    http, (out,) = await _triage_via_api(sessions, monkeypatch, [alert])
+
+    assert http["n"] == 0 and out["attendance_required"] is True
+    async with sessions() as s:
+        row = (await s.execute(select(AIDecision))).scalar_one()
+    assert row.outcome == "skipped_customer" and row.model_value is None
+    assert row.divergent is False

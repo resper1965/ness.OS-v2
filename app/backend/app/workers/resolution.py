@@ -3,12 +3,12 @@
 import json
 from datetime import datetime, timezone
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from app.database import SessionLocal
 from app.integrations.glpi import GLPIClient
 from app.integrations.zabbix import ZabbixClient
-from app.models import Incident, IncidentAction, IncidentReport
+from app.models import AIDecision, Incident, IncidentAction, IncidentReport
 from app.services.customers import resolve_glpi_entity_id
 
 
@@ -76,6 +76,12 @@ async def resolve_ticket(ticket_id: str, redis) -> dict:
         )
         incident.tags = tags
         incident.status = "resolved"
+        if resolution.get("category_id") is not None:
+            await session.execute(
+                update(AIDecision)
+                .where(AIDecision.incident_id == incident.id)
+                .values(final_label=str(resolution["category_id"]))
+            )
         if imported:
             session.add(
                 IncidentAction(

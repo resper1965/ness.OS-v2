@@ -3,6 +3,7 @@
 import json
 import logging
 import time
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, Literal
 
@@ -78,21 +79,44 @@ def incident_ai_request(incident, tenant) -> AIRequestV1:
     )
 
 
-def log_ai_call(kind, outcome, started, usage=None):
+@dataclass(frozen=True)
+class AICall:
+    kind: str
+    outcome: str
+    model: str | None
+    latency_ms: int
+    prompt_tokens: int | None
+    completion_tokens: int | None
+    cost_usd: float | None
+
+
+def log_ai_call(kind, outcome, started, usage=None) -> AICall:
     """Structured metrics line (no metrics backend in the stack yet)."""
     usage = usage or {}
+    call = AICall(
+        kind=kind,
+        outcome=outcome,
+        model=usage.get("model"),
+        latency_ms=round((time.perf_counter() - started) * 1000),
+        prompt_tokens=usage.get("prompt_tokens"),
+        completion_tokens=usage.get("completion_tokens"),
+        cost_usd=usage.get("cost"),
+    )
     logger.info(
         "ai_call %s",
         json.dumps(
             {
                 "kind": kind,
                 "outcome": outcome,
-                "latency_ms": round((time.perf_counter() - started) * 1000),
-                "prompt_tokens": usage.get("prompt_tokens", 0),
-                "completion_tokens": usage.get("completion_tokens", 0),
+                "latency_ms": call.latency_ms,
+                "prompt_tokens": call.prompt_tokens or 0,
+                "completion_tokens": call.completion_tokens or 0,
+                "model": call.model,
+                "cost_usd": call.cost_usd,
             }
         ),
     )
+    return call
 
 
 async def trusted_postmortem_context(fingerprint, ticket_id):

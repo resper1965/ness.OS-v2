@@ -27,6 +27,7 @@ function CustomerFormView({ initial, creating, busy, fieldError, onSave, onCance
           onChange={(e) => setF({ ...f, entity_id: e.target.value })} hint="Um ID só pode estar em um cliente ativo." />
       </div>
       <CheckField label="Cliente ativo" checked={f.active} onChange={(e) => setF({ ...f, active: e.target.checked })} />
+      {!creating && <CheckField label="IA externa permitida" checked={f.ai_external_allowed} onChange={(e) => setF({ ...f, ai_external_allowed: e.target.checked })} />}
       <div className="nx-actions">
         <Button variant="primary" type="submit" icon={Save} disabled={busy}>{creating ? 'Criar cliente' : 'Salvar'}</Button>
         <Button icon={X} onClick={onCancel}>Cancelar</Button>
@@ -151,9 +152,9 @@ function Contacts({ state, actions, canEdit }: { state: ContactsState; actions: 
   );
 }
 
-const emptyCustomer: CustomerForm = { key: '', display_name: '', entity_id: '', active: true };
+const emptyCustomer: CustomerForm = { key: '', display_name: '', entity_id: '', active: true, ai_external_allowed: false };
 const toCustomerForm = (c: Customer): CustomerForm => ({
-  key: c.key, display_name: c.display_name, entity_id: c.glpi_entity_id === null ? '' : String(c.glpi_entity_id), active: c.active,
+  key: c.key, display_name: c.display_name, entity_id: c.glpi_entity_id === null ? '' : String(c.glpi_entity_id), active: c.active, ai_external_allowed: c.ai_external_allowed,
 });
 
 export default function CustomersView({ state, actions, canEdit, contacts, contactsActions, canReadContacts }: {
@@ -207,6 +208,7 @@ export default function CustomersView({ state, actions, canEdit, contacts, conta
                     <dl className="nx-grid" style={{ margin: 0 }}>
                       <div><dt className="nx-meta">Chave</dt><dd className="nx-mono" style={{ margin: 0 }}>{selected.key}</dd></div>
                       <div><dt className="nx-meta">Entidade de atendimento</dt><dd className="nx-mono" style={{ margin: 0 }}>{selected.glpi_entity_id ?? '—'}</dd></div>
+                      <div><dt className="nx-meta">IA externa</dt><dd style={{ margin: 0 }}>{selected.ai_external_allowed ? 'Permitida' : 'Não permitida'}</dd></div>
                     </dl>
                   )}
               </Panel>

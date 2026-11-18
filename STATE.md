@@ -4,13 +4,14 @@
 
 **Estágio:** em andamento
 
-**Próximo passo:** validar NOC e SOC com dado real no Hub (promovido `3aecc41` em 16/11: API + frontend); a partir de 23/11, apagar n8n/Evolution (parados em 16/11) com backup e OK "apaga". Documentos atualizados em 16/11 (apps que saíram, VPS e clientes por fase na arquitetura oficial). Depois: painel da Contabo #260, retirar o Authentik e migrar as telas antigas para o kit `.nx`.
+**Próximo passo:** promover a F1 da IA nos chamados (branch `feat/ia-chamados-f1`, PR a abrir) depois do [aviso à operação](docs/execution/ai-f1-aviso-operacao.md) e do OK do Ricardo; em seguida, F2 (correlação). Depois: validar NOC e SOC com dado real no Hub (promovido `3aecc41` em 16/11: API + frontend); a partir de 23/11, apagar n8n/Evolution (parados em 16/11) com backup e OK "apaga". Documentos atualizados em 16/11 (apps que saíram, VPS e clientes por fase na arquitetura oficial). Depois: painel da Contabo #260, retirar o Authentik e migrar as telas antigas para o kit `.nx`.
 
 ## Quadro (atualizado a cada task fechada)
 
 Tasks do [plano de execução](docs/superpowers/plans/2026-10-26-ness-os-execution-plan.md).
 
 ### Feito
+- F1 da IA nos chamados (17/11, na branch `feat/ia-chamados-f1`, **ainda não promovida**): registro de toda decisão de IA em `n_ai_decisions` (NOC e SOC, com divergência motor × modelo = E1 do Vigil), retorno do analista, métricas na tela "IA", opt-out por cliente e teto mensal com alerta. A IA do NOC não sobe mais urgência nem push — [spec](docs/superpowers/specs/2026-11-17-ia-tratamento-chamados-design.md), [aviso](docs/execution/ai-f1-aviso-operacao.md)
 - Dados por cliente editáveis fechados (plano #195): T1 clientes e apelidos (#199), T2 regras de grupo de hosts (#200), T3 modalidade efetiva, T4 parâmetros de atendimento, T5 contatos do cliente (#200), T6 documentação e fechamento. Spec final em [contratos-sla-editaveis.md](docs/specs/contratos-sla-editaveis.md) com modelo, chaves, checklist de promoção e o que continua fora.
 - Promoção `1346b06` (06/11, OK do Ricardo): contratos/SLA/calendário editáveis (#198), clientes e apelidos (#199), regras de grupo de hosts e contatos (#200); `promotion=PASS`, seeds conferidos (13 clientes, 22 apelidos, 3 políticas, 4 passos). Calendário comercial padrão 08–20; "sem cliente" = 720 min. Rollback: release `1175954`.
 - Frontend com as telas Contratos e Clientes (#202) publicado em 06/11 (`ninf-frontend@sha256:c2c0953f…`); rollback pelos `.env` de `/opt/n-infraops/change-backups/frontend-20261106T135437/` (imagem anterior `f4afa04a…`).
@@ -57,7 +58,7 @@ Tasks do [plano de execução](docs/superpowers/plans/2026-10-26-ness-os-executi
 - Zabbix sem vínculo em `n_infraops_tenant_mappings`: fica `pendente_de_modalidade` até o Ricardo decidir o mapeamento cliente ↔ Zabbix
 
 ### Pronto para começar
-- Vigil, investigação de casos L2 ([ADR 0022](docs/adr/0022-vigil-l2-investigation.md) proposto, [plano](docs/superpowers/plans/2026-11-11-vigil-investigacao-l2.md)): **E0** feito (#239). **E1** (divergência motor × modelo como anotação e registro da decisão no `/secops/triage`, útil sem o Vigil) pode entrar no lote do Hub depois do corte do Zabbix. **E2** (laboratório) só depois do primeiro gate da F7 e exige máquina e custo máximo por caso aprovados pelo Ricardo. **E3/E4** só se o E2 passar. Critérios de corte no plano; nada instalado nem ativado.
+- Vigil, investigação de casos L2 ([ADR 0022](docs/adr/0022-vigil-l2-investigation.md) proposto, [plano](docs/superpowers/plans/2026-11-11-vigil-investigacao-l2.md)): **E0** feito (#239). **E1** (divergência motor × modelo e registro da decisão no `/secops/triage`) está feita na F1 da IA nos chamados (branch `feat/ia-chamados-f1`, falta promover). **E2** (laboratório) só depois do primeiro gate da F7 e exige máquina e custo máximo por caso aprovados pelo Ricardo. **E3/E4** só se o E2 passar. Critérios de corte no plano; nada instalado nem ativado.
 - 2.5 T06 do plano GLPI (reconciliar todo o inventário)
 
 ### Esperando o Ricardo

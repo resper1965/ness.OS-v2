@@ -127,7 +127,9 @@ async def test_soc_uses_llm(monkeypatch):
         {"choices": [{"message": {"content": json.dumps(triage)}}]},
     )
     alert = {"rule": {"id": "1", "level": 3}}
-    assert await soc_agent.triage_wazuh_alert(alert, "t") == triage
+    got = await soc_agent.triage_wazuh_alert(alert, "t")
+    assert {k: v for k, v in got.items() if k[0] != "_"} == triage
+    assert got["_ai_call"].outcome == "ok"
 
 
 def test_postmortem_uses_llm(monkeypatch):
@@ -187,3 +189,15 @@ async def test_soc_invalid_reply_falls_back(monkeypatch, content):
     _mock(monkeypatch, "AsyncClient", {"choices": [{"message": {"content": content}}]})
     got = await soc_agent.triage_wazuh_alert({"rule": {"id": "1"}}, "t")
     assert got["classification"] == "HIGH" and got["confidence"] == 0.5
+
+
+def test_request_asks_usage_accounting_and_returns_model(monkeypatch):
+    reply = {
+        "model": "m",
+        "choices": [{"message": {"content": "hi"}}],
+        "usage": {"cost": 0.1},
+    }
+    sent = _mock(monkeypatch, "Client", reply)
+    _, usage = llm.chat_completion("sys", "usr")
+    assert json.loads(sent[0].content)["usage"] == {"include": True}
+    assert usage == {"cost": 0.1, "model": "m"}
