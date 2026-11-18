@@ -200,6 +200,49 @@ async def test_resolved_root_opens_new_ticket(env):
     assert (await incident(maker, 2)).repeat_of_id is None
 
 
+async def test_closed_root_opens_new_ticket(env):
+    maker, glpi, _, _ = env
+    await problem(1)
+    async with maker() as s, s.begin():
+        (await s.get(Incident, (await incident(maker, 1)).id)).status = "closed"
+    await problem(2)
+    assert (glpi.creates, glpi.followups) == (2, [])
+    assert (await incident(maker, 2)).repeat_of_id is None
+
+
+async def test_followup_state_query_failure_keeps_own_ticket(env, monkeypatch):
+    maker, glpi, _, _ = env
+    await problem(1)
+    real = alerts.find_open_root
+
+    async def found_then_fails(session, **kw):
+        root = await real(session, **kw)
+        assert root is not None
+        session.execute = AsyncMock(side_effect=RuntimeError("db"))
+        await session.execute("followup state")  # any later query in the lookup
+        return root
+
+    monkeypatch.setattr(alerts, "find_open_root", found_then_fails)
+    await problem(2)
+    assert (glpi.creates, glpi.followups) == (2, [])
+    assert (await incident(maker, 2)).repeat_of_id is None
+
+
+async def test_redelivered_repeat_after_root_resolved_stays_linked(env):
+    maker, glpi, gate, _ = env
+    await problem(1)
+    await problem(2)
+    async with maker() as s, s.begin():
+        (await s.get(Incident, (await incident(maker, 1)).id)).status = "resolved"
+    result = await problem(2)
+    assert (glpi.creates, len(glpi.followups)) == (1, 1)
+    assert result["ticket_id"] == 101
+    repeat = await incident(maker, 2)
+    assert repeat.repeat_of_id == (await incident(maker, 1)).id
+    assert repeat.deskmanager_ticket_id is None and repeat.status == "open"
+    assert gate.await_count == 1
+
+
 async def test_root_without_ticket_is_not_reused(env):
     maker, glpi, _, _ = env
     glpi.fail_create = 1

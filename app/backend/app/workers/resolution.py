@@ -99,7 +99,7 @@ async def resolve_ticket(ticket_id: str, redis) -> dict:
             await session.execute(
                 select(Incident).where(
                     Incident.repeat_of_id == incident.id,
-                    Incident.status != "resolved",
+                    Incident.status.not_in(("resolved", "closed")),
                 )
             )
         ).scalars()

@@ -153,7 +153,7 @@ def test_repeat_block_matches_between_migrate_and_bootstrap():
     mig = re.search(r'REPEAT_SQL = """\n(.*?)"""', MIGRATE, re.S).group(1)
     assert sql.strip() == mig.strip()
     assert "repeat_of_id BIGINT REFERENCES n_infraops_incidents(id)" in sql
-    assert "WHERE repeat_of_id IS NULL AND status <> 'resolved'" in sql
+    assert "WHERE repeat_of_id IS NULL AND status NOT IN ('resolved', 'closed')" in sql
     # Runs after the incidents table exists in both paths.
     assert SQL.index("-- repeat:begin") > SQL.index("CREATE TABLE n_infraops_incidents")
     assert MIGRATE.index("await apply_repeat_sql(conn)") > MIGRATE.index(

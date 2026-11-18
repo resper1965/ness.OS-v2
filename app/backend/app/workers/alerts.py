@@ -435,7 +435,7 @@ async def find_open_root(
         select(Incident)
         .where(
             Incident.repeat_of_id.is_(None),
-            Incident.status != "resolved",
+            Incident.status.not_in(("resolved", "closed")),
             Incident.deskmanager_ticket_id.is_not(None),
             Incident.host_id == host_id,
             Incident.trigger_id == trigger_id,
@@ -465,35 +465,49 @@ async def _async_process_alert_v1(
         "Processando alerta v1 | Cliente: %s | Entity ID: %d", customer_name, entity_id
     )
 
-    root = None
-    root_id = root_ticket = None
+    root_id: int | None = None
+    root_ticket: str | None = None
     followup_done = False
     if settings.zabbix_repeat_followup_enabled:
         try:
             async with SessionLocal() as session:
-                root = await find_open_root(
-                    session,
-                    customer_name=customer_name,
-                    host_id=str(alert_data.get("host_id", "")),
-                    trigger_id=str(alert_data.get("trigger_id", "")),
-                    fingerprint=fingerprint,
-                )
-                if root is not None:
-                    root_id, root_ticket = root.id, root.deskmanager_ticket_id
-                    followup_done = (
-                        await session.scalar(
-                            select(Incident.tags["ninf_repeat_followup"].astext).where(
-                                Incident.fingerprint == fingerprint
-                            )
+                stored = (
+                    await session.execute(
+                        select(Incident.repeat_of_id, Incident.tags).where(
+                            Incident.fingerprint == fingerprint
                         )
-                        == "done"
                     )
+                ).one_or_none()
+                if stored is not None and stored.repeat_of_id is not None:
+                    # Sticky link: a redelivered repeat keeps its root even if that
+                    # root has since been resolved; the followup is posted at most once.
+                    tags = stored.tags or {}
+                    found = (
+                        stored.repeat_of_id,
+                        tags.get("ninf_repeat_ticket_id"),
+                        tags.get("ninf_repeat_followup") == "done",
+                    )
+                else:
+                    root = await find_open_root(
+                        session,
+                        customer_name=customer_name,
+                        host_id=str(alert_data.get("host_id", "")),
+                        trigger_id=str(alert_data.get("trigger_id", "")),
+                        fingerprint=fingerprint,
+                    )
+                    found = (
+                        (root.id, root.deskmanager_ticket_id, False)
+                        if root is not None
+                        else (None, None, False)
+                    )
+            if found[0] is not None and found[1]:
+                root_id, root_ticket, followup_done = found
         except Exception as exc:
             logger.warning("Repeat root lookup failed: %s", type(exc).__name__)
-            root = None
+    is_repeat = root_id is not None
 
     # 2. Executar análise IA estruturada (a porta nunca segura o chamado)
-    if root is not None:
+    if is_repeat:
         skip: str | None = "skipped_repeat"  # outcome, like the gate's skipped_*
     else:
         skip = await _ai_skip(customer_name) if settings.llm_api_key else None
@@ -513,7 +527,7 @@ async def _async_process_alert_v1(
     ticket_id = None
     ticket_created = False
     glpi_error = None
-    if root is not None:
+    if is_repeat:
         ticket_id = int(str(root_ticket))
         if not followup_done:
             # ponytail: a crash between the POST and the commit duplicates one
@@ -594,7 +608,7 @@ async def _async_process_alert_v1(
         logger.error("Erro ao enviar logs estruturados para o Grafana Loki: %s", e)
 
     # A repeat never owns the root's ticket: resolve_ticket looks incidents up by it.
-    own_ticket_id = None if root is not None else ticket_id
+    own_ticket_id = None if is_repeat else ticket_id
 
     # 5. Persistir/Atualizar incidente no PostgreSQL local
     async with SessionLocal() as session:
@@ -660,9 +674,8 @@ async def _async_process_alert_v1(
                     "ninf_zabbix_status", "problem"
                 ),
             }
-            if settings.zabbix_repeat_followup_enabled:
+            if is_repeat:
                 db_incident.repeat_of_id = root_id
-            if root is not None:
                 db_incident.tags = {
                     **db_incident.tags,
                     "ninf_repeat_ticket_id": root_ticket,
@@ -691,7 +704,7 @@ async def _async_process_alert_v1(
                         )
                     ),
                     incident_id=db_incident.id,
-                    ticket_id=str(ticket_id) if ticket_id else None,
+                    ticket_id=str(own_ticket_id) if own_ticket_id else None,
                 )
             if incident_created:
                 session.add(
@@ -717,7 +730,7 @@ async def _async_process_alert_v1(
                         note=f"error={type(glpi_error).__name__}",
                     )
                 )
-            elif root is not None:
+            elif is_repeat:
                 if followup_done and previous_followup != "done":
                     session.add(
                         IncidentAction(
@@ -770,16 +783,14 @@ async def _async_process_alert_v1(
                 "status": db_incident.status,
                 "source_status": db_incident.tags["ninf_zabbix_status"],
                 "ticket_id": (
-                    root_ticket
-                    if root is not None
-                    else db_incident.deskmanager_ticket_id
+                    root_ticket if is_repeat else db_incident.deskmanager_ticket_id
                 ),
                 "pipeline_stage": (
                     "resolved"
                     if db_incident.status == "resolved"
                     else (
                         "ticket_opened"
-                        if db_incident.deskmanager_ticket_id or root is not None
+                        if db_incident.deskmanager_ticket_id or is_repeat
                         else "incident_created"
                     )
                 ),
