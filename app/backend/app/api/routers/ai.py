@@ -183,8 +183,29 @@ async def metrics(
         )
     )
     cents = (await platform_params(db))["ai_monthly_budget_cents"]
+    scope = resolve_tenant_scope(user, customer_id)
+    inc_where = [Incident.created_at >= now - timedelta(days=days)]
+    if scope:
+        inc_where.append(
+            func.lower(Incident.tags["ninf_customer_name"].astext) == scope.lower()
+        )
+    n_sig, n_tickets, n_repeats = (
+        await db.execute(
+            select(
+                func.count(),
+                func.count().filter(Incident.deskmanager_ticket_id.is_not(None)),
+                func.count().filter(Incident.repeat_of_id.is_not(None)),
+            ).where(*inc_where)
+        )
+    ).one()
     return {
         "window_days": days,
         "budget": {"month_cost_usd": float(spent or 0), "limit_usd": cents / 100},
+        "signals": {
+            "signals": n_sig,
+            "tickets": n_tickets,
+            "repeats": n_repeats,
+            "ratio": _rate(n_sig, n_tickets),
+        },
         "by_kind": by_kind,
     }

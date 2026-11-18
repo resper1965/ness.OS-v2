@@ -229,3 +229,95 @@ async def test_metrics_budget_reflects_platform_param(api, maker):
     async with api(NOC) as c:
         b = (await c.get("/api/ai/metrics?customer_id=acme")).json()["budget"]
     assert b == {"month_cost_usd": 3.5, "limit_usd": 12.34}
+
+
+def _inc(n, customer="acme", **kw):
+    return Incident(
+        id=n,
+        fingerprint=f"s{n}",
+        title="t",
+        host_id="h",
+        host_name="h",
+        trigger_id="t",
+        tags={"ninf_customer_name": customer},
+        **kw,
+    )
+
+
+async def test_metrics_signals_ratio(api, maker):
+    async with maker() as s:
+        s.add_all(
+            [
+                _inc(1, deskmanager_ticket_id="10"),
+                _inc(2, deskmanager_ticket_id="11"),
+                _inc(3, repeat_of_id=1),
+                _inc(4, repeat_of_id=1),
+                _inc(5),
+                _inc(6, "beta", deskmanager_ticket_id="12"),
+            ]
+        )
+        await s.commit()
+    async with api(NOC) as c:
+        every = (await c.get("/api/ai/metrics?customer_id=ACME")).json()["signals"]
+        both = (await c.get("/api/ai/metrics")).json()["signals"]
+    assert every == {"signals": 5, "tickets": 2, "repeats": 2, "ratio": 2.5}
+    assert both["signals"] == 6 and both["tickets"] == 3
+
+
+async def test_metrics_signals_no_tickets_null(api, maker):
+    async with maker() as s:
+        s.add(_inc(1))
+        await s.commit()
+    async with api(NOC) as c:
+        sig = (await c.get("/api/ai/metrics")).json()["signals"]
+    assert sig == {"signals": 1, "tickets": 0, "repeats": 0, "ratio": None}
+
+
+async def test_storm_sql_runs(monkeypatch):
+    from pathlib import Path
+
+    from sqlalchemy import text
+
+    from app import migrate
+
+    sql = (
+        Path(__file__).parents[3] / "docs/execution/ai-f2-tempestade.sql"
+    ).read_text()
+    engine = create_async_engine(URL)
+    monkeypatch.setattr(migrate, "engine", engine)
+    # sem pgvector no Postgres de teste: pula tabelas com coluna VECTOR
+    tabs = [
+        t
+        for t in Base.metadata.sorted_tables
+        if not any(type(c.type).__name__.lower() == "vector" for c in t.columns)
+    ]
+    async with engine.begin() as c:
+        await c.run_sync(lambda sc: Base.metadata.drop_all(sc, tables=tabs))
+        await c.run_sync(lambda sc: Base.metadata.create_all(sc, tables=tabs))
+    try:
+        await migrate.run_migrations()
+        async with async_sessionmaker(engine)() as s:
+            s.add_all(
+                [
+                    _inc(1, first_seen=NOW - timedelta(minutes=5)),
+                    _inc(2, first_seen=NOW),
+                    _inc(3, "beta", first_seen=NOW),
+                ]
+            )
+            await s.commit()
+        async with engine.connect() as c:
+            res = await c.execute(text(sql))
+            assert list(res.keys()) == [
+                "customer",
+                "incidents",
+                "burst_10m",
+                "same_host_30m",
+                "repeat_same_trigger",
+            ]
+            rows = res.all()
+        # host/trigger iguais em todos: a raiz (inc 1, 2) segue sem glpi_resolved_at
+        assert rows == [("acme", 2, 1, 1, 1), ("beta", 1, 0, 1, 1)]
+    finally:
+        async with engine.begin() as c:
+            await c.run_sync(lambda sc: Base.metadata.drop_all(sc, tables=tabs))
+        await engine.dispose()

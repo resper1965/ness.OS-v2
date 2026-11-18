@@ -12,6 +12,7 @@ interface KindMetrics {
 interface Metrics {
   window_days: number;
   budget: { month_cost_usd: number | null; limit_usd: number | null };
+  signals: { signals: number; tickets: number; repeats: number; ratio: number | null };
   by_kind: Partial<Record<string, KindMetrics>>;
 }
 interface Decision {
@@ -80,6 +81,7 @@ export default function AiView({ refreshKey = 0 }: { refreshKey?: number }) {
     <Screen>
       <dl className="nx-kpis">
         <div><dt>Custo do mês / teto</dt><dd>{usd(metrics.budget.month_cost_usd)} / {usd(metrics.budget.limit_usd)}</dd></div>
+        <div><dt>Sinais ÷ chamados</dt><dd>{metrics.signals.ratio == null ? '—' : metrics.signals.ratio.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}</dd><dd className="nx-muted">{metrics.signals.signals} sinais, {metrics.signals.tickets} chamados, {metrics.signals.repeats} repetições</dd></div>
         <div><dt>Janela</dt><dd>{metrics.window_days} dias</dd></div>
       </dl>
       <div className="nx-cols">{KINDS.map(([k, label]) => <KindCards key={k} label={label} m={metrics.by_kind[k]} />)}</div>
