@@ -244,7 +244,8 @@ async def test_redelivered_repeat_after_root_resolved_stays_linked(env):
     assert result["ticket_id"] == 101
     repeat = await incident(maker, 2)
     assert repeat.repeat_of_id == (await incident(maker, 1)).id
-    assert repeat.deskmanager_ticket_id is None and repeat.status == "open"
+    # The root was resolved meanwhile, so the linked repeat is resolved too.
+    assert repeat.deskmanager_ticket_id is None and repeat.status == "resolved"
     assert gate.await_count == 1
 
 
@@ -319,6 +320,29 @@ async def test_resolve_root_resolves_repeats(env, monkeypatch):
     assert (root.status, repeat.status) == ("resolved", "resolved")
     assert "root_resolved" in await actions(maker, repeat.id)
     z.acknowledge_resolution_once.assert_awaited_once()  # ack stays on the root
+    assert repeat.tags["resolution_sync_status"] == "synced"  # Close button shows
+
+
+async def test_repeat_linked_to_root_resolved_meanwhile_is_resolved(env, monkeypatch):
+    maker, glpi, _, _ = env
+    await problem(1)
+    real = alerts.find_open_root
+
+    async def find_then_resolve(*a, **k):
+        root = await real(*a, **k)
+        async with maker() as s, s.begin():
+            r = await s.get(Incident, root.id)
+            r.status = "resolved"
+            r.tags = {**r.tags, "resolution_sync_status": "synced"}
+        return root
+
+    monkeypatch.setattr(alerts, "find_open_root", find_then_resolve)
+    await problem(2)
+    repeat = await incident(maker, 2)
+    assert repeat.repeat_of_id is not None
+    assert repeat.status == "resolved"
+    assert repeat.tags["resolution_sync_status"] == "synced"
+    assert "root_resolved" in await actions(maker, repeat.id)
 
 
 async def test_flag_off_keeps_ticket_per_event(env, monkeypatch):

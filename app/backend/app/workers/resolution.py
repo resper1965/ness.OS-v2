@@ -95,6 +95,11 @@ async def resolve_ticket(ticket_id: str, redis) -> dict:
                     note=f"ticket={ticket_id} solution={solution_id}",
                 )
             )
+        # Lock the root so a repeat being linked concurrently is either seen here
+        # or sees the root already resolved (alerts.py locks the same row).
+        await session.execute(
+            select(Incident.id).where(Incident.id == incident.id).with_for_update()
+        )
         repeats = (
             await session.execute(
                 select(Incident).where(
@@ -117,6 +122,7 @@ async def resolve_ticket(ticket_id: str, redis) -> dict:
                 )
             )
             repeat.status = "resolved"
+            repeat.tags = {**(repeat.tags or {}), "resolution_sync_status": "pending"}
         await session.commit()
 
         event_id = tags.get("ninf_zabbix_event_id")
@@ -130,6 +136,17 @@ async def resolve_ticket(ticket_id: str, redis) -> dict:
             "resolution_sync_status": "synced",
             "resolution_synced_at": now,
         }
+        # Repeats share the root's ticket, so they share its sync state (Close button).
+        for repeat in (
+            await session.execute(
+                select(Incident).where(Incident.repeat_of_id == incident.id)
+            )
+        ).scalars():
+            repeat.tags = {
+                **(repeat.tags or {}),
+                "resolution_sync_status": "synced",
+                "resolution_synced_at": now,
+            }
         if not already_synced:
             session.add(
                 IncidentAction(
