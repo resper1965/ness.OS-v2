@@ -681,6 +681,33 @@ async def _async_process_alert_v1(
                 ),
             }
             if is_repeat:
+                # Serialize with resolve_ticket: a root resolved meanwhile resolves us too.
+                locked_root = (
+                    await session.execute(
+                        select(Incident).where(Incident.id == root_id).with_for_update()
+                    )
+                ).scalar_one()
+                if locked_root.status in ("resolved", "closed") and (
+                    db_incident.status not in ("resolved", "closed")
+                ):
+                    db_incident.status = "resolved"
+                    db_incident.tags = {
+                        **db_incident.tags,
+                        "resolution_sync_status": (locked_root.tags or {}).get(
+                            "resolution_sync_status", "pending"
+                        ),
+                    }
+                    await session.flush()
+                    session.add(
+                        IncidentAction(
+                            incident_id=db_incident.id,
+                            actor_source="glpi",
+                            action="root_resolved",
+                            previous_status="open",
+                            new_status="resolved",
+                            note=f"ticket={root_ticket}",
+                        )
+                    )
                 db_incident.repeat_of_id = root_id
                 db_incident.tags = {
                     **db_incident.tags,
