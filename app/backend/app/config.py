@@ -68,6 +68,8 @@ class Settings(BaseSettings):
 
     # Only controls Web Push emitted by the v1 alert worker.
     alert_notifications_enabled: bool = False
+    # A repeated Zabbix alert with an open root ticket becomes a followup on it.
+    zabbix_repeat_followup_enabled: bool = False
 
     # --- RMM Providers (Multi-tenant: default credentials) ---
     datto_api_key: str = ""

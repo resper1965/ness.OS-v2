@@ -663,3 +663,10 @@ CREATE INDEX IF NOT EXISTS ix_ai_decisions_customer_created ON n_ai_decisions (c
 CREATE INDEX IF NOT EXISTS ix_ai_decisions_incident ON n_ai_decisions (incident_id) WHERE incident_id IS NOT NULL;
 ALTER TABLE n_infraops_customers ADD COLUMN IF NOT EXISTS ai_external_allowed BOOLEAN NOT NULL DEFAULT true;
 -- ai:end
+-- repeat:begin
+ALTER TABLE n_infraops_incidents
+    ADD COLUMN IF NOT EXISTS repeat_of_id BIGINT REFERENCES n_infraops_incidents(id);
+CREATE INDEX IF NOT EXISTS ix_incidents_open_root
+    ON n_infraops_incidents (host_id, trigger_id)
+    WHERE repeat_of_id IS NULL AND status NOT IN ('resolved', 'closed');
+-- repeat:end

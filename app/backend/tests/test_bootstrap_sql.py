@@ -146,3 +146,16 @@ def test_ai_decisions_table_and_customer_flag_in_bootstrap():
         assert idx in _norm(SQL) and idx in _norm(MIGRATE)
     flag = "ai_external_allowed BOOLEAN NOT NULL DEFAULT true"
     assert flag in _norm(SQL) and flag in _norm(MIGRATE)
+
+
+def test_repeat_block_matches_between_migrate_and_bootstrap():
+    sql = re.search(r"-- repeat:begin\n(.*?)-- repeat:end", SQL, re.S).group(1)
+    mig = re.search(r'REPEAT_SQL = """\n(.*?)"""', MIGRATE, re.S).group(1)
+    assert sql.strip() == mig.strip()
+    assert "repeat_of_id BIGINT REFERENCES n_infraops_incidents(id)" in sql
+    assert "WHERE repeat_of_id IS NULL AND status NOT IN ('resolved', 'closed')" in sql
+    # Runs after the incidents table exists in both paths.
+    assert SQL.index("-- repeat:begin") > SQL.index("CREATE TABLE n_infraops_incidents")
+    assert MIGRATE.index("await apply_repeat_sql(conn)") > MIGRATE.index(
+        "await apply_ai_sql(conn)"
+    )

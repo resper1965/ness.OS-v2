@@ -18,13 +18,14 @@ afterEach(async () => {
 
 const json = (body: unknown) => new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } });
 const kind = { total: 4, by_outcome: { ok: 3 }, divergence_rate: 0.25, feedback: {}, useful_rate: null, cost_usd: 1, cost_missing: 0, avg_latency_ms: null, failure_rate: 0, mttr_minutes: { useful: null, other: null } };
-const metrics = { window_days: 30, budget: { month_cost_usd: 3.5, limit_usd: 50 }, by_kind: { incident_analysis: kind } };
+const signals = { signals: 5, tickets: 2, repeats: 2, ratio: 2.5 };
+const metrics = { window_days: 30, budget: { month_cost_usd: 3.5, limit_usd: 50 }, signals, by_kind: { incident_analysis: kind } };
 const decision = { id: 9, kind: 'incident_analysis', customer_id: 'Cavan', ticket_id: '77', outcome: 'ok', model: 'm', rule_value: 'MEDIUM', model_value: 'CRITICAL', divergent: true, feedback: null, cost_usd: 0.01, created_at: '2026-11-18T12:00:00Z' };
 
-async function mount(decisions: unknown[]) {
+async function mount(decisions: unknown[], m: unknown = metrics) {
   const f = vi.fn(async (url: string, init?: RequestInit) => {
     if (url.includes('/feedback')) return json({ id: 9, feedback: JSON.parse(String(init?.body)).verdict, feedback_at: 'x' });
-    return json(url.includes('/metrics') ? metrics : decisions);
+    return json(url.includes('/metrics') ? m : decisions);
   });
   vi.stubGlobal('fetch', f);
   host = document.createElement('div');
@@ -42,6 +43,16 @@ describe('AiView', () => {
     expect(host!.textContent).toContain('Sem decisões na janela.');
     expect(host!.textContent).toContain('NOC (Zabbix)');
     expect(host!.textContent).toContain('SOC (Wazuh)');
+  });
+  it('shows signals ÷ tickets with repeats, and "—" when the ratio is null', async () => {
+    await mount([decision]);
+    const card = () => [...host!.querySelectorAll('dl > div')].find((d) => d.textContent?.includes('Sinais ÷ chamados'))!.textContent;
+    expect(card()).toContain('2,5');
+    expect(card()).toContain('2 repetições');
+    await act(async () => { root?.unmount(); });
+    host!.remove();
+    await mount([decision], { ...metrics, signals: { signals: 1, tickets: 0, repeats: 0, ratio: null } });
+    expect(card()).toContain('Sinais ÷ chamados—');
   });
   it('POSTs the verdict and the row shows "útil"', async () => {
     const f = await mount([decision]);

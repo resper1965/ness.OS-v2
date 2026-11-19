@@ -61,6 +61,11 @@ def _pipeline_stage(incident: Incident) -> str:
     return "detected"
 
 
+def _ticket(inc: Incident) -> str | None:
+    """Chamado próprio ou, numa repetição, o do raiz."""
+    return inc.deskmanager_ticket_id or (inc.tags or {}).get("ninf_repeat_ticket_id")
+
+
 _TICKET_ACTIONS = (
     "ticket_created",
     "ticket_reused",
@@ -76,7 +81,7 @@ def _ticket_state(inc: Incident, last_ticket_action: str | None) -> str:
     ponytail: "tentativa em curso" não deixa rastro persistido (só o resultado
     da tentativa vira ação); upgrade path: gravar ação ticket_attempt no worker.
     """
-    if inc.deskmanager_ticket_id:
+    if _ticket(inc):
         return "ticketed"
     return "pending_sync" if last_ticket_action in _TICKET_PENDING else "none"
 
@@ -85,7 +90,7 @@ async def _last_ticket_actions(
     session, incidents: Sequence[Incident]
 ) -> dict[int, str]:
     """Última ação de ticket por incidente (só dos que ainda não têm ticket)."""
-    ids = [i.id for i in incidents if not i.deskmanager_ticket_id]
+    ids = [i.id for i in incidents if not _ticket(i)]
     if not ids:
         return {}
     rows = await session.execute(
@@ -110,7 +115,7 @@ def _incident_payload(inc: Incident, last_ticket_action: str | None = None) -> d
     return {
         "id": str(inc.id),
         "fingerprint": inc.fingerprint,
-        "ticket_id": inc.deskmanager_ticket_id,
+        "ticket_id": _ticket(inc),
         "solution": tags.get("glpi_solution"),
         "resolution_sync_status": tags.get("resolution_sync_status"),
         "asset_id": inc.asset_id,

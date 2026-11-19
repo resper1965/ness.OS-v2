@@ -58,12 +58,12 @@ ALTER TABLE n_infraops_incidents
     ADD COLUMN IF NOT EXISTS repeat_of_id BIGINT REFERENCES n_infraops_incidents(id);
 CREATE INDEX IF NOT EXISTS ix_incidents_open_root
     ON n_infraops_incidents (host_id, trigger_id)
-    WHERE repeat_of_id IS NULL AND status <> 'resolved';
+    WHERE repeat_of_id IS NULL AND status NOT IN ('resolved','closed');
 ```
 
 `find_open_root` devolve o incidente mais recente (`first_seen DESC`, `LIMIT 1`) que satisfaça todas as condições abaixo:
 - `repeat_of_id IS NULL`;
-- `status <> 'resolved'`;
+- `status NOT IN ('resolved','closed')`;
 - `deskmanager_ticket_id IS NOT NULL`;
 - o mesmo `host_id` e o mesmo `trigger_id`;
 - `lower(tags->>'ninf_customer_name') = lower(customer_name)`;

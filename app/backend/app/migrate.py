@@ -236,6 +236,16 @@ ALTER TABLE n_infraops_customers ADD COLUMN IF NOT EXISTS ai_external_allowed BO
 """
 
 
+# Repetição do alerta Zabbix aponta para a raiz. Idêntico ao bloco `repeat:begin/end` de 001_schema.sql.
+REPEAT_SQL = """
+ALTER TABLE n_infraops_incidents
+    ADD COLUMN IF NOT EXISTS repeat_of_id BIGINT REFERENCES n_infraops_incidents(id);
+CREATE INDEX IF NOT EXISTS ix_incidents_open_root
+    ON n_infraops_incidents (host_id, trigger_id)
+    WHERE repeat_of_id IS NULL AND status NOT IN ('resolved', 'closed');
+"""
+
+
 async def apply_sla_sql(conn):
     for stmt in SLA_SQL.split(";"):
         if stmt.strip():
@@ -250,6 +260,12 @@ async def apply_params_sql(conn):
 
 async def apply_ai_sql(conn):
     for stmt in AI_SQL.split(";"):
+        if stmt.strip():
+            await conn.execute(text(stmt))
+
+
+async def apply_repeat_sql(conn):
+    for stmt in REPEAT_SQL.split(";"):
         if stmt.strip():
             await conn.execute(text(stmt))
 
@@ -546,6 +562,7 @@ ON CONFLICT DO NOTHING""",
         await apply_sla_sql(conn)
         await apply_params_sql(conn)
         await apply_ai_sql(conn)
+        await apply_repeat_sql(conn)
 
     logger.info("Migração de banco de dados concluída com sucesso.")
 
