@@ -31,6 +31,7 @@ SOURCE_COVERAGE_TIMEOUT_SECONDS = 5
 # Only recent delivery trouble is actionable; older entries are history, not alerts.
 WORKER_FAILURE_WINDOW_SECONDS = PLATFORM_DEFAULTS["worker_failure_window_seconds"]
 MISSING_TICKET_MIN_AGE = timedelta(minutes=5)
+TICKET_DECISION_MAX_DELAY = timedelta(minutes=20)  # carência 15 min + ciclo
 MISSING_TICKET_MAX_AGE = timedelta(minutes=60)
 
 
@@ -217,9 +218,11 @@ async def incident_health():
                 .where(
                     Incident.tags.has_key("ninf_zabbix_event_id"),
                     Incident.status == "open",
+                    # Só o que o decisor deveria ter resolvido (painel nunca vira chamado).
+                    Incident.tags["ninf_ticket_state"].astext == "pending",
                     Incident.deskmanager_ticket_id.is_(None),
                     Incident.repeat_of_id.is_(None),
-                    Incident.created_at < cutoff,
+                    Incident.created_at < now - TICKET_DECISION_MAX_DELAY,
                     Incident.created_at >= oldest,
                 )
             )

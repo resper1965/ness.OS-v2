@@ -509,6 +509,55 @@ class GLPIClient:
         except Exception as exc:
             raise _glpi_failure("comentário de ticket", exc) from exc
 
+    async def _put_ticket_status(self, ticket_id: int, status: int) -> None:
+        try:
+            async with httpx.AsyncClient(
+                timeout=10.0, follow_redirects=False
+            ) as client:
+                res = await client.put(
+                    f"{self.base_url}/Ticket/{int(ticket_id)}",
+                    headers=self.headers,
+                    json={"input": {"id": int(ticket_id), "status": status}},
+                )
+                res.raise_for_status()
+        except Exception as exc:
+            raise _glpi_failure("status de ticket", exc) from exc
+
+    async def has_technician(self, ticket_id: int) -> bool:
+        """Técnico atribuído (Ticket_User type 2) ou acompanhamento de outra pessoa."""
+        users = await self.list_items(f"Ticket/{int(ticket_id)}/Ticket_User")
+        if any(int(u.get("type", 0)) == 2 for u in users):
+            return True
+        followups = await self.list_items(f"Ticket/{int(ticket_id)}/ITILFollowup")
+        return any(int(f.get("users_id", 0)) != (self.user_id or 0) for f in followups)
+
+    async def solve_ticket(self, ticket_id: int, content: str) -> None:
+        if not self.session_token:
+            await self.init_session()
+        try:
+            async with httpx.AsyncClient(
+                timeout=10.0, follow_redirects=False
+            ) as client:
+                res = await client.post(
+                    f"{self.base_url}/ITILSolution",
+                    headers=self.headers,
+                    json={
+                        "input": {
+                            "itemtype": "Ticket",
+                            "items_id": int(ticket_id),
+                            "content": content,
+                        }
+                    },
+                )
+                res.raise_for_status()
+        except Exception as exc:
+            raise _glpi_failure("solução de ticket", exc) from exc
+        await self._put_ticket_status(ticket_id, 5)
+
+    async def reopen_ticket(self, ticket_id: int, content: str) -> None:
+        await self.add_comment(ticket_id=ticket_id, content=content, private=False)
+        await self._put_ticket_status(ticket_id, 2)
+
     async def list_knowbase_item_categories(self) -> list[Dict[str, Any]]:
         """Lista categorias da base de conhecimento pela API suportada."""
         if not self.session_token:

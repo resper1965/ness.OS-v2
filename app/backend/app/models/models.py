@@ -917,3 +917,43 @@ class ContractChange(Base):
     entity: Mapped[str] = mapped_column(String(32), nullable=False)
     before: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     after: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+
+
+class TicketRule(Base):
+    """Padrão (regex, sem diferenciar maiúsculas) de ação, ruído ou causa no título."""
+
+    __tablename__ = "n_infraops_ticket_rules"
+    __table_args__ = (
+        CheckConstraint("kind IN ('action', 'noise', 'cause')"),
+        UniqueConstraint("kind", "pattern"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    kind: Mapped[str] = mapped_column(String(16), nullable=False)
+    pattern: Mapped[str] = mapped_column(Text, nullable=False)
+    note: Mapped[str | None] = mapped_column(Text)
+    enabled: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default=text("true")
+    )
+
+
+class TicketLink(Base):
+    """Chave de dedup (cliente+host+gatilho) -> chamado GLPI."""
+
+    __tablename__ = "n_infraops_ticket_links"
+    __table_args__ = (CheckConstraint("state IN ('open', 'auto_closed', 'closed')"),)
+
+    entity_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    dedup_key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    ticket_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    state: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="open", server_default="open"
+    )
+    occurrences: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=1, server_default="1"
+    )
+    last_seen: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    source_resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

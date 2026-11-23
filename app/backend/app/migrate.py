@@ -563,6 +563,12 @@ ON CONFLICT DO NOTHING""",
         await apply_params_sql(conn)
         await apply_ai_sql(conn)
         await apply_repeat_sql(conn)
+        ticket_policy = (backend_root / "sql" / "004_ticket_policy.sql").read_text(
+            encoding="utf-8"
+        )
+        for stmt in ticket_policy.split(";"):
+            if stmt.strip():
+                await conn.execute(text(stmt))
 
     logger.info("Migração de banco de dados concluída com sucesso.")
 

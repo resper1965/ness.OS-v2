@@ -19,6 +19,7 @@ celery_app = Celery(
         "app.workers.alerts",
         "app.workers.postmortem",
         "app.workers.telemetry",
+        "app.workers.ticket_decider",
     ],
 )
 
@@ -44,6 +45,7 @@ celery_app.conf.update(
         "app.workers.tasks.process_deferred_alert": {"queue": "alerts.deferred"},
         "app.workers.alerts.process_alert_v1": {"queue": "alerts.primary"},
         "app.workers.alerts.sweep_notifications": {"queue": "alerts.primary"},
+        "app.workers.ticket_decider.decide_tickets": {"queue": "alerts.primary"},
         "app.workers.tasks.process_ticket_resolution": {"queue": "alerts.primary"},
         "app.workers.tasks.run_anomaly_check": {"queue": "ml"},
         "app.workers.postmortem.generate_postmortem_report": {"queue": "ml"},
@@ -53,7 +55,11 @@ celery_app.conf.update(
         "sweep-notifications": {
             "task": "app.workers.alerts.sweep_notifications",
             "schedule": 60.0,
-        }
+        },
+        "decide-tickets": {
+            "task": "app.workers.ticket_decider.decide_tickets",
+            "schedule": 60.0,
+        },
     },
     # Prefetch 1 task por worker (evita starvation em alertas massivos)
     worker_prefetch_multiplier=1,
