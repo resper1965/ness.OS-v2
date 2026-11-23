@@ -95,8 +95,20 @@ async def test_resolution_commits_human_solution_before_ack_and_replay_is_idempo
     session = AsyncMock()
     session.add = MagicMock()
     results = []
-    # None: root lock, repeats query, repeats sync
-    for item in (incident, report, None, None, None, incident, None, None, None):
+    # None: vínculo, root lock, repeats e sync (ordem das consultas de resolve_ticket)
+    for item in (
+        incident,
+        report,
+        None,
+        None,
+        None,
+        None,
+        incident,
+        None,
+        None,
+        None,
+        None,
+    ):
         r = MagicMock()
         r.scalar_one_or_none.return_value = item
         r.scalars.return_value = []
@@ -204,6 +216,7 @@ async def test_final_label_from_glpi_category(monkeypatch, category, expected):
         CustomerAlias,
         Incident,
         IncidentAction,
+        TicketLink,
     )
 
     url = os.environ.get("NINF_TEST_PG_URL")
@@ -216,6 +229,7 @@ async def test_final_label_from_glpi_category(monkeypatch, category, expected):
         Incident.__table__,
         IncidentAction.__table__,
         AIDecision.__table__,
+        TicketLink.__table__,
     ]
     engine = create_async_engine(url)
     async with engine.begin() as c:

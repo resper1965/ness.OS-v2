@@ -4,7 +4,7 @@
 
 **Estágio:** em andamento
 
-**Próximo passo:** promover F2 com a flag desligada; rodar a consulta de tempestade; ligar após aviso e OK do Ricardo; depois F3 (investigador do NOC). Depois: validar NOC e SOC com dado real no Hub (promovido `3aecc41` em 16/11: API + frontend); a partir de 23/11, apagar n8n/Evolution (parados em 16/11) com backup e OK "apaga". Documentos atualizados em 16/11 (apps que saíram, VPS e clientes por fase na arquitetura oficial). Depois: painel da Contabo #260, retirar o Authentik e migrar as telas antigas para o kit `.nx`.
+**Próximo passo:** promover #271 (regra de chamados, que substitui a repetição da F2: dedup por cliente+host+gatilho no decisor) e #260 (painel da Contabo); depois, validar NOC e SOC com dado real no Hub, apagar n8n/Evolution com OK "apaga", retirar o Authentik e migrar as telas antigas para o kit `.nx`.
 
 ## Quadro (atualizado a cada task fechada)
 

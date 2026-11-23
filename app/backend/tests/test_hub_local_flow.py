@@ -2,6 +2,7 @@
 
 import json
 import os
+from datetime import timedelta
 from types import SimpleNamespace
 from urllib.parse import urlparse
 from uuid import uuid4
@@ -19,6 +20,7 @@ from app.database import SessionLocal
 from app.models import Incident, IncidentAction, UserRole
 from app.models.schemas import ZabbixAlertPayload
 from app.workers.alerts import _async_process_alert_v1
+from app.workers.ticket_decider import decide
 
 pytestmark = pytest.mark.skipif(
     os.getenv("NINF_LOCAL_FLOW_TEST") != "1",
@@ -34,7 +36,7 @@ async def test_problem_partial_glpi_failure_replay_recovery_and_tenant_scope(
         assert urlparse(os.environ[variable]).hostname in {"127.0.0.1", "localhost"}
 
     tickets = []
-    calls = {"created": 0, "followups": 0}
+    calls = {"created": 0, "followups": 0, "solved": 0}
 
     def external_api(request: httpx.Request) -> httpx.Response:
         path = request.url.path
@@ -95,6 +97,16 @@ async def test_problem_partial_glpi_failure_replay_recovery_and_tenant_scope(
         if path == "/apirest.php/ITILFollowup":
             calls["followups"] += 1
             return httpx.Response(201, json={"id": 601})
+        if path in (
+            "/apirest.php/Ticket/501/Ticket_User",
+            "/apirest.php/Ticket/501/ITILFollowup",
+        ):
+            return httpx.Response(200, json=[])
+        if path == "/apirest.php/ITILSolution":
+            calls["solved"] += 1
+            return httpx.Response(201, json={"id": 701})
+        if path == "/apirest.php/Ticket/501" and request.method == "PUT":
+            return httpx.Response(200, json=[{"501": True}])
         if path == "/apirest.php/killSession":
             return httpx.Response(200, json=True)
         raise AssertionError(f"unexpected external request: {request.method} {path}")
@@ -120,23 +132,24 @@ async def test_problem_partial_glpi_failure_replay_recovery_and_tenant_scope(
     data = alert.model_dump(mode="json")
     fingerprint = generate_event_fingerprint(alert)
 
-    with pytest.raises(RuntimeError, match="GLPI"):
-        await _async_process_alert_v1(data, fingerprint)
-
+    # Ingestão só grava: nenhum chamado antes da carência.
+    result = await _async_process_alert_v1(data, fingerprint)
+    assert result["ticket_id"] is None and calls["created"] == 0
     async with SessionLocal() as session:
         incident = (
             await session.execute(
                 select(Incident).where(Incident.fingerprint == fingerprint)
             )
         ).scalar_one()
-        assert incident.deskmanager_ticket_id is None
         assert incident.tags["ninf_customer_name"] == "Cavan"
+        assert incident.tags["ninf_ticket_state"] == "pending"
+        due = incident.first_seen + timedelta(minutes=16)
 
-    result = await _async_process_alert_v1(data, fingerprint)
+    # 1º ciclo: GLPI cria mas a resposta se perde; 2º acha pelo marcador.
+    assert (await decide(due))["failed"] == 1
     for _ in range(3):
-        replay = await _async_process_alert_v1(data, fingerprint)
-        assert result["ticket_id"] == replay["ticket_id"] == 501
-    assert calls == {"created": 1, "followups": 0}
+        await decide(due)
+    assert calls["created"] == 1
 
     async with SessionLocal() as session:
         incidents = (
@@ -149,8 +162,8 @@ async def test_problem_partial_glpi_failure_replay_recovery_and_tenant_scope(
             .all()
         )
         assert len(incidents) == 1
-        assert incidents[0].alert_count == 1
         assert incidents[0].deskmanager_ticket_id == "501"
+        assert incidents[0].tags["ninf_ticket_state"] == "opened"
         actions = (
             (
                 await session.execute(
@@ -164,7 +177,6 @@ async def test_problem_partial_glpi_failure_replay_recovery_and_tenant_scope(
         )
         assert [action.action for action in actions] == [
             "incident_created",
-            "ticket_failed",
             "ticket_reused",
         ]
 
@@ -189,6 +201,7 @@ async def test_problem_partial_glpi_failure_replay_recovery_and_tenant_scope(
                 select(Incident).where(Incident.fingerprint == fingerprint)
             )
         ).scalar_one()
-        assert incident.status == "open"
+        assert incident.status == "resolved"
         assert incident.deskmanager_ticket_id == "501"
         assert incident.tags["ninf_zabbix_status"] == "resolved"
+    assert calls["solved"] == 1  # ninguém mexeu: fechado automaticamente

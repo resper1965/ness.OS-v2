@@ -2,6 +2,7 @@
 
 import json
 import os
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock
 
@@ -23,9 +24,10 @@ from app.models.models import (
     Incident,
     IncidentAction,
     PlatformParam,
+    TicketLink,
 )
 from app.services.ai_decisions import record_ai_decision
-from app.workers import alerts
+from app.workers import alerts, ticket_decider
 
 URL = os.environ.get("NINF_TEST_PG_URL")
 pytestmark = [
@@ -41,6 +43,7 @@ TABLES = [
     Incident.__table__,
     IncidentAction.__table__,
     AIDecision.__table__,
+    TicketLink.__table__,
 ]
 
 
@@ -106,7 +109,46 @@ async def test_record_failure_does_not_abort_transaction(maker):
         assert await s.scalar(select(func.count(Customer.id))) == 1
 
 
-async def test_worker_records_decision_with_incident_and_ticket(maker, monkeypatch):
+NOW = datetime(2026, 11, 20, 12, 0, tzinfo=timezone.utc)
+
+
+async def _pending(maker, fp, sev, event):
+    """Incidente já gravado pela ingestão, vencido a carência, aguardando o decisor."""
+    async with maker() as s:
+        s.add(
+            Incident(
+                fingerprint=fp,
+                title="Linux: FS [/]: Space is critically low",
+                severity=sev,
+                status="open",
+                host_id="h",
+                host_name="h",
+                trigger_id="t",
+                first_seen=NOW - timedelta(minutes=30),
+                last_seen=NOW,
+                tags={
+                    "ninf_customer_name": "Acme",
+                    "ninf_entity_id": 8,
+                    "ninf_dedup_key": f"8:h:{fp[:8]}",
+                    "ninf_zabbix_event_id": event,
+                    "ninf_ticket_state": "pending",
+                },
+            )
+        )
+        await s.commit()
+
+
+def _decider(monkeypatch, maker):
+    monkeypatch.setattr(alerts, "SessionLocal", maker)
+    monkeypatch.setattr(ticket_decider, "SessionLocal", maker)
+    monkeypatch.setattr(
+        alerts, "ensure_glpi_ticket_serialized", AsyncMock(return_value=(77, True))
+    )
+    monkeypatch.setattr(alerts, "lookup_glpi_asset", AsyncMock(return_value=None))
+    return AsyncMock()
+
+
+async def test_decider_records_decision_with_incident_and_ticket(maker, monkeypatch):
     payload = {
         "executive_action_plan": "x",
         "technical_action_plan": "x",
@@ -129,30 +171,18 @@ async def test_worker_records_decision_with_incident_and_ticket(maker, monkeypat
         httpx, "AsyncClient", lambda **kw: original(transport=transport, **kw)
     )
     monkeypatch.setattr(llm.settings, "llm_api_key", "synthetic-key")
-    monkeypatch.setattr(alerts, "SessionLocal", maker)
-    monkeypatch.setattr(alerts, "GLPIClient", lambda: AsyncMock())
-    monkeypatch.setattr(
-        alerts, "ensure_glpi_ticket_serialized", AsyncMock(return_value=(77, True))
-    )
-    monkeypatch.setattr(
-        alerts, "resolve_alert_customer", AsyncMock(return_value="Acme")
-    )
-    monkeypatch.setattr(
-        alerts, "canonical_customer", AsyncMock(return_value=("Acme", 8))
-    )
-    monkeypatch.setattr(alerts, "lookup_glpi_asset", AsyncMock(return_value=None))
-    monkeypatch.setattr(alerts, "_get_sync_redis", lambda: MagicMock())
-    monkeypatch.setattr(alerts, "LokiClient", lambda: AsyncMock())
+    monkeypatch.setattr(ticket_decider.settings, "llm_api_key", "synthetic-key")
+    glpi = _decider(monkeypatch, maker)
+    await _pending(maker, "f" * 64, 3, "42")
+    async with maker() as s:
+        inc = (await s.execute(select(Incident))).scalar_one()
 
-    alert = {"host_name": "h", "trigger_name": "t", "severity": 3, "event_id": "42"}
-    result = await alerts._async_process_alert_v1(alert, "f" * 64)
+    assert await ticket_decider._open(glpi, inc, NOW, 24) == "opened"
 
     async with maker() as s:
-        rows = (await s.execute(select(AIDecision))).scalars().all()
-    assert len(rows) == 1
-    row = rows[0]
+        row = (await s.execute(select(AIDecision))).scalar_one()
     assert row.kind == "incident_analysis"
-    assert row.incident_id == result["id"]
+    assert row.incident_id == inc.id
     assert row.ticket_id == "77"
     assert row.source_ref == f"{'f' * 64}:42"
     assert row.prompt_version == PROMPT_VERSION_NOC
@@ -169,28 +199,20 @@ async def test_worker_records_decision_with_incident_and_ticket(maker, monkeypat
     assert row.response["urgency"] == "CRITICAL"
 
 
-async def test_worker_gate_error_records_no_model_opinion(maker, monkeypatch):
+async def test_decider_gate_error_records_no_model_opinion(maker, monkeypatch):
     def forbidden(**kwargs):
         raise AssertionError("No provider call when the gate fails")
 
     monkeypatch.setattr(httpx, "AsyncClient", forbidden)
     monkeypatch.setattr(llm.settings, "llm_api_key", "synthetic-key")
-    monkeypatch.setattr(alerts, "SessionLocal", maker)
+    monkeypatch.setattr(ticket_decider.settings, "llm_api_key", "synthetic-key")
     monkeypatch.setattr(alerts, "ai_gate", AsyncMock(side_effect=RuntimeError))
-    monkeypatch.setattr(alerts, "GLPIClient", lambda: AsyncMock())
-    monkeypatch.setattr(
-        alerts, "ensure_glpi_ticket_serialized", AsyncMock(return_value=(77, True))
-    )
-    monkeypatch.setattr(
-        alerts, "canonical_customer", AsyncMock(return_value=("Acme", 8))
-    )
-    monkeypatch.setattr(alerts, "resolve_alert_customer", AsyncMock(return_value="A"))
-    monkeypatch.setattr(alerts, "lookup_glpi_asset", AsyncMock(return_value=None))
-    monkeypatch.setattr(alerts, "_get_sync_redis", lambda: MagicMock())
-    monkeypatch.setattr(alerts, "LokiClient", lambda: AsyncMock())
+    glpi = _decider(monkeypatch, maker)
+    await _pending(maker, "g" * 64, 5, "7")
+    async with maker() as s:
+        inc = (await s.execute(select(Incident))).scalar_one()
 
-    alert = {"host_name": "h", "trigger_name": "t", "severity": 5, "event_id": "7"}
-    await alerts._async_process_alert_v1(alert, "g" * 64)
+    await ticket_decider._open(glpi, inc, NOW, 24)
 
     async with maker() as s:
         row = (await s.execute(select(AIDecision))).scalar_one()
@@ -198,18 +220,37 @@ async def test_worker_gate_error_records_no_model_opinion(maker, monkeypatch):
     assert row.divergent is False and row.response == {}
 
 
-async def test_worker_without_key_skips_gate(monkeypatch):
+async def test_decider_without_key_skips_gate(maker, monkeypatch):
     gate = AsyncMock()
-    monkeypatch.setattr(llm.settings, "llm_api_key", "")
+    monkeypatch.setattr(ticket_decider.settings, "llm_api_key", "")
     monkeypatch.setattr(alerts, "ai_gate", gate)
     analyze = AsyncMock(side_effect=StopAsyncIteration)  # stop right after analysis
-    monkeypatch.setattr(alerts, "analyze_incident", analyze)
-    monkeypatch.setattr(alerts, "resolve_alert_customer", AsyncMock(return_value="A"))
+    monkeypatch.setattr(ticket_decider, "analyze_incident", analyze)
+    glpi = _decider(monkeypatch, maker)
+    await _pending(maker, "h" * 64, 4, "1")
+    async with maker() as s:
+        inc = (await s.execute(select(Incident))).scalar_one()
+    with pytest.raises(StopAsyncIteration):
+        await ticket_decider._open(glpi, inc, NOW, 24)
+    gate.assert_not_awaited()
+    assert analyze.await_args.kwargs["skip"] is None
+
+
+async def test_ingestion_never_calls_the_model(maker, monkeypatch):
+    """Com a regra de chamados a IA só roda quando o decisor abre chamado."""
+    analyze = AsyncMock()
+    monkeypatch.setattr(ticket_decider, "analyze_incident", analyze)
+    monkeypatch.setattr(alerts, "SessionLocal", maker)
+    monkeypatch.setattr(
+        alerts, "resolve_alert_customer", AsyncMock(return_value=("Acme", None))
+    )
     monkeypatch.setattr(
         alerts, "canonical_customer", AsyncMock(return_value=("Acme", 8))
     )
-    monkeypatch.setattr(alerts, "lookup_glpi_asset", AsyncMock(return_value=None))
-    with pytest.raises(StopAsyncIteration):
-        await alerts._async_process_alert_v1({"severity": 4}, "h" * 64)
-    gate.assert_not_awaited()
-    assert analyze.await_args.kwargs["skip"] is None
+    monkeypatch.setattr(alerts, "_get_sync_redis", lambda: MagicMock())
+    monkeypatch.setattr(alerts, "LokiClient", lambda: AsyncMock())
+    alert = {"host_name": "h", "trigger_name": "t", "severity": 3, "event_id": "42"}
+    await alerts._async_process_alert_v1(alert, "i" * 64)
+    analyze.assert_not_awaited()
+    async with maker() as s:
+        assert (await s.scalar(select(func.count(AIDecision.id)))) == 0
