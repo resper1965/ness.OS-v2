@@ -159,10 +159,10 @@ Lote de `4a72949` a `3aecc41` (32 commits): remoção do n8n/WhatsApp (#250), ba
 
 Lote de `3aecc41` a `73adaa0`: IA nos chamados F1/F2 (#280–#283), regra de chamados (#271) e painel da Contabo (#260). Migração aditiva: `n_ai_decisions`, `n_infraops_ticket_links`, regras e parâmetros de chamado (`004_ticket_policy.sql`). OK do Esper: "promove" (disparo às 17:28 em Brasília).
 
-- API e workers: `ghcr.io/resper1965/ninf-api@sha256:b34ddc82a98e045b8103ad09a0d038224eb0eabbc541f2e19899123b57b58636`. `promotion=PASS`, `backup_set=20261123T171729-0300` (backup novo, GLPI parado durante o backup), release anterior `4a72949`, `hub_http=401`.
+- API e workers: `ghcr.io/resper1965/ninf-api@sha256:b34ddc82a98e045b8103ad09a0d038224eb0eabbc541f2e19899123b57b58636`. `promotion=PASS`, `backup_set=20261123T171729-0300` (backup novo, GLPI parado durante o backup), release anterior `4a72949` segundo o script (a que estava em uso era `3aecc41`, de 16/11), `hub_http=401`.
 - Frontend: `ghcr.io/resper1965/ninf-frontend@sha256:15605b178f758d4964e249b0fa57a3a0efb29ca7121c65d7accb7a2e72a79348` nos dois `.env` (o canônico recebeu também o `NINF_API_IMAGE` novo). Backup em `change-backups/frontend-20261123T173634/`. Só `ninf-frontend` recriado.
 - Verificado: API e workers `healthy`, `/ready` 200, Hub 200, 0 erros no `worker-alerts`, `decide_tickets` rodando a cada 60 s, 13 regras de chamado carregadas, incidentes novos entrando como `pending`.
-- Rollback: API `docker compose -p app -f releases/4a72949…/app/docker-compose.yml -f …/docker-compose.tickets.yml up -d --no-deps --force-recreate api worker-alerts worker-ml`; frontend `NINF_FRONTEND_IMAGE=…@sha256:c1104b69…` nos dois `.env` e recriar o contêiner.
+- Rollback: API `docker compose -p app -f releases/3aecc419e81e0682be2fbede08bcabb70a150f43/app/docker-compose.yml -f …/docker-compose.tickets.yml up -d --no-deps --force-recreate api worker-alerts worker-ml`; frontend `NINF_FRONTEND_IMAGE=…@sha256:c1104b69…` nos dois `.env` e recriar o contêiner.
 
 ## n8n e Evolution removidos (23/11/2026)
 
