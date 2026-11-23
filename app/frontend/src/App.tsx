@@ -1,5 +1,5 @@
 import { Activity, ShieldAlert, Cloud, RefreshCw, LayoutDashboard, Shield,
-         WifiOff, AlertTriangle, LogOut, FileText, Users, Menu, Bot } from 'lucide-react';
+         WifiOff, AlertTriangle, LogOut, FileText, Users, Menu, Bot, Bug } from 'lucide-react';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import CloudManagement from './components/CloudManagement';
 import PipelineStrip from './components/PipelineStrip';
@@ -9,6 +9,7 @@ import ProblemsView, { type Problem } from './components/ProblemsView';
 import LoginPage from './components/LoginPage';
 import SocView from './components/SocView';
 import AiView from './components/AiView';
+import VulnsView from './components/VulnsView';
 import CoreDashboard from './components/CoreDashboard';
 import { debounce } from './debounce';
 import { useAuth } from './hooks/useAuth';
@@ -22,16 +23,16 @@ import CustomersScreen from './components/CustomersScreen';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
 
-type View = 'overview' | 'monitoring' | 'cloud' | 'incidents' | 'secops' | 'contracts' | 'customers' | 'ai';
+type View = 'overview' | 'monitoring' | 'cloud' | 'incidents' | 'secops' | 'contracts' | 'customers' | 'ai' | 'vulns';
 
 const TITLES: Record<View, string> = {
   overview: 'Visão geral', monitoring: 'NOC', cloud: 'Nuvem', incidents: 'Incidentes',
-  secops: 'SOC', contracts: 'Contratos', customers: 'Clientes', ai: 'IA',
+  secops: 'SOC', contracts: 'Contratos', customers: 'Clientes', ai: 'IA', vulns: 'Vulnerabilidades',
 };
 
 // A tela vive na URL (?view=) para recarregar, voltar e compartilhar link; papel decide o que pode abrir.
 export function allowedView(v: string | null, isOperator: boolean, canCadastros: boolean): View {
-  if (v === 'incidents') return v;
+  if (v === 'incidents' || v === 'vulns') return v;
   if ((v === 'contracts' || v === 'customers') && canCadastros) return v;
   if (isOperator && (v === 'overview' || v === 'monitoring' || v === 'cloud' || v === 'secops' || v === 'ai')) return v;
   return isOperator ? 'overview' : 'incidents';
@@ -280,6 +281,7 @@ function AppShellBody({ AUTH, logout, user }: {
           <SidebarItem icon={ShieldAlert} label="Incidentes" active={currentView === 'incidents'} onClick={() => setCurrentView('incidents')} />
           {isOperator && <SidebarItem icon={Cloud} label="Nuvem" active={currentView === 'cloud'} onClick={() => setCurrentView('cloud')} />}
           {isOperator && <SidebarItem icon={Shield} label="SOC" active={currentView === 'secops'} onClick={() => setCurrentView('secops')} />}
+          <SidebarItem icon={Bug} label="Vulnerabilidades" active={currentView === 'vulns'} onClick={() => setCurrentView('vulns')} />
           {isOperator && <SidebarItem icon={Bot} label="IA" active={currentView === 'ai'} onClick={() => setCurrentView('ai')} />}
           {canReadCadastros && <>
           <p className="px-3 mt-3 mb-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-brand-muted select-none">Cadastros</p>
@@ -370,7 +372,7 @@ function AppShellBody({ AUTH, logout, user }: {
 
           <button
             onClick={() => {
-              if (currentView === 'cloud' || currentView === 'contracts' || currentView === 'customers' || currentView === 'secops' || currentView === 'ai') setCadastrosTick(t => t + 1);
+              if (currentView === 'cloud' || currentView === 'contracts' || currentView === 'customers' || currentView === 'secops' || currentView === 'ai' || currentView === 'vulns') setCadastrosTick(t => t + 1);
               else if (currentView === 'incidents') void fetchIncidents();
               else void fetchData();
             }}
@@ -424,6 +426,7 @@ function AppShellBody({ AUTH, logout, user }: {
             <SocView refreshKey={cadastrosTick} />
           )}
           {currentView === 'ai' && <AiView refreshKey={cadastrosTick} />}
+          {currentView === 'vulns' && <VulnsView tenant={access.tenantScope(user?.role, selectedTenant)} isOperator={isOperator} refreshKey={cadastrosTick} />}
 
         </div>
       </main>

@@ -8,6 +8,8 @@
 
 ## Quadro (atualizado a cada task fechada)
 
+- Vulnerabilidades no Hub (23/11, branch `feat/vulnerabilidades`, **falta promover**): tabela `n_secops_vulnerabilities`, tela "Vulnerabilidades" (filtros, top 10 máquinas e pacotes, exportação no layout do time; cliente vê só o próprio). Carga: `infra/scripts/vuln-carga.sh` no stack, dia 1º, com `--email ccarvalho@ness.com.br`. Plano: `docs/superpowers/plans/2026-11-23-pendencias.md`.
+
 Tasks do [plano de execução](docs/superpowers/plans/2026-10-26-ness-os-execution-plan.md).
 
 ### Feito
