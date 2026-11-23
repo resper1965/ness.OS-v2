@@ -4,7 +4,7 @@
 
 **Estágio:** em andamento
 
-**Próximo passo:** promover #271 (regra de chamados, que substitui a repetição da F2: dedup por cliente+host+gatilho no decisor) e #260 (painel da Contabo); depois, validar NOC e SOC com dado real no Hub, apagar n8n/Evolution com OK "apaga", retirar o Authentik e migrar as telas antigas para o kit `.nx`.
+**Próximo passo:** acompanhar a regra de chamados em produção (promovida `73adaa0` em 23/11: chamados abertos após a carência, dedup e sintomas); depois, validar NOC e SOC com dado real no Hub, apagar n8n/Evolution com OK "apaga", retirar o Authentik e migrar as telas antigas para o kit `.nx`.
 
 ## Quadro (atualizado a cada task fechada)
 
