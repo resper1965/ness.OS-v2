@@ -57,6 +57,13 @@ async def _set_state(incident_id: int, state: str, **tags) -> None:
             inc.tags = {**inc.tags, "ninf_ticket_state": state, **tags}
 
 
+def _still_pending(inc: Incident) -> bool:
+    return (
+        _tag(inc, "ninf_ticket_state") == "pending"
+        and (_tag(inc, "ninf_zabbix_status") or "problem") == "problem"
+    )
+
+
 def _alert_data(inc: Incident) -> dict:
     return {
         "host_id": inc.host_id,
@@ -102,6 +109,11 @@ async def _open(glpi: GLPIClient, inc: Incident, now: datetime, reopen_h: int) -
         await alerts.attach_incident(inc.id, entity_id, key, link.ticket_id)
         return "reopened"
 
+    async with SessionLocal() as session:
+        fresh = await session.get(Incident, inc.id)
+    if fresh is None or not _still_pending(fresh):
+        return "skipped"  # recuperado ou decidido enquanto o ciclo rodava
+
     previous = link.ticket_id if link else None
     data = _alert_data(inc)
     customer = _tag(inc, "ninf_customer_name") or ""
@@ -141,6 +153,7 @@ async def _open(glpi: GLPIClient, inc: Incident, now: datetime, reopen_h: int) -
             assert db_inc is not None
             db_inc.deskmanager_ticket_id = str(ticket_id)
             db_inc.tags = {**db_inc.tags, "ninf_ticket_state": "opened"}
+            recovered = _tag(db_inc, "ninf_zabbix_status") == "resolved"
             session.add(
                 IncidentAction(
                     incident_id=inc.id,
@@ -177,6 +190,9 @@ async def _open(glpi: GLPIClient, inc: Incident, now: datetime, reopen_h: int) -
                     incident_id=inc.id,
                     ticket_id=str(ticket_id),
                 )
+    if recovered:
+        # A recuperação chegou durante a criação e não viu o vínculo: fecha agora.
+        await alerts.close_ticket_if_recovered(entity_id, key, now)
     # Push pela severidade da origem (a IA só opina), como na ingestão antiga.
     if settings.alert_notifications_enabled and source_urgency(data) in (
         "HIGH",
@@ -293,7 +309,8 @@ async def decide(now: datetime) -> dict[str, int]:
         rest = [i for i in pending if not is_cause(i.title, rules)]
         for inc in causes + rest:
             cause = None
-            if inc in rest and _tag(inc, "ninf_site"):
+            # Sev 4–5 sempre abre chamado próprio, mesmo com causa ativa no site.
+            if inc in rest and _tag(inc, "ninf_site") and inc.severity < 4:
                 cause = next(
                     (
                         c

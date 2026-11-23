@@ -368,3 +368,95 @@ async def test_cause_recovery_releases_active_symptoms(maker, glpi):
     assert two.tags["ninf_grace_from"]
     assert three.tags["ninf_ticket_state"] == "symptom"
     glpi.create_ticket.assert_not_awaited()  # causa nunca venceu a carência
+
+
+# ---------- revisão do PR (#271) ----------
+
+
+@pytest.mark.asyncio
+async def test_high_severity_is_never_symptom(maker, glpi):
+    await _inc(maker, 1, TUNNEL, minutes=16)
+    await _inc(maker, 2, DISK, minutes=16, sev=4)
+    await ticket_decider.decide(NOW)
+    assert await _state(maker, 2) == "opened"
+    assert glpi.create_ticket.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_recovered_during_cycle_does_not_open(maker, glpi):
+    await _inc(maker, 1, DISK, site=None)
+    async with maker() as s:
+        stale = await s.get(Incident, 1)
+    await _recover(1)  # chega depois da foto do ciclo
+    assert await ticket_decider._open(glpi, stale, NOW, 24) == "skipped"
+    glpi.create_ticket.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_recovery_during_creation_closes_ticket(maker, glpi):
+    await _inc(maker, 1, DISK, site=None)
+
+    async with maker() as s:
+        inc = await s.get(Incident, 1)
+    orig = ticket_decider.analyze_incident
+
+    async def recover_then_analyze(**kw):
+        await _recover(1)
+        return await orig(**kw)
+
+    ticket_decider.analyze_incident = recover_then_analyze
+    try:
+        # a foto ainda está pendente; a recuperação cai no meio da criação
+        await ticket_decider._open(glpi, inc, NOW, 24)
+    finally:
+        ticket_decider.analyze_incident = orig
+    async with maker() as s:
+        link = (await s.execute(select(TicketLink))).scalar_one()
+    assert link.state != "open" or link.source_resolved_at is not None
+
+
+@pytest.mark.asyncio
+async def test_tech_resolution_resolves_all_occurrences(maker, glpi, monkeypatch):
+    from app.models import AIDecision
+    from app.workers import resolution
+
+    async with maker() as s:
+        conn = await s.connection()
+        await conn.run_sync(
+            lambda sc: Base.metadata.create_all(sc, tables=[AIDecision.__table__])
+        )
+        await s.commit()
+
+    await _inc(maker, 1, DISK, site=None)
+    await ticket_decider.decide(NOW)
+    async with maker() as s:
+        await s.execute(
+            text(
+                "UPDATE n_infraops_incidents SET deskmanager_ticket_id='501' WHERE id=1"
+            )
+        )
+        await s.commit()
+    await _inc(maker, 2, DISK, site=None)
+    async with maker() as s:
+        inc2 = await s.get(Incident, 2)
+        inc2.deskmanager_ticket_id = "501"
+        inc2.tags = {**inc2.tags, "ninf_ticket_state": "attached"}
+        await s.commit()
+    monkeypatch.setattr(resolution, "SessionLocal", maker)
+    monkeypatch.setattr(
+        resolution, "resolve_glpi_entity_id", AsyncMock(return_value=12)
+    )
+    g = MagicMock()
+    g.ticket_resolution = AsyncMock(
+        return_value={"resolved": True, "solution": "", "solution_id": "9"}
+    )
+    g.kill_session = AsyncMock()
+    monkeypatch.setattr(resolution, "GLPIClient", lambda: g)
+    z = MagicMock()
+    z.acknowledge_resolution_once = AsyncMock(return_value="success")
+    monkeypatch.setattr(resolution, "ZabbixClient", lambda: z)
+    await resolution.resolve_ticket("501", MagicMock())
+    async with maker() as s:
+        assert {(await s.get(Incident, n)).status for n in (1, 2)} == {"resolved"}
+        link = (await s.execute(select(TicketLink))).scalar_one()
+    assert link.state == "closed"

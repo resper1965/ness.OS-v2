@@ -271,11 +271,13 @@ def main(argv=None, api=None):
         for s in sites:
             print(json.dumps(plan_site(api, s), ensure_ascii=False))
         return
-    record = [apply_site(api, s) for s in sites]
     stamp = datetime.datetime.now().strftime("%Y%m%dT%H%M%S")
     path = os.path.join(a.record_dir, f"aplicado-{stamp}.json")
-    with open(path, "w") as f:
-        json.dump(record, f, ensure_ascii=False, indent=2)
+    record = []
+    for s in sites:  # grava a cada site: falha no meio ainda deixa rollback exato
+        record.append(apply_site(api, s))
+        with open(path, "w") as f:
+            json.dump(record, f, ensure_ascii=False, indent=2)
     print(
         f"{sum(len(r['pairs']) for r in record)} dependências criadas; registro em {path}"
     )

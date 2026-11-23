@@ -3,7 +3,7 @@
 import json
 from datetime import datetime, timezone
 
-from sqlalchemy import select, update
+from sqlalchemy import and_, or_, select, update
 
 from app.database import SessionLocal
 from app.integrations.glpi import GLPIClient
@@ -12,11 +12,23 @@ from app.models import AIDecision, Incident, IncidentAction, IncidentReport, Tic
 from app.services.customers import resolve_glpi_entity_id
 
 
+def _same_ticket(root: Incident, ticket_id: str):
+    """Repetições da raiz e ocorrências ligadas ao mesmo chamado pelo dedup."""
+    return or_(
+        Incident.repeat_of_id == root.id,
+        and_(Incident.deskmanager_ticket_id == ticket_id, Incident.id != root.id),
+    )
+
+
 async def resolve_ticket(ticket_id: str, redis) -> dict:
     async with SessionLocal() as session:
         incident = (
             await session.execute(
-                select(Incident).where(Incident.deskmanager_ticket_id == ticket_id)
+                # Dedup: várias ocorrências dividem o chamado; a mais antiga é a raiz.
+                select(Incident)
+                .where(Incident.deskmanager_ticket_id == ticket_id)
+                .order_by(Incident.id)
+                .limit(1)
             )
         ).scalar_one_or_none()
         if incident is None:
@@ -113,7 +125,7 @@ async def resolve_ticket(ticket_id: str, redis) -> dict:
         repeats = (
             await session.execute(
                 select(Incident).where(
-                    Incident.repeat_of_id == incident.id,
+                    _same_ticket(incident, ticket_id),
                     Incident.status.not_in(("resolved", "closed")),
                 )
             )
@@ -149,7 +161,7 @@ async def resolve_ticket(ticket_id: str, redis) -> dict:
         # Repeats share the root's ticket, so they share its sync state (Close button).
         for repeat in (
             await session.execute(
-                select(Incident).where(Incident.repeat_of_id == incident.id)
+                select(Incident).where(_same_ticket(incident, ticket_id))
             )
         ).scalars():
             repeat.tags = {
