@@ -159,6 +159,19 @@ async def test_create_update_and_empty_name_422(api, customers_maker):
         ).status_code == 404
 
 
+async def test_patch_ai_external_allowed(api):
+    async with api(UserRole.platform_admin) as c:
+        assert (await c.get("/api/customers")).json()[0]["ai_external_allowed"] is True
+        r = await c.put("/api/customers/8", json={"ai_external_allowed": False})
+        assert r.status_code == 200 and r.json()["ai_external_allowed"] is False
+        got = {x["id"]: x for x in (await c.get("/api/customers")).json()}
+        assert got[8]["ai_external_allowed"] is False
+        assert got[1]["ai_external_allowed"] is True
+        assert (
+            await c.put("/api/customers/8", json={"ai_external_allowed": None})
+        ).status_code == 422
+
+
 async def test_only_admin_edits(api):
     for role in (UserRole.operator, UserRole.cliente, UserRole.viewer):
         async with api(role) as c:

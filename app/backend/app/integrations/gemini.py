@@ -215,23 +215,33 @@ def generate_postmortem(
     except httpx.HTTPError as exc:
         log_ai_call("postmortem", "error", started)
         logger.error("Falha na chamada ao LLM: %s", type(exc).__name__)
-        # Fallback: relatório mínimo sem IA
-        return PostMortemReport(
-            incident_fingerprint=incident.get("fingerprint", ""),
-            deskmanager_ticket_id=incident.get("deskmanager_ticket_id"),
-            host_name=incident.get("host_name"),
-            customer_name=incident.get("customer_name") or incident.get("client"),
-            markdown_report=(
-                "# Relatório Pós-Incidente\n\n"
-                "> ⚠️ Geração automática falhou. Análise manual necessária.\n\n"
-                f"**Incidente:** {incident.get('title', '?')}\n"
-                f"**Host:** {incident.get('host_name', '?')}\n"
-                f"**Erro LLM:** {type(exc).__name__}\n"
-            ),
-            summary="Geração automática falhou",
-            root_cause="Análise manual necessária",
-            gemini_model_used=settings.llm_model,
+        return fallback_postmortem(
+            incident,
+            "Geração automática falhou. Análise manual necessária.",
+            f"**Erro LLM:** {type(exc).__name__}",
         )
+
+
+def fallback_postmortem(
+    incident: dict[str, Any], reason: str, note: str
+) -> PostMortemReport:
+    """Relatório mínimo sem IA (falha do provedor ou IA pulada por política)."""
+    return PostMortemReport(
+        incident_fingerprint=incident.get("fingerprint", ""),
+        deskmanager_ticket_id=incident.get("deskmanager_ticket_id"),
+        host_name=incident.get("host_name"),
+        customer_name=incident.get("customer_name") or incident.get("client"),
+        markdown_report=(
+            "# Relatório Pós-Incidente\n\n"
+            f"> ⚠️ {reason}\n\n"
+            f"**Incidente:** {incident.get('title', '?')}\n"
+            f"**Host:** {incident.get('host_name', '?')}\n"
+            f"{note}\n"
+        ),
+        summary=reason.split(".")[0],
+        root_cause="Análise manual necessária",
+        gemini_model_used=settings.llm_model,
+    )
 
 
 # --- Parsers auxiliares (extração de seções do Markdown) ---

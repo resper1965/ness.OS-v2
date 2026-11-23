@@ -221,6 +221,7 @@ async def incident_health():
                     # Só o que o decisor deveria ter resolvido (painel nunca vira chamado).
                     Incident.tags["ninf_ticket_state"].astext == "pending",
                     Incident.deskmanager_ticket_id.is_(None),
+                    Incident.repeat_of_id.is_(None),
                     Incident.created_at < now - TICKET_DECISION_MAX_DELAY,
                     Incident.created_at >= oldest,
                 )

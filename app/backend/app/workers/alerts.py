@@ -26,6 +26,7 @@ from app.models import (
     IncidentAction,
     TicketLink,
 )
+from app.services.ai_gate import ai_gate
 from app.services.customers import AmbiguousCustomer, resolve_active_customer
 from app.services.ticket_policy import dedup_key, site_from_hostgroups
 from app.workers.celery_app import celery_app
@@ -408,7 +409,7 @@ def build_glpi_ticket_content(alert_data: Dict[str, Any], analysis: Any) -> str:
 <p><b>Host:</b> {host_name} ({host_ip})</p>
 <p><b>Severidade do Alerta:</b> {severity}</p>
 <p><b>Causa Provável:</b> {cause}</p>
-<p><b>Urgência de IA:</b> {urgency}</p>
+<p><b>Opinião da IA (urgência):</b> {urgency}</p>
 <p><b>Isolamento Requerido:</b> {"Sim" if analysis.isolation_required else "Não"}</p>
 <hr/>
 <h3>Plano de Ação Executivo:</h3>
@@ -428,6 +429,16 @@ SEVERITY_NAMES = {
     4: "high",
     5: "disaster",
 }
+
+
+async def _ai_skip(customer_name: str) -> str | None:
+    """Outcome da porta de IA; qualquer falha pula o modelo e o chamado segue."""
+    try:
+        async with SessionLocal() as session:
+            return await ai_gate(session, customer_name.lower().strip())
+    except Exception as exc:
+        logger.warning("AI gate failed, skipping model: %s", type(exc).__name__)
+        return "error"
 
 
 async def _async_process_alert_v1(

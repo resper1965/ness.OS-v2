@@ -28,6 +28,8 @@ Cada entrega vale sozinha, tem um critério de pronto e um gate. Nenhuma começa
 
 ### E1 — Divergência e registro da decisão (F6, não depende do Vigil)
 
+> **Coberta pela F1 da IA nos chamados** (commit `7cfce8c` na branch `feat/ia-chamados-f1`; PR: a abrir): decisão do SOC gravada em `n_ai_decisions` com divergência motor × modelo, vista na tela "IA". Vale após a promoção da F1.
+
 Duas mudanças pequenas no `/secops/triage`, úteis com ou sem Vigil:
 
 - **Divergência:** quando o motor manda para L2 e o modelo devolve `FP` ou `LOW`, ou o motor dá L1 e o modelo devolve `HIGH` ou `CRIT`, a decisão é marcada. É **anotação, não roteamento**: o atendimento já é decidido antes do modelo (`_attendance_required`) e não muda. As decisões marcadas entram numa lista de revisão, no mesmo molde da amostra semanal de arquivados, e servem para calibrar limiares e prompt. Quando o motor arquiva, o modelo não roda, então não há divergência nesse sentido.

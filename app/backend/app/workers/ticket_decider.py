@@ -18,8 +18,9 @@ from sqlalchemy import select
 from app.config import get_settings
 from app.database import SessionLocal
 from app.integrations.glpi import GLPIClient
-from app.ml.analyzer import analyze_incident
+from app.ml.analyzer import PROMPT_VERSION_NOC, analyze_incident, source_urgency
 from app.models import Incident, IncidentAction, PlatformParam, TicketLink
+from app.services.ai_decisions import record_ai_decision
 from app.services.ticket_policy import TICKET_DEFAULTS, classify, is_cause, load_rules
 from app.workers import alerts
 from app.workers.celery_app import celery_app
@@ -107,6 +108,7 @@ async def _open(glpi: GLPIClient, inc: Incident, now: datetime, reopen_h: int) -
     analysis = await analyze_incident(
         incident_data=data,
         customer_metadata={"customer_name": customer, "entity_id": entity_id},
+        skip=await alerts._ai_skip(customer) if settings.llm_api_key else None,
     )
     content = alerts.build_glpi_ticket_content(data, analysis)
     if previous:
@@ -151,8 +153,34 @@ async def _open(glpi: GLPIClient, inc: Incident, now: datetime, reopen_h: int) -
                     note=f"ticket={ticket_id} entity={entity_id}",
                 )
             )
-    if settings.alert_notifications_enabled and (
-        analysis.urgency in ("HIGH", "CRITICAL") or analysis.isolation_required
+            call = analysis._call
+            if call is not None:
+                await record_ai_decision(
+                    session,
+                    kind="incident_analysis",
+                    customer_id=customer.lower().strip(),
+                    source_ref=f"{inc.fingerprint}:{_tag(inc, 'ninf_zabbix_event_id') or ''}",
+                    call=call,
+                    prompt_version=PROMPT_VERSION_NOC,
+                    request=analysis._request,
+                    response=analysis.model_dump() if call.outcome == "ok" else {},
+                    rule_value=source_urgency(data),
+                    model_value=(
+                        None
+                        if call.outcome != "ok"
+                        else (
+                            "ISOLATE"
+                            if analysis.isolation_required
+                            else analysis.urgency
+                        )
+                    ),
+                    incident_id=inc.id,
+                    ticket_id=str(ticket_id),
+                )
+    # Push pela severidade da origem (a IA só opina), como na ingestão antiga.
+    if settings.alert_notifications_enabled and source_urgency(data) in (
+        "HIGH",
+        "CRITICAL",
     ):
         try:
             from app.integrations.webpush import notify_tenant_stakeholders
@@ -164,7 +192,7 @@ async def _open(glpi: GLPIClient, inc: Incident, now: datetime, reopen_h: int) -
                 f"IA sugere: {analysis.executive_action_plan[:100]}...",
                 incident_id=str(inc.id),
                 fingerprint=inc.fingerprint,
-                severity=analysis.urgency.lower(),
+                severity=source_urgency(data).lower(),
             )
         except Exception as exc:
             logger.error("Web Push falhou: %s", type(exc).__name__)

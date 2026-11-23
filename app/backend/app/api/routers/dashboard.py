@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from redis.asyncio import Redis
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.config import get_settings
 from app.core.dependencies import require_noc
@@ -184,7 +184,10 @@ async def _incident_context(event_ids: list[str]) -> dict[str, dict]:
                 select(
                     key,
                     Incident.id,
-                    Incident.deskmanager_ticket_id,
+                    func.coalesce(
+                        Incident.deskmanager_ticket_id,
+                        Incident.tags["ninf_repeat_ticket_id"].astext,
+                    ),
                     Incident.tags["ninf_customer_name"].astext,
                 ).where(key.in_(event_ids))
             )
