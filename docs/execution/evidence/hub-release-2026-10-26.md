@@ -154,3 +154,16 @@ Lote de `4a72949` a `3aecc41` (32 commits): remoção do n8n/WhatsApp (#250), ba
 - A segunda execução do script às 16:08 saiu na guarda `target_dir` já existente, sem efeito; o log `/tmp/promo-3aecc41.log` ficou vazio e a evidência vale pelo `evidence/promotion-context.txt` da release.
 - `ninf-n8n`, `ninf-evolution` e `ninf-evolution-manager` (fora do código desde #250) parados em 16/11 com `restart=no`, sem apagar contêiner, volume ou banco; Hub 200. Religar: `docker start <nome>`. `ninf-glpi-maintenance-gateway` não é órfão (vem de `docker-compose.glpi-maintenance.yml`) e segue `healthy`.
 - Pendente (a partir de 23/11, com OK "apaga"): copiar `n8n-data`, `evolution-instances`, `evolution-store` e o banco `evolution` para `change-backups`, depois remover contêineres, volumes e banco.
+
+## Promoção 73adaa0 (23/11/2026) — API + frontend
+
+Lote de `3aecc41` a `73adaa0`: IA nos chamados F1/F2 (#280–#283), regra de chamados (#271) e painel da Contabo (#260). Migração aditiva: `n_ai_decisions`, `n_infraops_ticket_links`, regras e parâmetros de chamado (`004_ticket_policy.sql`). OK do Esper: "promove" (disparo às 17:28 em Brasília).
+
+- API e workers: `ghcr.io/resper1965/ninf-api@sha256:b34ddc82a98e045b8103ad09a0d038224eb0eabbc541f2e19899123b57b58636`. `promotion=PASS`, `backup_set=20261123T171729-0300` (backup novo, GLPI parado durante o backup), release anterior `4a72949` segundo o script (a que estava em uso era `3aecc41`, de 16/11), `hub_http=401`.
+- Frontend: `ghcr.io/resper1965/ninf-frontend@sha256:15605b178f758d4964e249b0fa57a3a0efb29ca7121c65d7accb7a2e72a79348` nos dois `.env` (o canônico recebeu também o `NINF_API_IMAGE` novo). Backup em `change-backups/frontend-20261123T173634/`. Só `ninf-frontend` recriado.
+- Verificado: API e workers `healthy`, `/ready` 200, Hub 200, 0 erros no `worker-alerts`, `decide_tickets` rodando a cada 60 s, 13 regras de chamado carregadas, incidentes novos entrando como `pending`.
+- Rollback: API `docker compose -p app -f releases/3aecc419e81e0682be2fbede08bcabb70a150f43/app/docker-compose.yml -f …/docker-compose.tickets.yml up -d --no-deps --force-recreate api worker-alerts worker-ml`; frontend `NINF_FRONTEND_IMAGE=…@sha256:c1104b69…` nos dois `.env` e recriar o contêiner.
+
+## n8n e Evolution removidos (23/11/2026)
+
+OK do Esper: "apaga". Backup em `/opt/n-infraops/change-backups/n8n-evolution-20261123T183927/`: volumes `app_n8n-data` (460 KB), `app_evolution-instances` e `app_evolution-store` (vazios), dump `evolution.dump` (37 tabelas, `pg_restore -l` OK) e `containers-inspect.json`. Removidos os contêineres `ninf-n8n`, `ninf-evolution` e `ninf-evolution-manager`, os três volumes e o banco `evolution`. Hub 200, API `healthy`. Restaurar: recriar o banco e `pg_restore` do dump; volumes com `tar -xzf` num volume novo.
