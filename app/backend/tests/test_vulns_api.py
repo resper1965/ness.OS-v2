@@ -59,6 +59,7 @@ async def api():
                 vuln("rzk", "PC1", "CVE-2", "High", 7.5, package="100%_off"),
                 vuln("rzk", "PC2", "SO-SEM-SUPORTE", "Critical", eol=True),
                 vuln("target", "TGT1", "CVE-1", "Critical", 9.8),
+                vuln("target", "PC1", "CVE-3", "Low"),
             ]
         )
         await s.commit()
@@ -86,12 +87,13 @@ async def api():
 async def test_noc_sees_all_and_client_only_own(api):
     async with api(NOC) as c:
         r = (await c.get("/api/secops/vulnerabilities")).json()
-    assert r["total"] == 4 and r["by_severity"]["Critical"] == 3
+    assert r["total"] == 5 and r["by_severity"]["Critical"] == 3
+    assert r["agents"] == 4  # PC1 da RZK e PC1 da Target são máquinas diferentes
     async with api(RZK) as c:
         r = (await c.get("/api/secops/vulnerabilities")).json()
         assert r["total"] == 3 and {x["customer_id"] for x in r["rows"]} == {"rzk"}
         assert r["agents"] == 2 and r["eol_agents"] == 1
-        assert r["top_agents"][0] == {"key": "PC1", "count": 2}
+        assert r["top_agents"][0] == {"key": "rzk · PC1", "count": 2}
         assert (
             await c.get("/api/secops/vulnerabilities?customer_id=target")
         ).status_code == 403

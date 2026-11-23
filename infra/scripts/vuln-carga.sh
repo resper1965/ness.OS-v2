@@ -30,11 +30,13 @@ SQL
 \\.
 DELETE FROM n_secops_vulnerabilities WHERE source = '$src';
 INSERT INTO n_secops_vulnerabilities (source, customer_id, agent_group, agent, os, package, version, cve, severity, cvss, eol, detected_at, raw)
-SELECT '$src', coalesce(m.customer, nullif(lower(regexp_replace(s.agent_group, '-(ESTACOES|SERVIDORES)$', '')), ''), 'sem_cliente'),
+SELECT '$src', coalesce(m.customer, 'sem_cliente'),
        coalesce(s.agent_group, ''), coalesce(s.agent, '—'), s.os, s.package, s.version, s.cve, s.severity, s.cvss, s.eol, s.detected_at, s.raw
 FROM stage s
-LEFT JOIN (SELECT DISTINCT ON (external_customer_id) external_customer_id, lower(internal_customer_id) AS customer
-           FROM n_infraops_tenant_mappings WHERE external_platform = 'wazuh' ORDER BY external_customer_id, id) m
+-- Cliente só por vínculo aprovado e único; sem vínculo ou ambíguo fica em sem_cliente (só o NOC vê).
+LEFT JOIN (SELECT external_customer_id, min(lower(internal_customer_id)) AS customer
+           FROM n_infraops_tenant_mappings WHERE external_platform = 'wazuh'
+           GROUP BY external_customer_id HAVING count(DISTINCT lower(internal_customer_id)) = 1) m
   ON m.external_customer_id = s.agent_group;
 SELECT '$src: ' || count(*) || ' linhas' FROM n_secops_vulnerabilities WHERE source = '$src';
 COMMIT;

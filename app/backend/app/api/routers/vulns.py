@@ -136,6 +136,12 @@ async def _top(db: AsyncSession, col, where: list) -> list[dict[str, Any]]:
     return [{"key": k, "count": n} for k, n in rows.all()]
 
 
+def _machine():
+    """Mesmo nome de máquina em clientes diferentes são máquinas diferentes."""
+    v = Vulnerability
+    return func.concat(v.customer_id, " · ", v.agent)
+
+
 @router.get("")
 async def list_vulnerabilities(
     where: list = Depends(_scoped_filters),
@@ -156,8 +162,8 @@ async def list_vulnerabilities(
     agents, eol_agents, loaded_at = (
         await db.execute(
             select(
-                func.count(v.agent.distinct()),
-                func.count(v.agent.distinct()).filter(v.eol),
+                func.count(_machine().distinct()),
+                func.count(_machine().distinct()).filter(v.eol),
                 func.max(v.loaded_at),
             ).where(*where)
         )
@@ -177,7 +183,7 @@ async def list_vulnerabilities(
                 v.detected_at,
             )
             .where(*where)
-            .order_by(v.cvss.desc().nulls_last(), v.agent, v.cve)
+            .order_by(v.cvss.desc().nulls_last(), v.agent, v.cve, v.id)
             .offset(offset)
             .limit(limit)
         )
@@ -188,7 +194,7 @@ async def list_vulnerabilities(
         "agents": agents,
         "eol_agents": eol_agents,
         "loaded_at": loaded_at.isoformat() if loaded_at else None,
-        "top_agents": await _top(db, v.agent, where),
+        "top_agents": await _top(db, _machine(), where),
         "top_packages": await _top(db, v.package, where),
         "rows": [
             {

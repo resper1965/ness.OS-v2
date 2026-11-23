@@ -33,7 +33,7 @@ def body(rows: list[tuple[str, str, int]], machines: dict[str, int], link: str) 
             f"{label} {by[c].get(k, 0):,}".replace(",", ".") for k, label in SEVS
         )
         lines.append(f"{c.upper()}: {machines.get(c, 0)} máquinas · {sev}")
-    lines += ["", f"Planilha completa (layout da equipe): {link}"]
+    lines += ["", f"Detalhe e planilha (botão Exportar planilha): {link}"]
     return "\n".join(lines)
 
 
@@ -65,7 +65,7 @@ async def send(to: str) -> str:
     if not rows:
         raise SystemExit("sem vulnerabilidades carregadas; nada enviado")
     month = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%m/%Y")
-    link = f"{get_settings().dashboard_base_url}/api/secops/vulnerabilities/export"
+    link = f"{get_settings().dashboard_base_url}/?view=vulns"
     sent = await ResendEmailClient.from_settings().send(
         to=[to],
         subject=f"ness.OS · vulnerabilidades {month}",
