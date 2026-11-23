@@ -163,3 +163,7 @@ Lote de `3aecc41` a `73adaa0`: IA nos chamados F1/F2 (#280–#283), regra de cha
 - Frontend: `ghcr.io/resper1965/ninf-frontend@sha256:15605b178f758d4964e249b0fa57a3a0efb29ca7121c65d7accb7a2e72a79348` nos dois `.env` (o canônico recebeu também o `NINF_API_IMAGE` novo). Backup em `change-backups/frontend-20261123T173634/`. Só `ninf-frontend` recriado.
 - Verificado: API e workers `healthy`, `/ready` 200, Hub 200, 0 erros no `worker-alerts`, `decide_tickets` rodando a cada 60 s, 13 regras de chamado carregadas, incidentes novos entrando como `pending`.
 - Rollback: API `docker compose -p app -f releases/4a72949…/app/docker-compose.yml -f …/docker-compose.tickets.yml up -d --no-deps --force-recreate api worker-alerts worker-ml`; frontend `NINF_FRONTEND_IMAGE=…@sha256:c1104b69…` nos dois `.env` e recriar o contêiner.
+
+## n8n e Evolution removidos (23/11/2026)
+
+OK do Esper: "apaga". Backup em `/opt/n-infraops/change-backups/n8n-evolution-20261123T183927/`: volumes `app_n8n-data` (460 KB), `app_evolution-instances` e `app_evolution-store` (vazios), dump `evolution.dump` (37 tabelas, `pg_restore -l` OK) e `containers-inspect.json`. Removidos os contêineres `ninf-n8n`, `ninf-evolution` e `ninf-evolution-manager`, os três volumes e o banco `evolution`. Hub 200, API `healthy`. Restaurar: recriar o banco e `pg_restore` do dump; volumes com `tar -xzf` num volume novo.
