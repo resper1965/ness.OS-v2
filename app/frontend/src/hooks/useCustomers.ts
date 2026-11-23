@@ -3,13 +3,13 @@ import { asApiError, describeError, request, type ApiError } from '../http';
 import { createStore, useStore } from '../store';
 
 export interface Customer {
-  id: number; key: string; display_name: string; glpi_entity_id: number | null; active: boolean; aliases: string[];
+  id: number; key: string; display_name: string; glpi_entity_id: number | null; active: boolean; aliases: string[]; ai_external_allowed: boolean;
 }
 export interface Contact {
   id: number; customer_id: number; name: string; email: string; phone: string | null; role: string;
   notify_severity_min: number; active: boolean;
 }
-export interface CustomerForm { key: string; display_name: string; entity_id: string; active: boolean }
+export interface CustomerForm { key: string; display_name: string; entity_id: string; active: boolean; ai_external_allowed: boolean }
 export interface ContactForm {
   name: string; email: string; phone: string; role: string; notify_severity_min: string; active: boolean;
 }
@@ -93,7 +93,7 @@ export function createCustomersStore() {
             })
           : await request<Customer>(`/api/customers/${id}`, {
               method: 'PUT',
-              body: { display_name: form.display_name.trim(), glpi_entity_id: entity, active: form.active },
+              body: { display_name: form.display_name.trim(), glpi_entity_id: entity, active: form.active, ai_external_allowed: form.ai_external_allowed },
             });
       }, creating ? 'Cliente criado.' : 'Cliente salvo.', customerFieldOf);
       if (!ok) return false;

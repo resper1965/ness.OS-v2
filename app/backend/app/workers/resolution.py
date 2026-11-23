@@ -3,12 +3,12 @@
 import json
 from datetime import datetime, timezone
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from app.database import SessionLocal
 from app.integrations.glpi import GLPIClient
 from app.integrations.zabbix import ZabbixClient
-from app.models import Incident, IncidentAction, IncidentReport
+from app.models import AIDecision, Incident, IncidentAction, IncidentReport
 from app.services.customers import resolve_glpi_entity_id
 
 
@@ -76,6 +76,12 @@ async def resolve_ticket(ticket_id: str, redis) -> dict:
         )
         incident.tags = tags
         incident.status = "resolved"
+        if resolution.get("category_id") is not None:
+            await session.execute(
+                update(AIDecision)
+                .where(AIDecision.incident_id == incident.id)
+                .values(final_label=str(resolution["category_id"]))
+            )
         if imported:
             session.add(
                 IncidentAction(
@@ -89,6 +95,34 @@ async def resolve_ticket(ticket_id: str, redis) -> dict:
                     note=f"ticket={ticket_id} solution={solution_id}",
                 )
             )
+        # Lock the root so a repeat being linked concurrently is either seen here
+        # or sees the root already resolved (alerts.py locks the same row).
+        await session.execute(
+            select(Incident.id).where(Incident.id == incident.id).with_for_update()
+        )
+        repeats = (
+            await session.execute(
+                select(Incident).where(
+                    Incident.repeat_of_id == incident.id,
+                    Incident.status.not_in(("resolved", "closed")),
+                )
+            )
+        ).scalars()
+        for repeat in repeats:
+            session.add(
+                IncidentAction(
+                    incident_id=repeat.id,
+                    actor_source="glpi",
+                    action="root_resolved",
+                    previous_status=repeat.status,
+                    new_status="resolved",
+                    previous_assignee_id=repeat.assigned_user_id,
+                    new_assignee_id=repeat.assigned_user_id,
+                    note=f"ticket={ticket_id}",
+                )
+            )
+            repeat.status = "resolved"
+            repeat.tags = {**(repeat.tags or {}), "resolution_sync_status": "pending"}
         await session.commit()
 
         event_id = tags.get("ninf_zabbix_event_id")
@@ -102,6 +136,17 @@ async def resolve_ticket(ticket_id: str, redis) -> dict:
             "resolution_sync_status": "synced",
             "resolution_synced_at": now,
         }
+        # Repeats share the root's ticket, so they share its sync state (Close button).
+        for repeat in (
+            await session.execute(
+                select(Incident).where(Incident.repeat_of_id == incident.id)
+            )
+        ).scalars():
+            repeat.tags = {
+                **(repeat.tags or {}),
+                "resolution_sync_status": "synced",
+                "resolution_synced_at": now,
+            }
         if not already_synced:
             session.add(
                 IncidentAction(

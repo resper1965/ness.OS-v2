@@ -95,9 +95,11 @@ async def test_resolution_commits_human_solution_before_ack_and_replay_is_idempo
     session = AsyncMock()
     session.add = MagicMock()
     results = []
-    for item in (incident, report, incident):
+    # None: root lock, repeats query, repeats sync
+    for item in (incident, report, None, None, None, incident, None, None, None):
         r = MagicMock()
         r.scalar_one_or_none.return_value = item
+        r.scalars.return_value = []
         results.append(r)
     session.execute.side_effect = results
     session.__aenter__.return_value = session
@@ -168,3 +170,115 @@ async def test_glpi_false_entity_response_is_denied_even_with_http_200(monkeypat
     g.session_token = "session"
     with pytest.raises(PermissionError):
         await g.change_active_entity(8)
+
+
+@pytest.mark.asyncio
+async def test_glpi_resolution_returns_category():
+    g = GLPIClient()
+    g.change_active_entity = AsyncMock()
+    g.get_item = AsyncMock(
+        return_value={
+            "entities_id": 8,
+            "status": 5,
+            "name": "[n.infraops:a]",
+            "itilcategories_id": 12,
+        }
+    )
+    g.list_items = AsyncMock(return_value=[])
+    assert (await g.ticket_resolution(1, 8, "a"))["category_id"] == 12
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("category, expected", [(12, "12"), (None, None)])
+async def test_final_label_from_glpi_category(monkeypatch, category, expected):
+    import os
+
+    from sqlalchemy import select
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+    from app.database import Base
+    from app.models.models import (
+        AIDecision,
+        Asset,
+        Customer,
+        CustomerAlias,
+        Incident,
+        IncidentAction,
+    )
+
+    url = os.environ.get("NINF_TEST_PG_URL")
+    if not url:
+        pytest.skip("NINF_TEST_PG_URL não definido")
+    tables = [
+        Customer.__table__,
+        CustomerAlias.__table__,
+        Asset.__table__,
+        Incident.__table__,
+        IncidentAction.__table__,
+        AIDecision.__table__,
+    ]
+    engine = create_async_engine(url)
+    async with engine.begin() as c:
+        await c.run_sync(lambda sc: Base.metadata.drop_all(sc, tables=tables))
+        await c.run_sync(lambda sc: Base.metadata.create_all(sc, tables=tables))
+    maker = async_sessionmaker(engine, expire_on_commit=False)
+    try:
+        async with maker() as s:
+            s.add_all(
+                [
+                    Incident(
+                        id=1,
+                        fingerprint="f",
+                        title="t",
+                        host_id="h",
+                        host_name="h",
+                        trigger_id="t",
+                        deskmanager_ticket_id="77",
+                        tags={
+                            "ninf_customer_name": "Cavan",
+                            "ninf_zabbix_event_id": "1",
+                        },
+                    ),
+                    *(
+                        AIDecision(
+                            kind="incident_analysis",
+                            customer_id="Cavan",
+                            source_ref=f"r{n}",
+                            outcome="ok",
+                            prompt_version="v",
+                            incident_id=inc,
+                        )
+                        for n, inc in ((1, 1), (2, 1), (3, 2))
+                    ),
+                ]
+            )
+            await s.commit()
+        monkeypatch.setattr(resolution, "SessionLocal", maker)
+        monkeypatch.setattr(
+            resolution, "resolve_glpi_entity_id", AsyncMock(return_value=8)
+        )
+        g = MagicMock()
+        g.ticket_resolution = AsyncMock(
+            return_value={
+                "resolved": True,
+                "solution": "",  # empty: skips the report (needs pgvector) lookup
+                "solution_id": "9",
+                "category_id": category,
+            }
+        )
+        g.kill_session = AsyncMock()
+        monkeypatch.setattr(resolution, "GLPIClient", lambda: g)
+        z = MagicMock()
+        z.acknowledge_resolution_once = AsyncMock(return_value="success")
+        monkeypatch.setattr(resolution, "ZabbixClient", lambda: z)
+        await resolution.resolve_ticket("77", MagicMock())
+        async with maker() as s:
+            labels = {
+                r.source_ref: r.final_label
+                for r in (await s.execute(select(AIDecision))).scalars()
+            }
+        assert labels == {"r1": expected, "r2": expected, "r3": None}
+    finally:
+        async with engine.begin() as c:
+            await c.run_sync(lambda sc: Base.metadata.drop_all(sc, tables=tables))
+        await engine.dispose()

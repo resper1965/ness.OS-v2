@@ -20,6 +20,7 @@ Nenhuma alteração na stack principal pode ser feita sem aprovação do comitê
 *   **Banco de Dados:** PostgreSQL 16 estendido com:
     *   **TimescaleDB:** Para séries temporais e armazenamento de métricas.
     *   **pgvector:** Para armazenamento e busca semântica de embeddings de incidentes e runbooks (dimensão 768).
+*   _Histórico: n8n, Evolution e DeskManager saíram (16/11/2026, #250); chamados vão direto ao GLPI e alertas ao push da PWA. O LLM roda via OpenRouter; o Gemini só gera embeddings._
 *   **Orquestração de Borda:** n8n (Self-hosted) para gerenciar fluxo de abertura de chamados e notificações.
 *   **Sistemas Externos:**
     *   DeskManager (API Rest para Ticketing).

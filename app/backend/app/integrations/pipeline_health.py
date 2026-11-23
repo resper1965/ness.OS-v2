@@ -218,6 +218,7 @@ async def incident_health():
                     Incident.tags.has_key("ninf_zabbix_event_id"),
                     Incident.status == "open",
                     Incident.deskmanager_ticket_id.is_(None),
+                    Incident.repeat_of_id.is_(None),
                     Incident.created_at < cutoff,
                     Incident.created_at >= oldest,
                 )

@@ -1,6 +1,6 @@
 # ADR 0010 — Política open source e fronteira de integrações
 
-- Estado: aceito
+- Estado: aceito; n8n e Evolution foram removidos em 16/11/2026 (#250), sem migração para Node-RED
 - Data: 20/08/2026
 - Decisor: Ricardo Esper
 

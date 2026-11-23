@@ -1,4 +1,5 @@
 import json
+import time
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
@@ -114,6 +115,44 @@ async def test_postmortem_uses_authoritative_identity(monkeypatch, case):
         assert "tags" not in context
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize("skip", ["skipped_customer", None])
+async def test_postmortem_respects_ai_gate(monkeypatch, skip):
+    ctx = {
+        "fingerprint": "fp",
+        "deskmanager_ticket_id": "7",
+        "customer_name": "Cavan",
+        "title": "t",
+        "host_name": "h",
+    }
+    report = SimpleNamespace(
+        model_dump=lambda mode: {},
+        prompt_tokens=0,
+        completion_tokens=0,
+        summary="s",
+        root_cause="r",
+    )
+    gen = MagicMock(return_value=report)
+    emb = MagicMock(return_value=[])
+    monkeypatch.setattr(
+        ai_context, "trusted_postmortem_context", AsyncMock(return_value=ctx)
+    )
+    monkeypatch.setattr(postmortem, "_ai_skip", AsyncMock(return_value=skip))
+    monkeypatch.setattr(
+        postmortem, "_async_fetch_host_metrics", AsyncMock(return_value=[])
+    )
+    monkeypatch.setattr(postmortem, "_async_save_report", AsyncMock())
+    monkeypatch.setattr(postmortem, "generate_postmortem", gen)
+    monkeypatch.setattr(postmortem, "generate_embedding", emb)
+    out = await postmortem._async_generate_postmortem_report({"fingerprint": "fp"})
+    if skip:
+        gen.assert_not_called()
+        emb.assert_not_called()
+        assert "pulada por política" in out["summary"]
+    else:
+        gen.assert_called_once()
+
+
 def test_embedding_uses_header_and_redacts_input(monkeypatch, caplog):
     monkeypatch.setattr(gemini.settings, "gemini_api_key", "synthetic-key")
 
@@ -135,3 +174,19 @@ def test_embedding_uses_header_and_redacts_input(monkeypatch, caplog):
 
 def test_missing_log_source_does_not_invent_evidence():
     assert postmortem._fetch_related_logs("10882", "9") == []
+
+
+def test_log_ai_call_returns_call_with_cost_and_model():
+    usage = {
+        "prompt_tokens": 10,
+        "completion_tokens": 5,
+        "cost": 0.0012,
+        "model": "google/gemini-2.5-flash",
+    }
+    call = ai_context.log_ai_call("k", "ok", time.perf_counter(), usage)
+    assert call.cost_usd == 0.0012
+    assert call.model == "google/gemini-2.5-flash"
+    assert call.latency_ms >= 0
+    assert (call.prompt_tokens, call.completion_tokens) == (10, 5)
+    bare = ai_context.log_ai_call("k", "error", time.perf_counter())
+    assert bare.cost_usd is None and bare.model is None

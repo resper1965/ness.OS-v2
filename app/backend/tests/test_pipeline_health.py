@@ -379,6 +379,7 @@ async def test_missing_ticket_only_counts_open_incidents_in_last_hour(monkeypatc
     sql = seen[0]
     assert result["status"] == "ok"
     assert "status = 'open'" in sql
+    assert "repeat_of_id IS NULL" in sql  # a repeat is not "sem chamado"
     # lower and upper bound on created_at: old backlog falls outside the window
     assert sql.count("created_at") == 2
     assert "created_at >=" in sql and "created_at <" in sql

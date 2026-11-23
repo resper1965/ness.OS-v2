@@ -9,6 +9,7 @@ import pytest
 from celery.exceptions import Retry
 from sqlalchemy.exc import OperationalError
 
+from app.core.ai_context import AICall
 from app.integrations.glpi import GLPIClient, GLPIPermanentError, GLPITransientError
 from app.ml.analyzer import AIAnalysisResult
 from app.models import Incident, IncidentAction
@@ -782,6 +783,7 @@ async def test_pipeline_persists_incident_and_retries_glpi_failure(
     push = AsyncMock()
     monkeypatch.setattr(alerts, "GLPIClient", lambda: glpi)
     monkeypatch.setattr(alerts, "analyze_incident", AsyncMock(return_value=analysis))
+    monkeypatch.setattr(alerts, "_ai_skip", AsyncMock(return_value=None))
     monkeypatch.setattr(alerts, "lookup_glpi_asset", AsyncMock(return_value=None))
     monkeypatch.setattr(alerts, "SessionLocal", session_factory)
     monkeypatch.setattr(
@@ -1087,6 +1089,7 @@ async def test_zabbix_severity_reaches_create_ticket_through_alert_flow(monkeypa
         alerts, "canonical_customer", AsyncMock(return_value=("Ness", 0))
     )
     monkeypatch.setattr(alerts, "analyze_incident", AsyncMock(return_value=MagicMock()))
+    monkeypatch.setattr(alerts, "_ai_skip", AsyncMock(return_value=None))
     monkeypatch.setattr(alerts, "build_glpi_ticket_content", lambda *_: "c")
 
     with pytest.raises(Stop):
@@ -1095,3 +1098,75 @@ async def test_zabbix_severity_reaches_create_ticket_through_alert_flow(monkeypa
         )
 
     assert glpi.create_ticket.await_args.kwargs["urgency"] == 5
+
+
+async def _run_v1_with_ai(monkeypatch, severity, urgency, isolation=False):
+    """Fluxo v1 com GLPI e banco falsos; devolve (push, ensure, record)."""
+    analysis = AIAnalysisResult(
+        executive_action_plan="x",
+        technical_action_plan="x",
+        urgency=urgency,
+        isolation_required=isolation,
+        probable_cause="x",
+        recommended_playbook="x",
+    )
+    analysis._call = AICall("incident_analysis", "ok", None, 1, None, None, None)
+    session = MagicMock()
+    session.execute = AsyncMock(return_value=MagicMock(scalar_one_or_none=lambda: None))
+
+    async def flush():
+        for call in session.add.call_args_list:
+            if isinstance(call.args[0], Incident):
+                call.args[0].id = 5
+
+    session.flush = AsyncMock(side_effect=flush)
+
+    @asynccontextmanager
+    async def transaction():
+        yield
+
+    @asynccontextmanager
+    async def session_factory():
+        yield session
+
+    session.begin.side_effect = transaction
+    push, ensure, record = AsyncMock(), AsyncMock(return_value=(77, True)), AsyncMock()
+    monkeypatch.setattr(alerts, "GLPIClient", lambda: AsyncMock())
+    monkeypatch.setattr(alerts, "ensure_glpi_ticket_serialized", ensure)
+    monkeypatch.setattr(alerts, "analyze_incident", AsyncMock(return_value=analysis))
+    monkeypatch.setattr(alerts, "_ai_skip", AsyncMock(return_value=None))
+    monkeypatch.setattr(alerts, "record_ai_decision", record)
+    monkeypatch.setattr(alerts, "lookup_glpi_asset", AsyncMock(return_value=None))
+    monkeypatch.setattr(alerts, "SessionLocal", session_factory)
+    monkeypatch.setattr(alerts, "resolve_alert_customer", AsyncMock(return_value="C"))
+    monkeypatch.setattr(alerts, "canonical_customer", AsyncMock(return_value=("C", 8)))
+    monkeypatch.setattr(alerts, "_get_sync_redis", lambda: MagicMock())
+    monkeypatch.setattr(alerts, "LokiClient", lambda: AsyncMock())
+    monkeypatch.setattr(alerts.settings, "alert_notifications_enabled", True)
+    monkeypatch.setattr("app.integrations.webpush.notify_tenant_stakeholders", push)
+    await alerts._async_process_alert_v1(
+        {"host_name": "h", "severity": severity, "event_id": "1"}, "e" * 64
+    )
+    return push, ensure, record
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "severity,urgency,isolation,pushed",
+    [(3, "CRITICAL", False, False), (4, "LOW", False, True), (3, "LOW", True, False)],
+)
+async def test_notification_follows_source_severity_only(
+    monkeypatch, severity, urgency, isolation, pushed
+):
+    push, _, record = await _run_v1_with_ai(monkeypatch, severity, urgency, isolation)
+    assert push.called is pushed
+    kwargs = record.await_args.kwargs
+    assert kwargs["model_value"] == ("ISOLATE" if isolation else urgency)
+    assert kwargs["rule_value"] == ("HIGH" if severity == 4 else "MEDIUM")
+    assert (kwargs["incident_id"], kwargs["ticket_id"]) == (5, "77")
+
+
+@pytest.mark.asyncio
+async def test_glpi_urgency_unchanged(monkeypatch):
+    _, ensure, _ = await _run_v1_with_ai(monkeypatch, 2, "CRITICAL")
+    assert ensure.await_args.kwargs["urgency"] == alerts.glpi_urgency(2) == 2

@@ -27,7 +27,7 @@ async def test_soc_decision_must_be_persisted(monkeypatch, commit_fails):
         lambda **kw: SimpleNamespace(action=TriageAction.TRIAGE_L2, risk_score=90),
     )
 
-    async def triage(payload, tenant):
+    async def triage(payload, tenant, skip=None):
         return {
             "classification": "HIGH",
             "confidence": 0.8,

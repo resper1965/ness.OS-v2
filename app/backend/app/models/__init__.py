@@ -1,5 +1,6 @@
 # n.infraops — Models module
 from app.models.models import (
+    AIDecision,
     Asset,
     AssetStatus,
     AssetType,
@@ -31,6 +32,7 @@ from app.models.push import PushSubscription
 from app.models.users import User, UserRole
 
 __all__ = [
+    "AIDecision",
     "Asset",
     "Incident",
     "IncidentAction",

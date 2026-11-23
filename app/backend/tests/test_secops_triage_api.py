@@ -1,3 +1,4 @@
+from contextlib import nullcontext
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
@@ -151,7 +152,7 @@ def test_triage_alert_uses_nested_wazuh_fields_and_enrichment(
     )
     monkeypatch.setattr("app.integrations.threat_intel.enrich_ip", malicious_ip)
 
-    async def fake_triage(payload, tenant):
+    async def fake_triage(payload, tenant, skip=None):
         assert tenant == "cavan"
         return {
             "classification": "MALICIOUS",
@@ -178,7 +179,7 @@ def test_triage_alert_uses_nested_wazuh_fields_and_enrichment(
 def _spy_triage(monkeypatch):
     calls = []
 
-    async def fake(payload, tenant):
+    async def fake(payload, tenant, skip=None):
         calls.append(tenant)
         return {
             "classification": "LOW",
@@ -468,3 +469,60 @@ def test_triage_counts_persisted_frequency_and_stores_key(
     assert (
         stored.freq_key == seen["key"] == secops._freq_key("cavan", payload, "1", "9")
     )
+
+
+class _Db:
+    begin_nested = staticmethod(nullcontext)
+
+
+@pytest.mark.parametrize(
+    "engine,cls,expected",
+    [
+        ("TRIAGE_L2", "FP", True),
+        ("TRIAGE_L2", "HIGH", False),
+        ("TRIAGE_L1", "CRIT", True),
+        ("TRIAGE_L1", "MED", False),
+    ],
+)
+def test_soc_divergent(engine, cls, expected):
+    assert _secops.soc_divergent(engine, cls) is expected
+
+
+@pytest.mark.asyncio
+async def test_customer_disabled_skips_model(monkeypatch):
+    from app.integrations import soc_agent
+
+    monkeypatch.setattr(soc_agent.settings, "llm_api_key", "k")
+
+    async def no_http(*a, **k):
+        raise AssertionError("no model call for a disabled customer")
+
+    monkeypatch.setattr(soc_agent, "achat_completion", no_http)
+    out = await soc_agent.triage_wazuh_alert(
+        {"rule": {"id": "1", "level": 14}}, "cavan", skip="skipped_customer"
+    )
+    assert out["action_taken"] == "Criar ticket de triagem manual"
+    assert out["classification"] == "HIGH"
+    assert out["_ai_call"].outcome == "skipped_customer"
+
+    async def gate(db, tenant):
+        return "skipped_customer"
+
+    monkeypatch.setattr(_secops, "ai_gate", gate)
+    assert await _secops._ai_skip(_Db(), "cavan") == "skipped_customer"
+
+
+@pytest.mark.asyncio
+async def test_gate_failure_skips_model_and_no_key_skips_gate(monkeypatch):
+    from app.integrations import soc_agent
+
+    async def boom(db, tenant):
+        raise RuntimeError("db down")
+
+    monkeypatch.setattr(_secops, "ai_gate", boom)
+    monkeypatch.setattr(_secops.settings, "llm_api_key", "k")
+    assert await _secops._ai_skip(_Db(), "cavan") == "error"
+    monkeypatch.setattr(_secops.settings, "llm_api_key", "")
+    assert await _secops._ai_skip(_Db(), "cavan") is None  # gate not called
+    out = await soc_agent.triage_wazuh_alert({"rule": {"id": "1"}}, "cavan")
+    assert out["_ai_call"].outcome == "no_key"

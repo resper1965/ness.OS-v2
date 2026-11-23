@@ -42,7 +42,7 @@ const json = (status: number, body: unknown) =>
 const noop = new Proxy({}, { get: () => () => undefined }) as never;
 const urls = (f: ReturnType<typeof vi.fn>) => f.mock.calls.map((c) => String(c[0]));
 
-const customer: Customer = { id: 7, key: 'acme', display_name: 'Acme', glpi_entity_id: 12, active: true, aliases: ['acme'] };
+const customer: Customer = { id: 7, key: 'acme', display_name: 'Acme', glpi_entity_id: 12, active: true, aliases: ['acme'], ai_external_allowed: false };
 const contact: Contact = { id: 3, customer_id: 7, name: 'Maria', email: 'maria@acme.com.br', phone: null, role: 'TI', notify_severity_min: 3, active: true };
 
 describe('P1 fontes próprias', () => {
@@ -151,7 +151,7 @@ describe('P2-3 field a11y', () => {
     vi.stubGlobal('fetch', vi.fn(async () => json(409, { detail: 'Entidade GLPI já em uso' })));
     const { store, actions } = createCustomersStore();
     store.set({ phase: 'ready', customers: [customer], selectedId: 7, editing: 'edit' });
-    await actions.save({ key: 'acme', display_name: 'Acme', entity_id: '12', active: true });
+    await actions.save({ key: 'acme', display_name: 'Acme', entity_id: '12', active: true, ai_external_allowed: false });
     expect(store.get().actionField).toBe('entity_id');
     const k = createContactsStore().store;
     await mount(<CustomersView state={store.get()} actions={noop} canEdit contacts={k.get()} contactsActions={noop} canReadContacts />);
@@ -359,9 +359,31 @@ describe('round 2 P2: refresh button reloads the new screens', () => {
   });
   it('App wires the header button to those screens', async () => {
     const src = (await import('./App.tsx?raw')).default;
-    expect(src).toMatch(/currentView === 'cloud' \|\| currentView === 'contracts' \|\| currentView === 'customers' \|\| currentView === 'secops'\) setCadastrosTick/);
+    expect(src).toMatch(/currentView === 'cloud' \|\| currentView === 'contracts' \|\| currentView === 'customers' \|\| currentView === 'secops' \|\| currentView === 'ai'\) setCadastrosTick/);
+    expect(src).toMatch(/<AiView[^>]*refreshKey=\{cadastrosTick\}/);
     expect(src).toMatch(/<SocView[^>]*refreshKey=\{cadastrosTick\}/);
     expect(src).toMatch(/<ContractsScreen[^>]*refreshKey=\{cadastrosTick\}/);
     expect(src).toMatch(/<CustomersScreen[^>]*refreshKey=\{cadastrosTick\}/);
+  });
+});
+
+describe('IA externa permitida (cliente)', () => {
+  const edit = async (c: Customer) => {
+    const { store } = createCustomersStore();
+    store.set({ phase: 'ready', customers: [c], selectedId: 7, editing: 'edit' });
+    await mount(<CustomersView state={store.get()} actions={noop} canEdit contacts={createContactsStore().store.get()} contactsActions={noop} canReadContacts />);
+  };
+  it('edit form has a labelled checkbox reflecting the customer', async () => {
+    await edit({ ...customer, ai_external_allowed: true });
+    const box = [...host!.querySelectorAll('input[type=checkbox]')].find((i) => host!.querySelector(`label[for="${i.id}"]`)?.textContent?.includes('IA externa permitida')) as HTMLInputElement;
+    expect(box.checked).toBe(true);
+  });
+  it('save sends ai_external_allowed on PUT', async () => {
+    const f = vi.fn(async () => json(200, { ...customer, ai_external_allowed: true }));
+    vi.stubGlobal('fetch', f);
+    const { store, actions } = createCustomersStore();
+    store.set({ phase: 'ready', customers: [customer], selectedId: 7, editing: 'edit' });
+    await actions.save({ key: 'acme', display_name: 'Acme', entity_id: '12', active: true, ai_external_allowed: true });
+    expect(JSON.parse((f.mock.calls[0] as unknown as [string, RequestInit])[1].body as string).ai_external_allowed).toBe(true);
   });
 });

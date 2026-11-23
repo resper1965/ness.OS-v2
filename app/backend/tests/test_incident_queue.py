@@ -61,7 +61,7 @@ async def _inc(maker, n, *, sev=3, status="open", hours=0, tenant="a", **kw):
                 trigger_id="t",
                 first_seen=T0 + timedelta(hours=hours),
                 last_seen=T0 + timedelta(hours=hours),
-                tags={"ninf_customer_name": tenant},
+                tags={"ninf_customer_name": tenant, **kw.pop("tags", {})},
                 **kw,
             )
         )
@@ -204,6 +204,16 @@ async def test_ticket_state_three_cases(maker, api):
         "5": "ticketed",
     }
     assert (await api.get("/api/incidents/3")).json()["ticket_state"] == "pending_sync"
+
+
+async def test_repeat_shows_root_ticket(maker, api):
+    await _inc(maker, 1, deskmanager_ticket_id="T1")
+    await _inc(maker, 2, tags={"ninf_repeat_ticket_id": "T1"})
+    got = {
+        i["id"]: (i["ticket_id"], i["ticket_state"])
+        for i in (await api.get("/api/incidents")).json()["incidents"]
+    }
+    assert got == {"1": ("T1", "ticketed"), "2": ("T1", "ticketed")}
 
 
 async def test_ticket_recovered_after_failure_is_not_pending(maker, api):

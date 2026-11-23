@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import enum
 from datetime import date, datetime, time
+from decimal import Decimal
 from typing import Any
 
 from pgvector.sqlalchemy import Vector
@@ -18,6 +19,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    Numeric,
     SmallInteger,
     String,
     Text,
@@ -184,6 +186,9 @@ class Incident(Base):
 
     # Ticket externo
     deskmanager_ticket_id: Mapped[str | None] = mapped_column(String(64))
+    repeat_of_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("n_infraops_incidents.id")
+    )
 
     # Timestamps controle
     created_at: Mapped[datetime] = mapped_column(
@@ -472,6 +477,9 @@ class Customer(Base):
     )
     # Sem FK, como o resto do projeto.
     updated_by_user_id: Mapped[int | None] = mapped_column(BigInteger)
+    ai_external_allowed: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default="true"
+    )
 
 
 class CustomerAlias(Base):
@@ -584,6 +592,58 @@ class SocDecision(Base):
         JSONB, default=dict, server_default="{}"
     )
 
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class AIDecision(Base):
+    """Uma chamada de IA (análise de incidente ou triagem SOC) e o feedback humano sobre ela."""
+
+    __tablename__ = "n_ai_decisions"
+    __table_args__ = (
+        UniqueConstraint("kind", "source_ref", name="uq_ai_decisions_ref"),
+        Index(
+            "ix_ai_decisions_customer_created",
+            "customer_id",
+            text("created_at DESC"),
+        ),
+        Index(
+            "ix_ai_decisions_incident",
+            "incident_id",
+            postgresql_where=text("incident_id IS NOT NULL"),
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    customer_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    incident_id: Mapped[int | None] = mapped_column(BigInteger)
+    soc_decision_id: Mapped[int | None] = mapped_column(BigInteger)
+    ticket_id: Mapped[str | None] = mapped_column(String(64))
+    source_ref: Mapped[str] = mapped_column(String(255), nullable=False)
+    outcome: Mapped[str] = mapped_column(String(24), nullable=False)
+    model: Mapped[str | None] = mapped_column(String(128))
+    prompt_version: Mapped[str] = mapped_column(String(32), nullable=False)
+    request: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, nullable=False, default=dict, server_default="{}"
+    )
+    response: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, nullable=False, default=dict, server_default="{}"
+    )
+    rule_value: Mapped[str | None] = mapped_column(String(32))
+    model_value: Mapped[str | None] = mapped_column(String(32))
+    divergent: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+    latency_ms: Mapped[int | None] = mapped_column(Integer)
+    prompt_tokens: Mapped[int | None] = mapped_column(Integer)
+    completion_tokens: Mapped[int | None] = mapped_column(Integer)
+    cost_usd: Mapped[Decimal | None] = mapped_column(Numeric(10, 6))
+    feedback: Mapped[str | None] = mapped_column(String(16))
+    feedback_user_id: Mapped[int | None] = mapped_column(BigInteger)
+    feedback_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    final_label: Mapped[str | None] = mapped_column(String(64))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
