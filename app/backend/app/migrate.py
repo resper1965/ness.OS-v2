@@ -246,6 +246,30 @@ CREATE INDEX IF NOT EXISTS ix_incidents_open_root
 """
 
 
+# Vulnerabilidades por máquina, carga mensal (infra/scripts/vuln-carga.sh). Idêntico ao bloco `vuln:begin/end` de 001_schema.sql.
+VULN_SQL = """
+CREATE TABLE IF NOT EXISTS n_secops_vulnerabilities (
+    id          BIGSERIAL PRIMARY KEY,
+    source      VARCHAR(64) NOT NULL,
+    customer_id VARCHAR(128) NOT NULL,
+    agent_group VARCHAR(128) NOT NULL DEFAULT '',
+    agent       VARCHAR(255) NOT NULL,
+    os          VARCHAR(255),
+    package     VARCHAR(512),
+    version     VARCHAR(255),
+    cve         VARCHAR(64) NOT NULL,
+    severity    VARCHAR(16) NOT NULL,
+    cvss        NUMERIC(4,1),
+    eol         BOOLEAN NOT NULL DEFAULT false,
+    detected_at TIMESTAMPTZ,
+    raw         JSONB NOT NULL,
+    loaded_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS ix_vulns_customer_severity ON n_secops_vulnerabilities (customer_id, severity);
+CREATE INDEX IF NOT EXISTS ix_vulns_source ON n_secops_vulnerabilities (source);
+"""
+
+
 async def apply_sla_sql(conn):
     for stmt in SLA_SQL.split(";"):
         if stmt.strip():
@@ -266,6 +290,12 @@ async def apply_ai_sql(conn):
 
 async def apply_repeat_sql(conn):
     for stmt in REPEAT_SQL.split(";"):
+        if stmt.strip():
+            await conn.execute(text(stmt))
+
+
+async def apply_vuln_sql(conn):
+    for stmt in VULN_SQL.split(";"):
         if stmt.strip():
             await conn.execute(text(stmt))
 
@@ -563,6 +593,7 @@ ON CONFLICT DO NOTHING""",
         await apply_params_sql(conn)
         await apply_ai_sql(conn)
         await apply_repeat_sql(conn)
+        await apply_vuln_sql(conn)
         ticket_policy = (backend_root / "sql" / "004_ticket_policy.sql").read_text(
             encoding="utf-8"
         )

@@ -11,5 +11,6 @@ describe('allowedView', () => {
   it('client role cannot reach operator screens via URL', () => {
     for (const v of ['overview', 'monitoring', 'cloud', 'secops', 'ai', 'contracts']) expect(allowedView(v, false, false)).toBe('incidents');
     expect(allowedView('customers', false, true)).toBe('customers');
+    expect(allowedView('vulns', false, false)).toBe('vulns');
   });
 });

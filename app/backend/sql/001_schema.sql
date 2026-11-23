@@ -670,3 +670,24 @@ CREATE INDEX IF NOT EXISTS ix_incidents_open_root
     ON n_infraops_incidents (host_id, trigger_id)
     WHERE repeat_of_id IS NULL AND status NOT IN ('resolved', 'closed');
 -- repeat:end
+-- vuln:begin
+CREATE TABLE IF NOT EXISTS n_secops_vulnerabilities (
+    id          BIGSERIAL PRIMARY KEY,
+    source      VARCHAR(64) NOT NULL,
+    customer_id VARCHAR(128) NOT NULL,
+    agent_group VARCHAR(128) NOT NULL DEFAULT '',
+    agent       VARCHAR(255) NOT NULL,
+    os          VARCHAR(255),
+    package     VARCHAR(512),
+    version     VARCHAR(255),
+    cve         VARCHAR(64) NOT NULL,
+    severity    VARCHAR(16) NOT NULL,
+    cvss        NUMERIC(4,1),
+    eol         BOOLEAN NOT NULL DEFAULT false,
+    detected_at TIMESTAMPTZ,
+    raw         JSONB NOT NULL,
+    loaded_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS ix_vulns_customer_severity ON n_secops_vulnerabilities (customer_id, severity);
+CREATE INDEX IF NOT EXISTS ix_vulns_source ON n_secops_vulnerabilities (source);
+-- vuln:end

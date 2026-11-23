@@ -159,3 +159,10 @@ def test_repeat_block_matches_between_migrate_and_bootstrap():
     assert MIGRATE.index("await apply_repeat_sql(conn)") > MIGRATE.index(
         "await apply_ai_sql(conn)"
     )
+
+
+def test_vuln_block_matches_between_migrate_and_bootstrap():
+    sql = re.search(r"-- vuln:begin\n(.*?)-- vuln:end", SQL, re.S).group(1)
+    mig = re.search(r'VULN_SQL = """\n(.*?)"""', MIGRATE, re.S).group(1)
+    assert sql.strip() == mig.strip()
+    assert "CREATE TABLE IF NOT EXISTS n_secops_vulnerabilities " in sql

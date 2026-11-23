@@ -48,6 +48,7 @@ from app.api.routers.pipeline import router as pipeline_router
 from app.api.routers.push import router as push_router
 from app.api.routers.secops import router as secops_router
 from app.api.routers.tenants import router as tenants_router
+from app.api.routers.vulns import router as vulns_router
 from app.config import get_settings
 from app.database import SessionLocal
 
@@ -144,6 +145,7 @@ app.include_router(atera_router)  # prefix: /api/rmm/atera
 # --- n.secops ---
 app.include_router(ai_router)  # prefix: /api/ai
 app.include_router(secops_router)  # prefix: /api/secops
+app.include_router(vulns_router)  # prefix: /api/secops/vulnerabilities
 
 # --- Auth (compartilhado) ---
 app.include_router(auth_router)  # prefix: /api/auth

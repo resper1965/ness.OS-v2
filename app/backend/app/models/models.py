@@ -957,3 +957,27 @@ class TicketLink(Base):
     )
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     source_resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class Vulnerability(Base):
+    """Vulnerabilidade por máquina, da carga mensal (infra/scripts/vuln-carga.sh); DDL em migrate.py."""
+
+    __tablename__ = "n_secops_vulnerabilities"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    source: Mapped[str] = mapped_column(String(64), nullable=False)
+    customer_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    agent_group: Mapped[str] = mapped_column(String(128), nullable=False, default="")
+    agent: Mapped[str] = mapped_column(String(255), nullable=False)
+    os: Mapped[str | None] = mapped_column(String(255))
+    package: Mapped[str | None] = mapped_column(String(512))
+    version: Mapped[str | None] = mapped_column(String(255))
+    cve: Mapped[str] = mapped_column(String(64), nullable=False)
+    severity: Mapped[str] = mapped_column(String(16), nullable=False)
+    cvss: Mapped[Decimal | None] = mapped_column(Numeric(4, 1))
+    eol: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    detected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    raw: Mapped[list[Any]] = mapped_column(JSONB, nullable=False)
+    loaded_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
