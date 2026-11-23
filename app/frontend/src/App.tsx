@@ -370,7 +370,7 @@ function AppShellBody({ AUTH, logout, user }: {
 
           <button
             onClick={() => {
-              if (currentView === 'contracts' || currentView === 'customers' || currentView === 'secops' || currentView === 'ai') setCadastrosTick(t => t + 1);
+              if (currentView === 'cloud' || currentView === 'contracts' || currentView === 'customers' || currentView === 'secops' || currentView === 'ai') setCadastrosTick(t => t + 1);
               else if (currentView === 'incidents') void fetchIncidents();
               else void fetchData();
             }}
@@ -394,8 +394,8 @@ function AppShellBody({ AUTH, logout, user }: {
           {/* ── n.infraops ── */}
           {currentView === 'monitoring' && <ProblemsView problems={problems} loading={loading} error={error} observedAt={lastUpdate}
             hosts={summary?.hosts_active} items={summary?.items_total} />}
-          {(currentView === 'incidents' || currentView === 'cloud') && (
-          <div className={`p-4 md:p-6 space-y-5 animate-fade-in ${currentView === 'cloud' ? 'max-w-6xl' : ''}`}>
+          {currentView === 'incidents' && (
+          <div className="p-4 md:p-6 space-y-5 animate-fade-in">
 
             {currentView === 'incidents' && (
               <IncidentsPage
@@ -413,10 +413,9 @@ function AppShellBody({ AUTH, logout, user }: {
               />
             )}
 
-            {currentView === 'cloud' && <CloudManagement />}
-
           </div>
           )} {/* /infraops */}
+          {currentView === 'cloud' && <CloudManagement refreshKey={cadastrosTick} />}
           {currentView === 'contracts' && <ContractsScreen role={user?.role} refreshKey={cadastrosTick} />}
           {currentView === 'customers' && <CustomersScreen role={user?.role} refreshKey={cadastrosTick} />}
 

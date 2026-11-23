@@ -65,7 +65,7 @@ Todas as rotas abaixo são somente leitura e exigem `platform_admin`; negam outr
 | `GET /api/contabo/networks` | Listar redes |
 | `GET /api/contabo/images` | Listar imagens |
 | `GET /api/contabo/audits` | Listar auditorias |
-| `GET /api/contabo/dashboard-full` | Painel completo |
+| `GET /api/contabo/overview` | Painel: frota, riscos, armazenamento e mudanças de 7 dias |
 
 ## Entrada técnica e rotas públicas
 
