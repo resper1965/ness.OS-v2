@@ -7,7 +7,7 @@ KEY=${KEY:-$HOME/.ssh/nessos_agent}
 HUB=${HUB:-ness_admin@144.91.115.242}
 WAZUH=${WAZUH:-"pool-01=ness_admin@169.58.178.187 rzk-01=ness_admin@144.91.72.202"}
 DIR=$(dirname "$0")
-OUT=$(mktemp -d /tmp/opencode/vuln-carga.XXXX)
+OUT=$(mktemp -d)
 trap 'rm -rf "$OUT"' EXIT
 ssh_() { ssh -i "$KEY" -o BatchMode=yes "$@"; }
 type psql_ >/dev/null 2>&1 || psql_() { ssh_ "$HUB" 'sudo -n docker exec -i ninf-postgres sh -c '\''psql -v ON_ERROR_STOP=1 -q -U "$POSTGRES_USER" -d "$POSTGRES_DB"'\'; }
