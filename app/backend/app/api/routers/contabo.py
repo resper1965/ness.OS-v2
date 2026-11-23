@@ -141,6 +141,23 @@ def _parse(ts: str | None) -> datetime | None:
         return None
 
 
+def _num(v, default=0.0):
+    """A API devolve números às vezes como texto ("1024")."""
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return default
+
+
+def _changed_fields(changes) -> list[str]:
+    """Auditoria vem como {"prev": {...}, "new": {...}}: campos que mudaram."""
+    c = changes or {}
+    if isinstance(c.get("prev"), dict) or isinstance(c.get("new"), dict):
+        prev, new = c.get("prev") or {}, c.get("new") or {}
+        return sorted(k for k in prev.keys() | new.keys() if prev.get(k) != new.get(k))
+    return sorted(c.keys())
+
+
 def build_overview(raw: dict[str, Any], now: datetime) -> dict[str, Any]:
     """Pure: Contabo payloads -> fleet totals, risks, timeline. Read-only data, no secrets."""
     instances = [i for i in raw["instances"] if i.get("status") not in _INACTIVE]
@@ -178,7 +195,7 @@ def build_overview(raw: dict[str, Any], now: datetime) -> dict[str, Any]:
             "datacenter": i.get("dataCenter"),
             "ipv4": ((i.get("ipConfig") or {}).get("v4") or {}).get("ip"),
             "cpu": i.get("cpuCores"),
-            "ram_gb": round((i.get("ramMb") or 0) / 1024, 1),
+            "ram_gb": round(_num(i.get("ramMb")) / 1024, 1),
             "disk_gb": round((i.get("diskMb") or 0) / 1024),
             "created": i.get("createdDate"),
             "cancel_date": i.get("cancelDate"),
@@ -243,7 +260,7 @@ def build_overview(raw: dict[str, Any], now: datetime) -> dict[str, Any]:
     storages = []
     for s in raw["storages"]:
         st = raw["storage_stats"].get(s.get("objectStorageId")) or {}
-        pct = st.get("usedSpacePercentage")
+        pct = _num(st.get("usedSpacePercentage"), None)
         item = {
             "id": s.get("objectStorageId"),
             "name": s.get("displayName") or s.get("objectStorageId"),
@@ -256,7 +273,7 @@ def build_overview(raw: dict[str, Any], now: datetime) -> dict[str, Any]:
             "cancel_date": s.get("cancelDate"),
         }
         storages.append(item)
-        if isinstance(pct, (int, float)) and pct >= STORAGE_WARN_PCT:
+        if pct is not None and pct >= STORAGE_WARN_PCT:
             risks.append(
                 {
                     "level": "warn",
@@ -283,7 +300,7 @@ def build_overview(raw: dict[str, Any], now: datetime) -> dict[str, Any]:
                     "action": a.get("action"),
                     "target": target,
                     "by": a.get("username") or a.get("changedBy"),
-                    "fields": sorted((a.get("changes") or {}).keys()),
+                    "fields": _changed_fields(a.get("changes")),
                 }
             )
     events.sort(key=lambda e: e["at"] or "", reverse=True)

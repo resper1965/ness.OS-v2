@@ -23,7 +23,7 @@ def _raw(**over):
                 "displayName": "zbx",
                 "status": "stopped",
                 "cpuCores": 4,
-                "ramMb": 8192,
+                "ramMb": "8192",
                 "diskMb": 204800,
                 "cancelDate": "2026-12-01",
                 "errorMessage": "",
@@ -42,7 +42,7 @@ def _raw(**over):
                 "totalPurchasedSpaceTB": 1,
             }
         ],
-        "storage_stats": {"s1": {"usedSpaceTB": 0.9, "usedSpacePercentage": 90.0}},
+        "storage_stats": {"s1": {"usedSpaceTB": 0.9, "usedSpacePercentage": "90"}},
         "audits": {
             "instância": [
                 {
@@ -50,7 +50,10 @@ def _raw(**over):
                     "instanceId": 2,
                     "action": "UPDATED",
                     "username": "x@ness.com.br",
-                    "changes": {"status": {}},
+                    "changes": {
+                        "prev": {"status": "running", "name": "a"},
+                        "new": {"status": "stopped", "name": "a"},
+                    },
                 }
             ],
             "firewall": [],
