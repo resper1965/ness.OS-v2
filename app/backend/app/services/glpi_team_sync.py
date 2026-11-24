@@ -463,7 +463,14 @@ async def run_sync(apply: bool) -> list[str]:
                 return ["JA_EM_EXECUCAO"]
             try:
                 visible = await glpi.use_all_entities()
-                d = await desired_state(session)
+                # Leitura do Hub em um só retrato (REPEATABLE READ): cadastro mexido no meio
+                # não mistura estado velho e novo. Mudança que perder a corrida do lock
+                # entra no próximo ciclo de 15 min.
+                async with SessionLocal() as snap:
+                    await snap.connection(
+                        execution_options={"isolation_level": "REPEATABLE READ"}
+                    )
+                    d = await desired_state(snap)
                 missing = {e for e, _, _ in d.groups.values()} - visible
                 if missing:  # nada é gravado se o token não enxerga todas as entidades
                     return [
