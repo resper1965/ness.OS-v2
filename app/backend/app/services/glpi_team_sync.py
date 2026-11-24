@@ -238,23 +238,25 @@ async def reconcile(glpi, d: Desired, apply: bool) -> list[str]:
     # --- perfis: só acrescenta o desejado; remove "Técnico externo" que sobrou
     ext_pid, ness_pid = cur["profiles"][P_EXT], cur["profiles"][P_NESS]
     for login in sorted(in_team):
-        p, user_id = d.people[login], uid.get(login)
-        want = (ext_pid, p.entity_id, False) if p.external else (ness_pid, 0, True)
+        p, person_id = d.people[login], uid.get(login)
         if p.external and p.entity_id is None:
             diff.append(f"ERRO {login}: externo sem cliente ativo")
             continue
+        want = (ext_pid, p.entity_id or 0, False) if p.external else (ness_pid, 0, True)
         rows = [
-            r for r in cur["profile_users"] if user_id and int(r["users_id"]) == user_id
+            r
+            for r in cur["profile_users"]
+            if person_id and int(r["users_id"]) == person_id
         ]
         if not any(
             (int(r["profiles_id"]), int(r["entities_id"])) == want[:2] for r in rows
         ):
             await do(
                 f"PROFILE {login}→{'externo' if p.external else 'técnico'}",
-                lambda user_id=user_id, want=want: glpi.create_item(
+                lambda person_id=person_id, want=want: glpi.create_item(
                     "Profile_User",
                     {
-                        "users_id": user_id,
+                        "users_id": person_id,
                         "profiles_id": want[0],
                         "entities_id": want[1],
                         "is_recursive": int(want[2]),
@@ -262,9 +264,9 @@ async def reconcile(glpi, d: Desired, apply: bool) -> list[str]:
                 ),
             )
     for r in cur["profile_users"]:
-        login = id_login.get(int(r["users_id"]))
-        if int(r["profiles_id"]) == ext_pid and login:
-            p = d.people[login]
+        owner = id_login.get(int(r["users_id"]))
+        if int(r["profiles_id"]) == ext_pid and owner:
+            login, p = owner, d.people[owner]
             if not (
                 p.active
                 and p.external
