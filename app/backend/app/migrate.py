@@ -600,6 +600,10 @@ ON CONFLICT DO NOTHING""",
         for stmt in ticket_policy.split(";"):
             if stmt.strip():
                 await conn.execute(text(stmt))
+        teams = (backend_root / "sql" / "005_teams.sql").read_text(encoding="utf-8")
+        for stmt in teams.split(";"):
+            if stmt.strip():
+                await conn.execute(text(stmt))
 
     logger.info("Migração de banco de dados concluída com sucesso.")
 

@@ -523,6 +523,35 @@ class GLPIClient:
         except Exception as exc:
             raise _glpi_failure("status de ticket", exc) from exc
 
+    async def _write(self, method: str, path: str, body: dict | None = None) -> Any:
+        if not self.session_token:
+            await self.init_session()
+        try:
+            async with httpx.AsyncClient(timeout=15.0, follow_redirects=False) as client:
+                res = await client.request(
+                    method,
+                    f"{self.base_url}/{path}",
+                    headers=self.headers,
+                    json={"input": body} if body is not None else None,
+                    params={"force_purge": "true"} if method == "DELETE" else None,
+                )
+                res.raise_for_status()
+                return res.json() if res.content else None
+        except Exception as exc:
+            raise _glpi_failure(f"escrita em {path.split('/')[0]}", exc) from exc
+
+    async def create_item(self, itemtype: str, data: dict) -> int:
+        out = await self._write("POST", itemtype, data)
+        if not isinstance(out, dict) or not out.get("id"):
+            raise RuntimeError(f"GLPI não criou {itemtype}")
+        return int(out["id"])
+
+    async def update_item(self, itemtype: str, item_id: int, data: dict) -> None:
+        await self._write("PUT", f"{itemtype}/{int(item_id)}", {**data, "id": int(item_id)})
+
+    async def delete_item(self, itemtype: str, item_id: int) -> None:
+        await self._write("DELETE", f"{itemtype}/{int(item_id)}")
+
     async def has_technician(self, ticket_id: int) -> bool:
         """Técnico atribuído (Ticket_User type 2) ou acompanhamento de outra pessoa."""
         users = await self.list_items(f"Ticket/{int(ticket_id)}/Ticket_User")

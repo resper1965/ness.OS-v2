@@ -586,3 +586,14 @@ def process_ticket_resolution(
             except Exception:
                 logger.warning("Resolution lock expired for ticket %s", ticket_id)
         redis.close()
+
+
+@celery_app.task(name="app.workers.tasks.sync_glpi_team", acks_late=True)
+def sync_glpi_team() -> dict[str, Any]:
+    """Reconcilia pessoas e equipes do Hub no GLPI (a cada 15 min e após cada cadastro)."""
+    from app.config import get_settings
+    from app.services.glpi_team_sync import run_sync
+
+    if not get_settings().glpi_team_user_token:
+        return {"skipped": True}
+    return {"changes": len(asyncio.run(run_sync(apply=True)))}
