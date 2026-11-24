@@ -4,11 +4,11 @@
 
 **Estágio:** em andamento
 
-**Próximo passo:** acompanhar a regra de chamados em produção (promovida `73adaa0` em 23/11: chamados abertos após a carência, dedup e sintomas); depois, validar NOC e SOC com dado real no Hub, retirar o Authentik e migrar as telas antigas para o kit `.nx`.
+**Próximo passo:** conferir a página de Vulnerabilidades logado; acompanhar a regra de chamados em produção (promovida `73adaa0` em 23/11: chamados abertos após a carência, dedup e sintomas); depois, validar NOC e SOC com dado real no Hub, retirar o Authentik e migrar as telas antigas para o kit `.nx`.
 
 ## Quadro (atualizado a cada task fechada)
 
-- Vulnerabilidades no Hub (23/11, branch `feat/vulnerabilidades`, **falta promover**): tabela `n_secops_vulnerabilities`, tela "Vulnerabilidades" (filtros, top 10 máquinas e pacotes, exportação no layout do time; cliente vê só o próprio). Carga: `infra/scripts/vuln-carga.sh` no stack, dia 1º, com `--email ccarvalho@ness.com.br`. Plano: `docs/superpowers/plans/2026-11-23-pendencias.md`.
+- Vulnerabilidades no Hub (promovida em 24/11 com `adff6df`; primeira carga: rzk 125.983, target 5.555): tabela `n_secops_vulnerabilities`, tela "Vulnerabilidades" (filtros, top 10 máquinas e pacotes, exportação no layout do time; cliente vê só o próprio). Carga: `infra/scripts/vuln-carga.sh` no stack, dia 1º, com `--email ccarvalho@ness.com.br`. Plano: `docs/superpowers/plans/2026-11-23-pendencias.md`.
 
 Tasks do [plano de execução](docs/superpowers/plans/2026-10-26-ness-os-execution-plan.md).
 

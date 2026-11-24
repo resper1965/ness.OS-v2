@@ -167,3 +167,13 @@ Lote de `3aecc41` a `73adaa0`: IA nos chamados F1/F2 (#280–#283), regra de cha
 ## n8n e Evolution removidos (23/11/2026)
 
 OK do Esper: "apaga". Backup em `/opt/n-infraops/change-backups/n8n-evolution-20261123T183927/`: volumes `app_n8n-data` (460 KB), `app_evolution-instances` e `app_evolution-store` (vazios), dump `evolution.dump` (37 tabelas, `pg_restore -l` OK) e `containers-inspect.json`. Removidos os contêineres `ninf-n8n`, `ninf-evolution` e `ninf-evolution-manager`, os três volumes e o banco `evolution`. Hub 200, API `healthy`. Restaurar: recriar o banco e `pg_restore` do dump; volumes com `tar -xzf` num volume novo.
+
+## Promoção adff6df (24/11/2026) — API + frontend
+
+Lote de `73adaa0` a `adff6df`: página de Vulnerabilidades (#286) e evidência da promoção anterior (#284). Migração aditiva: `n_secops_vulnerabilities`. OK do Esper: "promove".
+
+- API e workers: `ghcr.io/resper1965/ninf-api@sha256:017c1f132ff918746381e1577fbdb535abbe9bb0bb59cff8e29408db1fd4b514`. `promotion=PASS`, `backup_set=20261124T082937-0300`, release anterior `73adaa0`, `hub_http=401`.
+- Frontend: `ghcr.io/resper1965/ninf-frontend@sha256:0463e7d3547f8e5da85cfd6f966ee2f510f5aff7647b60933a3812c3e1457cb3` nos dois `.env`, recriado às 08:52 com `--project-directory` da release. Backup em `change-backups/frontend-20261124T085221`.
+- Primeira carga (`infra/scripts/vuln-carga.sh`, 5 min): rzk 125.983 linhas / 477 máquinas / 34 sem suporte; target 5.555 / 72 / 1. Nada em `sem_cliente`.
+- Envio mensal: cron do `agente` no stack, `0 9 1 * *` UTC (06:00 de Brasília), `vuln-carga.sh --email ccarvalho@ness.com.br`.
+- Rollback: API `docker compose -p app -f releases/73adaa0a8604bfd8c2be3aeccd407ce473cc5c0c/app/docker-compose.yml -f …/docker-compose.tickets.yml up -d --no-deps --force-recreate api worker-alerts worker-ml`; frontend `NINF_FRONTEND_IMAGE=…@sha256:15605b17…` nos dois `.env`. A tabela nova é aditiva e pode ficar.
