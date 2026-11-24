@@ -11,8 +11,10 @@ import socket
 import struct
 import sys
 import urllib.request
+from pathlib import Path
 
 WDB = "/var/ossec/queue/db/wdb"
+SPOOL = Path("/var/ossec/logs/ness-hub-spool")
 
 
 def agent_groups(agent_id: str) -> list[str]:
@@ -54,16 +56,17 @@ def main(alert_file: str, api_key: str, url: str) -> int:
         data=json.dumps(alert).encode(),
         headers={"Content-Type": "application/json", "X-Api-Key": api_key},
     )
-    # ponytail: no retry/queue; a failed POST is logged in integrations.log and the
-    # alert stays in alerts.json and the indexer. Add a spool if failures show up.
+    # Triage may wait for threat intel and the model: generous timeout. A failed POST
+    # goes to the spool (one file per alert id) and is replayed by the runbook loop;
+    # the Hub dedups replays by alert id.
     try:
-        with urllib.request.urlopen(req, timeout=60) as resp:
+        with urllib.request.urlopen(req, timeout=120) as resp:
             resp.read()
     except OSError as exc:
-        print(
-            f"custom-ness-hub: falha ao enviar {alert.get('id')}: {exc}",
-            file=sys.stderr,
-        )
+        SPOOL.mkdir(mode=0o750, exist_ok=True)
+        name = str(alert.get("id") or "sem-id").replace("/", "_")
+        (SPOOL / f"{name}.json").write_text(json.dumps(alert))
+        print(f"custom-ness-hub: falha ao enviar {name}: {exc}", file=sys.stderr)
         return 1
     return 0
 

@@ -77,4 +77,6 @@ Volume medido em 24/11 (00h–10h): `pool-01` 42 alertas, `rzk-01` 327 (sem cont
    ```
 4. `systemctl restart wazuh-manager`. Conferir com `grep -i ness-hub /var/ossec/logs/integrations.log /var/ossec/logs/ossec.log` e `SELECT customer_id, count(*) FROM n_secops_soc_decisions GROUP BY 1`.
 
+Falha de envio (Hub fora, timeout de 120 s) grava o alerta em `/var/ossec/logs/ness-hub-spool/<id>.json`. Reenvio, que o dedup do Hub torna seguro: `for f in /var/ossec/logs/ness-hub-spool/*.json; do /var/ossec/integrations/custom-ness-hub "$f" CHAVE URL && rm "$f"; done`. Spool com arquivos é sinal de problema: conferir no pós-ativação.
+
 Ordem: primeiro `pool-01`, depois `rzk-01`. Rollback: restaurar o `ossec.conf` e reiniciar o manager. Teste do script: `python3 infra/wazuh/test_custom_ness_hub.py`.
