@@ -52,21 +52,11 @@ async def maker():
 async def test_ticket_policy_tables_exist_and_seeded(maker):
     async with maker() as s:
         kinds = dict(
-            (
-                await s.execute(
-                    text(
-                        "select kind, count(*) from n_infraops_ticket_rules group by 1"
-                    )
-                )
-            ).all()  # fmt: skip
+            (await s.execute(text("select kind, count(*) from n_infraops_ticket_rules group by 1"))).all()  # fmt: skip
         )
         assert kinds["noise"] > 0 and kinds["action"] > 0 and kinds["cause"] > 0
         params = dict(
-            (
-                await s.execute(
-                    text("select key, value_int from n_infraops_platform_params")
-                )
-            ).all()  # fmt: skip
+            (await s.execute(text("select key, value_int from n_infraops_platform_params"))).all()  # fmt: skip
         )
         assert params["ticket_grace_minutes"] == 15
         assert params["ticket_reopen_hours"] == 24
