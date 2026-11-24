@@ -664,3 +664,16 @@ async def test_case_without_own_ticket_sends_nothing(maker, monkeypatch, state):
     await _seed(maker, state=state)
     assert (await svc.sweep(MON))["notified"] == 0
     assert ch.emails == [] and ch.pushes == []
+
+
+@pg
+@pytest.mark.asyncio
+async def test_ticket_opened_late_still_notifies(maker, monkeypatch):
+    ch = Channels(monkeypatch)
+    iid, _ = await _seed(maker, first_seen=MON - timedelta(days=3))
+    async with maker() as s:
+        inc = await s.get(Incident, iid)
+        inc.tags = {**inc.tags, "ninf_ticket_opened_at": MON.isoformat()}
+        await s.commit()
+    assert (await svc.sweep(MON))["notified"] == 1
+    assert len(ch.emails) == 1

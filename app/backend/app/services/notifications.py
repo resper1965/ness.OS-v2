@@ -15,7 +15,7 @@ from collections.abc import Coroutine
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from sqlalchemy import select, update
+from sqlalchemy import DateTime, func, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.core.dependencies import NOC_ROLES
@@ -246,7 +246,14 @@ async def sweep(now: datetime | None = None) -> dict[str, int]:
                         # Só caso que virou chamado próprio: carência e dedup do decisor
                         # (ticket_decider) já filtraram oscilação e sintoma (Esper, 24/11).
                         Incident.tags["ninf_ticket_state"].astext == "opened",
-                        Incident.first_seen
+                        # Janela conta da abertura do chamado (decisor pode atrasar
+                        # mais de 24 h com GLPI fora); sem marca, do evento de origem.
+                        func.coalesce(
+                            Incident.tags["ninf_ticket_opened_at"].astext.cast(
+                                DateTime(timezone=True)
+                            ),
+                            Incident.first_seen,
+                        )
                         >= now - timedelta(hours=_SOURCE_WINDOW_HOURS),
                     )
                     .order_by(Incident.severity.desc(), Incident.first_seen.desc())
