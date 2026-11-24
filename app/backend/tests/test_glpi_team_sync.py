@@ -219,3 +219,61 @@ async def test_name_change_updates_glpi_realname(people_maker):
         await s.commit()
     assert "RENAME user ana" in await _diff(people_maker, g)
     assert next(u for u in g.t["User"] if u["name"] == "ana")["realname"] == "Ana Souza"
+
+
+async def test_external_with_root_technician_loses_it(people_maker):
+    await _seed(people_maker)
+    g = FakeGlpi()
+    await _diff(people_maker, g)
+    ext = next(u for u in g.t["User"] if u["name"] == "elid")
+    g.t["Profile_User"].append(
+        {
+            "id": 900,
+            "users_id": ext["id"],
+            "profiles_id": 6,
+            "entities_id": 0,
+            "is_recursive": 1,
+        }
+    )
+    assert "UNPROFILE elid←técnico" in await _diff(people_maker, g)
+    assert [
+        (r["profiles_id"], r["entities_id"])
+        for r in g.t["Profile_User"]
+        if r["users_id"] == ext["id"]
+    ] == [(14, 8)]
+
+
+async def test_external_profile_with_wrong_recursion_is_replaced(people_maker):
+    await _seed(people_maker)
+    g = FakeGlpi()
+    await _diff(people_maker, g)
+    ext = next(u for u in g.t["User"] if u["name"] == "elid")
+    next(r for r in g.t["Profile_User"] if r["users_id"] == ext["id"])[
+        "is_recursive"
+    ] = 1
+    await _diff(people_maker, g)
+    rows = [r for r in g.t["Profile_User"] if r["users_id"] == ext["id"]]
+    assert [(r["profiles_id"], r["entities_id"], r["is_recursive"]) for r in rows] == [
+        (14, 8, 0)
+    ]
+
+
+async def test_advisory_lock_blocks_a_second_reconciliation(people_maker, monkeypatch):
+    from sqlalchemy import text
+
+    from app import database
+
+    monkeypatch.setattr(database, "SessionLocal", people_maker)
+    monkeypatch.setenv("NINF_GLPI_TEAM_USER_TOKEN", "x")
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+    async with people_maker() as holder:
+        await holder.execute(text("SELECT pg_advisory_lock(:k)"), {"k": sync._LOCK})
+        try:
+            assert await sync.run_sync(apply=True) == ["JA_EM_EXECUCAO"]
+        finally:
+            await holder.execute(
+                text("SELECT pg_advisory_unlock(:k)"), {"k": sync._LOCK}
+            )
+    get_settings.cache_clear()

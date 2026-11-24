@@ -596,4 +596,5 @@ def sync_glpi_team() -> dict[str, Any]:
 
     if not get_settings().glpi_team_user_token:
         return {"skipped": True}
-    return {"changes": len(asyncio.run(run_sync(apply=True)))}
+    diff = asyncio.run(run_sync(apply=True))
+    return {"skipped": True} if diff == ["JA_EM_EXECUCAO"] else {"changes": len(diff)}

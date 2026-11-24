@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 from app.models import Customer, TeamMember, User, UserRole
 
@@ -20,6 +20,7 @@ PREFIX = "ness · "
 ONCALL = PREFIX + "Plantão"
 RULE_PREFIX = "ness-hub entidade "
 P_NESS, P_EXT = "Technician", "Técnico externo"
+_LOCK = 7_422_001  # chave do advisory lock da reconciliação
 
 
 @dataclass(frozen=True)
@@ -248,59 +249,58 @@ async def reconcile(glpi, d: Desired, apply: bool) -> list[str]:
                     lambda link_id=link_id: glpi.delete_item("Group_User", link_id),
                 )
 
-    # --- perfis: só acrescenta o desejado; remove "Técnico externo" que sobrou
+    # --- perfis: para quem o Hub cadastra, Technician e Técnico externo batem exatamente
+    # com o desejado (perfil, entidade, recursão). Outros perfis (Super-Admin etc.) ficam.
     ext_pid, ness_pid = cur["profiles"][P_EXT], cur["profiles"][P_NESS]
+    managed_pids = {ext_pid, ness_pid}
+    want_of: dict[str, tuple[int, int, int]] = {}
     for login in sorted(in_team):
-        p, person_id = d.people[login], uid.get(login)
+        p = d.people[login]
         if p.external and p.entity_id is None:
             diff.append(f"ERRO {login}: externo sem cliente ativo")
             continue
-        want = (ext_pid, p.entity_id or 0, False) if p.external else (ness_pid, 0, True)
-        rows = [
-            r
+        want_of[login] = (
+            (ext_pid, p.entity_id or 0, 0) if p.external else (ness_pid, 0, 1)
+        )
+    for login, want in want_of.items():
+        person_id = uid.get(login)
+        have_rows = {
+            (
+                int(r["profiles_id"]),
+                int(r["entities_id"]),
+                int(r.get("is_recursive", 0)),
+            )
             for r in cur["profile_users"]
             if person_id and int(r["users_id"]) == person_id
-        ]
-        if not any(
-            (int(r["profiles_id"]), int(r["entities_id"])) == want[:2] for r in rows
-        ):
+        }
+        if want not in have_rows:
             await do(
-                f"PROFILE {login}→{'externo' if p.external else 'técnico'}",
+                f"PROFILE {login}→{'externo' if want[0] == ext_pid else 'técnico'}",
                 lambda person_id=person_id, want=want: glpi.create_item(
                     "Profile_User",
                     {
                         "users_id": person_id,
                         "profiles_id": want[0],
                         "entities_id": want[1],
-                        "is_recursive": int(want[2]),
+                        "is_recursive": want[2],
                     },
                 ),
             )
     for r in cur["profile_users"]:
         owner = id_login.get(int(r["users_id"]))
-        if (
-            owner
-            and owner not in in_team
-            and int(r["profiles_id"]) == ness_pid
-            and int(r["entities_id"]) == 0
-            and d.people[owner].active
-        ):
+        if not owner or int(r["profiles_id"]) not in managed_pids:
+            continue
+        key = (
+            int(r["profiles_id"]),
+            int(r["entities_id"]),
+            int(r.get("is_recursive", 0)),
+        )
+        if want_of.get(owner) != key:
+            kind = "externo" if key[0] == ext_pid else "técnico"
             await do(
-                f"UNPROFILE {owner}←técnico",
+                f"UNPROFILE {owner}←{kind}",
                 lambda r=r: glpi.delete_item("Profile_User", r["id"]),
             )
-        if int(r["profiles_id"]) == ext_pid and owner:
-            login, p = owner, d.people[owner]
-            if not (
-                p.active
-                and p.external
-                and login in in_team
-                and int(r["entities_id"]) == p.entity_id
-            ):
-                await do(
-                    f"UNPROFILE {login}←externo",
-                    lambda r=r: glpi.delete_item("Profile_User", r["id"]),
-                )
 
     # --- regra: entidade -> grupo
     rules = {
@@ -397,8 +397,21 @@ async def run_sync(apply: bool) -> list[str]:
     glpi = GLPIClient(user_token=token)
     try:
         async with SessionLocal() as session:
-            d = await desired_state(session)
-        diff = await reconcile(glpi, d, apply)
+            # Uma reconciliação por vez entre todos os workers (o lock cai ao fechar a conexão).
+            got = (
+                await session.execute(
+                    text("SELECT pg_try_advisory_lock(:k)"), {"k": _LOCK}
+                )
+            ).scalar_one()
+            if not got:
+                return ["JA_EM_EXECUCAO"]
+            try:
+                d = await desired_state(session)
+                diff = await reconcile(glpi, d, apply)
+            finally:
+                await session.execute(
+                    text("SELECT pg_advisory_unlock(:k)"), {"k": _LOCK}
+                )
     finally:
         await glpi.kill_session()
     if apply and diff:
