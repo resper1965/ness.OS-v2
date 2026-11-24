@@ -43,11 +43,8 @@
 O que **não** é cadastro: árvore de categorias, perfil Técnico externo, grupo Plantão e regras-base. Pessoas e equipes **não** entram aqui (ver Task 1b).
 
 **Files:**
-- Create: `infra/glpi/base-g1.json` com:
-  - mapa das 29 categorias atuais → `NOC/…`, `SOC/…`, `Serviço/…`;
-  - perfil `Técnico externo`;
-  - grupo `ness · Plantão`, recursivo na raiz;
-  - regras "Route to NOC/SOC" só classificam.
+- Sem JSON: são 3 categorias e 6 regras fixas, verificadas por id e nome no próprio script.
+- Categorias: a 4 vira `NOC` e a 5 vira `SOC`, ambas na raiz; a 1 vira `Serviço`. As subcategorias acompanham, e os ids 4 e 24, que o Hub usa, são preservados. Não há migração de chamado.
 - Create: `infra/scripts/glpi-g1-base.php`, no padrão de `glpi-operations-foundation.php`: simulação por padrão, `--apply` para gravar.
 - Modify: `infra/docs/runbooks/glpi.md` (seção "Mesa do técnico": aplicar e reverter).
 
