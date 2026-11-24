@@ -337,6 +337,7 @@ async def reconcile(glpi, d: Desired, apply: bool) -> list[str]:
             and len(r["_actions"]) == 1
             and r["_actions"][0]["field"] == "_groups_id_assign"
             and r["_actions"][0].get("action_type", "assign") == "assign"
+            and str(r["_actions"][0].get("value", "")).strip().isdigit()
         )
 
     crit = {

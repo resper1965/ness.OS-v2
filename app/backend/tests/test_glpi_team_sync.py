@@ -460,3 +460,14 @@ async def test_adopted_user_gets_sso_authtype(people_maker):
     u["authtype"] = 1
     assert "SSO user ana" in await _diff(people_maker, g)
     assert u["authtype"] == 3
+
+
+async def test_rule_with_empty_group_value_is_replaced_not_crashing(people_maker):
+    await _seed(people_maker)
+    g = FakeGlpi()
+    await _diff(people_maker, g)
+    next(a for a in g.t["RuleAction"])["value"] = ""
+    diff = await _diff(people_maker, g)
+    assert any(x.startswith("DISABLE rule") for x in diff) and any(
+        x.startswith("CREATE rule") for x in diff
+    )

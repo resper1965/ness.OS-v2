@@ -182,10 +182,10 @@ async def _recipients(session, inc: Incident, roles) -> list[User]:
             return 0
         if u.role == UserRole.cliente:
             return None
-        if u.role in (UserRole.admin, UserRole.platform_admin):
-            return 2
         if u.id in team:
             return 0
+        if u.role in (UserRole.admin, UserRole.platform_admin):
+            return 1 if u.is_oncall else 2
         if u.is_oncall or (not configured and not u.tenant_id):
             return 1
         return None
