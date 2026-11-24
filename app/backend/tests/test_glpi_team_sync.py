@@ -376,3 +376,13 @@ async def test_rule_criterion_operator_is_reconciled(people_maker):
     c["condition"] = 1
     assert any("critério" in x for x in await _diff(people_maker, g))
     assert c["condition"] == 0
+
+
+async def test_managed_rule_without_entity_criterion_is_disabled(people_maker):
+    await _seed(people_maker)
+    g = FakeGlpi()
+    await _diff(people_maker, g)
+    g.t["RuleCriteria"] = []
+    diff = await _diff(people_maker, g)
+    assert any(x.startswith("DISABLE rule ness-hub") for x in diff)
+    assert any(x.startswith("CREATE rule") for x in diff)

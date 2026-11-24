@@ -406,6 +406,15 @@ async def reconcile(glpi, d: Desired, apply: bool) -> list[str]:
                 f"ENABLE rule entidade {eid}",
                 lambda r=r: glpi.update_item("RuleTicket", r["id"], {"is_active": 1}),
             )
+    ok_rules = {r["id"] for r in rules.values()}
+    for r in cur[
+        "rules"
+    ]:  # regra do Hub sem critério de entidade: desligar (nunca apagar)
+        if r["id"] not in ok_rules and int(r.get("is_active", 0)):
+            await do(
+                f"DISABLE rule {r['name']} sem critério de entidade",
+                lambda r=r: glpi.update_item("RuleTicket", r["id"], {"is_active": 0}),
+            )
     for eid, r in rules.items():
         if eid not in d.rules:
             await do(

@@ -187,3 +187,25 @@ async def test_malformed_email_is_rejected(api):
                 "/api/people", json={"email": bad, "full_name": "A", "kind": "ness"}
             )
             assert r.status_code == 422, bad
+
+
+async def test_local_admin_cannot_touch_platform_admin(api, people_maker):
+    async with people_maker() as s:
+        s.add(
+            User(
+                email="pa@ness.com.br",
+                hashed_password="x",
+                role=UserRole.platform_admin,
+            )
+        )
+        await s.commit()
+        pid = (
+            await s.execute(select(User.id).where(User.email == "pa@ness.com.br"))
+        ).scalar_one()
+    async with api(UserRole.admin) as c:
+        assert (
+            await c.put(f"/api/people/{pid}", json={"is_active": False})
+        ).status_code == 403
+        assert (await c.delete(f"/api/people/{pid}")).status_code == 403
+    async with api(UserRole.platform_admin) as c:
+        assert (await c.delete(f"/api/people/{pid}")).status_code == 200

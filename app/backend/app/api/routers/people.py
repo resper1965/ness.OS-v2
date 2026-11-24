@@ -164,6 +164,8 @@ async def update_person(
     user = await db.get(User, user_id)
     if user is None:
         raise HTTPException(404, "Pessoa não encontrada")
+    if user.role == UserRole.platform_admin and admin.role != UserRole.platform_admin:
+        raise HTTPException(403, "Só platform_admin altera platform_admin")
     external = user.role == UserRole.cliente
     current = (await _out(db, user))["customer_ids"]
     customers = await _customers(
@@ -198,6 +200,8 @@ async def deactivate_person(
     user = await db.get(User, user_id)
     if user is None:
         raise HTTPException(404, "Pessoa não encontrada")
+    if user.role == UserRole.platform_admin and admin.role != UserRole.platform_admin:
+        raise HTTPException(403, "Só platform_admin altera platform_admin")
     if user.id == admin.id:
         raise HTTPException(409, "Não é possível desativar a si mesmo")
     user.is_active = False
