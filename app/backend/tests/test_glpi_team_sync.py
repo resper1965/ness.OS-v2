@@ -366,3 +366,13 @@ async def test_rule_scope_is_reconciled(people_maker):
     rule["is_recursive"] = 0
     assert any("escopo" in x for x in await _diff(people_maker, g))
     assert rule["is_recursive"] == 1
+
+
+async def test_rule_criterion_operator_is_reconciled(people_maker):
+    await _seed(people_maker)
+    g = FakeGlpi()
+    await _diff(people_maker, g)
+    c = next(x for x in g.t["RuleCriteria"] if x["criteria"] == "entities_id")
+    c["condition"] = 1
+    assert any("critério" in x for x in await _diff(people_maker, g))
+    assert c["condition"] == 0

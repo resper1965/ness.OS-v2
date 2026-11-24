@@ -313,6 +313,12 @@ async def reconcile(glpi, d: Desired, apply: bool) -> list[str]:
             )
 
     # --- regra: entidade -> grupo
+    crit = {
+        int(c["pattern"]): c
+        for r in cur["rules"]
+        for c in r["_criteria"]
+        if c["criteria"] == "entities_id"
+    }
     rules = {
         int(c["pattern"]): r
         for r in cur["rules"]
@@ -381,6 +387,13 @@ async def reconcile(glpi, d: Desired, apply: bool) -> list[str]:
                         },
                     ),
                 )
+        if int(crit[eid].get("condition", 0)) != 0:
+            await do(
+                f"FIX rule entidade {eid} critério",
+                lambda c=crit[eid]: glpi.update_item(
+                    "RuleCriteria", c["id"], {"condition": 0}
+                ),
+            )
         if int(r.get("entities_id", 0)) != 0 or not int(r.get("is_recursive", 1)):
             await do(
                 f"FIX rule entidade {eid} escopo",

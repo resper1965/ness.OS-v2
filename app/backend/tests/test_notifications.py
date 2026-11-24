@@ -826,3 +826,31 @@ async def test_team_found_when_incident_stores_display_name_not_key(maker):
             for u in await svc._recipients(s, inc, (UserRole.noc, UserRole.cliente))
         ]
     assert sorted(got) == ["e@x.invalid", "t@x.invalid"]
+
+
+@pg
+@pytest.mark.asyncio
+async def test_unconfigured_install_keeps_previous_behavior(maker):
+    """Sem equipe nem plantão cadastrados, todo técnico segue recebendo (migração segura)."""
+    async with maker() as s:
+        s.add_all(
+            [
+                User(email="a@x.invalid", hashed_password="x", role=UserRole.noc),
+                User(email="b@x.invalid", hashed_password="x", role=UserRole.admin),
+            ]
+        )
+        await s.commit()
+        inc = Incident(
+            fingerprint="f",
+            title="t",
+            severity=5,
+            host_id="h",
+            host_name="h",
+            trigger_id="t",
+            tags={"ninf_customer_name": "acme"},
+        )
+        got = [
+            u.email
+            for u in await svc._recipients(s, inc, (UserRole.noc, UserRole.admin))
+        ]
+    assert got == ["a@x.invalid", "b@x.invalid"]

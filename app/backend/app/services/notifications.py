@@ -163,6 +163,16 @@ async def _recipients(session, inc: Incident, roles) -> list[User]:
         ).scalars()
     )
 
+    # Enquanto ninguém cadastrou equipe nem plantão (instalação recém-migrada), vale o
+    # comportamento anterior: todo técnico dos papéis pedidos recebe, como plantão.
+    configured = (
+        await session.scalar(select(TeamMember.user_id).limit(1)) is not None
+        or await session.scalar(
+            select(User.id).where(User.is_oncall.is_(True)).limit(1)
+        )
+        is not None
+    )
+
     def tier(u: User) -> int | None:
         if tenant and (u.tenant_id or "").lower() == tenant:
             return 0
@@ -172,7 +182,9 @@ async def _recipients(session, inc: Incident, roles) -> list[User]:
             return 2
         if u.id in team:
             return 0
-        return 1 if u.is_oncall else None
+        if u.is_oncall or (not configured and not u.tenant_id):
+            return 1
+        return None
 
     rank = {r: i for i, r in enumerate(roles)}
     eligible = [(tier(u), u) for u in users if tier(u) is not None]
