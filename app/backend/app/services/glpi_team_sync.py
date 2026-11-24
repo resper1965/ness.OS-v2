@@ -156,6 +156,13 @@ async def reconcile(glpi, d: Desired, apply: bool) -> list[str]:
                         "Group", hit["id"], {"is_recursive": int(rec)}
                     ),
                 )
+            if not int(hit.get("is_assign", 1)):
+                await do(
+                    f"FIX group {name} atribuição",
+                    lambda hit=hit: glpi.update_item(
+                        "Group", hit["id"], {"is_assign": 1}
+                    ),
+                )
             continue
         gid[name] = await do(
             f"CREATE group {name}",
@@ -322,6 +329,7 @@ async def reconcile(glpi, d: Desired, apply: bool) -> list[str]:
             and r["_criteria"][0]["criteria"] == "entities_id"
             and len(r["_actions"]) == 1
             and r["_actions"][0]["field"] == "_groups_id_assign"
+            and r["_actions"][0].get("action_type", "assign") == "assign"
         )
 
     crit = {

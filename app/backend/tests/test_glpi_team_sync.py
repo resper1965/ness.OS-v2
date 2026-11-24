@@ -435,3 +435,18 @@ async def test_rule_with_non_numeric_entity_pattern_does_not_abort(people_maker)
     ] = "abc"
     diff = await _diff(people_maker, g)
     assert any(x.startswith("DISABLE rule") for x in diff)
+
+
+async def test_group_assign_flag_and_action_type_are_repaired(people_maker):
+    await _seed(people_maker)
+    g = FakeGlpi()
+    await _diff(people_maker, g)
+    grp = next(x for x in g.t["Group"] if x["name"] == sync.ONCALL)
+    grp["is_assign"] = 0
+    assert f"FIX group {sync.ONCALL} atribuição" in await _diff(people_maker, g)
+    assert grp["is_assign"] == 1
+    next(a for a in g.t["RuleAction"])["action_type"] = "append"
+    diff = await _diff(people_maker, g)
+    assert any(x.startswith("DISABLE rule") for x in diff) and any(
+        x.startswith("CREATE rule") for x in diff
+    )
