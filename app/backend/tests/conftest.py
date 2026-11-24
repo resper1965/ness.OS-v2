@@ -52,6 +52,7 @@ async def customers_maker():
         await c.run_sync(lambda sc: Base.metadata.drop_all(sc, tables=tabs))
     await engine.dispose()
 
+
 @pytest_asyncio.fixture
 async def people_maker(customers_maker):
     """Clientes semeados + usuários e equipes (tabelas de pessoas)."""

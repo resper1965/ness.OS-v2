@@ -727,8 +727,15 @@ async def test_recipients_team_then_oncall_then_management(maker):
     roles = (UserRole.noc, UserRole.admin)
     await _team_case(maker)
     async with maker() as s:
-        inc = Incident(fingerprint="f", title="t", severity=5, host_id="h", host_name="h",
-                       trigger_id="t", tags={"ninf_customer_name": "acme"})
+        inc = Incident(
+            fingerprint="f",
+            title="t",
+            severity=5,
+            host_id="h",
+            host_name="h",
+            trigger_id="t",
+            tags={"ninf_customer_name": "acme"},
+        )
         got = [u.email.split("@")[0] for u in await svc._recipients(s, inc, roles)]
     assert got == ["t1", "plantao", "boss"]  # `other` (equipe de outro cliente) fora
 
@@ -738,9 +745,19 @@ async def test_recipients_team_then_oncall_then_management(maker):
 async def test_no_team_falls_back_to_oncall_then_management(maker):
     await _team_case(maker)
     async with maker() as s:
-        inc = Incident(fingerprint="f", title="t", severity=5, host_id="h", host_name="h",
-                       trigger_id="t", tags={"ninf_customer_name": "semequipe"})
-        got = [u.email.split("@")[0] for u in await svc._recipients(s, inc, (UserRole.noc, UserRole.admin))]
+        inc = Incident(
+            fingerprint="f",
+            title="t",
+            severity=5,
+            host_id="h",
+            host_name="h",
+            trigger_id="t",
+            tags={"ninf_customer_name": "semequipe"},
+        )
+        got = [
+            u.email.split("@")[0]
+            for u in await svc._recipients(s, inc, (UserRole.noc, UserRole.admin))
+        ]
     assert got == ["plantao", "boss"]
 
 
@@ -748,12 +765,31 @@ async def test_no_team_falls_back_to_oncall_then_management(maker):
 @pytest.mark.asyncio
 async def test_external_technician_only_on_own_customer(maker):
     async with maker() as s:
-        s.add_all([
-            User(email="e1@x.invalid", hashed_password="x", role=UserRole.cliente, tenant_id="acme"),
-            User(email="e2@x.invalid", hashed_password="x", role=UserRole.cliente, tenant_id="zeta"),
-        ])
+        s.add_all(
+            [
+                User(
+                    email="e1@x.invalid",
+                    hashed_password="x",
+                    role=UserRole.cliente,
+                    tenant_id="acme",
+                ),
+                User(
+                    email="e2@x.invalid",
+                    hashed_password="x",
+                    role=UserRole.cliente,
+                    tenant_id="zeta",
+                ),
+            ]
+        )
         await s.commit()
-        inc = Incident(fingerprint="f", title="t", severity=5, host_id="h", host_name="h",
-                       trigger_id="t", tags={"ninf_customer_name": "acme"})
+        inc = Incident(
+            fingerprint="f",
+            title="t",
+            severity=5,
+            host_id="h",
+            host_name="h",
+            trigger_id="t",
+            tags={"ninf_customer_name": "acme"},
+        )
         got = [u.email for u in await svc._recipients(s, inc, (UserRole.cliente,))]
     assert got == ["e1@x.invalid"]

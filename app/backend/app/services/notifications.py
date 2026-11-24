@@ -173,7 +173,12 @@ async def _recipients(session, inc: Incident, roles) -> list[User]:
         u
         for _, u in sorted(
             eligible,
-            key=lambda t: (t[0], t[1].id != inc.assigned_user_id, rank[t[1].role], t[1].id),
+            key=lambda t: (
+                t[0],
+                t[1].id != inc.assigned_user_id,
+                rank[t[1].role],
+                t[1].id,
+            ),
         )
     ]
 

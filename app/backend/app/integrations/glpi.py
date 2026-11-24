@@ -527,7 +527,9 @@ class GLPIClient:
         if not self.session_token:
             await self.init_session()
         try:
-            async with httpx.AsyncClient(timeout=15.0, follow_redirects=False) as client:
+            async with httpx.AsyncClient(
+                timeout=15.0, follow_redirects=False
+            ) as client:
                 res = await client.request(
                     method,
                     f"{self.base_url}/{path}",
@@ -547,7 +549,9 @@ class GLPIClient:
         return int(out["id"])
 
     async def update_item(self, itemtype: str, item_id: int, data: dict) -> None:
-        await self._write("PUT", f"{itemtype}/{int(item_id)}", {**data, "id": int(item_id)})
+        await self._write(
+            "PUT", f"{itemtype}/{int(item_id)}", {**data, "id": int(item_id)}
+        )
 
     async def delete_item(self, itemtype: str, item_id: int) -> None:
         await self._write("DELETE", f"{itemtype}/{int(item_id)}")

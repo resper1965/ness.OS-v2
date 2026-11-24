@@ -64,9 +64,17 @@ async def desired_state(session) -> Desired:
     login_of = {u.id: lg for lg, u in by_login.items()}
     for login, u in by_login.items():
         ext = u.role == UserRole.cliente
-        own = [c for c in customers.values() if (c.key or "").lower() == (u.tenant_id or "").lower()]
+        own = [
+            c
+            for c in customers.values()
+            if (c.key or "").lower() == (u.tenant_id or "").lower()
+        ]
         d.people[login] = Person(
-            login, u.email, u.full_name or login, ext, u.is_active,
+            login,
+            u.email,
+            u.full_name or login,
+            ext,
+            u.is_active,
             own[0].glpi_entity_id if ext and own else None,
         )
     for c in customers.values():
@@ -81,7 +89,11 @@ async def desired_state(session) -> Desired:
     d.groups[ONCALL] = (
         0,
         True,
-        {lg for lg, u in by_login.items() if u.is_oncall and u.is_active and u.role != UserRole.cliente},
+        {
+            lg
+            for lg, u in by_login.items()
+            if u.is_oncall and u.is_active and u.role != UserRole.cliente
+        },
     )
     return d
 
@@ -91,7 +103,11 @@ async def _read(glpi) -> dict:
     for needed in (P_NESS, P_EXT):
         if needed not in profiles:
             raise RuntimeError(f"Perfil {needed!r} ausente no GLPI (rode a base fixa)")
-    rules = [r for r in await glpi.list_items("RuleTicket") if str(r["name"]).startswith(RULE_PREFIX)]
+    rules = [
+        r
+        for r in await glpi.list_items("RuleTicket")
+        if str(r["name"]).startswith(RULE_PREFIX)
+    ]
     for r in rules:
         r["_actions"] = await glpi.list_items(f"RuleTicket/{r['id']}/RuleAction")
         r["_criteria"] = await glpi.list_items(f"RuleTicket/{r['id']}/RuleCriteria")
@@ -117,7 +133,14 @@ async def reconcile(glpi, d: Desired, apply: bool) -> list[str]:
     # --- grupos
     gid: dict[str, int | None] = {}
     for name, (eid, rec, _) in d.groups.items():
-        hit = next((g for g in cur["groups"] if g["name"] == name and int(g["entities_id"]) == eid), None)
+        hit = next(
+            (
+                g
+                for g in cur["groups"]
+                if g["name"] == name and int(g["entities_id"]) == eid
+            ),
+            None,
+        )
         if hit:
             gid[name] = int(hit["id"])
             continue
@@ -125,8 +148,14 @@ async def reconcile(glpi, d: Desired, apply: bool) -> list[str]:
             f"CREATE group {name}",
             lambda name=name, eid=eid, rec=rec: glpi.create_item(
                 "Group",
-                {"name": name, "entities_id": eid, "is_recursive": int(rec), "is_assign": 1,
-                 "is_notify": 0, "comment": "Gerido pelo ness.OS Hub."},
+                {
+                    "name": name,
+                    "entities_id": eid,
+                    "is_recursive": int(rec),
+                    "is_assign": 1,
+                    "is_notify": 0,
+                    "comment": "Gerido pelo ness.OS Hub.",
+                },
             ),
         )
 
@@ -141,25 +170,45 @@ async def reconcile(glpi, d: Desired, apply: bool) -> list[str]:
                     f"CREATE user {login}",
                     lambda p=p: glpi.create_item(
                         "User",
-                        {"name": p.login, "realname": p.name, "authtype": 3, "is_active": 1,
-                         "entities_id": 0, "_useremails": {"-1": p.email}},
+                        {
+                            "name": p.login,
+                            "realname": p.name,
+                            "authtype": 3,
+                            "is_active": 1,
+                            "entities_id": 0,
+                            "_useremails": {"-1": p.email},
+                        },
                     ),
                 )
             else:
                 uid[login] = int(row["id"])
                 if not int(row["is_active"]):
-                    await do(f"ENABLE user {login}", lambda r=row: glpi.update_item("User", r["id"], {"is_active": 1}))
+                    await do(
+                        f"ENABLE user {login}",
+                        lambda r=row: glpi.update_item(
+                            "User", r["id"], {"is_active": 1}
+                        ),
+                    )
         elif row is not None:
             uid[login] = int(row["id"])
             if not p.active and int(row["is_active"]):
-                await do(f"DISABLE user {login}", lambda r=row: glpi.update_item("User", r["id"], {"is_active": 0}))
+                await do(
+                    f"DISABLE user {login}",
+                    lambda r=row: glpi.update_item("User", r["id"], {"is_active": 0}),
+                )
 
     # --- membros dos grupos gerenciados (extras são removidos)
-    managed = {int(g["id"]): g["name"] for g in cur["groups"] if str(g["name"]).startswith(PREFIX)}
+    managed = {
+        int(g["id"]): g["name"]
+        for g in cur["groups"]
+        if str(g["name"]).startswith(PREFIX)
+    }
     have: dict[str, dict[int, int]] = {}
     for gu in cur["group_users"]:
         if int(gu["groups_id"]) in managed:
-            have.setdefault(managed[int(gu["groups_id"])], {})[int(gu["users_id"])] = int(gu["id"])
+            have.setdefault(managed[int(gu["groups_id"])], {})[int(gu["users_id"])] = (
+                int(gu["id"])
+            )
     id_login = {v: k for k, v in uid.items() if v}
     for name, (_, _, members) in d.groups.items():
         cur_members = have.get(name, {})
@@ -174,11 +223,17 @@ async def reconcile(glpi, d: Desired, apply: bool) -> list[str]:
         for user_id, link_id in cur_members.items():
             if id_login.get(user_id) not in members:
                 who = id_login.get(user_id) or f"#{user_id}"
-                await do(f"REMOVE {who}→{name}", lambda link_id=link_id: glpi.delete_item("Group_User", link_id))
+                await do(
+                    f"REMOVE {who}→{name}",
+                    lambda link_id=link_id: glpi.delete_item("Group_User", link_id),
+                )
     for gname, cur_members in have.items():
         if gname not in d.groups:  # grupo "ness · …" de cliente que saiu do cadastro
             for user_id, link_id in cur_members.items():
-                await do(f"REMOVE #{user_id}→{gname}", lambda link_id=link_id: glpi.delete_item("Group_User", link_id))
+                await do(
+                    f"REMOVE #{user_id}→{gname}",
+                    lambda link_id=link_id: glpi.delete_item("Group_User", link_id),
+                )
 
     # --- perfis: só acrescenta o desejado; remove "Técnico externo" que sobrou
     ext_pid, ness_pid = cur["profiles"][P_EXT], cur["profiles"][P_NESS]
@@ -188,21 +243,38 @@ async def reconcile(glpi, d: Desired, apply: bool) -> list[str]:
         if p.external and p.entity_id is None:
             diff.append(f"ERRO {login}: externo sem cliente ativo")
             continue
-        rows = [r for r in cur["profile_users"] if user_id and int(r["users_id"]) == user_id]
-        if not any((int(r["profiles_id"]), int(r["entities_id"])) == want[:2] for r in rows):
+        rows = [
+            r for r in cur["profile_users"] if user_id and int(r["users_id"]) == user_id
+        ]
+        if not any(
+            (int(r["profiles_id"]), int(r["entities_id"])) == want[:2] for r in rows
+        ):
             await do(
                 f"PROFILE {login}→{'externo' if p.external else 'técnico'}",
                 lambda user_id=user_id, want=want: glpi.create_item(
                     "Profile_User",
-                    {"users_id": user_id, "profiles_id": want[0], "entities_id": want[1], "is_recursive": int(want[2])},
+                    {
+                        "users_id": user_id,
+                        "profiles_id": want[0],
+                        "entities_id": want[1],
+                        "is_recursive": int(want[2]),
+                    },
                 ),
             )
     for r in cur["profile_users"]:
         login = id_login.get(int(r["users_id"]))
         if int(r["profiles_id"]) == ext_pid and login:
             p = d.people[login]
-            if not (p.active and p.external and login in in_team and int(r["entities_id"]) == p.entity_id):
-                await do(f"UNPROFILE {login}←externo", lambda r=r: glpi.delete_item("Profile_User", r["id"]))
+            if not (
+                p.active
+                and p.external
+                and login in in_team
+                and int(r["entities_id"]) == p.entity_id
+            ):
+                await do(
+                    f"UNPROFILE {login}←externo",
+                    lambda r=r: glpi.delete_item("Profile_User", r["id"]),
+                )
 
     # --- regra: entidade -> grupo
     rules = {
@@ -214,27 +286,76 @@ async def reconcile(glpi, d: Desired, apply: bool) -> list[str]:
     for eid, name in d.rules.items():
         r = rules.get(eid)
         if r is None:
+
             async def make(eid=eid, name=name):
                 rid = await glpi.create_item(
                     "RuleTicket",
-                    {"name": f"{RULE_PREFIX}{eid}", "sub_type": "RuleTicket", "match": "AND",
-                     "condition": 1, "is_active": 1, "entities_id": 0, "is_recursive": 1},
+                    {
+                        "name": f"{RULE_PREFIX}{eid}",
+                        "sub_type": "RuleTicket",
+                        "match": "AND",
+                        "condition": 1,
+                        "is_active": 1,
+                        "entities_id": 0,
+                        "is_recursive": 1,
+                    },
                 )
-                await glpi.create_item("RuleCriteria", {"rules_id": rid, "criteria": "entities_id", "condition": 0, "pattern": eid})
-                await glpi.create_item("RuleAction", {"rules_id": rid, "action_type": "assign", "field": "_groups_id_assign", "value": gid[name]})
+                await glpi.create_item(
+                    "RuleCriteria",
+                    {
+                        "rules_id": rid,
+                        "criteria": "entities_id",
+                        "condition": 0,
+                        "pattern": eid,
+                    },
+                )
+                await glpi.create_item(
+                    "RuleAction",
+                    {
+                        "rules_id": rid,
+                        "action_type": "assign",
+                        "field": "_groups_id_assign",
+                        "value": gid[name],
+                    },
+                )
+
             await do(f"CREATE rule entidade {eid}→{name}", make)
             continue
-        act = next((a for a in r["_actions"] if a["field"] == "_groups_id_assign"), None)
+        act = next(
+            (a for a in r["_actions"] if a["field"] == "_groups_id_assign"), None
+        )
         if gid.get(name) and (act is None or int(act["value"]) != gid[name]):
             if act:
-                await do(f"FIX rule entidade {eid}→{name}", lambda a=act, name=name: glpi.update_item("RuleAction", a["id"], {"value": gid[name]}))
+                await do(
+                    f"FIX rule entidade {eid}→{name}",
+                    lambda a=act, name=name: glpi.update_item(
+                        "RuleAction", a["id"], {"value": gid[name]}
+                    ),
+                )
             else:
-                await do(f"FIX rule entidade {eid}→{name}", lambda r=r, name=name: glpi.create_item("RuleAction", {"rules_id": r["id"], "action_type": "assign", "field": "_groups_id_assign", "value": gid[name]}))
+                await do(
+                    f"FIX rule entidade {eid}→{name}",
+                    lambda r=r, name=name: glpi.create_item(
+                        "RuleAction",
+                        {
+                            "rules_id": r["id"],
+                            "action_type": "assign",
+                            "field": "_groups_id_assign",
+                            "value": gid[name],
+                        },
+                    ),
+                )
         if not int(r["is_active"]):
-            await do(f"ENABLE rule entidade {eid}", lambda r=r: glpi.update_item("RuleTicket", r["id"], {"is_active": 1}))
+            await do(
+                f"ENABLE rule entidade {eid}",
+                lambda r=r: glpi.update_item("RuleTicket", r["id"], {"is_active": 1}),
+            )
     for eid, r in rules.items():
         if eid not in d.rules:
-            await do(f"DISABLE rule entidade {eid}", lambda r=r: glpi.update_item("RuleTicket", r["id"], {"is_active": 0}))
+            await do(
+                f"DISABLE rule entidade {eid}",
+                lambda r=r: glpi.update_item("RuleTicket", r["id"], {"is_active": 0}),
+            )
     return diff
 
 

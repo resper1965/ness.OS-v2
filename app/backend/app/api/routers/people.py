@@ -68,8 +68,14 @@ def _check(external: bool, customers: list[Customer], oncall: bool) -> None:
 
 async def _out(db: AsyncSession, u: User) -> dict:
     ids = (
-        await db.execute(select(TeamMember.customer_id).where(TeamMember.user_id == u.id))
-    ).scalars().all()
+        (
+            await db.execute(
+                select(TeamMember.customer_id).where(TeamMember.user_id == u.id)
+            )
+        )
+        .scalars()
+        .all()
+    )
     return {
         "id": u.id,
         "email": u.email,
@@ -83,7 +89,9 @@ async def _out(db: AsyncSession, u: User) -> dict:
 
 
 @router.get("")
-async def list_people(db: AsyncSession = Depends(get_db), _: User = Depends(require_admin)):
+async def list_people(
+    db: AsyncSession = Depends(get_db), _: User = Depends(require_admin)
+):
     users = (await db.execute(select(User).order_by(User.email))).scalars().all()
     return [await _out(db, u) for u in users]
 
@@ -101,7 +109,9 @@ async def sync_status(_: User = Depends(require_admin)):
 
 @router.post("", status_code=201)
 async def create_person(
-    body: PersonIn, db: AsyncSession = Depends(get_db), admin: User = Depends(require_admin)
+    body: PersonIn,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
 ):
     external = body.kind == "externo"
     customers = await _customers(db, body.customer_ids)
@@ -113,7 +123,9 @@ async def create_person(
         email=email,
         full_name=body.full_name,
         # Sem senha utilizável: o acesso é pelo SSO (identidade vinculada pelo admin).
-        hashed_password=bcrypt.hashpw(secrets.token_urlsafe(32).encode(), bcrypt.gensalt()).decode(),
+        hashed_password=bcrypt.hashpw(
+            secrets.token_urlsafe(32).encode(), bcrypt.gensalt()
+        ).decode(),
         role=UserRole.cliente if external else UserRole.noc,
         tenant_id=customers[0].key if external else None,
         is_oncall=body.is_oncall,
@@ -166,7 +178,9 @@ async def update_person(
 
 @router.delete("/{user_id}")
 async def deactivate_person(
-    user_id: int, db: AsyncSession = Depends(get_db), admin: User = Depends(require_admin)
+    user_id: int,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
 ):
     user = await db.get(User, user_id)
     if user is None:
