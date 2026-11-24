@@ -6,7 +6,7 @@
 
 **Architecture:**
 - Parte fixa do GLPI por **um script PHP idempotente**, no padrão de `infra/scripts/glpi-operations-foundation.php`: lê um plano em JSON, roda em simulação por padrão e só grava com `--apply`.
-- Pessoas, equipes, plantão e nível de prazo são **cadastrados no Hub**, que reconcilia o GLPI (o Hub é a fonte; o GLPI não é editado à mão).
+- Pessoas, equipes e plantão são **cadastrados no Hub**, e o prazo vem dos contratos que já existem no Hub;, que reconcilia o GLPI (o Hub é a fonte; o GLPI não é editado à mão).
 - Limpeza por script separado, com backup antes.
 - No Hub, só o necessário:
   - o destinatário do aviso passa a vir do grupo do chamado;
@@ -53,6 +53,7 @@ O que **não** é cadastro: árvore de categorias, perfil Técnico externo, grup
 
 **Interfaces:**
 - Produz: o grupo `ness · Plantão`, o perfil `Técnico externo` e as categorias-raiz `NOC`, `SOC` e `Serviço`. A Task 1b procura esses três por nome.
+- Desliga as 4 regras "SLA - Assign Bronze/Silver/Gold/Platinum" e as 8 SLAs soltas. Elas estão quebradas: `definition_time` vazio, sem SLM e prazo por prioridade, não por cliente. A Task 1b recria o SLA a partir dos contratos.
 
 - [ ] **Step 1:** Escrever o JSON.
 - [ ] **Step 2:** Escrever o script. Ele:
@@ -69,7 +70,7 @@ O Hub é o único cadastro de pessoas e equipes **[Esper, 24/11]**. Ninguém mex
 
 **Files:**
 - Create: `app/backend/sql/005_teams.sql`
-- Modify: `app/backend/app/models/models.py` (`Customer.sla_tier`, `TeamMember`)
+- Modify: `app/backend/app/models/models.py` (`TeamMember`)
 - Modify: `app/backend/app/models/users.py` (`User.is_oncall`, `User.glpi_user_id`)
 - Create: `app/backend/app/api/routers/people.py`
 - Create: `app/backend/app/services/glpi_team_sync.py`
@@ -80,7 +81,6 @@ O Hub é o único cadastro de pessoas e equipes **[Esper, 24/11]**. Ninguém mex
 
 **Interfaces:**
 - SQL:
-  - `ALTER TABLE n_infraops_customers ADD sla_tier VARCHAR(16) CHECK (sla_tier IN ('bronze','silver','gold','platinum'))`;
   - `ALTER TABLE n_infraops_users ADD is_oncall BOOLEAN NOT NULL DEFAULT FALSE, ADD glpi_user_id INTEGER`;
   - `CREATE TABLE n_infraops_team_members (customer_id BIGINT NOT NULL, user_id BIGINT NOT NULL, PRIMARY KEY (customer_id, user_id))`.
 - API (`/api/people`, só `admin` e `platform_admin`):
@@ -90,7 +90,7 @@ O Hub é o único cadastro de pessoas e equipes **[Esper, 24/11]**. Ninguém mex
     - envia convite de senha pelo fluxo de e-mail já existente;
   - `PUT /api/people/{id}` para alterar equipes ou plantão; `DELETE` desativa, não apaga.
 - `services/glpi_team_sync.py`:
-  - `desired_state(session) -> GlpiDesired`: função pura sobre o banco que descreve grupos, membros, perfis, regras e tier de SLA por entidade;
+  - `desired_state(session) -> GlpiDesired`: função pura sobre o banco que descreve grupos, membros, perfis, regras e SLA por entidade. O SLA vem do contrato que já existe no Hub (`n_infraops_contracts` + `n_infraops_sla_policies`): por cliente, um SLM no GLPI com TTO/TTR por severidade, e uma regra entidade + prioridade → SLA;
   - `async reconcile(glpi, desired, apply: bool) -> list[str]`: diferenças no formato `"CREATE user x"`, `"ADD x→ness · Cavan"`, `"FIX rule …"`.
 - Nome do grupo: `ness · <Customer.display_name>`. A regra de atribuição é `entities_id = Customer.glpi_entity_id → grupo`.
 
@@ -121,7 +121,6 @@ O Hub é o único cadastro de pessoas e equipes **[Esper, 24/11]**. Ninguém mex
 - [ ] **Step 5:** Escrever a tela `PeopleScreen` (DS 2.0.1, kit `nx-*`):
   - lista de pessoas com tipo, clientes, plantão e estado da sincronização;
   - formulário de criação e edição;
-  - no cadastro de cliente, o campo "nível de prazo".
 - [ ] **Step 6:** Rodar a suíte completa com Postgres e `npm test` no frontend.
 - [ ] **Step 7:** PR, merge e promoção, com a frase do Esper. Depois, o Esper cadastra as equipes pela tela, e a reconciliação em simulação mostra o diff antes da 1ª gravação.
 - [ ] **Step 8:** Fazer um chamado sintético por entidade e conferir o grupo e `slas_id_ttr > 0`. Entrar como externo da Cavan e ver só a Cavan. Excluir os sintéticos.

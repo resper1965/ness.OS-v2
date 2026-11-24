@@ -71,7 +71,7 @@ O mapa de categoria antiga para nova fica com o construtor. Nenhuma categoria em
 
 **Pendente:** a ness e o técnico externo podem colocar o chamado em Pendente quando dependem do usuário do cliente. O relógio pausa nos dois casos **[agente]**.
 
-**Tier de SLA:** cadastrado no cliente, no Hub, e reconciliado no GLPI **[Esper]**.
+**Prazo:** vem do contrato do cliente que já existe no Hub (severidade → atendimento/resolução) e é reconciliado no GLPI. Não há campo novo de "tier" **[agente]**.
 
 ### 4.3 Quando um indica o outro [Esper]
 NOC e SOC continuam separados, mas um problema de um lado pode ser causa ou sintoma do outro. Exemplos:
