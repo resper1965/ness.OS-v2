@@ -53,6 +53,7 @@ class Settings(BaseSettings):
 
     # --- Webhooks ---
     webhook_api_key: str = ""
+    wazuh_webhook_api_key: str = ""  # POST /api/secops/ingest/wazuh
 
     # --- DeskManager (Ticketing) ---
     deskmanager_api_url: str = "https://api.deskmanager.com.br/v2"

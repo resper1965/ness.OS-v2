@@ -526,3 +526,27 @@ async def test_gate_failure_skips_model_and_no_key_skips_gate(monkeypatch):
     assert await _secops._ai_skip(_Db(), "cavan") is None  # gate not called
     out = await soc_agent.triage_wazuh_alert({"rule": {"id": "1"}}, "cavan")
     assert out["_ai_call"].outcome == "no_key"
+
+
+@pytest.mark.parametrize("key,status", [(None, 401), ("wrong", 401), ("k", 200)])
+def test_wazuh_ingest_requires_its_own_key(decision_database, monkeypatch, key, status):
+    monkeypatch.setattr(_secops.settings, "wazuh_webhook_api_key", "k")
+    app.dependency_overrides.pop(get_current_user, None)  # máquina, sem usuário
+    headers = {"X-Api-Key": key} if key else {}
+    payload = {
+        "rule": {"id": "60137", "level": 3},
+        "agent": {"id": "002", "group": ["x"]},
+    }
+    response = client.post("/api/secops/ingest/wazuh", json=payload, headers=headers)
+    assert response.status_code == status
+    if status == 200:
+        saved = decision_database.add.call_args.args[0].raw_alert
+        assert saved["_ness_triage_request"]["user_id"] == "wazuh-integration"
+
+
+def test_wazuh_ingest_closed_without_configured_key(monkeypatch):
+    monkeypatch.setattr(_secops.settings, "wazuh_webhook_api_key", "")
+    response = client.post(
+        "/api/secops/ingest/wazuh", json={}, headers={"X-Api-Key": ""}
+    )
+    assert response.status_code == 503

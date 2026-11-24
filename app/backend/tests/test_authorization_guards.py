@@ -72,6 +72,7 @@ def test_every_non_public_api_route_has_recognized_authorization():
         "require_platform_admin",
         "verify_api_key",
         "verify_webhook_key",
+        "verify_wazuh_key",
     }
     missing = []
     for route in app.routes:
