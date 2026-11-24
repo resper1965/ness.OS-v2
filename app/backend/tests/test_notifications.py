@@ -793,3 +793,36 @@ async def test_external_technician_only_on_own_customer(maker):
         )
         got = [u.email for u in await svc._recipients(s, inc, (UserRole.cliente,))]
     assert got == ["e1@x.invalid"]
+
+
+@pg
+@pytest.mark.asyncio
+async def test_team_found_when_incident_stores_display_name_not_key(maker):
+    """O incidente guarda o nome canônico ("Numen IT"); a equipe é ligada à chave ("numen")."""
+    async with maker() as s:
+        c = Customer(key="numen", display_name="Numen IT", glpi_entity_id=10)
+        t = User(email="t@x.invalid", hashed_password="x", role=UserRole.noc)
+        ext = User(
+            email="e@x.invalid",
+            hashed_password="x",
+            role=UserRole.cliente,
+            tenant_id="numen",
+        )
+        s.add_all([c, t, ext])
+        await s.flush()
+        s.add(TeamMember(customer_id=c.id, user_id=t.id))
+        await s.commit()
+        inc = Incident(
+            fingerprint="f",
+            title="t",
+            severity=5,
+            host_id="h",
+            host_name="h",
+            trigger_id="t",
+            tags={"ninf_customer_name": "Numen IT"},
+        )
+        got = [
+            u.email
+            for u in await svc._recipients(s, inc, (UserRole.noc, UserRole.cliente))
+        ]
+    assert sorted(got) == ["e@x.invalid", "t@x.invalid"]

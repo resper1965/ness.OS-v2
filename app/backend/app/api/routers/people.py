@@ -6,7 +6,7 @@ from typing import Annotated, Literal
 
 import bcrypt
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, StringConstraints
+from pydantic import BaseModel, EmailStr, StringConstraints
 from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,7 +21,7 @@ NonBlank = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)
 
 
 class PersonIn(BaseModel):
-    email: NonBlank
+    email: EmailStr
     full_name: NonBlank
     kind: Literal["ness", "externo"]
     customer_ids: list[int] = []
@@ -123,8 +123,6 @@ async def create_person(
     customers = await _customers(db, body.customer_ids)
     _check(external, customers, body.is_oncall)
     email = body.email.lower()
-    if "@" not in email or email.startswith("@"):
-        raise HTTPException(422, "E-mail inválido")
     taken = (
         await db.execute(
             select(User.id).where(User.email.ilike(email.split("@")[0] + "@%"))

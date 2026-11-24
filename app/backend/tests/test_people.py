@@ -178,3 +178,12 @@ async def test_admin_cannot_deactivate_self_through_update(api):
         assert (
             await c.put("/api/people/7", json={"is_active": False})
         ).status_code in (404, 409)
+
+
+async def test_malformed_email_is_rejected(api):
+    async with api() as c:
+        for bad in ("ana@", "ana@@ness.com", "@ness.com", "sem-arroba"):
+            r = await c.post(
+                "/api/people", json={"email": bad, "full_name": "A", "kind": "ness"}
+            )
+            assert r.status_code == 422, bad

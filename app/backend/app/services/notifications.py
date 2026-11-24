@@ -22,7 +22,6 @@ from app.database import SessionLocal
 from app.integrations.email import ResendEmailClient
 from app.integrations.webpush import send_web_push
 from app.models import (
-    Customer,
     Incident,
     IncidentAction,
     Notification,
@@ -31,6 +30,7 @@ from app.models import (
     User,
     UserRole,
 )
+from app.services.customers import AmbiguousCustomer, resolve_customer
 from app.services.sla import (
     PolicyCfg,
     add_calendar_time,
@@ -136,7 +136,14 @@ async def _recipients(session, inc: Incident, roles) -> list[User]:
     Técnico de operação só recebe se estiver na equipe do cliente do caso ou de plantão.
     O papel `cliente` segue a regra antiga (tenant do incidente); gestão não depende de equipe.
     """
-    tenant = _tenant(inc)
+    # O incidente guarda o nome canônico ("Alupar PE"); equipe e usuário externo usam a chave.
+    try:
+        customer = (
+            await resolve_customer(session, _tenant(inc)) if _tenant(inc) else None
+        )
+    except AmbiguousCustomer:
+        customer = None
+    tenant = customer.key.lower() if customer else _tenant(inc)
     users = (
         (
             await session.execute(
@@ -149,9 +156,9 @@ async def _recipients(session, inc: Incident, roles) -> list[User]:
     team = set(
         (
             await session.execute(
-                select(TeamMember.user_id)
-                .join(Customer, Customer.id == TeamMember.customer_id)
-                .where(func.lower(Customer.key) == tenant)
+                select(TeamMember.user_id).where(
+                    TeamMember.customer_id == (customer.id if customer else -1)
+                )
             )
         ).scalars()
     )
