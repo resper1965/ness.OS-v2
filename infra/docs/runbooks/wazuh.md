@@ -55,4 +55,26 @@ UPDATE n_infraops_tenant_mappings
 Rollback (volta a pendente): `UPDATE n_infraops_tenant_mappings SET modality = NULL, operator = NULL WHERE external_platform='wazuh' AND external_customer_id IN ('<grupo>', ...);`
 
 Novo grupo no Wazuh: cadastrar o vínculo antes de o agente enviar alertas; senão cai em revisão técnica.
-Não ativa a integração Wazuh → Hub: isso continua dependendo de contratação, desenho de coleta e homologação.
+A integração Wazuh → Hub está descrita na seção abaixo.
+
+## Integração Wazuh → Hub (`custom-ness-hub`)
+
+O manager envia ao Hub (`POST /api/secops/ingest/wazuh`, chave `X-Api-Key` própria, `NINF_WAZUH_WEBHOOK_API_KEY`) os alertas de nível ≥ 10. Alertas de vulnerabilidade não vão: entram pela carga mensal. O grupo do agente vem do wazuh-db, porque o alerta não traz grupo e o Hub resolve o cliente só por grupo. Modo observação: o Hub registra e tria (`n_secops_soc_decisions`); chamado não é aberto.
+
+Volume medido em 24/11 (00h–10h): `pool-01` 42 alertas, `rzk-01` 327 (sem contar os de vulnerabilidade).
+
+1. Hub: gerar a chave e gravá-la como `NINF_WAZUH_WEBHOOK_API_KEY` nos dois `.env` da release, sem imprimi-la. Recriar `api`. Sem chave, a rota responde 503.
+2. Manager (root): `cp infra/wazuh/custom-ness-hub.py /var/ossec/integrations/`; `cp /var/ossec/integrations/slack /var/ossec/integrations/custom-ness-hub` (wrapper que chama o Python do Wazuh); `chown root:wazuh` e `chmod 750` nos dois.
+3. Backup do `ossec.conf` e inclusão de um bloco dentro de `<ossec_config>`. A chave vai no `ossec.conf` (0640 root:wazuh) e nunca no repositório.
+   ```xml
+   <integration>
+     <name>custom-ness-hub</name>
+     <hook_url>https://hub.ness.com.br/api/secops/ingest/wazuh</hook_url>
+     <api_key>CHAVE</api_key>
+     <level>10</level>
+     <alert_format>json</alert_format>
+   </integration>
+   ```
+4. `systemctl restart wazuh-manager`. Conferir com `grep -i ness-hub /var/ossec/logs/integrations.log /var/ossec/logs/ossec.log` e `SELECT customer_id, count(*) FROM n_secops_soc_decisions GROUP BY 1`.
+
+Ordem: primeiro `pool-01`, depois `rzk-01`. Rollback: restaurar o `ossec.conf` e reiniciar o manager. Teste do script: `python3 infra/wazuh/test_custom_ness_hub.py`.

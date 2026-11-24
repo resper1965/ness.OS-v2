@@ -46,6 +46,7 @@ Levantamento das rotas registradas em `app.main` em 2026-09-28. O backend usa os
 | `GET /api/secops/zabbix-health` | Saúde Zabbix | `noc`, global |
 | `GET /api/secops/triage-stats` | Estatísticas de triagem | `noc`, global |
 | `POST /api/secops/triage` | Executar triagem | `noc`, global |
+| `POST /api/secops/ingest/wazuh` | Alerta do Wazuh (máquina) | chave `NINF_WAZUH_WEBHOOK_API_KEY` |
 | `GET /api/secops/decisions` | Consultar decisões | `auth`, `resolve_tenant_scope`; divergência: 403 |
 | `GET /api/auth/me` | Ler sessão atual | `auth`, usuário próprio |
 | `POST /api/v1/push/subscribe` | Registrar inscrição push | `auth`, tenant do usuário |

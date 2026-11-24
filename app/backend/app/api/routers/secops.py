@@ -10,7 +10,7 @@ import logging
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from sqlalchemy import func, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,6 +23,7 @@ from app.core.dependencies import (
     resolve_tenant_scope,
 )
 from app.core.triage_engine import FREQUENCY_WINDOW_SECONDS, TriageAction, TriageEngine
+from app.core.webhook_auth import verify_key
 from app.database import get_db
 from app.integrations.zabbix import ZabbixClient
 from app.models.models import SocDecision, TenantMapping
@@ -724,6 +725,24 @@ async def triage_alert(
     Recebe alerta do Wazuh, resolve o cliente por vínculo, executa a triagem determinística
     (Risk Engine) e Threat Intel. Atendimento é independente do score e do modelo.
     """
+    return await _triage(payload, db, user.id)
+
+
+async def verify_wazuh_key(x_api_key: str = Header(None, alias="X-Api-Key")) -> None:
+    verify_key(settings.wazuh_webhook_api_key, x_api_key)
+
+
+@router.post("/ingest/wazuh", dependencies=[Depends(verify_wazuh_key)])
+async def ingest_wazuh_alert(
+    payload: dict[str, Any], db: AsyncSession = Depends(get_db)
+) -> dict[str, Any]:
+    """Entrada máquina-a-máquina do Wazuh (integração custom-ness-hub), chave própria."""
+    return await _triage(payload, db, "wazuh-integration")
+
+
+async def _triage(
+    payload: dict[str, Any], db: AsyncSession, requested_by: int | str
+) -> dict[str, Any]:
     logger.info("Recebido alerta Wazuh para triagem.")
     from app.integrations.soc_agent import triage_wazuh_alert
     from app.integrations.threat_intel import enrich_hash, enrich_ip
@@ -851,7 +870,7 @@ async def triage_alert(
     payload = {
         **payload,
         "_ness_triage_request": {
-            "user_id": user.id,
+            "user_id": requested_by,
             "requested_at": datetime.now(UTC).isoformat(),
             "corrective_action_approved": False,
         },
