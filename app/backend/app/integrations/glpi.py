@@ -166,7 +166,7 @@ class GLPIClient:
             await self.kill_session()
             raise
 
-    async def use_all_entities(self) -> None:
+    async def use_all_entities(self) -> set[int]:
         """Seleciona todas as entidades permitidas e confere; sem isso, só a ativa por padrão."""
         if not self.session_token:
             await self.init_session()
@@ -196,6 +196,9 @@ class GLPIClient:
                     or len(selected) < 2
                 ):
                     raise GLPIPermanentError("GLPI não ativou todas as entidades")
+                return {
+                    int(e["id"]) for e in selected if isinstance(e, dict) and "id" in e
+                }
         except GLPIPermanentError:
             await self.kill_session()
             raise

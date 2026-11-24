@@ -416,8 +416,13 @@ async def run_sync(apply: bool) -> list[str]:
             if not got:
                 return ["JA_EM_EXECUCAO"]
             try:
-                await glpi.use_all_entities()
+                visible = await glpi.use_all_entities()
                 d = await desired_state(session)
+                missing = {e for e, _, _ in d.groups.values()} - visible
+                if missing:  # nada é gravado se o token não enxerga todas as entidades
+                    return [
+                        f"ERRO entidades sem acesso para o token: {sorted(missing)}"
+                    ]
                 diff = await reconcile(glpi, d, apply)
             finally:
                 await session.execute(

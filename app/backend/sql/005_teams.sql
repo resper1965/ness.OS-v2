@@ -5,5 +5,3 @@ CREATE TABLE IF NOT EXISTS n_infraops_team_members (
     user_id     BIGINT NOT NULL REFERENCES n_infraops_users(id) ON DELETE CASCADE,
     PRIMARY KEY (customer_id, user_id)
 );
--- O login do GLPI é a parte local do e-mail: precisa ser único de forma atômica.
-CREATE UNIQUE INDEX IF NOT EXISTS uq_users_glpi_login ON n_infraops_users ((lower(split_part(email, '@', 1))));

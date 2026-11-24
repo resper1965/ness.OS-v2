@@ -302,6 +302,7 @@ async def test_run_sync_selects_all_entities_before_reading(people_maker, monkey
 
         async def use_all_entities(self):
             calls.append("all")
+            return set(range(0, 200))
 
         async def list_items(self, path):
             calls.append(path)
@@ -328,3 +329,30 @@ async def test_customer_named_like_oncall_group_aborts(people_maker):
     g = FakeGlpi()
     diff = await _diff(people_maker, g)
     assert diff[0].startswith("ERRO") and g.writes == 0
+
+
+async def test_run_sync_aborts_when_token_cannot_see_a_customer_entity(
+    people_maker, monkeypatch
+):
+    from app import database
+    from app.config import get_settings
+    from app.integrations import glpi as glpi_mod
+
+    class Spy(FakeGlpi):
+        def __init__(self, **kw):
+            super().__init__()
+
+        async def use_all_entities(self):
+            return {0}
+
+        async def kill_session(self):
+            return True
+
+    await _seed(people_maker)
+    monkeypatch.setattr(glpi_mod, "GLPIClient", Spy)
+    monkeypatch.setattr(database, "SessionLocal", people_maker)
+    monkeypatch.setenv("NINF_GLPI_TEAM_USER_TOKEN", "x")
+    get_settings.cache_clear()
+    out = await sync.run_sync(apply=True)
+    get_settings.cache_clear()
+    assert out and out[0].startswith("ERRO entidades")
