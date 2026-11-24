@@ -166,6 +166,26 @@ class GLPIClient:
             await self.kill_session()
             raise
 
+    async def use_all_entities(self) -> None:
+        """Enxerga todas as entidades permitidas (sem isso, só a ativa por padrão)."""
+        if not self.session_token:
+            await self.init_session()
+        await self._write_raw(
+            "POST", "changeActiveEntities", {"entities_id": "all", "is_recursive": True}
+        )
+
+    async def _write_raw(self, method: str, path: str, body: dict) -> None:
+        try:
+            async with httpx.AsyncClient(
+                timeout=10.0, follow_redirects=False
+            ) as client:
+                res = await client.request(
+                    method, f"{self.base_url}/{path}", headers=self.headers, json=body
+                )
+                res.raise_for_status()
+        except Exception as exc:
+            raise _glpi_failure("seleção de entidades", exc) from exc
+
     async def kill_session(self) -> bool:
         """Encerra a sessão ativa no GLPI."""
         if not self.session_token:

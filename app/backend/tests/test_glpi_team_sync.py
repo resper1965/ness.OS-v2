@@ -277,3 +277,43 @@ async def test_advisory_lock_blocks_a_second_reconciliation(people_maker, monkey
                 text("SELECT pg_advisory_unlock(:k)"), {"k": sync._LOCK}
             )
     get_settings.cache_clear()
+
+
+async def test_group_recursion_is_reconciled(people_maker):
+    await _seed(people_maker)
+    g = FakeGlpi()
+    await _diff(people_maker, g)
+    plantao = next(x for x in g.t["Group"] if x["name"] == sync.ONCALL)
+    plantao["is_recursive"] = 0
+    assert f"FIX group {sync.ONCALL} recursão" in await _diff(people_maker, g)
+    assert plantao["is_recursive"] == 1
+
+
+async def test_run_sync_selects_all_entities_before_reading(people_maker, monkeypatch):
+    from app import database
+    from app.config import get_settings
+    from app.integrations import glpi as glpi_mod
+
+    calls = []
+
+    class Spy(FakeGlpi):
+        def __init__(self, **kw):
+            super().__init__()
+
+        async def use_all_entities(self):
+            calls.append("all")
+
+        async def list_items(self, path):
+            calls.append(path)
+            return await super().list_items(path)
+
+        async def kill_session(self):
+            return True
+
+    monkeypatch.setattr(glpi_mod, "GLPIClient", Spy)
+    monkeypatch.setattr(database, "SessionLocal", people_maker)
+    monkeypatch.setenv("NINF_GLPI_TEAM_USER_TOKEN", "x")
+    get_settings.cache_clear()
+    await sync.run_sync(apply=False)
+    get_settings.cache_clear()
+    assert calls[0] == "all" and "Profile" in calls

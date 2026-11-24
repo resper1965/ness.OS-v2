@@ -146,6 +146,13 @@ async def reconcile(glpi, d: Desired, apply: bool) -> list[str]:
         )
         if hit:
             gid[name] = int(hit["id"])
+            if int(hit.get("is_recursive", 0)) != int(rec):
+                await do(
+                    f"FIX group {name} recursão",
+                    lambda hit=hit, rec=rec: glpi.update_item(
+                        "Group", hit["id"], {"is_recursive": int(rec)}
+                    ),
+                )
             continue
         gid[name] = await do(
             f"CREATE group {name}",
@@ -406,6 +413,7 @@ async def run_sync(apply: bool) -> list[str]:
             if not got:
                 return ["JA_EM_EXECUCAO"]
             try:
+                await glpi.use_all_entities()
                 d = await desired_state(session)
                 diff = await reconcile(glpi, d, apply)
             finally:
