@@ -318,6 +318,7 @@ async def reconcile(glpi, d: Desired, apply: bool) -> list[str]:
     def _exact(r) -> bool:
         return (
             len(r["_criteria"]) == 1
+            and str(r["_criteria"][0].get("pattern", "")).strip().isdigit()
             and r["_criteria"][0]["criteria"] == "entities_id"
             and len(r["_actions"]) == 1
             and r["_actions"][0]["field"] == "_groups_id_assign"
@@ -402,13 +403,19 @@ async def reconcile(glpi, d: Desired, apply: bool) -> list[str]:
             int(r.get("entities_id", 0)) != 0
             or not int(r.get("is_recursive", 1))
             or r.get("match", "AND") != "AND"
+            or int(r.get("condition", 1)) != 1
         ):
             await do(
                 f"FIX rule entidade {eid} escopo",
                 lambda r=r: glpi.update_item(
                     "RuleTicket",
                     r["id"],
-                    {"entities_id": 0, "is_recursive": 1, "match": "AND"},
+                    {
+                        "entities_id": 0,
+                        "is_recursive": 1,
+                        "match": "AND",
+                        "condition": 1,
+                    },
                 ),
             )
         if not int(r["is_active"]):

@@ -414,3 +414,24 @@ async def test_obsolete_disabled_rule_causes_no_writes(people_maker):
         await s.commit()
     await _diff(people_maker, g)
     assert await _diff(people_maker, g) == []
+
+
+async def test_rule_with_zero_execution_mask_is_repaired(people_maker):
+    await _seed(people_maker)
+    g = FakeGlpi()
+    await _diff(people_maker, g)
+    rule = next(r for r in g.t["RuleTicket"] if r["name"].startswith(sync.RULE_PREFIX))
+    rule["condition"] = 0
+    assert any("escopo" in x for x in await _diff(people_maker, g))
+    assert rule["condition"] == 1
+
+
+async def test_rule_with_non_numeric_entity_pattern_does_not_abort(people_maker):
+    await _seed(people_maker)
+    g = FakeGlpi()
+    await _diff(people_maker, g)
+    next(c for c in g.t["RuleCriteria"] if c["criteria"] == "entities_id")[
+        "pattern"
+    ] = "abc"
+    diff = await _diff(people_maker, g)
+    assert any(x.startswith("DISABLE rule") for x in diff)
