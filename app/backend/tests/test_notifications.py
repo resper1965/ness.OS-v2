@@ -172,7 +172,9 @@ class Channels:
         monkeypatch.setattr(svc, "send_web_push", push)
 
 
-async def _seed(maker, *, severity=5, tenant="acme", users=2, first_seen=MON):
+async def _seed(
+    maker, *, severity=5, tenant="acme", users=2, first_seen=MON, state="opened"
+):
     async with maker() as s:
         inc = Incident(
             fingerprint="f1",
@@ -182,7 +184,7 @@ async def _seed(maker, *, severity=5, tenant="acme", users=2, first_seen=MON):
             host_name="h",
             trigger_id="t",
             first_seen=first_seen,
-            tags={"ninf_customer_name": tenant},
+            tags={"ninf_customer_name": tenant, "ninf_ticket_state": state},
         )
         s.add(inc)
         roles = [UserRole.soc, UserRole.noc, UserRole.admin][:users]
@@ -652,3 +654,26 @@ async def test_severity_3_open_incident_is_not_notified(maker, monkeypatch):
     await _seed(maker, severity=3)
     assert await svc.sweep(MON) == {"notified": 0, "escalated": 0}
     assert not ch.emails and not ch.pushes and not await _rows(maker)
+
+
+@pg
+@pytest.mark.asyncio
+@pytest.mark.parametrize("state", ["pending", "panel", "symptom", "attached"])
+async def test_case_without_own_ticket_sends_nothing(maker, monkeypatch, state):
+    ch = Channels(monkeypatch)
+    await _seed(maker, state=state)
+    assert (await svc.sweep(MON))["notified"] == 0
+    assert ch.emails == [] and ch.pushes == []
+
+
+@pg
+@pytest.mark.asyncio
+async def test_ticket_opened_late_still_notifies(maker, monkeypatch):
+    ch = Channels(monkeypatch)
+    iid, _ = await _seed(maker, first_seen=MON - timedelta(days=3))
+    async with maker() as s:
+        inc = await s.get(Incident, iid)
+        inc.tags = {**inc.tags, "ninf_ticket_opened_at": MON.isoformat()}
+        await s.commit()
+    assert (await svc.sweep(MON))["notified"] == 1
+    assert len(ch.emails) == 1

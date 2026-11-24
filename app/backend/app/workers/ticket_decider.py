@@ -152,7 +152,11 @@ async def _open(glpi: GLPIClient, inc: Incident, now: datetime, reopen_h: int) -
             db_inc = await session.get(Incident, inc.id, with_for_update=True)
             assert db_inc is not None
             db_inc.deskmanager_ticket_id = str(ticket_id)
-            db_inc.tags = {**db_inc.tags, "ninf_ticket_state": "opened"}
+            db_inc.tags = {
+                **db_inc.tags,
+                "ninf_ticket_state": "opened",
+                "ninf_ticket_opened_at": now.isoformat(),
+            }
             recovered = _tag(db_inc, "ninf_zabbix_status") == "resolved"
             session.add(
                 IncidentAction(
