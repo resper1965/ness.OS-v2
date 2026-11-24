@@ -356,3 +356,13 @@ async def test_run_sync_aborts_when_token_cannot_see_a_customer_entity(
     out = await sync.run_sync(apply=True)
     get_settings.cache_clear()
     assert out and out[0].startswith("ERRO entidades")
+
+
+async def test_rule_scope_is_reconciled(people_maker):
+    await _seed(people_maker)
+    g = FakeGlpi()
+    await _diff(people_maker, g)
+    rule = next(r for r in g.t["RuleTicket"] if r["name"].startswith(sync.RULE_PREFIX))
+    rule["is_recursive"] = 0
+    assert any("escopo" in x for x in await _diff(people_maker, g))
+    assert rule["is_recursive"] == 1

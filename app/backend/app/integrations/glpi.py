@@ -193,7 +193,7 @@ class GLPIClient:
                 if (
                     active.get("active_entity_recursive") is not True
                     or not isinstance(selected, list)
-                    or len(selected) < 2
+                    or not selected
                 ):
                     raise GLPIPermanentError("GLPI não ativou todas as entidades")
                 return {

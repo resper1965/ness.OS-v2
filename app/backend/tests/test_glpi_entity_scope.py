@@ -330,7 +330,7 @@ def _all_entities_client(monkeypatch, change, active):
         (False, {}),
         (
             True,
-            {"active_entity_recursive": True, "active_entities": [{"id": 0}]},
+            {"active_entity_recursive": True, "active_entities": []},
         ),
         (
             True,

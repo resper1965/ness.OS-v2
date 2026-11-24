@@ -381,6 +381,13 @@ async def reconcile(glpi, d: Desired, apply: bool) -> list[str]:
                         },
                     ),
                 )
+        if int(r.get("entities_id", 0)) != 0 or not int(r.get("is_recursive", 1)):
+            await do(
+                f"FIX rule entidade {eid} escopo",
+                lambda r=r: glpi.update_item(
+                    "RuleTicket", r["id"], {"entities_id": 0, "is_recursive": 1}
+                ),
+            )
         if not int(r["is_active"]):
             await do(
                 f"ENABLE rule entidade {eid}",
