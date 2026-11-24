@@ -17,7 +17,9 @@ from app.models import Customer, TeamMember, User, UserRole
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/people", tags=["people"])
-NonBlank = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
+NonBlank = Annotated[
+    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=255)
+]
 
 
 class PersonIn(BaseModel):
@@ -68,7 +70,6 @@ async def _customers(db: AsyncSession, ids: list[int]) -> list[Customer]:
 _TEAM_ROLES = {
     UserRole.noc,
     UserRole.soc,
-    UserRole.operator,
     UserRole.admin,
     UserRole.platform_admin,
     UserRole.cliente,

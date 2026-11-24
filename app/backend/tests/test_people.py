@@ -239,3 +239,12 @@ async def test_role_without_operational_access_cannot_join_a_team(api, people_ma
         assert (
             await c.put(f"/api/people/{vid}", json={"customer_ids": [cid]})
         ).status_code == 422
+
+
+async def test_long_name_is_422_not_500(api):
+    async with api() as c:
+        r = await c.post(
+            "/api/people",
+            json={"email": "l@ness.com.br", "full_name": "x" * 300, "kind": "ness"},
+        )
+        assert r.status_code == 422
