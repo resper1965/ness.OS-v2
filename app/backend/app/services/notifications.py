@@ -243,6 +243,9 @@ async def sweep(now: datetime | None = None) -> dict[str, int]:
                     .where(
                         Incident.status == "open",
                         Incident.severity >= floor,
+                        # Só caso que virou chamado próprio: carência e dedup do decisor
+                        # (ticket_decider) já filtraram oscilação e sintoma (Esper, 24/11).
+                        Incident.tags["ninf_ticket_state"].astext == "opened",
                         Incident.first_seen
                         >= now - timedelta(hours=_SOURCE_WINDOW_HOURS),
                     )
