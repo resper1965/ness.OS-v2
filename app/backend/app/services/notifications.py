@@ -163,13 +163,10 @@ async def _recipients(session, inc: Incident, roles) -> list[User]:
         ).scalars()
     )
 
-    # Enquanto ninguém cadastrou equipe nem plantão (instalação recém-migrada), vale o
-    # comportamento anterior: todo técnico dos papéis pedidos recebe, como plantão.
-    configured = (
-        await session.scalar(select(TeamMember.user_id).limit(1)) is not None
-        or await session.scalar(
-            select(User.id).where(User.is_oncall.is_(True)).limit(1)
-        )
+    # Cliente sem equipe e sem ninguém de plantão ainda: vale o comportamento anterior
+    # (todo técnico dos papéis pedidos recebe). Por cliente, para migrar sem buraco.
+    configured = bool(team) or (
+        await session.scalar(select(User.id).where(User.is_oncall.is_(True)).limit(1))
         is not None
     )
 

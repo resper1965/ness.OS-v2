@@ -854,3 +854,31 @@ async def test_unconfigured_install_keeps_previous_behavior(maker):
             for u in await svc._recipients(s, inc, (UserRole.noc, UserRole.admin))
         ]
     assert got == ["a@x.invalid", "b@x.invalid"]
+
+
+@pg
+@pytest.mark.asyncio
+async def test_customer_without_team_or_oncall_keeps_legacy_even_if_another_has_team(
+    maker,
+):
+    from app.models import Customer, TeamMember
+
+    async with maker() as s:
+        other = Customer(key="zeta", display_name="Zeta", glpi_entity_id=98)
+        a = User(email="a@x.invalid", hashed_password="x", role=UserRole.noc)
+        b = User(email="b@x.invalid", hashed_password="x", role=UserRole.noc)
+        s.add_all([other, a, b])
+        await s.flush()
+        s.add(TeamMember(customer_id=other.id, user_id=a.id))
+        await s.commit()
+        inc = Incident(
+            fingerprint="f",
+            title="t",
+            severity=5,
+            host_id="h",
+            host_name="h",
+            trigger_id="t",
+            tags={"ninf_customer_name": "acme"},
+        )
+        got = [u.email for u in await svc._recipients(s, inc, (UserRole.noc,))]
+    assert sorted(got) == ["a@x.invalid", "b@x.invalid"]
