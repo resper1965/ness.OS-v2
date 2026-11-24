@@ -7,7 +7,7 @@ from typing import Annotated, Literal
 import bcrypt
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, EmailStr, StringConstraints
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -125,7 +125,10 @@ async def create_person(
     email = body.email.lower()
     taken = (
         await db.execute(
-            select(User.id).where(User.email.ilike(email.split("@")[0] + "@%"))
+            select(User.id).where(
+                func.lower(func.split_part(User.email, "@", 1))
+                == email.split("@")[0].lower()
+            )
         )
     ).first()
     if taken:

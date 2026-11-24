@@ -209,3 +209,19 @@ async def test_local_admin_cannot_touch_platform_admin(api, people_maker):
         assert (await c.delete(f"/api/people/{pid}")).status_code == 403
     async with api(UserRole.platform_admin) as c:
         assert (await c.delete(f"/api/people/{pid}")).status_code == 200
+
+
+async def test_underscore_in_login_is_not_a_wildcard(api):
+    async with api() as c:
+        assert (
+            await c.post(
+                "/api/people",
+                json={"email": "anax1@a.com", "full_name": "A", "kind": "ness"},
+            )
+        ).status_code == 201
+        assert (
+            await c.post(
+                "/api/people",
+                json={"email": "ana_1@b.com", "full_name": "B", "kind": "ness"},
+            )
+        ).status_code == 201

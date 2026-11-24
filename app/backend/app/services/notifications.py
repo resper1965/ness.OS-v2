@@ -165,10 +165,7 @@ async def _recipients(session, inc: Incident, roles) -> list[User]:
 
     # Cliente sem equipe e sem ninguém de plantão ainda: vale o comportamento anterior
     # (todo técnico dos papéis pedidos recebe). Por cliente, para migrar sem buraco.
-    configured = bool(team) or (
-        await session.scalar(select(User.id).where(User.is_oncall.is_(True)).limit(1))
-        is not None
-    )
+    configured = any(u.id in team or u.is_oncall for u in users)
 
     def tier(u: User) -> int | None:
         if tenant and (u.tenant_id or "").lower() == tenant:

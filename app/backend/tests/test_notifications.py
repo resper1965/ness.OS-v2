@@ -882,3 +882,31 @@ async def test_customer_without_team_or_oncall_keeps_legacy_even_if_another_has_
         )
         got = [u.email for u in await svc._recipients(s, inc, (UserRole.noc,))]
     assert sorted(got) == ["a@x.invalid", "b@x.invalid"]
+
+
+@pg
+@pytest.mark.asyncio
+async def test_inactive_team_member_does_not_disable_legacy_fallback(maker):
+    from app.models import Customer, TeamMember
+
+    async with maker() as s:
+        c = Customer(key="acme", display_name="Acme", glpi_entity_id=99)
+        gone = User(
+            email="g@x.invalid", hashed_password="x", role=UserRole.noc, is_active=False
+        )
+        stay = User(email="s@x.invalid", hashed_password="x", role=UserRole.noc)
+        s.add_all([c, gone, stay])
+        await s.flush()
+        s.add(TeamMember(customer_id=c.id, user_id=gone.id))
+        await s.commit()
+        inc = Incident(
+            fingerprint="f",
+            title="t",
+            severity=5,
+            host_id="h",
+            host_name="h",
+            trigger_id="t",
+            tags={"ninf_customer_name": "acme"},
+        )
+        got = [u.email for u in await svc._recipients(s, inc, (UserRole.noc,))]
+    assert got == ["s@x.invalid"]
