@@ -65,6 +65,16 @@ async def _customers(db: AsyncSession, ids: list[int]) -> list[Customer]:
     return list(rows)
 
 
+_TEAM_ROLES = {
+    UserRole.noc,
+    UserRole.soc,
+    UserRole.operator,
+    UserRole.admin,
+    UserRole.platform_admin,
+    UserRole.cliente,
+}
+
+
 def _check(external: bool, customers: list[Customer], oncall: bool) -> None:
     if external and len(customers) != 1:
         raise HTTPException(422, "Técnico externo precisa de exatamente 1 cliente")
@@ -176,6 +186,8 @@ async def update_person(
     )
     oncall = user.is_oncall if body.is_oncall is None else body.is_oncall
     _check(external, customers, oncall)
+    if (customers or oncall) and user.role not in _TEAM_ROLES:
+        raise HTTPException(422, "Papel sem acesso operacional não entra em equipe")
     if body.full_name:
         user.full_name = body.full_name
     user.is_oncall = oncall

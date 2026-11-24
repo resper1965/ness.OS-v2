@@ -225,3 +225,17 @@ async def test_underscore_in_login_is_not_a_wildcard(api):
                 json={"email": "ana_1@b.com", "full_name": "B", "kind": "ness"},
             )
         ).status_code == 201
+
+
+async def test_role_without_operational_access_cannot_join_a_team(api, people_maker):
+    cid = await _cid(people_maker, "cavan")
+    async with people_maker() as s:
+        s.add(User(email="v@ness.com.br", hashed_password="x", role=UserRole.viewer))
+        await s.commit()
+        vid = (
+            await s.execute(select(User.id).where(User.email == "v@ness.com.br"))
+        ).scalar_one()
+    async with api() as c:
+        assert (
+            await c.put(f"/api/people/{vid}", json={"customer_ids": [cid]})
+        ).status_code == 422

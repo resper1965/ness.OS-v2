@@ -202,6 +202,13 @@ async def reconcile(glpi, d: Desired, apply: bool) -> list[str]:
                 )
             else:
                 uid[login] = int(row["id"])
+                if int(row.get("authtype", 3)) != 3:
+                    await do(
+                        f"SSO user {login}",
+                        lambda r=row: glpi.update_item(
+                            "User", r["id"], {"authtype": 3}
+                        ),
+                    )
                 if (row.get("realname") or "") != p.name:
                     await do(
                         f"RENAME user {login}",

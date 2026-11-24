@@ -15,7 +15,7 @@ from collections.abc import Coroutine
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from sqlalchemy import DateTime, func, select, update
+from sqlalchemy import DateTime, func, or_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.database import SessionLocal
@@ -165,7 +165,17 @@ async def _recipients(session, inc: Incident, roles) -> list[User]:
 
     # Cliente sem equipe e sem ninguém de plantão ainda: vale o comportamento anterior
     # (todo técnico dos papéis pedidos recebe). Por cliente, para migrar sem buraco.
-    configured = any(u.id in team or u.is_oncall for u in users)
+    configured = (
+        await session.scalar(
+            select(User.id)
+            .where(
+                User.is_active.is_(True),
+                or_(User.is_oncall.is_(True), User.id.in_(team)),
+            )
+            .limit(1)
+        )
+        is not None
+    )
 
     def tier(u: User) -> int | None:
         if tenant and (u.tenant_id or "").lower() == tenant:

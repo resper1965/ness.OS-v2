@@ -450,3 +450,13 @@ async def test_group_assign_flag_and_action_type_are_repaired(people_maker):
     assert any(x.startswith("DISABLE rule") for x in diff) and any(
         x.startswith("CREATE rule") for x in diff
     )
+
+
+async def test_adopted_user_gets_sso_authtype(people_maker):
+    await _seed(people_maker)
+    g = FakeGlpi()
+    await _diff(people_maker, g)
+    u = next(x for x in g.t["User"] if x["name"] == "ana")
+    u["authtype"] = 1
+    assert "SSO user ana" in await _diff(people_maker, g)
+    assert u["authtype"] == 3

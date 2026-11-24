@@ -910,3 +910,29 @@ async def test_inactive_team_member_does_not_disable_legacy_fallback(maker):
         )
         got = [u.email for u in await svc._recipients(s, inc, (UserRole.noc,))]
     assert got == ["s@x.invalid"]
+
+
+@pg
+@pytest.mark.asyncio
+async def test_team_outside_contract_roles_still_counts_as_configured(maker):
+    from app.models import Customer, TeamMember
+
+    async with maker() as s:
+        c = Customer(key="acme", display_name="Acme", glpi_entity_id=99)
+        noc = User(email="n@x.invalid", hashed_password="x", role=UserRole.noc)
+        soc = User(email="s@x.invalid", hashed_password="x", role=UserRole.soc)
+        s.add_all([c, noc, soc])
+        await s.flush()
+        s.add(TeamMember(customer_id=c.id, user_id=noc.id))
+        await s.commit()
+        inc = Incident(
+            fingerprint="f",
+            title="t",
+            severity=5,
+            host_id="h",
+            host_name="h",
+            trigger_id="t",
+            tags={"ninf_customer_name": "acme"},
+        )
+        got = [u.email for u in await svc._recipients(s, inc, (UserRole.soc,))]
+    assert got == []
