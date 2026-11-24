@@ -39,13 +39,14 @@ O objetivo é que o técnico **registre e resolva no GLPI [Esper]**, receba **al
 
 - **Produção:** toda mudança no GLPI de produção e a limpeza em massa exigem frase explícita do Esper. Fazer backup antes.
 - **Cliente externo:** só leitura no Hub. Nunca recebe o perfil de operador.
-- **Técnico externo:** no Hub vê só o painel; age apenas pelo chamado no GLPI e só na própria entidade **[Esper]**. Hoje existem técnicos externos só na **Cavan** e na **Alupar [Esper]**.
+- **Técnico externo:** no Hub vê só o painel; age apenas pelo chamado no GLPI e só na própria entidade **[Esper]**. Hoje existem técnicos externos na **Cavan** e na **Alupar**, e haverá mais **[Esper]**. A plataforma não pode depender de lista fixa.
 - **Marca:** DS 2.0.1, horário de Brasília. No que o cliente vê, o único nome de produto é `ness.OS`.
 - **Ambiente:** GLPI 11.0.8, que já tem 13 entidades, 29 categorias, 8 SLAs e 6 regras de chamado.
 
 ## 4. GLPI
 
 ### 4.1 Grupos e perfis
+- **O Hub é o único cadastro de pessoas, equipes, plantão e nível de prazo [Esper].** O GLPI é reconciliado pelo Hub e não é editado à mão nesses pontos. Pessoa nova é criada uma vez e ganha Hub, GLPI e alertas.
 - **Grupos por cliente [Esper].** Cada grupo reúne os técnicos da ness que atendem aquele cliente e, na Cavan e na Alupar, os técnicos do próprio cliente. Um técnico da ness pode estar em vários grupos **[Esper]**.
 - **Plantão [Esper].** Vê todas as entidades e recebe:
   - chamado de entidade sem grupo;
@@ -70,7 +71,7 @@ O mapa de categoria antiga para nova fica com o construtor. Nenhuma categoria em
 
 **Pendente:** a ness e o técnico externo podem colocar o chamado em Pendente quando dependem do usuário do cliente. O relógio pausa nos dois casos **[agente]**.
 
-**Tier de SLA:** o tier (Bronze, Silver, Gold ou Platinum) é definido por entidade no próprio GLPI, configurado à mão nas 13 entidades, sem sincronização com o Hub **[agente]**. ponytail: duas fontes de contrato; upgrade path: sincronizar a partir de `n_infraops_contracts` quando houver muitos clientes.
+**Tier de SLA:** cadastrado no cliente, no Hub, e reconciliado no GLPI **[Esper]**.
 
 ### 4.3 Quando um indica o outro [Esper]
 NOC e SOC continuam separados, mas um problema de um lado pode ser causa ou sintoma do outro. Exemplos:
