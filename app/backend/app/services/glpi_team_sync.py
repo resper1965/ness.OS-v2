@@ -184,6 +184,13 @@ async def reconcile(glpi, d: Desired, apply: bool) -> list[str]:
                 )
             else:
                 uid[login] = int(row["id"])
+                if (row.get("realname") or "") != p.name:
+                    await do(
+                        f"RENAME user {login}",
+                        lambda r=row, p=p: glpi.update_item(
+                            "User", r["id"], {"realname": p.name}
+                        ),
+                    )
                 if not int(row["is_active"]):
                     await do(
                         f"ENABLE user {login}",
@@ -201,19 +208,19 @@ async def reconcile(glpi, d: Desired, apply: bool) -> list[str]:
 
     # --- membros dos grupos gerenciados (extras são removidos)
     managed = {
-        int(g["id"]): g["name"]
+        int(g["id"]): (g["name"], int(g["entities_id"]))
         for g in cur["groups"]
         if str(g["name"]).startswith(PREFIX)
     }
-    have: dict[str, dict[int, int]] = {}
+    have: dict[tuple[str, int], dict[int, int]] = {}
     for gu in cur["group_users"]:
         if int(gu["groups_id"]) in managed:
             have.setdefault(managed[int(gu["groups_id"])], {})[int(gu["users_id"])] = (
                 int(gu["id"])
             )
     id_login = {v: k for k, v in uid.items() if v}
-    for name, (_, _, members) in d.groups.items():
-        cur_members = have.get(name, {})
+    for name, (eid, _, members) in d.groups.items():
+        cur_members = have.get((name, eid), {})
         for login in sorted(members):
             if uid.get(login) is None or uid[login] not in cur_members:
                 await do(
@@ -229,8 +236,12 @@ async def reconcile(glpi, d: Desired, apply: bool) -> list[str]:
                     f"REMOVE {who}→{name}",
                     lambda link_id=link_id: glpi.delete_item("Group_User", link_id),
                 )
-    for gname, cur_members in have.items():
-        if gname not in d.groups:  # grupo "ness · …" de cliente que saiu do cadastro
+    wanted = {(n, e) for n, (e, _, _) in d.groups.items()}
+    for (gname, geid), cur_members in have.items():
+        if (
+            gname,
+            geid,
+        ) not in wanted:  # grupo de cliente que saiu ou mudou de entidade
             for user_id, link_id in cur_members.items():
                 await do(
                     f"REMOVE #{user_id}→{gname}",
