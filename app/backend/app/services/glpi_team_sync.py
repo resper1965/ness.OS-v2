@@ -80,6 +80,9 @@ async def desired_state(session) -> Desired:
         )
     for c in customers.values():
         name = f"{PREFIX}{c.display_name}"
+        if len(name) > 255:  # limite do campo no GLPI
+            d.errors.append(f"cliente {c.key}: nome longo demais para o grupo")
+            continue
         if name == ONCALL:
             d.errors.append(f"cliente {c.key}: nome reservado ao plantão")
             continue
@@ -202,6 +205,8 @@ async def reconcile(glpi, d: Desired, apply: bool) -> list[str]:
                 )
             else:
                 uid[login] = int(row["id"])
+                # ponytail: e-mail de usuário já existente não é reconciliado (notificação do GLPI
+                # está desligada); upgrade path: ler UserEmail e comparar quando ela voltar.
                 if int(row.get("authtype", 3)) != 3:
                     await do(
                         f"SSO user {login}",

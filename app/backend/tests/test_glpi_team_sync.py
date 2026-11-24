@@ -505,3 +505,14 @@ async def test_malformed_rule_is_disabled_before_replacement_is_created(people_m
     assert next(i for i, x in enumerate(diff) if x.startswith("DISABLE rule")) < next(
         i for i, x in enumerate(diff) if x.startswith("CREATE rule")
     )
+
+
+async def test_customer_name_too_long_for_glpi_group_aborts(people_maker):
+    cav, _ = await _seed(people_maker)
+    async with people_maker() as s:
+        c = await s.get(Customer, cav.id)
+        c.display_name = "x" * 255
+        await s.commit()
+    g = FakeGlpi()
+    diff = await _diff(people_maker, g)
+    assert diff[0].startswith("ERRO") and g.writes == 0
