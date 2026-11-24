@@ -83,7 +83,12 @@ Session::callAsSystem(function () use ($apply, $out, $DB) {
             $fields['name'] = 'Técnico externo';
             $fields['comment'] = 'Técnico do cliente. Gerido pelo ness.OS Hub.';
             $fields['is_default'] = 0;
-            $pid = (new Profile())->add(Toolbox::addslashes_deep($fields));
+            foreach (['helpdesk_item_type', 'managed_domainrecordtypes'] as $f) {
+                if (is_string($fields[$f] ?? null)) {
+                    $fields[$f] = importArrayFromDB($fields[$f]);
+                }
+            }
+            $pid = (new Profile())->add($fields);
             if (!$pid) {
                 throw new RuntimeException('Falha no perfil');
             }
