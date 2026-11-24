@@ -80,6 +80,9 @@ async def desired_state(session) -> Desired:
         )
     for c in customers.values():
         name = f"{PREFIX}{c.display_name}"
+        if name == ONCALL:
+            d.errors.append(f"cliente {c.key}: nome reservado ao plantão")
+            continue
         members = {
             login_of[uid]
             for uid in teams.get(c.id, ())

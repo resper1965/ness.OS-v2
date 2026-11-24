@@ -317,3 +317,14 @@ async def test_run_sync_selects_all_entities_before_reading(people_maker, monkey
     await sync.run_sync(apply=False)
     get_settings.cache_clear()
     assert calls[0] == "all" and "Profile" in calls
+
+
+async def test_customer_named_like_oncall_group_aborts(people_maker):
+    cav, _ = await _seed(people_maker)
+    async with people_maker() as s:
+        c = await s.get(Customer, cav.id)
+        c.display_name = "Plantão"
+        await s.commit()
+    g = FakeGlpi()
+    diff = await _diff(people_maker, g)
+    assert diff[0].startswith("ERRO") and g.writes == 0
