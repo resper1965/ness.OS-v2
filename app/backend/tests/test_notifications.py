@@ -23,7 +23,11 @@ from app.models import (
     Asset,
     Contract,
     ContractChange,
+    Customer,
+    CustomerAlias,
+    CustomerContact,
     EscalationStep,
+    HostgroupRule,
     Incident,
     IncidentAction,
     Notification,
@@ -32,6 +36,7 @@ from app.models import (
     SlaCalendarHours,
     SlaHoliday,
     SlaPolicy,
+    TeamMember,
     User,
     UserRole,
 )
@@ -128,6 +133,11 @@ async def maker(monkeypatch):
             SlaPolicy,
             EscalationStep,
             ContractChange,
+            Customer,
+            CustomerAlias,
+            CustomerContact,
+            HostgroupRule,
+            TeamMember,
         )
     ]
     async with engine.begin() as c:
@@ -189,7 +199,12 @@ async def _seed(
         s.add(inc)
         roles = [UserRole.soc, UserRole.noc, UserRole.admin][:users]
         us = [
-            User(email=f"u{i}@example.invalid", hashed_password="x", role=r)
+            User(
+                email=f"u{i}@example.invalid",
+                hashed_password="x",
+                role=r,
+                is_oncall=r != UserRole.admin,
+            )
             for i, r in enumerate(roles)
         ]
         s.add_all(us)
@@ -677,3 +692,68 @@ async def test_ticket_opened_late_still_notifies(maker, monkeypatch):
         await s.commit()
     assert (await svc.sweep(MON))["notified"] == 1
     assert len(ch.emails) == 1
+
+
+async def _team_case(maker):
+    """Cliente `acme` com equipe (t1), um plantão, uma gestão e um técnico de outra equipe."""
+    from app.models import Customer, TeamMember
+
+    async with maker() as s:
+        c = Customer(key="acme", display_name="Acme", glpi_entity_id=99)
+        s.add(c)
+        mk = lambda n, role, **kw: User(  # noqa: E731
+            email=f"{n}@example.invalid", hashed_password="x", role=role, **kw
+        )
+        t1, oncall, boss, other = (
+            mk("t1", UserRole.noc),
+            mk("plantao", UserRole.noc, is_oncall=True),
+            mk("boss", UserRole.admin),
+            mk("other", UserRole.noc),
+        )
+        s.add_all([t1, oncall, boss, other])
+        await s.flush()
+        s.add(TeamMember(customer_id=c.id, user_id=t1.id))
+        # `other` está só na equipe de outro cliente
+        c2 = Customer(key="zeta", display_name="Zeta", glpi_entity_id=98)
+        s.add(c2)
+        await s.flush()
+        s.add(TeamMember(customer_id=c2.id, user_id=other.id))
+        await s.commit()
+
+
+@pg
+@pytest.mark.asyncio
+async def test_recipients_team_then_oncall_then_management(maker):
+    roles = (UserRole.noc, UserRole.admin)
+    await _team_case(maker)
+    async with maker() as s:
+        inc = Incident(fingerprint="f", title="t", severity=5, host_id="h", host_name="h",
+                       trigger_id="t", tags={"ninf_customer_name": "acme"})
+        got = [u.email.split("@")[0] for u in await svc._recipients(s, inc, roles)]
+    assert got == ["t1", "plantao", "boss"]  # `other` (equipe de outro cliente) fora
+
+
+@pg
+@pytest.mark.asyncio
+async def test_no_team_falls_back_to_oncall_then_management(maker):
+    await _team_case(maker)
+    async with maker() as s:
+        inc = Incident(fingerprint="f", title="t", severity=5, host_id="h", host_name="h",
+                       trigger_id="t", tags={"ninf_customer_name": "semequipe"})
+        got = [u.email.split("@")[0] for u in await svc._recipients(s, inc, (UserRole.noc, UserRole.admin))]
+    assert got == ["plantao", "boss"]
+
+
+@pg
+@pytest.mark.asyncio
+async def test_external_technician_only_on_own_customer(maker):
+    async with maker() as s:
+        s.add_all([
+            User(email="e1@x.invalid", hashed_password="x", role=UserRole.cliente, tenant_id="acme"),
+            User(email="e2@x.invalid", hashed_password="x", role=UserRole.cliente, tenant_id="zeta"),
+        ])
+        await s.commit()
+        inc = Incident(fingerprint="f", title="t", severity=5, host_id="h", host_name="h",
+                       trigger_id="t", tags={"ninf_customer_name": "acme"})
+        got = [u.email for u in await svc._recipients(s, inc, (UserRole.cliente,))]
+    assert got == ["e1@x.invalid"]

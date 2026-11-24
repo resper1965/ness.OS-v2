@@ -18,16 +18,18 @@ from typing import Any
 from sqlalchemy import DateTime, func, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
-from app.core.dependencies import NOC_ROLES
 from app.database import SessionLocal
 from app.integrations.email import ResendEmailClient
 from app.integrations.webpush import send_web_push
 from app.models import (
+    Customer,
     Incident,
     IncidentAction,
     Notification,
     PushSubscription,
+    TeamMember,
     User,
+    UserRole,
 )
 from app.services.sla import (
     PolicyCfg,
@@ -129,20 +131,51 @@ def _tenant(inc: Incident) -> str:
 
 
 async def _recipients(session, inc: Incident, roles) -> list[User]:
-    """Resolvidos no backend: papel (passos do contrato) + tenant do incidente."""
+    """Equipe do cliente, depois plantão, depois gestão (spec 2026-11-24, A1).
+
+    Técnico de operação só recebe se estiver na equipe do cliente do caso ou de plantão.
+    O papel `cliente` segue a regra antiga (tenant do incidente); gestão não depende de equipe.
+    """
     tenant = _tenant(inc)
-    stmt = select(User).where(User.is_active.is_(True), User.role.in_(roles))
-    users = (await session.execute(stmt)).scalars().all()
-    eligible = [
-        u
-        for u in users
-        if (u.role in NOC_ROLES) or (tenant and (u.tenant_id or "").lower() == tenant)
-    ]
-    rank = {r: i for i, r in enumerate(roles)}
-    return sorted(
-        eligible,
-        key=lambda u: (u.id != inc.assigned_user_id, rank[u.role], u.id),
+    users = (
+        (
+            await session.execute(
+                select(User).where(User.is_active.is_(True), User.role.in_(roles))
+            )
+        )
+        .scalars()
+        .all()
     )
+    team = set(
+        (
+            await session.execute(
+                select(TeamMember.user_id)
+                .join(Customer, Customer.id == TeamMember.customer_id)
+                .where(func.lower(Customer.key) == tenant)
+            )
+        ).scalars()
+    )
+
+    def tier(u: User) -> int | None:
+        if tenant and (u.tenant_id or "").lower() == tenant:
+            return 0
+        if u.role == UserRole.cliente:
+            return None
+        if u.role in (UserRole.admin, UserRole.platform_admin):
+            return 2
+        if u.id in team:
+            return 0
+        return 1 if u.is_oncall else None
+
+    rank = {r: i for i, r in enumerate(roles)}
+    eligible = [(tier(u), u) for u in users if tier(u) is not None]
+    return [
+        u
+        for _, u in sorted(
+            eligible,
+            key=lambda t: (t[0], t[1].id != inc.assigned_user_id, rank[t[1].role], t[1].id),
+        )
+    ]
 
 
 async def _claim(session, inc: Incident, user: User, channel: str, step: int, now):
