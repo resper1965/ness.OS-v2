@@ -471,3 +471,37 @@ async def test_rule_with_empty_group_value_is_replaced_not_crashing(people_maker
     assert any(x.startswith("DISABLE rule") for x in diff) and any(
         x.startswith("CREATE rule") for x in diff
     )
+
+
+async def test_stale_profile_is_revoked_before_new_one_is_granted(people_maker):
+    cav, _ = await _seed(people_maker)
+    g = FakeGlpi()
+    await _diff(people_maker, g)
+    async with people_maker() as s:
+        other = (
+            await s.execute(select(Customer).where(Customer.key == "tbe"))
+        ).scalar_one()
+        u = (
+            (await s.execute(select(User).where(User.role == UserRole.cliente)))
+            .scalars()
+            .first()
+        )
+        u.tenant_id = other.key
+        await s.execute(delete(TeamMember).where(TeamMember.user_id == u.id))
+        s.add(TeamMember(customer_id=other.id, user_id=u.id))
+        await s.commit()
+    diff = await _diff(people_maker, g)
+    i = next(i for i, x in enumerate(diff) if x.startswith("UNPROFILE"))
+    j = next(i for i, x in enumerate(diff) if x.startswith("PROFILE"))
+    assert i < j
+
+
+async def test_malformed_rule_is_disabled_before_replacement_is_created(people_maker):
+    await _seed(people_maker)
+    g = FakeGlpi()
+    await _diff(people_maker, g)
+    g.t["RuleCriteria"] = []
+    diff = await _diff(people_maker, g)
+    assert next(i for i, x in enumerate(diff) if x.startswith("DISABLE rule")) < next(
+        i for i, x in enumerate(diff) if x.startswith("CREATE rule")
+    )

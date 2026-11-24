@@ -286,6 +286,22 @@ async def reconcile(glpi, d: Desired, apply: bool) -> list[str]:
         want_of[login] = (
             (ext_pid, p.entity_id or 0, 0) if p.external else (ness_pid, 0, 1)
         )
+    for r in cur["profile_users"]:
+        owner = id_login.get(int(r["users_id"]))
+        if not owner or int(r["profiles_id"]) not in managed_pids:
+            continue
+        key = (
+            int(r["profiles_id"]),
+            int(r["entities_id"]),
+            int(r.get("is_recursive", 0)),
+        )
+        if want_of.get(owner) != key:
+            kind = "externo" if key[0] == ext_pid else "técnico"
+            await do(
+                f"UNPROFILE {owner}←{kind}",
+                lambda r=r: glpi.delete_item("Profile_User", r["id"]),
+            )
+
     for login, want in want_of.items():
         person_id = uid.get(login)
         have_rows = {
@@ -310,21 +326,6 @@ async def reconcile(glpi, d: Desired, apply: bool) -> list[str]:
                     },
                 ),
             )
-    for r in cur["profile_users"]:
-        owner = id_login.get(int(r["users_id"]))
-        if not owner or int(r["profiles_id"]) not in managed_pids:
-            continue
-        key = (
-            int(r["profiles_id"]),
-            int(r["entities_id"]),
-            int(r.get("is_recursive", 0)),
-        )
-        if want_of.get(owner) != key:
-            kind = "externo" if key[0] == ext_pid else "técnico"
-            await do(
-                f"UNPROFILE {owner}←{kind}",
-                lambda r=r: glpi.delete_item("Profile_User", r["id"]),
-            )
 
     # --- regra: entidade -> grupo
     # Regra do Hub só vale com exatamente 1 critério de entidade e 1 ação de grupo;
@@ -346,6 +347,15 @@ async def reconcile(glpi, d: Desired, apply: bool) -> list[str]:
         if _exact(r)
     }
     rules = {int(r["_criteria"][0]["pattern"]): r for r in cur["rules"] if _exact(r)}
+    ok_rules = {r["id"] for r in rules.values()}
+    for r in cur[
+        "rules"
+    ]:  # regra do Hub sem critério de entidade: desligar (nunca apagar)
+        if r["id"] not in ok_rules and int(r.get("is_active", 0)):
+            await do(
+                f"DISABLE rule {r['name']} sem critério de entidade",
+                lambda r=r: glpi.update_item("RuleTicket", r["id"], {"is_active": 0}),
+            )
     for eid, name in d.rules.items():
         r = rules.get(eid)
         if r is None:
@@ -438,15 +448,6 @@ async def reconcile(glpi, d: Desired, apply: bool) -> list[str]:
             await do(
                 f"ENABLE rule entidade {eid}",
                 lambda r=r: glpi.update_item("RuleTicket", r["id"], {"is_active": 1}),
-            )
-    ok_rules = {r["id"] for r in rules.values()}
-    for r in cur[
-        "rules"
-    ]:  # regra do Hub sem critério de entidade: desligar (nunca apagar)
-        if r["id"] not in ok_rules and int(r.get("is_active", 0)):
-            await do(
-                f"DISABLE rule {r['name']} sem critério de entidade",
-                lambda r=r: glpi.update_item("RuleTicket", r["id"], {"is_active": 0}),
             )
     for eid, r in rules.items():
         if eid not in d.rules and int(r.get("is_active", 0)):

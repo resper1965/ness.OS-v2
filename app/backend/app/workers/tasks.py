@@ -588,7 +588,12 @@ def process_ticket_resolution(
         redis.close()
 
 
-@celery_app.task(name="app.workers.tasks.sync_glpi_team", acks_late=True)
+@celery_app.task(
+    name="app.workers.tasks.sync_glpi_team",
+    acks_late=True,
+    soft_time_limit=600,
+    time_limit=660,
+)
 def sync_glpi_team() -> dict[str, Any]:
     """Reconcilia pessoas e equipes do Hub no GLPI (a cada 15 min e após cada cadastro)."""
     from app.config import get_settings
@@ -597,4 +602,9 @@ def sync_glpi_team() -> dict[str, Any]:
     if not get_settings().glpi_team_user_token:
         return {"skipped": True}
     diff = asyncio.run(run_sync(apply=True))
-    return {"skipped": True} if diff == ["JA_EM_EXECUCAO"] else {"changes": len(diff)}
+    if diff == ["JA_EM_EXECUCAO"]:
+        return {"skipped": True}
+    errors = [x for x in diff if x.startswith("ERRO")]
+    if errors:
+        raise RuntimeError(f"Reconciliação com o GLPI recusada: {errors}")
+    return {"changes": len(diff)}
