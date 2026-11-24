@@ -313,18 +313,22 @@ async def reconcile(glpi, d: Desired, apply: bool) -> list[str]:
             )
 
     # --- regra: entidade -> grupo
+    # Regra do Hub só vale com exatamente 1 critério de entidade e 1 ação de grupo;
+    # qualquer outra forma é desligada (abaixo) e recriada.
+    def _exact(r) -> bool:
+        return (
+            len(r["_criteria"]) == 1
+            and r["_criteria"][0]["criteria"] == "entities_id"
+            and len(r["_actions"]) == 1
+            and r["_actions"][0]["field"] == "_groups_id_assign"
+        )
+
     crit = {
-        int(c["pattern"]): c
+        int(r["_criteria"][0]["pattern"]): r["_criteria"][0]
         for r in cur["rules"]
-        for c in r["_criteria"]
-        if c["criteria"] == "entities_id"
+        if _exact(r)
     }
-    rules = {
-        int(c["pattern"]): r
-        for r in cur["rules"]
-        for c in r["_criteria"]
-        if c["criteria"] == "entities_id"
-    }
+    rules = {int(r["_criteria"][0]["pattern"]): r for r in cur["rules"] if _exact(r)}
     for eid, name in d.rules.items():
         r = rules.get(eid)
         if r is None:
@@ -394,11 +398,17 @@ async def reconcile(glpi, d: Desired, apply: bool) -> list[str]:
                     "RuleCriteria", c["id"], {"condition": 0}
                 ),
             )
-        if int(r.get("entities_id", 0)) != 0 or not int(r.get("is_recursive", 1)):
+        if (
+            int(r.get("entities_id", 0)) != 0
+            or not int(r.get("is_recursive", 1))
+            or r.get("match", "AND") != "AND"
+        ):
             await do(
                 f"FIX rule entidade {eid} escopo",
                 lambda r=r: glpi.update_item(
-                    "RuleTicket", r["id"], {"entities_id": 0, "is_recursive": 1}
+                    "RuleTicket",
+                    r["id"],
+                    {"entities_id": 0, "is_recursive": 1, "match": "AND"},
                 ),
             )
         if not int(r["is_active"]):
@@ -416,7 +426,7 @@ async def reconcile(glpi, d: Desired, apply: bool) -> list[str]:
                 lambda r=r: glpi.update_item("RuleTicket", r["id"], {"is_active": 0}),
             )
     for eid, r in rules.items():
-        if eid not in d.rules:
+        if eid not in d.rules and int(r.get("is_active", 0)):
             await do(
                 f"DISABLE rule entidade {eid}",
                 lambda r=r: glpi.update_item("RuleTicket", r["id"], {"is_active": 0}),

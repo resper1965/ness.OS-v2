@@ -3,7 +3,7 @@
 import itertools
 
 import pytest
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, update
 
 from app.models import Customer, TeamMember, User, UserRole
 from app.services import glpi_team_sync as sync
@@ -386,3 +386,31 @@ async def test_managed_rule_without_entity_criterion_is_disabled(people_maker):
     diff = await _diff(people_maker, g)
     assert any(x.startswith("DISABLE rule ness-hub") for x in diff)
     assert any(x.startswith("CREATE rule") for x in diff)
+
+
+async def test_rule_with_surplus_criterion_or_action_is_replaced(people_maker):
+    await _seed(people_maker)
+    g = FakeGlpi()
+    await _diff(people_maker, g)
+    rid = next(
+        r["id"] for r in g.t["RuleTicket"] if r["name"].startswith(sync.RULE_PREFIX)
+    )
+    g.t["RuleCriteria"].append(
+        {"id": 901, "rules_id": rid, "criteria": "name", "condition": 0, "pattern": "x"}
+    )
+    diff = await _diff(people_maker, g)
+    assert any(x.startswith("DISABLE rule") for x in diff) and any(
+        x.startswith("CREATE rule") for x in diff
+    )
+    assert await _diff(people_maker, g) == []
+
+
+async def test_obsolete_disabled_rule_causes_no_writes(people_maker):
+    await _seed(people_maker)
+    g = FakeGlpi()
+    await _diff(people_maker, g)
+    async with people_maker() as s:
+        await s.execute(update(Customer).values(active=False))
+        await s.commit()
+    await _diff(people_maker, g)
+    assert await _diff(people_maker, g) == []
