@@ -134,3 +134,47 @@ async def test_delete_deactivates_and_bumps_session_epoch(api, people_maker):
         )
     async with people_maker() as s:
         assert (await s.get(User, pid)).session_epoch == 1
+
+
+async def test_same_local_part_is_rejected_because_glpi_login_would_collide(api):
+    async with api() as c:
+        assert (
+            await c.post(
+                "/api/people",
+                json={"email": "alex@ness.com.br", "full_name": "A", "kind": "ness"},
+            )
+        ).status_code == 201
+        r = await c.post(
+            "/api/people",
+            json={"email": "alex@cliente.com", "full_name": "B", "kind": "ness"},
+        )
+        assert r.status_code == 409
+
+
+async def test_inactive_customer_is_rejected(api, people_maker):
+    from sqlalchemy import update
+
+    from app.models import Customer
+
+    a = await _cid(people_maker, "cavan")
+    async with people_maker() as s:
+        await s.execute(update(Customer).where(Customer.id == a).values(active=False))
+        await s.commit()
+    async with api() as c:
+        r = await c.post(
+            "/api/people",
+            json={
+                "email": "x@c.com",
+                "full_name": "X",
+                "kind": "externo",
+                "customer_ids": [a],
+            },
+        )
+        assert r.status_code == 422
+
+
+async def test_admin_cannot_deactivate_self_through_update(api):
+    async with api() as c:
+        assert (
+            await c.put("/api/people/7", json={"is_active": False})
+        ).status_code in (404, 409)

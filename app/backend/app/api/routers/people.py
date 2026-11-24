@@ -48,12 +48,18 @@ def _kick() -> None:
 async def _customers(db: AsyncSession, ids: list[int]) -> list[Customer]:
     ids = sorted(set(ids))
     rows = (
-        (await db.execute(select(Customer).where(Customer.id.in_(ids)))).scalars().all()
+        (
+            await db.execute(
+                select(Customer).where(Customer.id.in_(ids), Customer.active.is_(True))
+            )
+        )
+        .scalars()
+        .all()
         if ids
         else []
     )
     if len(rows) != len(ids):
-        raise HTTPException(422, "Cliente inexistente")
+        raise HTTPException(422, "Cliente inexistente ou inativo")
     if any(c.glpi_entity_id is None for c in rows):
         raise HTTPException(422, "Cliente sem entidade GLPI não aceita equipe")
     return list(rows)
@@ -119,6 +125,13 @@ async def create_person(
     email = body.email.lower()
     if "@" not in email or email.startswith("@"):
         raise HTTPException(422, "E-mail inválido")
+    taken = (
+        await db.execute(
+            select(User.id).where(User.email.ilike(email.split("@")[0] + "@%"))
+        )
+    ).first()
+    if taken:
+        raise HTTPException(409, "Já existe pessoa com o mesmo login antes do @")
     user = User(
         email=email,
         full_name=body.full_name,
@@ -165,6 +178,8 @@ async def update_person(
     user.is_oncall = oncall
     if external:
         user.tenant_id = customers[0].key
+    if body.is_active is False and user.id == admin.id:
+        raise HTTPException(409, "Não é possível desativar a si mesmo")
     if body.is_active is not None and body.is_active != user.is_active:
         user.is_active = body.is_active
         user.session_epoch += 1

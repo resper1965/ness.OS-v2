@@ -123,8 +123,10 @@ async def _read(glpi) -> dict:
 
 async def reconcile(glpi, d: Desired, apply: bool) -> list[str]:
     """Diferenças no formato "CREATE user x"; grava só com apply=True. Idempotente."""
+    if d.errors:  # ambiguidade de login: nada é gravado até o cadastro ser corrigido
+        return [f"ERRO {e}" for e in d.errors]
     cur = await _read(glpi)
-    diff = [f"ERRO {e}" for e in d.errors]
+    diff: list[str] = []
 
     async def do(desc: str, coro_fn):
         diff.append(desc)
@@ -265,6 +267,17 @@ async def reconcile(glpi, d: Desired, apply: bool) -> list[str]:
             )
     for r in cur["profile_users"]:
         owner = id_login.get(int(r["users_id"]))
+        if (
+            owner
+            and owner not in in_team
+            and int(r["profiles_id"]) == ness_pid
+            and int(r["entities_id"]) == 0
+            and d.people[owner].active
+        ):
+            await do(
+                f"UNPROFILE {owner}←técnico",
+                lambda r=r: glpi.delete_item("Profile_User", r["id"]),
+            )
         if int(r["profiles_id"]) == ext_pid and owner:
             login, p = owner, d.people[owner]
             if not (

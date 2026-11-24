@@ -3,7 +3,7 @@
 import itertools
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import delete, select
 
 from app.models import Customer, TeamMember, User, UserRole
 from app.services import glpi_team_sync as sync
@@ -159,3 +159,31 @@ async def test_dry_run_writes_nothing(people_maker):
     g = FakeGlpi()
     assert await _diff(people_maker, g, apply=False)
     assert g.writes == 0
+
+
+async def test_login_collision_aborts_without_writes(people_maker):
+    cav, users = await _seed(people_maker)
+    async with people_maker() as s:
+        s.add(User(email="ana@outro.com", hashed_password="x", role=UserRole.noc))
+        await s.commit()
+    g = FakeGlpi()
+    diff = await _diff(people_maker, g)
+    assert diff and diff[0].startswith("ERRO") and g.writes == 0
+
+
+async def test_internal_removed_from_all_teams_loses_technician_profile(people_maker):
+    cav, users = await _seed(people_maker)
+    g = FakeGlpi()
+    await _diff(people_maker, g)
+    ana = next(u for u in g.t["User"] if u["name"] == "ana")
+    assert any(r["users_id"] == ana["id"] for r in g.t["Profile_User"])
+    async with people_maker() as s:
+        u = (
+            await s.execute(select(User).where(User.email == "ana@ness.com.br"))
+        ).scalar_one()
+        u.is_oncall = False
+        await s.execute(delete(TeamMember).where(TeamMember.user_id == u.id))
+        await s.commit()
+    diff = await _diff(people_maker, g)
+    assert "UNPROFILE ana←técnico" in diff
+    assert not any(r["users_id"] == ana["id"] for r in g.t["Profile_User"])
