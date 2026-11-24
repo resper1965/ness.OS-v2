@@ -177,3 +177,12 @@ Lote de `73adaa0` a `adff6df`: página de Vulnerabilidades (#286) e evidência d
 - Primeira carga (`infra/scripts/vuln-carga.sh`, 5 min): rzk 125.983 linhas / 477 máquinas / 34 sem suporte; target 5.555 / 72 / 1. Nada em `sem_cliente`.
 - Envio mensal: cron do `agente` no stack, `0 9 1 * *` UTC (06:00 de Brasília), `vuln-carga.sh --email ccarvalho@ness.com.br`.
 - Rollback: API `docker compose -p app -f releases/73adaa0a8604bfd8c2be3aeccd407ce473cc5c0c/app/docker-compose.yml -f …/docker-compose.tickets.yml up -d --no-deps --force-recreate api worker-alerts worker-ml`; frontend `NINF_FRONTEND_IMAGE=…@sha256:15605b17…` nos dois `.env` e recriar: `docker compose -p app --project-directory releases/adff6df…/app -f …/docker-compose.yml -f …/docker-compose.tickets.yml --env-file …/.env up -d --no-deps --force-recreate frontend`. A tabela nova é aditiva e pode ficar.
+
+## Promoção `6220110` (24/11/2026): integração Wazuh → Hub
+
+- Frase do Esper: "liga a integração".
+- Chave `NINF_WAZUH_WEBHOOK_API_KEY` gravada nos dois `.env` antes da promoção (backup em `change-backups/wazuh-key-20261124T110842`).
+- API e workers: `ghcr.io/resper1965/ninf-api@sha256:d741b2c2bc30730f49c3113f4be628ea18ee43db2c40e33d794043499275ca37`. `promotion=PASS`, `backup_set=20261124T111106-0300`, release anterior `adff6df`, `hub_http=401`. Rota nova: 401 sem chave e com chave errada.
+- Wazuh: `custom-ness-hub` em `/var/ossec/integrations/`, bloco `<integration>` nível ≥ 10 no `ossec.conf` (backup `ossec.conf.bak-20261124-hub`). `pool-01` às 11:25, `rzk-01` às 11:33. O Python do Wazuh não tinha CA: corrigido em #289.
+- Ponta a ponta: alerta sintético da `pool-01` resolvido para `target` pelo grupo `TARGET-SERVIDORES` (registro de teste apagado). Após 10 min: 12 decisões (`rzk` 11, `target` 1), spool vazio nos dois managers.
+- Rollback: restaurar `ossec.conf.bak-20261124-hub` e reiniciar o manager; API conforme o comando do script (release `adff6df`).

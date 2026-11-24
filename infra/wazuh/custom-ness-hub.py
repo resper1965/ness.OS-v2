@@ -8,12 +8,15 @@ the monthly load (vuln-carga.sh), not as SOC alerts.
 
 import json
 import socket
+import ssl
 import struct
 import sys
 import urllib.request
 from pathlib import Path
 
 WDB = "/var/ossec/queue/db/wdb"
+# Wazuh's bundled Python has no CA store: use the OS one (Debian/Ubuntu path).
+CA_FILE = "/etc/ssl/certs/ca-certificates.crt"
 SPOOL = Path("/var/ossec/logs/ness-hub-spool")
 
 
@@ -60,7 +63,9 @@ def main(alert_file: str, api_key: str, url: str) -> int:
     # goes to the spool (one file per alert id) and is replayed by the runbook loop;
     # the Hub dedups replays by alert id.
     try:
-        with urllib.request.urlopen(req, timeout=120) as resp:
+        with urllib.request.urlopen(
+            req, timeout=120, context=ssl.create_default_context(cafile=CA_FILE)
+        ) as resp:
             resp.read()
     except OSError as exc:
         SPOOL.mkdir(mode=0o750, exist_ok=True)
