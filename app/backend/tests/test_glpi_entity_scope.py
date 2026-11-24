@@ -298,3 +298,62 @@ async def test_entity_selection_connection_failure_is_transient_and_closes_sessi
     with pytest.raises(GLPITransientError):
         await client.change_active_entity(1)
     assert client.session_token is None
+
+
+def _all_entities_client(monkeypatch, change, active):
+    def handler(request):
+        if request.url.path.endswith("/changeActiveEntities"):
+            return httpx.Response(200, json=change)
+        if request.url.path.endswith("/getActiveEntities"):
+            return httpx.Response(200, json={"active_entity": active})
+        if request.url.path.endswith("/killSession"):
+            return httpx.Response(200, json=True)
+        raise AssertionError(f"unexpected request: {request.method} {request.url.path}")
+
+    original = httpx.AsyncClient
+    monkeypatch.setattr(
+        httpx,
+        "AsyncClient",
+        lambda **kwargs: original(transport=httpx.MockTransport(handler), **kwargs),
+    )
+    client = GLPIClient(
+        base_url="http://glpi/apirest.php", app_token="app", user_token="user"
+    )
+    client.session_token = "session"
+    return client
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "change,active",
+    [
+        (False, {}),
+        (
+            True,
+            {"active_entity_recursive": True, "active_entities": [{"id": 0}]},
+        ),
+        (
+            True,
+            {
+                "active_entity_recursive": False,
+                "active_entities": [{"id": 0}, {"id": 1}],
+            },
+        ),
+    ],
+)
+async def test_use_all_entities_refuses_partial_scope(monkeypatch, change, active):
+    client = _all_entities_client(monkeypatch, change, active)
+    with pytest.raises(PermissionError):
+        await client.use_all_entities()
+    assert client.session_token is None
+
+
+@pytest.mark.asyncio
+async def test_use_all_entities_accepts_full_scope(monkeypatch):
+    client = _all_entities_client(
+        monkeypatch,
+        True,
+        {"active_entity_recursive": True, "active_entities": [{"id": 0}, {"id": 1}]},
+    )
+    await client.use_all_entities()
+    assert client.session_token == "session"

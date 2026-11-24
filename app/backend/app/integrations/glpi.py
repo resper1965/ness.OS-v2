@@ -167,23 +167,40 @@ class GLPIClient:
             raise
 
     async def use_all_entities(self) -> None:
-        """Enxerga todas as entidades permitidas (sem isso, só a ativa por padrão)."""
+        """Seleciona todas as entidades permitidas e confere; sem isso, só a ativa por padrão."""
         if not self.session_token:
             await self.init_session()
-        await self._write_raw(
-            "POST", "changeActiveEntities", {"entities_id": "all", "is_recursive": True}
-        )
-
-    async def _write_raw(self, method: str, path: str, body: dict) -> None:
         try:
             async with httpx.AsyncClient(
                 timeout=10.0, follow_redirects=False
             ) as client:
-                res = await client.request(
-                    method, f"{self.base_url}/{path}", headers=self.headers, json=body
+                res = await client.post(
+                    f"{self.base_url}/changeActiveEntities",
+                    headers=self.headers,
+                    json={"entities_id": "all", "is_recursive": True},
                 )
                 res.raise_for_status()
+                if res.json() is not True:
+                    raise GLPIPermanentError(
+                        "GLPI recusou o escopo de todas as entidades"
+                    )
+                cur = await client.get(
+                    f"{self.base_url}/getActiveEntities", headers=self.headers
+                )
+                cur.raise_for_status()
+                active = (cur.json() or {}).get("active_entity") or {}
+                selected = active.get("active_entities")
+                if (
+                    active.get("active_entity_recursive") is not True
+                    or not isinstance(selected, list)
+                    or len(selected) < 2
+                ):
+                    raise GLPIPermanentError("GLPI não ativou todas as entidades")
+        except GLPIPermanentError:
+            await self.kill_session()
+            raise
         except Exception as exc:
+            await self.kill_session()
             raise _glpi_failure("seleção de entidades", exc) from exc
 
     async def kill_session(self) -> bool:
