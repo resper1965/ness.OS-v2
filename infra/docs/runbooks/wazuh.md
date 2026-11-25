@@ -80,3 +80,10 @@ Volume medido em 24/11 (00h–10h): `pool-01` 42 alertas, `rzk-01` 327 (sem cont
 Falha de envio (Hub fora, timeout de 120 s) grava o alerta em `/var/ossec/logs/ness-hub-spool/<id>.json`. Reenvio, que o dedup do Hub torna seguro: `for f in /var/ossec/logs/ness-hub-spool/*.json; do /var/ossec/integrations/custom-ness-hub "$f" CHAVE URL && rm "$f"; done`. Spool com arquivos é sinal de problema: conferir no pós-ativação.
 
 Ordem: primeiro `pool-01`, depois `rzk-01`. Rollback: restaurar o `ossec.conf` e reiniciar o manager. Teste do script: `python3 infra/wazuh/test_custom_ness_hub.py`.
+
+## Acesso das pessoas ao painel (SAML)
+
+O Hub não escreve no Wazuh (ADR 0015: cada sistema autoriza no próprio banco). Em **cada** servidor (`rzk-01` e `pool-01`):
+
+- **Leitura:** automática para qualquer `@ness.com.br` (regra `sso-leitura`, papel `readonly`; no indexador, `readall` para `*@ness.com.br`).
+- **Administrador:** 1) adicionar `MATCH user_name` na regra `sso-admins` (API `PUT /security/rules/100`) e 2) listar o e-mail em `users:` de `all_access` em `/etc/wazuh-indexer/opensearch-security/roles_mapping.yml` e rodar `securityadmin.sh`. Tirar é o inverso. Conferir com `GET /security/rules` e entrando com a pessoa.

@@ -11,7 +11,8 @@ import bcrypt as _bcrypt
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import delete, func, select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -26,7 +27,7 @@ from app.core.session import (
     set_session_cookie,
 )
 from app.database import get_db
-from app.models.users import Identity, User, UserRole
+from app.models.users import Identity, PendingLogin, User, UserRole
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -275,6 +276,34 @@ class OidcCallbackRequest(BaseModel):
     code_verifier: str | None = None
 
 
+async def _remember_pending(
+    db: AsyncSession, issuer: str, subject: str, email: object
+) -> None:
+    """Guarda a identidade recusada para o admin vincular. O e-mail é só rótulo, nunca chave."""
+    shown = email.strip()[:320] if isinstance(email, str) and email.strip() else None
+    try:
+        stmt = pg_insert(PendingLogin).values(
+            issuer=issuer[:512], subject=subject[:255], email=shown
+        )
+        await db.execute(
+            stmt.on_conflict_do_update(
+                index_elements=["issuer", "subject"],
+                set_={
+                    "attempts": PendingLogin.attempts + 1,
+                    "last_seen": func.now(),
+                    "email": stmt.excluded.email,
+                },
+            )
+        )
+        await db.commit()
+    except Exception:  # noqa: BLE001 - o 403 não pode depender deste registro
+        logger.warning("pending_login não registrado", exc_info=True)
+        try:
+            await db.rollback()
+        except Exception:  # noqa: BLE001
+            pass
+
+
 @router.post(
     "/oidc/callback",
     response_model=MeResponse,
@@ -346,6 +375,7 @@ async def oidc_callback(
     user = result.scalar_one_or_none()
     if user is None:
         logger.warning("OIDC sem vínculo: iss=%r sub=%r", issuer, subject)
+        await _remember_pending(db, issuer, subject, claims.get("email"))
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Acesso não autorizado. Solicite o cadastro ao administrador.",
@@ -413,6 +443,13 @@ async def create_identity(
 
     O issuer deve ser idêntico ao ``iss`` do token (sem normalizar barra final nem caixa).
     """
+    return await _link_identity(body, admin, db, commit=True)
+
+
+async def _link_identity(
+    body: IdentityCreate, admin: User, db: AsyncSession, *, commit: bool
+) -> IdentityOut:
+    """Grava o vínculo; com commit=False o chamador fecha a transação."""
     issuer, subject = body.issuer.strip(), body.subject.strip()
     if not (0 < len(issuer) <= 512 and 0 < len(subject) <= 255):
         raise HTTPException(
@@ -435,7 +472,10 @@ async def create_identity(
     )
     db.add(row)
     try:
-        await db.commit()
+        if commit:
+            await db.commit()
+        else:
+            await db.flush()
     except IntegrityError:
         await db.rollback()
         raise HTTPException(status_code=409, detail="Identidade já vinculada")
@@ -449,3 +489,65 @@ async def create_identity(
         admin.id,
     )
     return IdentityOut(id=row.id, user_id=row.user_id, issuer=issuer, subject=subject)
+
+
+class PendingLoginOut(BaseModel):
+    issuer: str
+    subject: str
+    email: str | None
+    attempts: int
+    last_seen: datetime
+
+
+@router.get("/pending", response_model=list[PendingLoginOut])
+async def list_pending_logins(
+    _: User = Depends(require_platform_admin), db: AsyncSession = Depends(get_db)
+) -> list[PendingLogin]:
+    """Quem tentou entrar e foi recusado por falta de vínculo (mais recente primeiro)."""
+    linked = (
+        select(Identity.id)
+        .where(Identity.issuer == PendingLogin.issuer)
+        .where(Identity.subject == PendingLogin.subject)
+        .exists()
+    )
+    rows = await db.execute(
+        select(PendingLogin)
+        .where(~linked)
+        .order_by(PendingLogin.last_seen.desc())
+        .limit(200)
+    )
+    return list(rows.scalars())
+
+
+class PendingLink(BaseModel):
+    issuer: str
+    subject: str
+    user_id: int
+
+
+@router.post("/pending/link", response_model=IdentityOut, status_code=201)
+async def link_pending_login(
+    body: PendingLink,
+    admin: User = Depends(require_platform_admin),
+    db: AsyncSession = Depends(get_db),
+) -> IdentityOut:
+    """Vincula o login pendente à pessoa que o admin escolheu e o tira da fila."""
+    pending = await db.get(PendingLogin, (body.issuer, body.subject))
+    if pending is None:
+        raise HTTPException(status_code=404, detail="Login pendente não encontrado")
+    # Vínculo e saída da fila na mesma transação: ou os dois, ou nenhum.
+    out = await _link_identity(
+        IdentityCreate(
+            user_id=body.user_id, issuer=pending.issuer, subject=pending.subject
+        ),
+        admin,
+        db,
+        commit=False,
+    )
+    await db.execute(
+        delete(PendingLogin).where(
+            PendingLogin.issuer == body.issuer, PendingLogin.subject == body.subject
+        )
+    )
+    await db.commit()
+    return out

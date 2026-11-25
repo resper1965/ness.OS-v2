@@ -604,6 +604,12 @@ ON CONFLICT DO NOTHING""",
         for stmt in teams.split(";"):
             if stmt.strip():
                 await conn.execute(text(stmt))
+        pending = (backend_root / "sql" / "007_pending_logins.sql").read_text(
+            encoding="utf-8"
+        )
+        for stmt in pending.split(";"):
+            if stmt.strip():
+                await conn.execute(text(stmt))
         # Login do GLPI = parte local do e-mail. Instalação com colisão antiga não pode
         # abortar a migração: registra e deixa sem índice até alguém resolver.
         dup = (

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Pencil, Plus, RefreshCw, Save, X } from 'lucide-react';
-import type { PeopleActions, PeopleState, Person, PersonForm } from '../../hooks/usePeople';
+import type { PeopleActions, PeopleState, PendingLogin, Person, PersonForm } from '../../hooks/usePeople';
 import {
   Alert, Badge, Button, CheckField, ConfirmButton, Empty, ErrorState, Panel, PageHeader, SelectField, Skeleton, TextField,
 } from '../ui/kit';
@@ -49,6 +49,26 @@ function PersonFormView({ initial, creating, state, onSave, onCancel }: {
   );
 }
 
+function PendingRow({ p, people, busy, onLink }: { p: PendingLogin; people: Person[]; busy: boolean; onLink: (id: number) => void }) {
+  const [id, setId] = useState('');
+  return (
+    <tr>
+      <td>{p.email ?? '—'}<br /><span className="nx-mono nx-muted">{p.subject}</span></td>
+      <td>{p.attempts}</td>
+      <td>{new Date(p.last_seen).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</td>
+      <td>
+        <div className="nx-actions">
+          <SelectField label="Pessoa" value={id} onChange={(e) => setId(e.target.value)}>
+            <option value="">Escolher…</option>
+            {people.filter((x) => x.is_active).map((x) => <option key={x.id} value={x.id}>{x.full_name ?? x.email}</option>)}
+          </SelectField>
+          <ConfirmButton label="Vincular" confirmLabel="Confirmar vínculo" disabled={busy || !id} onConfirm={() => onLink(Number(id))} />
+        </div>
+      </td>
+    </tr>
+  );
+}
+
 export default function PeopleView({ state, actions }: { state: PeopleState; actions: PeopleActions }) {
   const names = new Map(state.customers.map((c) => [c.id, c.display_name]));
   const editingPerson = typeof state.editing === 'number' ? state.people.find((p) => p.id === state.editing) : undefined;
@@ -67,6 +87,15 @@ export default function PeopleView({ state, actions }: { state: PeopleState; act
           {state.diff.length === 0 ? <p className="nx-muted">O GLPI já reflete o cadastro.</p> : (
             <ul className="nx-mono" aria-label="Diferenças com o GLPI">{state.diff.map((d, i) => <li key={i}>{d}</li>)}</ul>
           )}
+        </Panel>
+      )}
+      {state.canLink && state.pending.length > 0 && (
+        <Panel title="Logins pendentes" meta={<Badge tone="warn">{state.pending.length}</Badge>} flush>
+          <table className="nx-table">
+            <caption className="sr-only">Logins recusados por falta de vínculo</caption>
+            <thead><tr><th scope="col">Quem tentou</th><th scope="col">Tentativas</th><th scope="col">Última</th><th scope="col">Vincular a</th></tr></thead>
+            <tbody>{state.pending.map((p) => <PendingRow key={`${p.issuer}|${p.subject}`} p={p} people={state.people} busy={state.busy} onLink={(id) => void actions.link(p, id)} />)}</tbody>
+          </table>
         </Panel>
       )}
       {state.phase === 'loading' && <Skeleton rows={4} />}
