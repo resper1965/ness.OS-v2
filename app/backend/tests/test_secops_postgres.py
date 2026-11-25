@@ -446,3 +446,10 @@ async def test_wazuh_level12_creates_pending_soc_incident(sessions, monkeypatch)
 
 async def test_wazuh_level10_creates_no_incident(sessions, monkeypatch):
     assert await _wazuh_level(sessions, monkeypatch, 10) == []
+
+
+async def test_wazuh_ticket_level_is_configurable(sessions, monkeypatch):
+    async with sessions() as s:
+        s.add(PlatformParam(key="soc_ticket_min_level", value_int=13))
+        await s.commit()
+    assert await _wazuh_level(sessions, monkeypatch, 12) == []

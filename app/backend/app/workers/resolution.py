@@ -172,7 +172,7 @@ async def resolve_ticket(ticket_id: str, redis) -> dict:
                 "resolution_sync_status": "synced",
                 "resolution_synced_at": now,
             }
-        if not already_synced:
+        if not already_synced and tags.get("ninf_branch") != "soc":
             session.add(
                 IncidentAction(
                     incident_id=incident.id,

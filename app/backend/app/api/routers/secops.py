@@ -26,7 +26,7 @@ from app.core.triage_engine import FREQUENCY_WINDOW_SECONDS, TriageAction, Triag
 from app.core.webhook_auth import verify_key
 from app.database import get_db
 from app.integrations.zabbix import ZabbixClient
-from app.models.models import Incident, SocDecision, TenantMapping
+from app.models.models import Incident, PlatformParam, SocDecision, TenantMapping
 from app.models.users import User
 from app.services.ai_decisions import record_ai_decision
 from app.services.ai_gate import ai_gate
@@ -929,14 +929,29 @@ async def _triage(
     triage_result["decision_id"] = decision.id
     triage_result["corrective_action_approved"] = False
 
-    if tenant and must_attend and alert_data["level"] >= SOC_TICKET_LEVEL:
+    if tenant and must_attend and alert_data["level"] >= await _soc_ticket_level(db):
         await _soc_incident(db, tenant, decision, alert_data, triage_result)
 
     return triage_result
 
 
-# Nível Wazuh a partir do qual o alerta vira incidente pendente (ramo SOC do chamado).
-SOC_TICKET_LEVEL = 12
+async def _soc_ticket_level(db: AsyncSession) -> int:
+    """Nível Wazuh a partir do qual o alerta vira incidente pendente (ramo SOC).
+
+    Ajustável sem deploy em n_infraops_platform_params (`soc_ticket_min_level`); padrão 12.
+    """
+    try:
+        value = (
+            await db.execute(
+                select(PlatformParam.value_int).where(
+                    PlatformParam.key == "soc_ticket_min_level"
+                )
+            )
+        ).scalar_one_or_none()
+    except Exception:
+        await db.rollback()
+        value = None
+    return value or 12
 
 
 async def _soc_incident(
