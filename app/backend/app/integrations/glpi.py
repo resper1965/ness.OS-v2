@@ -343,7 +343,14 @@ class GLPIClient:
                         or int(last) >= total
                     ):
                         raise RuntimeError("GLPI returned inconsistent pagination")
-                    if not page and start < total:
+                    # Página vazia só é legítima quando traz a faixa pedida (linhas de junção
+                    # repetidas); sem isso, é coleção incompleta.
+                    consumed = (
+                        first is not None
+                        and int(first) == start
+                        and start <= int(last) < total
+                    )
+                    if not page and start < total and not consumed:
                         raise RuntimeError("GLPI returned incomplete collection")
                     for item in page:
                         if "id" in item:
@@ -351,7 +358,7 @@ class GLPIClient:
                                 continue
                             seen.add(item["id"])
                         items.append(item)
-                    start = int(last) + 1 if page else start
+                    start = int(last) + 1 if page or consumed else start
                     if start >= total:
                         return items
         except httpx.HTTPStatusError as exc:
