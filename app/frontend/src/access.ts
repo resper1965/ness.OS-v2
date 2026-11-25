@@ -7,6 +7,8 @@ export const canActOnIncidents = (role: Role) => isOperator(role) || role === 'o
 // Contratos e clientes: leitura como a API (operator tenant-scoped incluso); escrita só admin.
 export const canReadCadastros = (role: Role) => isOperator(role) || role === 'operator';
 export const canEditCadastros = (role: Role) => ['platform_admin', 'admin'].includes(role ?? '');
+// Pessoas e equipes: a API exige admin.
+export const canManagePeople = canEditCadastros;
 // Contatos são dado pessoal: a API só lê para papéis NOC globais.
 export const canReadContacts = isOperator;
 
