@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canEditCadastros, canReadCadastros, canReadContacts, canActOnIncidents, isOperator, matchesTenant, tenantScope, timeAgo } from './access';
+import { canManagePeople, canEditCadastros, canReadCadastros, canReadContacts, canActOnIncidents, isOperator, matchesTenant, tenantScope, timeAgo } from './access';
 
 describe('role gating', () => {
   it.each(['platform_admin', 'admin', 'noc', 'soc'] as const)('%s is a global operator', (r) => {
@@ -58,5 +58,12 @@ describe('freshness', () => {
   });
   it('future timestamps clamp to 0s instead of negative', () => {
     expect(timeAgo(now / 1000 + 60, now)).toBe('há 0s');
+  });
+});
+
+describe('pessoas', () => {
+  it('só admin e platform_admin', () => {
+    expect(['admin', 'platform_admin'].every((r) => canManagePeople(r as never))).toBe(true);
+    for (const r of ['noc', 'soc', 'operator', 'cliente', undefined] as const) expect(canManagePeople(r)).toBe(false);
   });
 });

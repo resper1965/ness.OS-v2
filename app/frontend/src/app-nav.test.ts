@@ -8,6 +8,11 @@ describe('allowedView', () => {
     expect(allowedView('ai', true, false)).toBe('ai');
     expect(allowedView('nonsense', true, false)).toBe('overview');
   });
+  it('pessoas só para quem administra', () => {
+    expect(allowedView('people', true, true, true)).toBe('people');
+    expect(allowedView('people', true, true, false)).toBe('overview');
+    expect(allowedView('people', false, false, false)).toBe('incidents');
+  });
   it('client role cannot reach operator screens via URL', () => {
     for (const v of ['overview', 'monitoring', 'cloud', 'secops', 'ai', 'contracts']) expect(allowedView(v, false, false)).toBe('incidents');
     expect(allowedView('customers', false, true)).toBe('customers');

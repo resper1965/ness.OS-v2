@@ -1,5 +1,5 @@
 import { Activity, ShieldAlert, Cloud, RefreshCw, LayoutDashboard, Shield,
-         WifiOff, AlertTriangle, LogOut, FileText, Users, Menu, Bot, Bug } from 'lucide-react';
+         WifiOff, AlertTriangle, LogOut, FileText, Users, Menu, Bot, Bug, UserCog } from 'lucide-react';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import CloudManagement from './components/CloudManagement';
 import PipelineStrip from './components/PipelineStrip';
@@ -19,21 +19,23 @@ import * as access from './access';
 import BrandMark from './components/BrandMark';
 import ContractsScreen from './components/ContractsScreen';
 import CustomersScreen from './components/CustomersScreen';
+import PeopleScreen from './components/PeopleScreen';
 
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
 
-type View = 'overview' | 'monitoring' | 'cloud' | 'incidents' | 'secops' | 'contracts' | 'customers' | 'ai' | 'vulns';
+type View = 'overview' | 'monitoring' | 'cloud' | 'incidents' | 'secops' | 'contracts' | 'customers' | 'people' | 'ai' | 'vulns';
 
 const TITLES: Record<View, string> = {
   overview: 'Visão geral', monitoring: 'NOC', cloud: 'Nuvem', incidents: 'Incidentes',
-  secops: 'SOC', contracts: 'Contratos', customers: 'Clientes', ai: 'IA', vulns: 'Vulnerabilidades',
+  secops: 'SOC', contracts: 'Contratos', customers: 'Clientes', people: 'Pessoas', ai: 'IA', vulns: 'Vulnerabilidades',
 };
 
 // A tela vive na URL (?view=) para recarregar, voltar e compartilhar link; papel decide o que pode abrir.
-export function allowedView(v: string | null, isOperator: boolean, canCadastros: boolean): View {
+export function allowedView(v: string | null, isOperator: boolean, canCadastros: boolean, canPeople = false): View {
   if (v === 'incidents' || v === 'vulns') return v;
   if ((v === 'contracts' || v === 'customers') && canCadastros) return v;
+  if (v === 'people' && canPeople) return v;
   if (isOperator && (v === 'overview' || v === 'monitoring' || v === 'cloud' || v === 'secops' || v === 'ai')) return v;
   return isOperator ? 'overview' : 'incidents';
 }
@@ -98,7 +100,8 @@ function AppShellBody({ AUTH, logout, user }: {
   const linkParams = new URLSearchParams(window.location.search);
   const linkedIncident = linkParams.get('view') === 'incidents' ? linkParams.get('id') : null;
   const canReadCadastros = access.canReadCadastros(user?.role);
-  const [currentView, setView] = useState<View>(() => allowedView(linkParams.get('view'), isOperator, canReadCadastros));
+  const canPeople = access.canManagePeople(user?.role);
+  const [currentView, setView] = useState<View>(() => allowedView(linkParams.get('view'), isOperator, canReadCadastros, canPeople));
   const setCurrentView = useCallback((v: View) => {
     setView(v);
     const url = new URL(window.location.href);
@@ -107,10 +110,10 @@ function AppShellBody({ AUTH, logout, user }: {
     window.history.pushState(null, '', url);
   }, []);
   useEffect(() => {
-    const onPop = () => setView(allowedView(new URLSearchParams(window.location.search).get('view'), isOperator, canReadCadastros));
+    const onPop = () => setView(allowedView(new URLSearchParams(window.location.search).get('view'), isOperator, canReadCadastros, canPeople));
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
-  }, [isOperator, canReadCadastros]);
+  }, [isOperator, canReadCadastros, canPeople]);
   useEffect(() => { document.title = `${TITLES[currentView]} · ness.OS`; }, [currentView]);
   const [selectedTenant, setSelectedTenant] = useState<string | null>(null);
   const [incidentFilter, setIncidentFilter] = useState(() => readIncidentFilter(window.location.search));
@@ -287,6 +290,7 @@ function AppShellBody({ AUTH, logout, user }: {
           <p className="px-3 mt-3 mb-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-brand-muted select-none">Cadastros</p>
           <SidebarItem icon={FileText} label="Contratos" active={currentView === 'contracts'} onClick={() => setCurrentView('contracts')} />
           <SidebarItem icon={Users} label="Clientes" active={currentView === 'customers'} onClick={() => setCurrentView('customers')} />
+          {canPeople && <SidebarItem icon={UserCog} label="Pessoas" active={currentView === 'people'} onClick={() => setCurrentView('people')} />}
           </>}
         </nav>
 
@@ -372,7 +376,7 @@ function AppShellBody({ AUTH, logout, user }: {
 
           <button
             onClick={() => {
-              if (currentView === 'cloud' || currentView === 'contracts' || currentView === 'customers' || currentView === 'secops' || currentView === 'ai' || currentView === 'vulns') setCadastrosTick(t => t + 1);
+              if (currentView === 'cloud' || currentView === 'contracts' || currentView === 'customers' || currentView === 'people' || currentView === 'secops' || currentView === 'ai' || currentView === 'vulns') setCadastrosTick(t => t + 1);
               else if (currentView === 'incidents') void fetchIncidents();
               else void fetchData();
             }}
@@ -420,6 +424,7 @@ function AppShellBody({ AUTH, logout, user }: {
           {currentView === 'cloud' && <CloudManagement refreshKey={cadastrosTick} />}
           {currentView === 'contracts' && <ContractsScreen role={user?.role} refreshKey={cadastrosTick} />}
           {currentView === 'customers' && <CustomersScreen role={user?.role} refreshKey={cadastrosTick} />}
+          {currentView === 'people' && <PeopleScreen role={user?.role} refreshKey={cadastrosTick} />}
 
           {/* ── n.secops ── */}
           {currentView === 'secops' && (
