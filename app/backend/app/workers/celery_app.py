@@ -48,7 +48,7 @@ celery_app.conf.update(
         "app.workers.ticket_decider.decide_tickets": {"queue": "alerts.primary"},
         "app.workers.tasks.process_ticket_resolution": {"queue": "alerts.primary"},
         "app.workers.tasks.run_anomaly_check": {"queue": "ml"},
-        "app.workers.tasks.sync_glpi_team": {"queue": "alerts.primary"},
+        "app.workers.tasks.sync_glpi_team": {"queue": "ml"},
         "app.workers.postmortem.generate_postmortem_report": {"queue": "ml"},
     },
     # P3: exige beat (`celery worker -B` ou processo beat) para disparar

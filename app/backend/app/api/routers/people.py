@@ -201,8 +201,9 @@ async def update_person(
     if body.is_active is not None and body.is_active != user.is_active:
         user.is_active = body.is_active
         user.session_epoch += 1
-    await db.execute(delete(TeamMember).where(TeamMember.user_id == user.id))
-    db.add_all(TeamMember(customer_id=c.id, user_id=user.id) for c in customers)
+    if body.customer_ids is not None:  # edição sem equipe não regrava vínculos antigos
+        await db.execute(delete(TeamMember).where(TeamMember.user_id == user.id))
+        db.add_all(TeamMember(customer_id=c.id, user_id=user.id) for c in customers)
     await db.commit()
     logger.info("person_updated id=%s by=%s", user.id, admin.id)
     _kick()
