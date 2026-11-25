@@ -64,8 +64,13 @@ export function createPeopleStore() {
             email: f.email.trim(), full_name: f.full_name.trim(), kind: f.kind, customer_ids: f.customer_ids, is_oncall: f.is_oncall,
           } });
         } else {
+          // Só envia o que mudou: cliente que ficou inativo continua na equipe e não pode travar a edição do nome.
+          const cur = store.get().people.find((p) => p.id === editing);
+          const same = (a: number[], b: number[]) => a.length === b.length && [...a].sort().every((x, i) => x === [...b].sort()[i]);
           await request(`/api/people/${editing}`, { method: 'PUT', body: {
-            full_name: f.full_name.trim(), customer_ids: f.customer_ids, is_oncall: f.is_oncall, is_active: f.is_active,
+            full_name: f.full_name.trim(), is_active: f.is_active,
+            ...(cur && same(cur.customer_ids, f.customer_ids) ? {} : { customer_ids: f.customer_ids }),
+            ...(cur && cur.is_oncall === f.is_oncall ? {} : { is_oncall: f.is_oncall }),
           } });
         }
       }, editing === 'new' ? 'Pessoa cadastrada. O acesso é liberado no próximo ciclo.' : 'Pessoa salva.');

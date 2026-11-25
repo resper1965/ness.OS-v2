@@ -48,3 +48,18 @@ describe('store', () => {
     expect(store.get().editing).toBeNull();
   });
 });
+
+describe('edição', () => {
+  it('não reenvia equipe nem plantão quando não mudaram', async () => {
+    const bodies: unknown[] = [];
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+      if (init?.method === 'PUT') bodies.push(JSON.parse(String(init.body)));
+      return new Response(JSON.stringify(url.includes('customers') ? customers : [ana]), { status: 200, headers: { 'content-type': 'application/json' } });
+    }));
+    const { actions } = createPeopleStore();
+    await actions.load();
+    actions.startEdit(1);
+    await actions.save({ email: ana.email, full_name: 'Ana B', kind: 'ness', customer_ids: [7], is_oncall: true, is_active: true });
+    expect(bodies).toEqual([{ full_name: 'Ana B', is_active: true }]);
+  });
+});
