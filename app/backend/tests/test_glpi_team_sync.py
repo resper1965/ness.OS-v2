@@ -559,3 +559,14 @@ async def test_protected_account_keeps_group_membership(people_maker):
     diff = await _diff(people_maker, g)
     assert not any(x.startswith("REMOVE") and "500" in x for x in diff)
     assert any(r["id"] == 900 for r in g.t["Group_User"])
+
+
+async def test_duplicate_glpi_login_aborts_without_writes(people_maker):
+    await _seed(people_maker)
+    g = FakeGlpi()
+    for i in (501, 502):
+        g.t["User"].append(
+            {"id": i, "name": "Ana", "realname": "x", "authtype": 1, "is_active": 1}
+        )
+    diff = await _diff(people_maker, g)
+    assert diff[0].startswith("ERRO login repetido") and g.writes == 0

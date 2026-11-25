@@ -118,9 +118,16 @@ async def _read(glpi) -> dict:
     for r in rules:
         r["_actions"] = await glpi.list_items(f"RuleTicket/{r['id']}/RuleAction")
         r["_criteria"] = await glpi.list_items(f"RuleTicket/{r['id']}/RuleCriteria")
+    users: dict[str, dict] = {}
+    for u in await glpi.list_items("User"):
+        k = u["name"].lower()
+        if k in users:
+            users[k]["_dup"] = True  # login repetido no GLPI: ambíguo
+        else:
+            users[k] = u
     return {
         "profiles": profiles,
-        "users": {u["name"].lower(): u for u in await glpi.list_items("User")},
+        "users": users,
         "groups": await glpi.list_items("Group"),
         "group_users": await glpi.list_items("Group_User"),
         "profile_users": await glpi.list_items("Profile_User"),
@@ -134,6 +141,9 @@ async def reconcile(glpi, d: Desired, apply: bool) -> list[str]:
         return [f"ERRO {e}" for e in d.errors]
     cur = await _read(glpi)
     diff: list[str] = []
+    dup = sorted(k for k in d.people if cur["users"].get(k, {}).get("_dup"))
+    if dup:  # nada é gravado até alguém resolver quem é o dono do login
+        return [f"ERRO login repetido no GLPI: {x}" for x in dup]
 
     # Conta GLPI que já existe e tem perfil fora dos dois do Hub (Super-Admin etc.) é manual:
     # o Hub não a adota, não muda a autenticação nem mexe em grupos/perfis dela.
