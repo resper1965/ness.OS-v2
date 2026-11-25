@@ -998,3 +998,39 @@ async def test_global_role_with_tenant_metadata_follows_team_rules(maker):
         )
         got = [u.email for u in await svc._recipients(s, inc, (UserRole.noc,))]
     assert got == ["m@x.invalid"]
+
+
+@pg
+@pytest.mark.asyncio
+async def test_client_manager_outside_team_gets_no_technician_alert(maker):
+    from app.models import Customer, TeamMember
+
+    async with maker() as s:
+        c = Customer(key="acme", display_name="Acme", glpi_entity_id=99)
+        tech = User(
+            email="t@x.invalid",
+            hashed_password="x",
+            role=UserRole.cliente,
+            tenant_id="acme",
+        )
+        boss = User(
+            email="b@x.invalid",
+            hashed_password="x",
+            role=UserRole.cliente,
+            tenant_id="acme",
+        )
+        s.add_all([c, tech, boss])
+        await s.flush()
+        s.add(TeamMember(customer_id=c.id, user_id=tech.id))
+        await s.commit()
+        inc = Incident(
+            fingerprint="f",
+            title="t",
+            severity=5,
+            host_id="h",
+            host_name="h",
+            trigger_id="t",
+            tags={"ninf_customer_name": "acme"},
+        )
+        got = [u.email for u in await svc._recipients(s, inc, (UserRole.cliente,))]
+    assert got == ["t@x.invalid"]
