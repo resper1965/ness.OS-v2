@@ -23,7 +23,11 @@ from app.models import (
     Asset,
     Contract,
     ContractChange,
+    Customer,
+    CustomerAlias,
+    CustomerContact,
     EscalationStep,
+    HostgroupRule,
     Incident,
     IncidentAction,
     Notification,
@@ -32,6 +36,7 @@ from app.models import (
     SlaCalendarHours,
     SlaHoliday,
     SlaPolicy,
+    TeamMember,
     TenantMapping,
     User,
     UserRole,
@@ -210,6 +215,11 @@ TABLES = (
     EscalationStep,
     ContractChange,
     TenantMapping,
+    Customer,
+    CustomerAlias,
+    CustomerContact,
+    HostgroupRule,
+    TeamMember,
 )
 
 

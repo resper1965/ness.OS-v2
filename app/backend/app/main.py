@@ -44,6 +44,7 @@ from app.api.routers.customer_contacts import router as customer_contacts_router
 from app.api.routers.customers import router as customers_router
 from app.api.routers.dashboard import router as dashboard_router
 from app.api.routers.incidents import router as incidents_router
+from app.api.routers.people import router as people_router
 from app.api.routers.pipeline import router as pipeline_router
 from app.api.routers.push import router as push_router
 from app.api.routers.secops import router as secops_router
@@ -137,6 +138,7 @@ app.include_router(dashboard_router, tags=["infraops-dashboard"])
 app.include_router(pipeline_router, tags=["infraops-pipeline"])
 app.include_router(incidents_router, tags=["infraops-incidents"])
 app.include_router(customers_router)  # prefix: /api/customers
+app.include_router(people_router)  # prefix: /api/people
 app.include_router(customer_contacts_router)  # prefix: /api/customers/{id}/contacts
 app.include_router(tenants_router, prefix="/api/tenants", tags=["infraops-tenants"])
 app.include_router(assets_router, prefix="/api/assets", tags=["infraops-assets"])

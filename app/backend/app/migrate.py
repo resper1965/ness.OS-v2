@@ -600,6 +600,37 @@ ON CONFLICT DO NOTHING""",
         for stmt in ticket_policy.split(";"):
             if stmt.strip():
                 await conn.execute(text(stmt))
+        teams = (backend_root / "sql" / "005_teams.sql").read_text(encoding="utf-8")
+        for stmt in teams.split(";"):
+            if stmt.strip():
+                await conn.execute(text(stmt))
+        # Login do GLPI = parte local do e-mail. Instalação com colisão antiga não pode
+        # abortar a migração: registra e deixa sem índice até alguém resolver.
+        dup = (
+            (
+                await conn.execute(
+                    text(
+                        "SELECT lower(split_part(email,'@',1)) FROM n_infraops_users "
+                        "GROUP BY 1 HAVING count(*) > 1"
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        if dup:
+            logger.error(
+                "Logins repetidos (parte local do e-mail): %s; índice uq_users_glpi_login "
+                "não criado e a sincronização com o GLPI recusará esses nomes",
+                ", ".join(dup),
+            )
+        else:
+            await conn.execute(
+                text(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS uq_users_glpi_login "
+                    "ON n_infraops_users ((lower(split_part(email, '@', 1))))"
+                )
+            )
 
     logger.info("Migração de banco de dados concluída com sucesso.")
 

@@ -10,6 +10,9 @@ from app import migrate
 async def test_upgrade_migration_creates_glpi_ticket_post_reservations(monkeypatch):
     connection = MagicMock()
     connection.execute = AsyncMock()
+    connection.execute.return_value.scalars = MagicMock(
+        return_value=MagicMock(all=lambda: [])
+    )
 
     @asynccontextmanager
     async def transaction():

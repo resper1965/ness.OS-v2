@@ -981,3 +981,20 @@ class Vulnerability(Base):
     loaded_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
+
+
+class TeamMember(Base):
+    """Técnico (ness ou do cliente) na equipe de um cliente; o Hub é o cadastro único."""
+
+    __tablename__ = "n_infraops_team_members"
+
+    customer_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("n_infraops_customers.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    user_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("n_infraops_users.id", ondelete="CASCADE"),
+        primary_key=True,
+    )

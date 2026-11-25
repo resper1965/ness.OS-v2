@@ -166,6 +166,46 @@ class GLPIClient:
             await self.kill_session()
             raise
 
+    async def use_all_entities(self) -> set[int]:
+        """Seleciona todas as entidades permitidas e confere; sem isso, só a ativa por padrão."""
+        if not self.session_token:
+            await self.init_session()
+        try:
+            async with httpx.AsyncClient(
+                timeout=10.0, follow_redirects=False
+            ) as client:
+                res = await client.post(
+                    f"{self.base_url}/changeActiveEntities",
+                    headers=self.headers,
+                    json={"entities_id": "all", "is_recursive": True},
+                )
+                res.raise_for_status()
+                if res.json() is not True:
+                    raise GLPIPermanentError(
+                        "GLPI recusou o escopo de todas as entidades"
+                    )
+                cur = await client.get(
+                    f"{self.base_url}/getActiveEntities", headers=self.headers
+                )
+                cur.raise_for_status()
+                active = (cur.json() or {}).get("active_entity") or {}
+                selected = active.get("active_entities")
+                if (
+                    active.get("active_entity_recursive") is not True
+                    or not isinstance(selected, list)
+                    or not selected
+                ):
+                    raise GLPIPermanentError("GLPI não ativou todas as entidades")
+                return {
+                    int(e["id"]) for e in selected if isinstance(e, dict) and "id" in e
+                }
+        except GLPIPermanentError:
+            await self.kill_session()
+            raise
+        except Exception as exc:
+            await self.kill_session()
+            raise _glpi_failure("seleção de entidades", exc) from exc
+
     async def kill_session(self) -> bool:
         """Encerra a sessão ativa no GLPI."""
         if not self.session_token:
@@ -522,6 +562,39 @@ class GLPIClient:
                 res.raise_for_status()
         except Exception as exc:
             raise _glpi_failure("status de ticket", exc) from exc
+
+    async def _write(self, method: str, path: str, body: dict | None = None) -> Any:
+        if not self.session_token:
+            await self.init_session()
+        try:
+            async with httpx.AsyncClient(
+                timeout=15.0, follow_redirects=False
+            ) as client:
+                res = await client.request(
+                    method,
+                    f"{self.base_url}/{path}",
+                    headers=self.headers,
+                    json={"input": body} if body is not None else None,
+                    params={"force_purge": "true"} if method == "DELETE" else None,
+                )
+                res.raise_for_status()
+                return res.json() if res.content else None
+        except Exception as exc:
+            raise _glpi_failure(f"escrita em {path.split('/')[0]}", exc) from exc
+
+    async def create_item(self, itemtype: str, data: dict) -> int:
+        out = await self._write("POST", itemtype, data)
+        if not isinstance(out, dict) or not out.get("id"):
+            raise RuntimeError(f"GLPI não criou {itemtype}")
+        return int(out["id"])
+
+    async def update_item(self, itemtype: str, item_id: int, data: dict) -> None:
+        await self._write(
+            "PUT", f"{itemtype}/{int(item_id)}", {**data, "id": int(item_id)}
+        )
+
+    async def delete_item(self, itemtype: str, item_id: int) -> None:
+        await self._write("DELETE", f"{itemtype}/{int(item_id)}")
 
     async def has_technician(self, ticket_id: int) -> bool:
         """Técnico atribuído (Ticket_User type 2) ou acompanhamento de outra pessoa."""

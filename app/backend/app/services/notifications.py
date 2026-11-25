@@ -15,7 +15,7 @@ from collections.abc import Coroutine
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from sqlalchemy import DateTime, func, select, update
+from sqlalchemy import DateTime, func, or_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.core.dependencies import NOC_ROLES
@@ -27,8 +27,11 @@ from app.models import (
     IncidentAction,
     Notification,
     PushSubscription,
+    TeamMember,
     User,
+    UserRole,
 )
+from app.services.customers import AmbiguousCustomer, resolve_customer
 from app.services.sla import (
     PolicyCfg,
     add_calendar_time,
@@ -129,20 +132,79 @@ def _tenant(inc: Incident) -> str:
 
 
 async def _recipients(session, inc: Incident, roles) -> list[User]:
-    """Resolvidos no backend: papel (passos do contrato) + tenant do incidente."""
-    tenant = _tenant(inc)
-    stmt = select(User).where(User.is_active.is_(True), User.role.in_(roles))
-    users = (await session.execute(stmt)).scalars().all()
-    eligible = [
-        u
-        for u in users
-        if (u.role in NOC_ROLES) or (tenant and (u.tenant_id or "").lower() == tenant)
-    ]
-    rank = {r: i for i, r in enumerate(roles)}
-    return sorted(
-        eligible,
-        key=lambda u: (u.id != inc.assigned_user_id, rank[u.role], u.id),
+    """Equipe do cliente, depois plantão, depois gestão (spec 2026-11-24, A1).
+
+    Técnico de operação só recebe se estiver na equipe do cliente do caso ou de plantão.
+    O papel `cliente` segue a regra antiga (tenant do incidente); gestão não depende de equipe.
+    """
+    # O incidente guarda o nome canônico ("Alupar PE"); equipe e usuário externo usam a chave.
+    try:
+        customer = (
+            await resolve_customer(session, _tenant(inc)) if _tenant(inc) else None
+        )
+    except AmbiguousCustomer:
+        customer = None
+    tenant = customer.key.lower() if customer else _tenant(inc)
+    users = (
+        (
+            await session.execute(
+                select(User).where(User.is_active.is_(True), User.role.in_(roles))
+            )
+        )
+        .scalars()
+        .all()
     )
+    team = set(
+        (
+            await session.execute(
+                select(TeamMember.user_id).where(
+                    TeamMember.customer_id == (customer.id if customer else -1)
+                )
+            )
+        ).scalars()
+    )
+
+    # Cliente sem equipe e sem ninguém de plantão ainda: vale o comportamento anterior
+    # (todo técnico dos papéis pedidos recebe). Por cliente, para migrar sem buraco.
+    configured = (
+        await session.scalar(
+            select(User.id)
+            .where(
+                User.is_active.is_(True),
+                or_(User.is_oncall.is_(True), User.id.in_(team)),
+            )
+            .limit(1)
+        )
+        is not None
+    )
+
+    def tier(u: User) -> int | None:
+        if tenant and u.role not in NOC_ROLES and (u.tenant_id or "").lower() == tenant:
+            return 0
+        if u.role == UserRole.cliente:
+            return None
+        if u.id in team:
+            return 0
+        if u.role in (UserRole.admin, UserRole.platform_admin):
+            return 1 if u.is_oncall else 2
+        if u.is_oncall or (not configured and u.role in NOC_ROLES):
+            return 1
+        return None
+
+    rank = {r: i for i, r in enumerate(roles)}
+    eligible = [(tier(u), u) for u in users if tier(u) is not None]
+    return [
+        u
+        for _, u in sorted(
+            eligible,
+            key=lambda t: (
+                t[0],
+                t[1].id != inc.assigned_user_id,
+                rank[t[1].role],
+                t[1].id,
+            ),
+        )
+    ]
 
 
 async def _claim(session, inc: Incident, user: User, channel: str, step: int, now):
