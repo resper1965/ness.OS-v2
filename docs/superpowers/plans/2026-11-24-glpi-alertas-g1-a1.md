@@ -61,7 +61,7 @@ O que **não** é cadastro: árvore de categorias, perfil Técnico externo, grup
 - [ ] **Step 4:** Com a frase do Esper: backup, depois `--apply` duas vezes. Esperado na 2ª rodada: só `OK`.
 - [ ] **Step 5:** Commit `feat: base fixa do GLPI (categorias, perfil externo, plantão)`.
 
-### Task 1b: Pessoas e equipes no Hub, refletidas no GLPI (G1, cadastro) — **backend feito no #293; falta a tela `PeopleScreen`**
+### Task 1b: Pessoas e equipes no Hub, refletidas no GLPI (G1, cadastro) — **backend de pessoas, equipes, grupos, perfis e regras feito no #293; faltam a tela `PeopleScreen` e a parte de SLA (movida para a Task 2b)**
 
 O Hub é o único cadastro de pessoas e equipes **[Esper, 24/11]**. Ninguém mexe nisso à mão no GLPI. Hoje o Hub não tem tela nem API de usuários (eles nascem por seed ou SQL). Esta task cria as duas coisas.
 
@@ -84,7 +84,7 @@ O Hub é o único cadastro de pessoas e equipes **[Esper, 24/11]**. Ninguém mex
   - `GET /api/people` → lista com `{id, email, full_name, kind, customers[], is_oncall, is_active, glpi_sync}`;
   - `POST /api/people` com `{email, full_name, kind: "ness"|"externo", customer_ids[], is_oncall}`:
     - cria o `User`; `kind=ness` → papel `noc`; `kind=externo` → papel `cliente` com `tenant_id` igual à `key` do único cliente;
-    - envia convite de senha pelo fluxo de e-mail já existente;
+    - sem convite por senha: o acesso é por SSO (Cloudflare Access) e o `POST` guarda uma senha aleatória que ninguém conhece; a pessoa entra pelo SSO e o vínculo de identidade é feito por admin (`identity linking`). Fluxo de senha por e-mail não existe e fica fora;
   - `PUT /api/people/{id}` para alterar equipes ou plantão; `DELETE` desativa, não apaga.
 - `services/glpi_team_sync.py`:
   - `desired_state(session) -> GlpiDesired`: função pura sobre o banco que descreve grupos, membros, perfis, regras e SLA por entidade. O SLA vem do contrato que já existe no Hub (`n_infraops_contracts` + `n_infraops_sla_policies`): por cliente, um SLM no GLPI com TTO/TTR por severidade, e uma regra entidade + prioridade → SLA;
@@ -120,7 +120,7 @@ O Hub é o único cadastro de pessoas e equipes **[Esper, 24/11]**. Ninguém mex
   - formulário de criação e edição;
 - [ ] **Step 6:** Rodar a suíte completa com Postgres e `npm test` no frontend.
 - [ ] **Step 7:** PR, merge e promoção, com a frase do Esper. Depois, o Esper cadastra as equipes pela tela, e a reconciliação em simulação mostra o diff antes da 1ª gravação.
-- [ ] **Step 8:** Fazer um chamado sintético por entidade e conferir o grupo e `slas_id_ttr > 0`. Entrar como externo da Cavan e ver só a Cavan. Excluir os sintéticos.
+- [ ] **Step 8:** Fazer um chamado sintético por entidade e conferir o grupo (e `slas_id_ttr > 0` só depois da Task 2b). Entrar como externo da Cavan e ver só a Cavan. Excluir os sintéticos.
 
 ### Task 2: Limpeza do acumulado e fechamento automático (G2)
 
@@ -165,6 +165,14 @@ def test_select_candidates():
 
   Esperado: chamados com status 1 na casa das dezenas.
 - [ ] **Step 7:** Commit `feat: limpeza do acumulado do GLPI e fechamento automático`.
+
+### Task 2b: SLA por contrato no GLPI (G1, prazo)
+
+Pendente. `glpi_team_sync` hoje reconcilia pessoas, grupos, perfis e regra entidade → grupo; **não** lê contrato nem cria SLM/SLA.
+
+- Acrescentar a `Desired` o SLM por cliente (TTO/TTR por severidade, de `n_infraops_contracts` + `n_infraops_sla_policies`) e a regra entidade + prioridade → SLA; `reconcile` cria, corrige e desliga, com as mesmas garantias da 1b (nada gravado se a leitura falhar, regra criada desligada e só ligada completa).
+- Teste: contrato com TTO/TTR → SLM e regra criados; contrato alterado → SLM corrigido; idempotente.
+- Aceite em produção: chamado sintético com `slas_id_ttr > 0`.
 
 ### Task 3: Aviso pela equipe do cliente (A1) — **feito no #293**
 
