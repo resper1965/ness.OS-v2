@@ -69,7 +69,8 @@ export function createPeopleStore() {
           const same = (a: number[], b: number[]) => a.length === b.length && [...a].sort().every((x, i) => x === [...b].sort()[i]);
           await request(`/api/people/${editing}`, { method: 'PUT', body: {
             full_name: f.full_name.trim(), is_active: f.is_active,
-            ...(cur && same(cur.customer_ids, f.customer_ids) ? {} : { customer_ids: f.customer_ids }),
+            // Mudou a equipe: manda só clientes que a API aceita; vínculo obsoleto (inativo/sem entidade) cai aqui.
+            ...(cur && same(cur.customer_ids, f.customer_ids) ? {} : { customer_ids: f.customer_ids.filter((id) => store.get().customers.some((c) => c.id === id && c.active && c.glpi_entity_id !== null)) }),
             ...(cur && cur.is_oncall === f.is_oncall ? {} : { is_oncall: f.is_oncall }),
           } });
         }

@@ -62,4 +62,17 @@ describe('edição', () => {
     await actions.save({ email: ana.email, full_name: 'Ana B', kind: 'ness', customer_ids: [7], is_oncall: true, is_active: true });
     expect(bodies).toEqual([{ full_name: 'Ana B', is_active: true }]);
   });
+  it('ao mudar a equipe, vínculo obsoleto não vai no payload', async () => {
+    const bodies: { customer_ids?: number[] }[] = [];
+    const stale = { ...customers[0], id: 9, key: 'velho', active: false };
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+      if (init?.method === 'PUT') bodies.push(JSON.parse(String(init.body)));
+      return new Response(JSON.stringify(url.includes('customers') ? [...customers, stale] : [{ ...ana, customer_ids: [9] }]), { status: 200, headers: { 'content-type': 'application/json' } });
+    }));
+    const { actions } = createPeopleStore();
+    await actions.load();
+    actions.startEdit(1);
+    await actions.save({ email: ana.email, full_name: 'Ana', kind: 'ness', customer_ids: [9, 7], is_oncall: true, is_active: true });
+    expect(bodies[0].customer_ids).toEqual([7]);
+  });
 });
