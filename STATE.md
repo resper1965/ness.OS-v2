@@ -4,7 +4,7 @@
 
 **Estágio:** em andamento
 
-**Próximo passo:** escrever a tela `PeopleScreen` (Administração) e, com a frase do Esper, criar o usuário/perfil GLPI do sync, rodar `GET /api/people/sync` (dry run) e promover #290 + #293.
+**Próximo passo:** com a frase do Esper, aplicar a sincronização de pessoas no GLPI (dry run: 105 diferenças, 13 grupos e regras, 72 membros; trava do sync só no `worker-ml`, `/opt/n-infraops/trava-sync-glpi.yml`) e depois a limpeza de ~52,9 mil chamados parados (`infra/scripts/glpi-limpeza-fila.sh`, contagem sem gravar). Em seguida: SLA por contrato (Task 2b).
 
 ## Quadro (atualizado a cada task fechada)
 
