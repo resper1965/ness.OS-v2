@@ -4,7 +4,7 @@
 
 **Estágio:** em andamento
 
-**Próximo passo:** conferir a página de Vulnerabilidades logado; acompanhar a regra de chamados em produção (promovida `73adaa0` em 23/11: chamados abertos após a carência, dedup e sintomas); depois, validar NOC e SOC com dado real no Hub, retirar o Authentik e migrar as telas antigas para o kit `.nx`.
+**Próximo passo:** escrever a tela `PeopleScreen` (Administração) e, com a frase do Esper, criar o usuário/perfil GLPI do sync, rodar `GET /api/people/sync` (dry run) e promover #290 + #293.
 
 ## Quadro (atualizado a cada task fechada)
 
@@ -13,6 +13,7 @@
 Tasks do [plano de execução](docs/superpowers/plans/2026-10-26-ness-os-execution-plan.md).
 
 ### Feito
+- Cadastro único de pessoas e equipes no Hub, reconciliado no GLPI (#293, 25/11, **ainda não promovida**): `/api/people`, migração `005`/`006`, tarefa `sync_glpi_team` (fila `ml`, inerte sem `NINF_GLPI_TEAM_USER_TOKEN`), alertas por equipe → plantão → gestão. Base G1 aplicada no GLPI em 24/11. Spec e plano em PR #292. Falta: tela `PeopleScreen`, usuário/perfil GLPI do sync, SLA por contrato, limpeza em massa (frase própria).
 - F2 da IA nos chamados (18/11, na branch `feat/ia-chamados-f2`, **promovida em 23/11 com `73adaa0`**; a flag de repetição saiu no merge com o #271, que leva o acompanhamento ao decisor): repetição do alerta Zabbix vira acompanhamento do chamado aberto (flag `NINF_ZABBIX_REPEAT_FOLLOWUP_ENABLED`, desligada), métrica sinais ÷ chamados na tela "IA" e consulta de tempestade — [aviso](docs/execution/ai-f2-aviso-operacao.md), [consulta](docs/execution/ai-f2-tempestade.sql)
 - F1 da IA nos chamados (17/11, na branch `feat/ia-chamados-f1`, **promovida em 23/11 com `73adaa0`**): registro de toda decisão de IA em `n_ai_decisions` (NOC e SOC, com divergência motor × modelo = E1 do Vigil), retorno do analista, métricas na tela "IA", opt-out por cliente e teto mensal com alerta. A IA do NOC não sobe mais urgência nem push — [spec](docs/superpowers/specs/2026-11-17-ia-tratamento-chamados-design.md), [aviso](docs/execution/ai-f1-aviso-operacao.md)
 - Dados por cliente editáveis fechados (plano #195): T1 clientes e apelidos (#199), T2 regras de grupo de hosts (#200), T3 modalidade efetiva, T4 parâmetros de atendimento, T5 contatos do cliente (#200), T6 documentação e fechamento. Spec final em [contratos-sla-editaveis.md](docs/specs/contratos-sla-editaveis.md) com modelo, chaves, checklist de promoção e o que continua fora.
