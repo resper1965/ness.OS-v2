@@ -188,13 +188,16 @@ async def update_person(
         rows = await db.execute(select(Customer).where(Customer.id.in_(current)))
         customers = list(rows.scalars())
     oncall = user.is_oncall if body.is_oncall is None else body.is_oncall
-    _check(external, customers, oncall)
+    if body.customer_ids is not None or body.is_oncall is not None:
+        _check(
+            external, customers, oncall
+        )  # legado sem vínculo edita nome/ativo livremente
     if (customers or oncall) and user.role not in _TEAM_ROLES:
         raise HTTPException(422, "Papel sem acesso operacional não entra em equipe")
     if body.full_name:
         user.full_name = body.full_name
     user.is_oncall = oncall
-    if external:
+    if external and body.customer_ids is not None:
         user.tenant_id = customers[0].key
     if body.is_active is False and user.id == admin.id:
         raise HTTPException(409, "Não é possível desativar a si mesmo")

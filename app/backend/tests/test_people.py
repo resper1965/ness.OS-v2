@@ -274,3 +274,23 @@ async def test_unrelated_edit_survives_inactive_customer_in_team(api, people_mak
         assert (
             await c.put(f"/api/people/{pid}", json={"full_name": "T2"})
         ).status_code == 200
+
+
+async def test_legacy_external_without_team_rows_can_be_renamed(api, people_maker):
+    async with people_maker() as s:
+        s.add(
+            User(
+                email="leg@cavan.com",
+                hashed_password="x",
+                role=UserRole.cliente,
+                tenant_id="cavan",
+            )
+        )
+        await s.commit()
+        uid = (
+            await s.execute(select(User.id).where(User.email == "leg@cavan.com"))
+        ).scalar_one()
+    async with api() as c:
+        assert (
+            await c.put(f"/api/people/{uid}", json={"full_name": "Novo"})
+        ).status_code == 200
