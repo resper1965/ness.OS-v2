@@ -304,6 +304,7 @@ class GLPIClient:
         if not self.session_token:
             await self.init_session()
         items: list[dict] = []
+        seen: set = set()
         try:
             async with httpx.AsyncClient(timeout=15, follow_redirects=False) as client:
                 start = 0
@@ -331,17 +332,26 @@ class GLPIClient:
                         raise RuntimeError("GLPI returned invalid pagination")
                     first, last, total_text = parsed_range.groups()
                     total = int(total_text)
+                    # GLPI joins profiles into User searches: the range and total count joined
+                    # rows, while the page holds distinct users. Accept a page shorter than its
+                    # range, advance by the range consumed and drop repeated ids.
                     if page and (
                         first is None
                         or int(first) != start
-                        or int(last) != start + len(page) - 1
+                        or int(last) < start + len(page) - 1
+                        or int(last) > start + 99
                         or total < start + len(page)
                     ):
                         raise RuntimeError("GLPI returned inconsistent pagination")
                     if not page and start < total:
                         raise RuntimeError("GLPI returned incomplete collection")
-                    items.extend(page)
-                    start += len(page)
+                    for item in page:
+                        if "id" in item:
+                            if item["id"] in seen:
+                                continue
+                            seen.add(item["id"])
+                        items.append(item)
+                    start = int(last) + 1 if page else start
                     if start >= total:
                         return items
         except httpx.HTTPStatusError as exc:
