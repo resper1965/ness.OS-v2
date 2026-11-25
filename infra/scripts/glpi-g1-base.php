@@ -38,6 +38,14 @@ Session::callAsSystem(function () use ($apply, $out, $DB) {
         }
     }
 
+    // Grupo padrão da categoria atribuiria infraops/secops por cima da regra por entidade.
+    foreach ($DB->request(['FROM' => 'glpi_itilcategories', 'WHERE' => ['NOT' => ['groups_id' => 0]]]) as $r) {
+        $out('UPDATE', "categoria {$r['id']} {$r['name']}: limpar grupo padrão {$r['groups_id']}");
+        if ($apply && !(new ITILCategory())->update(['id' => $r['id'], 'groups_id' => 0])) {
+            throw new RuntimeException("Falha ao limpar grupo da categoria {$r['id']}");
+        }
+    }
+
     // Regras antigas: rota por categoria para grupo fixo e SLA por prioridade sem SLM.
     // O grupo passa a vir da entidade e o prazo do contrato (Task 1b).
     foreach ([142, 143, 144, 145, 146, 147] as $id) {
@@ -71,15 +79,14 @@ Session::callAsSystem(function () use ($apply, $out, $DB) {
     // Técnico externo: Technician sem gestão de usuários, grupos, entidades, SLA ou transferência.
     // A restrição à entidade do cliente vem da habilitação (Profile_User não recursivo, Task 1b).
     $found = iterator_to_array($DB->request(['FROM' => 'glpi_profiles', 'WHERE' => ['name' => 'Técnico externo']]));
-    if ($found) {
-        $out('OK', 'perfil Técnico externo');
-    } else {
+    $pid = $found ? (int)reset($found)['id'] : 0;
+    if (!$found) {
         $out('CREATE', 'perfil Técnico externo (base Technician)');
+        $tech = new Profile();
+        if (!$tech->getFromDB(6) || $tech->fields['name'] !== 'Technician') {
+            throw new RuntimeException('Perfil Technician inesperado');
+        }
         if ($apply) {
-            $tech = new Profile();
-            if (!$tech->getFromDB(6) || $tech->fields['name'] !== 'Technician') {
-                throw new RuntimeException('Perfil Technician inesperado');
-            }
             $fields = $tech->fields;
             unset($fields['id'], $fields['date_mod'], $fields['date_creation']);
             $fields['name'] = 'Técnico externo';
@@ -90,29 +97,45 @@ Session::callAsSystem(function () use ($apply, $out, $DB) {
                     $fields[$f] = importArrayFromDB($fields[$f]);
                 }
             }
-            $pid = (new Profile())->add($fields);
+            $pid = (int)(new Profile())->add($fields);
             if (!$pid) {
                 throw new RuntimeException('Falha no perfil');
             }
-            $rights = [];
-            foreach ($DB->request(['FROM' => 'glpi_profilerights', 'WHERE' => ['profiles_id' => 6]]) as $r) {
-                $rights[$r['name']] = (int)$r['rights'];
-            }
-            foreach (['user' => READ, 'group' => READ, 'entity' => READ, 'slm' => READ, 'transfer' => 0,
-                      'ticketcost' => 0, 'budget' => 0, 'contract' => 0] as $k => $v) {
-                $rights[$k] = $v;
-            }
-            // Lista fechada: só o trabalho com chamados escreve. O resto (ativos, ferramentas,
-            // projetos etc.) fica no máximo em leitura, qualquer que seja o direito do Technician.
-            $write = ['ticket', 'followup', 'task', 'ticketvalidation', 'knowbase', 'reminder_public',
-                      'rssfeed_public', 'reservation', 'personalization'];
-            foreach ($rights as $k => $v) {
-                if (!in_array($k, $write, true)) {
-                    $rights[$k] = $v & READ;
-                }
-            }
-            ProfileRight::updateProfileRights($pid, $rights);
         }
+    }
+    // Direitos: sempre reconciliados (perfil novo ou já existente), a partir do Technician.
+    // Lista fechada: só o trabalho com chamados escreve; o resto fica no máximo em leitura.
+    $rights = [];
+    foreach ($DB->request(['FROM' => 'glpi_profilerights', 'WHERE' => ['profiles_id' => 6]]) as $r) {
+        $rights[$r['name']] = (int)$r['rights'];
+    }
+    foreach (['user' => READ, 'group' => READ, 'entity' => READ, 'slm' => READ, 'transfer' => 0,
+              'ticketcost' => 0, 'budget' => 0, 'contract' => 0] as $k => $v) {
+        $rights[$k] = $v;
+    }
+    $write = ['ticket', 'followup', 'task', 'ticketvalidation', 'knowbase', 'reminder_public',
+              'rssfeed_public', 'reservation', 'personalization'];
+    foreach ($rights as $k => $v) {
+        if (!in_array($k, $write, true)) {
+            $rights[$k] = $v & READ;
+        }
+    }
+    if ($pid) {
+        $cur = [];
+        foreach ($DB->request(['FROM' => 'glpi_profilerights', 'WHERE' => ['profiles_id' => $pid]]) as $r) {
+            $cur[$r['name']] = (int)$r['rights'];
+        }
+        $diff = array_keys(array_filter($rights, fn($v, $k) => ($cur[$k] ?? null) !== $v, ARRAY_FILTER_USE_BOTH));
+        if ($diff) {
+            $out('UPDATE', 'direitos do perfil Técnico externo: ' . implode(',', $diff));
+            if ($apply) {
+                ProfileRight::updateProfileRights($pid, $rights);
+            }
+        } else {
+            $out('OK', 'perfil Técnico externo');
+        }
+    } elseif ($apply) {
+        throw new RuntimeException('Perfil sem id');
     }
         $DB->commit();
     } catch (Throwable $e) {
