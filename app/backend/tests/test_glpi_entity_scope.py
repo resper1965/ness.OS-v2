@@ -409,3 +409,83 @@ async def test_use_all_entities_accepts_full_scope(monkeypatch):
     )
     await client.use_all_entities()
     assert client.session_token == "session"
+
+
+@pytest.mark.asyncio
+async def test_glpi_list_items_accepts_empty_last_page_with_valid_range(monkeypatch):
+    def handler(request):
+        start = int(request.url.params["range"].split("-")[0])
+        if start == 0:
+            return httpx.Response(
+                206,
+                json=[{"id": i} for i in range(80)],
+                headers={"Content-Range": "0-99/102"},
+            )
+        return httpx.Response(206, json=[], headers={"Content-Range": "100-101/102"})
+
+    original = httpx.AsyncClient
+    monkeypatch.setattr(
+        httpx,
+        "AsyncClient",
+        lambda **kwargs: original(transport=httpx.MockTransport(handler), **kwargs),
+    )
+    client = GLPIClient(
+        base_url="http://glpi/apirest.php", app_token="app", user_token="user"
+    )
+    client.session_token = "session"
+
+    assert len(await client.list_items("User")) == 80
+
+
+@pytest.mark.asyncio
+async def test_glpi_list_items_rejects_empty_page_range_beyond_request(monkeypatch):
+    def handler(request):
+        start = int(request.url.params["range"].split("-")[0])
+        if start == 0:
+            return httpx.Response(
+                206,
+                json=[{"id": i} for i in range(100)],
+                headers={"Content-Range": "0-99/1000"},
+            )
+        return httpx.Response(206, json=[], headers={"Content-Range": "100-999/1000"})
+
+    original = httpx.AsyncClient
+    monkeypatch.setattr(
+        httpx,
+        "AsyncClient",
+        lambda **kwargs: original(transport=httpx.MockTransport(handler), **kwargs),
+    )
+    client = GLPIClient(
+        base_url="http://glpi/apirest.php", app_token="app", user_token="user"
+    )
+    client.session_token = "session"
+
+    with pytest.raises(RuntimeError, match="incomplete"):
+        await client.list_items("User")
+
+
+@pytest.mark.asyncio
+async def test_glpi_list_items_empty_page_exception_is_only_for_user(monkeypatch):
+    def handler(request):
+        start = int(request.url.params["range"].split("-")[0])
+        if start == 0:
+            return httpx.Response(
+                206,
+                json=[{"id": i} for i in range(100)],
+                headers={"Content-Range": "0-99/300"},
+            )
+        return httpx.Response(206, json=[], headers={"Content-Range": "100-199/300"})
+
+    original = httpx.AsyncClient
+    monkeypatch.setattr(
+        httpx,
+        "AsyncClient",
+        lambda **kwargs: original(transport=httpx.MockTransport(handler), **kwargs),
+    )
+    client = GLPIClient(
+        base_url="http://glpi/apirest.php", app_token="app", user_token="user"
+    )
+    client.session_token = "session"
+
+    with pytest.raises(RuntimeError, match="incomplete"):
+        await client.list_items("Computer")
