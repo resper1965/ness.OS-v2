@@ -166,6 +166,10 @@ Categorias NOC/SOC/Serviço, grupo de plantão, perfil Técnico externo, desliga
 5. **Rollback**: parar os escritores, restaurar e só então religar, tudo numa cadeia (a restauração não começa se a parada falhar):
    `sudo -n bash -c "set -eo pipefail; docker stop ninf-worker-alerts ninf-worker-ml ninf-glpi && gzip -t $D/glpi.sql.gz && gunzip -c $D/glpi.sql.gz | docker exec -i ninf-glpi-db sh -c 'mysql -u\"\$MYSQL_USER\" -p\"\$MYSQL_PASSWORD\" \"\$MYSQL_DATABASE\"' && docker start ninf-glpi ninf-worker-alerts ninf-worker-ml"` (com `$D` da data do backup). Se falhar, nada é religado: investigar antes.
 
+### Usuário de sincronização do Hub (`infra/scripts/glpi-sync-user.php`)
+
+Cria o perfil `ness.OS Hub Sync` (usuários, grupos, regras, entidades; sem chamados) e o usuário `svc_ness_sync`; o token vai direto para `NINF_GLPI_TEAM_USER_TOKEN` em `/etc/ness-os/glpi-integration.env` e para o `.env` do Hub. O GLPI exige o direito `config` (leitura e escrita) para editar ações e critérios de regra: é o mais estreito que funciona; por isso a conta só existe no Hub e o token nunca é impresso. Rotação: apagar a linha do env, rodar de novo (sempre com `set -o pipefail` e `>/dev/null` no `tee`, e conferir que o env tem exatamente 1 linha `NINF_GLPI_TEAM_USER_TOKEN=`) e recriar `api` e `worker-ml`, que só leem o arquivo ao subir; até lá o token antigo, já revogado, faz a sincronização falhar.
+
 ## Rollback total (ordem)
 
 1. `user --deactivate` (106). 2. `docker compose $F rm -sf glpi-maintenance-gateway`. 3. `docker compose -p app -f docker-compose.tickets.yml up -d --no-deps glpi`. 4. `docker network rm app_glpi-maintenance-private`. 5. `client --id=<novo> --deactivate`; `client --id=1 --activate` se necessário; `rm -rf $S`. 6. Hub 94 nunca saiu do cliente 2: nada a restaurar.
