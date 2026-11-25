@@ -154,6 +154,16 @@ Verificação final: `user` mostra um único vínculo `[13, 1, 0]` (perfil 13, e
 
 Salvar em `docs/execution/evidence/` (sem token): digest, hashes do override, saída das sondas, readbacks JSON, backup usado. Atualizar ADR 0020, issue #74, T03/G2 e indicador F3.
 
+## Mesa do técnico: base G1 (`infra/scripts/glpi-g1-base.php`)
+
+Categorias NOC/SOC/Serviço, grupo de plantão, perfil Técnico externo, desliga regras 142–147, limpa grupo padrão das categorias, arquiva grupos de área vazios e SLAs soltos. Idempotente; pessoas e equipes vêm do Hub, não daqui. Aplicada em produção em 24/11 (a versão atual acrescenta categorias, grupos, SLAs e direitos do perfil).
+
+1. **Backup** (obrigatório): `sudo -n docker exec ninf-glpi-db sh -c 'mysqldump -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE"' | gzip > /opt/n-infraops/change-backups/glpi-$(date -u +%F)/glpi.sql.gz`.
+2. **Prévia** (sem `--apply`): `sudo -n docker exec -i -u www-data ninf-glpi php -- < glpi-g1-base.php`. Só `OK`/`UPDATE`/`CREATE`; qualquer exceção, parar.
+3. **Aplicar** (frase do Esper): o mesmo comando com `-- --apply`. Roda numa transação; falha desfaz tudo.
+4. **Verificar**: repetir a prévia (só `OK`).
+5. **Rollback**: restaurar o dump (`gunzip -c glpi.sql.gz | mysql ...`) com o Hub parado para escrita no GLPI.
+
 ## Rollback total (ordem)
 
 1. `user --deactivate` (106). 2. `docker compose $F rm -sf glpi-maintenance-gateway`. 3. `docker compose -p app -f docker-compose.tickets.yml up -d --no-deps glpi`. 4. `docker network rm app_glpi-maintenance-private`. 5. `client --id=<novo> --deactivate`; `client --id=1 --activate` se necessário; `rm -rf $S`. 6. Hub 94 nunca saiu do cliente 2: nada a restaurar.

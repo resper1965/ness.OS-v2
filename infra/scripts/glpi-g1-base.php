@@ -78,6 +78,23 @@ Session::callAsSystem(function () use ($apply, $out, $DB) {
         }
     }
 
+    // SLAs soltos (sem SLM, sem prazo por contrato): arquivados com o nome. Nunca apaga.
+    $slas = [17 => 'Bronze', 18 => 'Bronze', 19 => 'Silver', 20 => 'Silver', 21 => 'Gold', 22 => 'Gold', 23 => 'Platinum', 24 => 'Platinum'];
+    foreach ($DB->request(['FROM' => 'glpi_slas', 'WHERE' => ['id' => array_keys($slas)]]) as $r) {
+        if (stripos($r['name'], $slas[$r['id']]) === false) {
+            throw new RuntimeException("SLA {$r['id']} inesperado: {$r['name']}");
+        }
+        if (str_starts_with($r['name'], '[arquivado] ')) {
+            $out('OK', "SLA {$r['id']} arquivado");
+            continue;
+        }
+        $out('UPDATE', "arquivar SLA {$r['id']} {$r['name']}");
+        if ($apply && !(new SLA())->update(['id' => $r['id'], 'name' => '[arquivado] ' . $r['name'],
+            'comment' => trim(($r['comment'] ?? '') . "\nArquivado em G1: prazo agora vem do contrato (Hub).")])) {
+            throw new RuntimeException("Falha ao arquivar SLA {$r['id']}");
+        }
+    }
+
     // Plantão: vê todas as entidades (recursivo na raiz).
     $found = iterator_to_array($DB->request(['FROM' => 'glpi_groups', 'WHERE' => ['name' => 'ness · Plantão', 'entities_id' => 0]]));
     if ($found) {
