@@ -330,3 +330,40 @@ async def test_link_unknown_pending_is_404_and_inactive_person_keeps_it(maker, c
     )
     assert r.status_code == 409
     assert len((await client.get("/api/auth/pending", headers=_bearer(pa))).json()) == 1
+
+
+async def test_login_linked_by_identities_endpoint_leaves_the_queue(maker, client):
+    pa = await _user(maker, "pa@example.invalid", UserRole.platform_admin, None)
+    target = await _user(maker, "ana@ness.com.br", UserRole.noc, None)
+    await _callback(client, oid="o-5", email="ana@ness.com.br")
+    assert len((await client.get("/api/auth/pending", headers=_bearer(pa))).json()) == 1
+    r = await client.post(
+        "/api/auth/identities",
+        headers=_bearer(pa),
+        json={"user_id": target.id, "issuer": ISS, "subject": "o-5"},
+    )
+    assert r.status_code == 201
+    assert (await client.get("/api/auth/pending", headers=_bearer(pa))).json() == []
+
+
+async def test_link_failure_keeps_the_pending_entry_and_creates_no_identity(
+    maker, client
+):
+    pa = await _user(maker, "pa@example.invalid", UserRole.platform_admin, None)
+    a = await _user(maker, "a@ness.com.br", UserRole.noc, None)
+    await _callback(client, oid="o-6")
+    ok = await client.post(
+        "/api/auth/pending/link",
+        headers=_bearer(pa),
+        json={"issuer": ISS, "subject": "o-6", "user_id": a.id},
+    )
+    assert ok.status_code == 201
+    await _callback(client, oid="o-6x")
+    gone = await client.post(
+        "/api/auth/pending/link",
+        headers=_bearer(pa),
+        json={"issuer": ISS, "subject": "o-6x", "user_id": 99999},
+    )
+    assert gone.status_code == 404
+    assert await _count(maker, Identity) == 1
+    assert len((await client.get("/api/auth/pending", headers=_bearer(pa))).json()) == 1

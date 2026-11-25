@@ -36,7 +36,10 @@ export function createPeopleStore() {
     try {
       const [people, customers] = await Promise.all([request<Person[]>('/api/people'), request<Customer[]>('/api/customers')]);
       // Só platform_admin lista e vincula; para os demais a fila fica vazia, sem erro.
-      const pending = await request<PendingLogin[]>('/api/auth/pending').then((p) => ({ p, ok: true }), () => ({ p: [] as PendingLogin[], ok: false }));
+      const pending = await request<PendingLogin[]>('/api/auth/pending').then((p) => ({ p, ok: true }), (e) => {
+        if (asApiError(e).status === 403) return { p: [] as PendingLogin[], ok: false };
+        throw e;
+      });
       store.set({ phase: 'ready', error: null, people, customers, pending: pending.p, canLink: pending.ok });
     } catch (e) {
       store.set({ phase: 'error', error: asApiError(e) });

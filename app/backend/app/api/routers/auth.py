@@ -434,6 +434,7 @@ async def create_identity(
     body: IdentityCreate,
     admin: User = Depends(require_platform_admin),
     db: AsyncSession = Depends(get_db),
+    commit: bool = True,
 ) -> IdentityOut:
     """
     Papel e tenant continuam no cadastro do User; aqui só se liga a identidade do IdP.
@@ -465,7 +466,10 @@ async def create_identity(
     )
     db.add(row)
     try:
-        await db.commit()
+        if commit:
+            await db.commit()
+        else:
+            await db.flush()
     except IntegrityError:
         await db.rollback()
         raise HTTPException(status_code=409, detail="Identidade já vinculada")
@@ -494,8 +498,17 @@ async def list_pending_logins(
     _: User = Depends(require_platform_admin), db: AsyncSession = Depends(get_db)
 ) -> list[PendingLogin]:
     """Quem tentou entrar e foi recusado por falta de vínculo (mais recente primeiro)."""
+    linked = (
+        select(Identity.id)
+        .where(Identity.issuer == PendingLogin.issuer)
+        .where(Identity.subject == PendingLogin.subject)
+        .exists()
+    )
     rows = await db.execute(
-        select(PendingLogin).order_by(PendingLogin.last_seen.desc()).limit(200)
+        select(PendingLogin)
+        .where(~linked)
+        .order_by(PendingLogin.last_seen.desc())
+        .limit(200)
     )
     return list(rows.scalars())
 
@@ -516,12 +529,14 @@ async def link_pending_login(
     pending = await db.get(PendingLogin, (body.issuer, body.subject))
     if pending is None:
         raise HTTPException(status_code=404, detail="Login pendente não encontrado")
+    # Vínculo e saída da fila na mesma transação: ou os dois, ou nenhum.
     out = await create_identity(
         IdentityCreate(
             user_id=body.user_id, issuer=pending.issuer, subject=pending.subject
         ),
         admin,
         db,
+        commit=False,
     )
     await db.execute(
         delete(PendingLogin).where(
