@@ -11,9 +11,11 @@ from sqlalchemy import (
     Boolean,
     DateTime,
     ForeignKey,
+    Index,
     String,
     UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy import (
     Enum as SAEnum,
@@ -44,6 +46,14 @@ class User(Base):
     """Tabela de usuários da plataforma n.infraops."""
 
     __tablename__ = "n_infraops_users"
+    __table_args__ = (
+        # O login do GLPI é a parte local do e-mail; precisa ser único de forma atômica.
+        Index(
+            "uq_users_glpi_login",
+            func.lower(func.split_part(text("email"), "@", 1)),
+            unique=True,
+        ),
+    )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     email: Mapped[str] = mapped_column(
@@ -65,6 +75,9 @@ class User(Base):
     )
     is_active: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True, server_default="true"
+    )
+    is_oncall: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

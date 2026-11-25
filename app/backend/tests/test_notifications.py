@@ -23,7 +23,11 @@ from app.models import (
     Asset,
     Contract,
     ContractChange,
+    Customer,
+    CustomerAlias,
+    CustomerContact,
     EscalationStep,
+    HostgroupRule,
     Incident,
     IncidentAction,
     Notification,
@@ -32,6 +36,7 @@ from app.models import (
     SlaCalendarHours,
     SlaHoliday,
     SlaPolicy,
+    TeamMember,
     User,
     UserRole,
 )
@@ -128,6 +133,11 @@ async def maker(monkeypatch):
             SlaPolicy,
             EscalationStep,
             ContractChange,
+            Customer,
+            CustomerAlias,
+            CustomerContact,
+            HostgroupRule,
+            TeamMember,
         )
     ]
     async with engine.begin() as c:
@@ -189,7 +199,12 @@ async def _seed(
         s.add(inc)
         roles = [UserRole.soc, UserRole.noc, UserRole.admin][:users]
         us = [
-            User(email=f"u{i}@example.invalid", hashed_password="x", role=r)
+            User(
+                email=f"u{i}@example.invalid",
+                hashed_password="x",
+                role=r,
+                is_oncall=r != UserRole.admin,
+            )
             for i, r in enumerate(roles)
         ]
         s.add_all(us)
@@ -677,3 +692,309 @@ async def test_ticket_opened_late_still_notifies(maker, monkeypatch):
         await s.commit()
     assert (await svc.sweep(MON))["notified"] == 1
     assert len(ch.emails) == 1
+
+
+async def _team_case(maker):
+    """Cliente `acme` com equipe (t1), um plantão, uma gestão e um técnico de outra equipe."""
+    from app.models import Customer, TeamMember
+
+    async with maker() as s:
+        c = Customer(key="acme", display_name="Acme", glpi_entity_id=99)
+        s.add(c)
+        mk = lambda n, role, **kw: User(  # noqa: E731
+            email=f"{n}@example.invalid", hashed_password="x", role=role, **kw
+        )
+        t1, oncall, boss, other = (
+            mk("t1", UserRole.noc),
+            mk("plantao", UserRole.noc, is_oncall=True),
+            mk("boss", UserRole.admin),
+            mk("other", UserRole.noc),
+        )
+        s.add_all([t1, oncall, boss, other])
+        await s.flush()
+        s.add(TeamMember(customer_id=c.id, user_id=t1.id))
+        # `other` está só na equipe de outro cliente
+        c2 = Customer(key="zeta", display_name="Zeta", glpi_entity_id=98)
+        s.add(c2)
+        await s.flush()
+        s.add(TeamMember(customer_id=c2.id, user_id=other.id))
+        await s.commit()
+
+
+@pg
+@pytest.mark.asyncio
+async def test_recipients_team_then_oncall_then_management(maker):
+    roles = (UserRole.noc, UserRole.admin)
+    await _team_case(maker)
+    async with maker() as s:
+        inc = Incident(
+            fingerprint="f",
+            title="t",
+            severity=5,
+            host_id="h",
+            host_name="h",
+            trigger_id="t",
+            tags={"ninf_customer_name": "acme"},
+        )
+        got = [u.email.split("@")[0] for u in await svc._recipients(s, inc, roles)]
+    assert got == ["t1", "plantao", "boss"]  # `other` (equipe de outro cliente) fora
+
+
+@pg
+@pytest.mark.asyncio
+async def test_no_team_falls_back_to_oncall_then_management(maker):
+    await _team_case(maker)
+    async with maker() as s:
+        inc = Incident(
+            fingerprint="f",
+            title="t",
+            severity=5,
+            host_id="h",
+            host_name="h",
+            trigger_id="t",
+            tags={"ninf_customer_name": "semequipe"},
+        )
+        got = [
+            u.email.split("@")[0]
+            for u in await svc._recipients(s, inc, (UserRole.noc, UserRole.admin))
+        ]
+    assert got == ["plantao", "boss"]
+
+
+@pg
+@pytest.mark.asyncio
+async def test_external_technician_only_on_own_customer(maker):
+    async with maker() as s:
+        s.add_all(
+            [
+                User(
+                    email="e1@x.invalid",
+                    hashed_password="x",
+                    role=UserRole.cliente,
+                    tenant_id="acme",
+                ),
+                User(
+                    email="e2@x.invalid",
+                    hashed_password="x",
+                    role=UserRole.cliente,
+                    tenant_id="zeta",
+                ),
+            ]
+        )
+        await s.commit()
+        inc = Incident(
+            fingerprint="f",
+            title="t",
+            severity=5,
+            host_id="h",
+            host_name="h",
+            trigger_id="t",
+            tags={"ninf_customer_name": "acme"},
+        )
+        got = [u.email for u in await svc._recipients(s, inc, (UserRole.cliente,))]
+    assert got == ["e1@x.invalid"]
+
+
+@pg
+@pytest.mark.asyncio
+async def test_team_found_when_incident_stores_display_name_not_key(maker):
+    """O incidente guarda o nome canônico ("Numen IT"); a equipe é ligada à chave ("numen")."""
+    async with maker() as s:
+        c = Customer(key="numen", display_name="Numen IT", glpi_entity_id=10)
+        t = User(email="t@x.invalid", hashed_password="x", role=UserRole.noc)
+        ext = User(
+            email="e@x.invalid",
+            hashed_password="x",
+            role=UserRole.cliente,
+            tenant_id="numen",
+        )
+        s.add_all([c, t, ext])
+        await s.flush()
+        s.add(TeamMember(customer_id=c.id, user_id=t.id))
+        await s.commit()
+        inc = Incident(
+            fingerprint="f",
+            title="t",
+            severity=5,
+            host_id="h",
+            host_name="h",
+            trigger_id="t",
+            tags={"ninf_customer_name": "Numen IT"},
+        )
+        got = [
+            u.email
+            for u in await svc._recipients(s, inc, (UserRole.noc, UserRole.cliente))
+        ]
+    assert sorted(got) == ["e@x.invalid", "t@x.invalid"]
+
+
+@pg
+@pytest.mark.asyncio
+async def test_unconfigured_install_keeps_previous_behavior(maker):
+    """Sem equipe nem plantão cadastrados, todo técnico segue recebendo (migração segura)."""
+    async with maker() as s:
+        s.add_all(
+            [
+                User(email="a@x.invalid", hashed_password="x", role=UserRole.noc),
+                User(email="b@x.invalid", hashed_password="x", role=UserRole.admin),
+            ]
+        )
+        await s.commit()
+        inc = Incident(
+            fingerprint="f",
+            title="t",
+            severity=5,
+            host_id="h",
+            host_name="h",
+            trigger_id="t",
+            tags={"ninf_customer_name": "acme"},
+        )
+        got = [
+            u.email
+            for u in await svc._recipients(s, inc, (UserRole.noc, UserRole.admin))
+        ]
+    assert got == ["a@x.invalid", "b@x.invalid"]
+
+
+@pg
+@pytest.mark.asyncio
+async def test_customer_without_team_or_oncall_keeps_legacy_even_if_another_has_team(
+    maker,
+):
+    from app.models import Customer, TeamMember
+
+    async with maker() as s:
+        other = Customer(key="zeta", display_name="Zeta", glpi_entity_id=98)
+        a = User(email="a@x.invalid", hashed_password="x", role=UserRole.noc)
+        b = User(email="b@x.invalid", hashed_password="x", role=UserRole.noc)
+        s.add_all([other, a, b])
+        await s.flush()
+        s.add(TeamMember(customer_id=other.id, user_id=a.id))
+        await s.commit()
+        inc = Incident(
+            fingerprint="f",
+            title="t",
+            severity=5,
+            host_id="h",
+            host_name="h",
+            trigger_id="t",
+            tags={"ninf_customer_name": "acme"},
+        )
+        got = [u.email for u in await svc._recipients(s, inc, (UserRole.noc,))]
+    assert sorted(got) == ["a@x.invalid", "b@x.invalid"]
+
+
+@pg
+@pytest.mark.asyncio
+async def test_inactive_team_member_does_not_disable_legacy_fallback(maker):
+    from app.models import Customer, TeamMember
+
+    async with maker() as s:
+        c = Customer(key="acme", display_name="Acme", glpi_entity_id=99)
+        gone = User(
+            email="g@x.invalid", hashed_password="x", role=UserRole.noc, is_active=False
+        )
+        stay = User(email="s@x.invalid", hashed_password="x", role=UserRole.noc)
+        s.add_all([c, gone, stay])
+        await s.flush()
+        s.add(TeamMember(customer_id=c.id, user_id=gone.id))
+        await s.commit()
+        inc = Incident(
+            fingerprint="f",
+            title="t",
+            severity=5,
+            host_id="h",
+            host_name="h",
+            trigger_id="t",
+            tags={"ninf_customer_name": "acme"},
+        )
+        got = [u.email for u in await svc._recipients(s, inc, (UserRole.noc,))]
+    assert got == ["s@x.invalid"]
+
+
+@pg
+@pytest.mark.asyncio
+async def test_team_outside_contract_roles_still_counts_as_configured(maker):
+    from app.models import Customer, TeamMember
+
+    async with maker() as s:
+        c = Customer(key="acme", display_name="Acme", glpi_entity_id=99)
+        noc = User(email="n@x.invalid", hashed_password="x", role=UserRole.noc)
+        soc = User(email="s@x.invalid", hashed_password="x", role=UserRole.soc)
+        s.add_all([c, noc, soc])
+        await s.flush()
+        s.add(TeamMember(customer_id=c.id, user_id=noc.id))
+        await s.commit()
+        inc = Incident(
+            fingerprint="f",
+            title="t",
+            severity=5,
+            host_id="h",
+            host_name="h",
+            trigger_id="t",
+            tags={"ninf_customer_name": "acme"},
+        )
+        got = [u.email for u in await svc._recipients(s, inc, (UserRole.soc,))]
+    assert got == []
+
+
+@pg
+@pytest.mark.asyncio
+async def test_admin_explicitly_in_team_is_ranked_as_team(maker):
+    from app.models import Customer, TeamMember
+
+    async with maker() as s:
+        c = Customer(key="acme", display_name="Acme", glpi_entity_id=99)
+        boss = User(email="boss@x.invalid", hashed_password="x", role=UserRole.admin)
+        plant = User(
+            email="p@x.invalid", hashed_password="x", role=UserRole.noc, is_oncall=True
+        )
+        s.add_all([c, boss, plant])
+        await s.flush()
+        s.add(TeamMember(customer_id=c.id, user_id=boss.id))
+        await s.commit()
+        inc = Incident(
+            fingerprint="f",
+            title="t",
+            severity=5,
+            host_id="h",
+            host_name="h",
+            trigger_id="t",
+            tags={"ninf_customer_name": "acme"},
+        )
+        got = [
+            u.email
+            for u in await svc._recipients(s, inc, (UserRole.noc, UserRole.admin))
+        ]
+    assert got == ["boss@x.invalid", "p@x.invalid"]
+
+
+@pg
+@pytest.mark.asyncio
+async def test_global_role_with_tenant_metadata_follows_team_rules(maker):
+    from app.models import Customer, TeamMember
+
+    async with maker() as s:
+        c = Customer(key="acme", display_name="Acme", glpi_entity_id=99)
+        member = User(email="m@x.invalid", hashed_password="x", role=UserRole.noc)
+        stray = User(
+            email="s@x.invalid",
+            hashed_password="x",
+            role=UserRole.noc,
+            tenant_id="acme",
+        )
+        s.add_all([c, member, stray])
+        await s.flush()
+        s.add(TeamMember(customer_id=c.id, user_id=member.id))
+        await s.commit()
+        inc = Incident(
+            fingerprint="f",
+            title="t",
+            severity=5,
+            host_id="h",
+            host_name="h",
+            trigger_id="t",
+            tags={"ninf_customer_name": "acme"},
+        )
+        got = [u.email for u in await svc._recipients(s, inc, (UserRole.noc,))]
+    assert got == ["m@x.invalid"]

@@ -51,3 +51,20 @@ async def customers_maker():
     async with engine.begin() as c:
         await c.run_sync(lambda sc: Base.metadata.drop_all(sc, tables=tabs))
     await engine.dispose()
+
+
+@pytest_asyncio.fixture
+async def people_maker(customers_maker):
+    """Clientes semeados + usuários e equipes (tabelas de pessoas)."""
+    from app.models.models import TeamMember
+    from app.models.users import User
+
+    tabs = [TeamMember.__table__, User.__table__]
+    engine = create_async_engine(URL)
+    async with engine.begin() as c:
+        await c.run_sync(lambda sc: Base.metadata.drop_all(sc, tables=tabs))
+        await c.run_sync(lambda sc: Base.metadata.create_all(sc, tables=tabs))
+    yield customers_maker
+    async with engine.begin() as c:
+        await c.run_sync(lambda sc: Base.metadata.drop_all(sc, tables=tabs))
+    await engine.dispose()

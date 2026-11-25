@@ -66,6 +66,8 @@ class Settings(BaseSettings):
     glpi_user_token: str = ""
     glpi_infra_category_id: int = 0
     glpi_security_category_id: int = 0
+    # Credencial própria com direito de gerir usuários, grupos e regras; vazia = sincronização desligada.
+    glpi_team_user_token: str = ""
 
     # Only controls Web Push emitted by the v1 alert worker.
     alert_notifications_enabled: bool = False

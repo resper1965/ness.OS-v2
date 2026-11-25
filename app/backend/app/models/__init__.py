@@ -26,6 +26,7 @@ from app.models.models import (
     SlaHoliday,
     SlaPolicy,
     SocDecision,
+    TeamMember,
     TenantMapping,
     TicketLink,
     TicketRule,
@@ -34,6 +35,7 @@ from app.models.push import PushSubscription
 from app.models.users import User, UserRole
 
 __all__ = [
+    "TeamMember",
     "AIDecision",
     "Asset",
     "Incident",
