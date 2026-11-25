@@ -149,9 +149,15 @@ async def _load(glpi):
             {
                 "id": tid,
                 "eid": t["eid"],
+                # GLPI em UTC: conferido, now() == utc_timestamp() no banco e o chamado novo grava UTC.
                 "date": datetime.fromisoformat(t["date"]).replace(tzinfo=UTC),
+                # ponytail: vínculo aberto no Hub protege o chamado (limpa de menos, nunca de mais);
+                # upgrade path: ignorar o vínculo se o incidente já estiver resolvido.
                 "has_tech": bool(t["tech"]) or tid in live,
                 "has_human_followup": tid in humans,
+                # ponytail: só casa a marca antiga (fingerprint); chamados do decider atual usam
+                # outro hash e caem em "sem estado" (limpa de menos); upgrade path: casar pelo
+                # dedup_key em n_infraops_ticket_links.
                 "hub_state": states.get(m.group(1)),
                 "is_noise": _hit(rules.noise, t["name"]),
             }
