@@ -967,3 +967,34 @@ async def test_admin_explicitly_in_team_is_ranked_as_team(maker):
             for u in await svc._recipients(s, inc, (UserRole.noc, UserRole.admin))
         ]
     assert got == ["boss@x.invalid", "p@x.invalid"]
+
+
+@pg
+@pytest.mark.asyncio
+async def test_global_role_with_tenant_metadata_follows_team_rules(maker):
+    from app.models import Customer, TeamMember
+
+    async with maker() as s:
+        c = Customer(key="acme", display_name="Acme", glpi_entity_id=99)
+        member = User(email="m@x.invalid", hashed_password="x", role=UserRole.noc)
+        stray = User(
+            email="s@x.invalid",
+            hashed_password="x",
+            role=UserRole.noc,
+            tenant_id="acme",
+        )
+        s.add_all([c, member, stray])
+        await s.flush()
+        s.add(TeamMember(customer_id=c.id, user_id=member.id))
+        await s.commit()
+        inc = Incident(
+            fingerprint="f",
+            title="t",
+            severity=5,
+            host_id="h",
+            host_name="h",
+            trigger_id="t",
+            tags={"ninf_customer_name": "acme"},
+        )
+        got = [u.email for u in await svc._recipients(s, inc, (UserRole.noc,))]
+    assert got == ["m@x.invalid"]

@@ -570,3 +570,11 @@ async def test_duplicate_glpi_login_aborts_without_writes(people_maker):
         )
     diff = await _diff(people_maker, g)
     assert diff[0].startswith("ERRO login repetido") and g.writes == 0
+
+
+async def test_no_team_registered_writes_nothing(people_maker):
+    g = FakeGlpi()
+    d = sync.Desired()
+    d.groups["ness · X"] = (8, False, set())
+    out = await sync.reconcile(g, d, True)
+    assert out[0].startswith("ERRO nenhuma equipe") and g.writes == 0

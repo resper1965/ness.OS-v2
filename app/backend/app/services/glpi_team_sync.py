@@ -161,6 +161,11 @@ async def reconcile(glpi, d: Desired, apply: bool) -> list[str]:
         for _, _, ms in d.groups.values():
             ms.discard(login)
 
+    # ponytail: sem nenhuma equipe cadastrada nada é gravado (evita revogar o acesso GLPI
+    # existente numa instalação recém-migrada); upgrade path: backfill explícito se precisar.
+    if not any(ms for _, _, ms in d.groups.values()):
+        return ["ERRO nenhuma equipe cadastrada; nada é gravado"]
+
     async def do(desc: str, coro_fn):
         diff.append(desc)
         return await coro_fn() if apply else None

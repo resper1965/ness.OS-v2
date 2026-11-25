@@ -179,7 +179,7 @@ async def _recipients(session, inc: Incident, roles) -> list[User]:
     )
 
     def tier(u: User) -> int | None:
-        if tenant and (u.tenant_id or "").lower() == tenant:
+        if tenant and u.role not in NOC_ROLES and (u.tenant_id or "").lower() == tenant:
             return 0
         if u.role == UserRole.cliente:
             return None
