@@ -146,7 +146,7 @@ async def reconcile(glpi, d: Desired, apply: bool) -> list[str]:
     } & set(d.people)
     protected = {int(cur["users"][lg]["id"]) for lg in manual}
     for login in sorted(manual):
-        diff.append(f"AVISO {login}: conta GLPI com perfil próprio; mantida manual")
+        logger.info("conta GLPI %s com perfil próprio; mantida manual", login)
         d.people.pop(login)
         for _, _, ms in d.groups.values():
             ms.discard(login)

@@ -534,8 +534,7 @@ async def test_existing_privileged_glpi_account_is_not_adopted(people_maker):
         }
     )
     diff = await _diff(people_maker, g)
-    assert any(x.startswith("AVISO ana") for x in diff)
-    assert not any("ana" in x and not x.startswith("AVISO") for x in diff)
+    assert not any("ana" in x for x in diff)
     assert next(u for u in g.t["User"] if u["id"] == 500)["authtype"] == 1
 
 
