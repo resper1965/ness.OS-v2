@@ -163,8 +163,8 @@ Categorias NOC/SOC/Serviço, grupo de plantão, perfil Técnico externo, desliga
 2. **Prévia** (sem `--apply`): `sudo -n docker exec -i -u www-data ninf-glpi php -- < glpi-g1-base.php`. Só `OK`/`UPDATE`/`CREATE`; qualquer exceção, parar.
 3. **Aplicar** (frase do Esper): o mesmo comando com `-- --apply`. Roda numa transação; falha desfaz tudo.
 4. **Verificar**: repetir a prévia (só `OK`).
-5. **Rollback**: parar escrita do Hub no GLPI (`docker stop ninf-worker-ml`), restaurar e religar:
-   `sudo -n bash -c "gunzip -c $D/glpi.sql.gz | docker exec -i ninf-glpi-db sh -c 'mysql -u\"\$MYSQL_USER\" -p\"\$MYSQL_PASSWORD\" \"\$MYSQL_DATABASE\"'"` (com `$D` da data do backup), depois `docker start ninf-worker-ml`.
+5. **Rollback**: parar todos os escritores (`docker stop ninf-worker-alerts ninf-worker-ml ninf-glpi`), restaurar e só então religar:
+   `sudo -n bash -c "set -o pipefail; gzip -t $D/glpi.sql.gz && gunzip -c $D/glpi.sql.gz | docker exec -i ninf-glpi-db sh -c 'mysql -u\"\$MYSQL_USER\" -p\"\$MYSQL_PASSWORD\" \"\$MYSQL_DATABASE\"' && docker start ninf-glpi ninf-worker-alerts ninf-worker-ml"` (com `$D` da data do backup). Se falhar, nada é religado: investigar antes.
 
 ## Rollback total (ordem)
 
