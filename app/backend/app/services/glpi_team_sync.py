@@ -135,6 +135,21 @@ async def reconcile(glpi, d: Desired, apply: bool) -> list[str]:
     cur = await _read(glpi)
     diff: list[str] = []
 
+    # Conta GLPI que já existe e tem perfil fora dos dois do Hub (Super-Admin etc.) é manual:
+    # o Hub não a adota, não muda a autenticação nem mexe em grupos/perfis dela.
+    managed_ids = {cur["profiles"][P_NESS], cur["profiles"][P_EXT]}
+    by_id = {int(u["id"]): k for k, u in cur["users"].items()}
+    manual = {
+        by_id[int(r["users_id"])]
+        for r in cur["profile_users"]
+        if int(r["users_id"]) in by_id and int(r["profiles_id"]) not in managed_ids
+    } & set(d.people)
+    for login in sorted(manual):
+        diff.append(f"AVISO {login}: conta GLPI com perfil próprio; mantida manual")
+        d.people.pop(login)
+        for _, _, ms in d.groups.values():
+            ms.discard(login)
+
     async def do(desc: str, coro_fn):
         diff.append(desc)
         return await coro_fn() if apply else None

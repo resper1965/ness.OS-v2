@@ -182,9 +182,11 @@ async def update_person(
         raise HTTPException(403, "Só platform_admin altera platform_admin")
     external = user.role == UserRole.cliente
     current = (await _out(db, user))["customer_ids"]
-    customers = await _customers(
-        db, body.customer_ids if body.customer_ids is not None else current
-    )
+    if body.customer_ids is not None:
+        customers = await _customers(db, body.customer_ids)
+    else:  # edição sem mexer na equipe: cliente inativo que já estava lá não bloqueia
+        rows = await db.execute(select(Customer).where(Customer.id.in_(current)))
+        customers = list(rows.scalars())
     oncall = user.is_oncall if body.is_oncall is None else body.is_oncall
     _check(external, customers, oncall)
     if (customers or oncall) and user.role not in _TEAM_ROLES:

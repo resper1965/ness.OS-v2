@@ -516,3 +516,24 @@ async def test_customer_name_too_long_for_glpi_group_aborts(people_maker):
     g = FakeGlpi()
     diff = await _diff(people_maker, g)
     assert diff[0].startswith("ERRO") and g.writes == 0
+
+
+async def test_existing_privileged_glpi_account_is_not_adopted(people_maker):
+    await _seed(people_maker)
+    g = FakeGlpi()
+    g.t["User"].append(
+        {"id": 500, "name": "ana", "realname": "Root", "authtype": 1, "is_active": 1}
+    )
+    g.t["Profile_User"].append(
+        {
+            "id": 800,
+            "users_id": 500,
+            "profiles_id": 4,
+            "entities_id": 0,
+            "is_recursive": 1,
+        }
+    )
+    diff = await _diff(people_maker, g)
+    assert any(x.startswith("AVISO ana") for x in diff)
+    assert not any("ana" in x and not x.startswith("AVISO") for x in diff)
+    assert next(u for u in g.t["User"] if u["id"] == 500)["authtype"] == 1

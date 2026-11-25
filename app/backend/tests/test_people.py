@@ -248,3 +248,29 @@ async def test_long_name_is_422_not_500(api):
             json={"email": "l@ness.com.br", "full_name": "x" * 300, "kind": "ness"},
         )
         assert r.status_code == 422
+
+
+async def test_unrelated_edit_survives_inactive_customer_in_team(api, people_maker):
+    from sqlalchemy import update
+
+    from app.models import Customer
+
+    a = await _cid(people_maker, "cavan")
+    async with api() as c:
+        r = await c.post(
+            "/api/people",
+            json={
+                "email": "t@ness.com.br",
+                "full_name": "T",
+                "kind": "ness",
+                "customer_ids": [a],
+            },
+        )
+        pid = r.json()["id"]
+    async with people_maker() as s:
+        await s.execute(update(Customer).where(Customer.id == a).values(active=False))
+        await s.commit()
+    async with api() as c:
+        assert (
+            await c.put(f"/api/people/{pid}", json={"full_name": "T2"})
+        ).status_code == 200
