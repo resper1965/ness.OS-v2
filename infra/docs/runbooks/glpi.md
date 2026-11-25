@@ -184,3 +184,7 @@ Cria o perfil `ness.OS Hub Sync` (usuários, grupos, regras, entidades; sem cham
 - Consumidor do bearer do gateway ainda não definido (P3).
 - Sem filtro de rede: a fronteira é IP do cliente + sigilo do `user_token` + checagem de entidade do gateway.
 - **Risco principal:** o cliente 2 (App-Token do Hub, 172.18/16) aceita o `user_token` da 106 a partir do Hub. O filtro de IP do cliente 3 só impede o App-Token do gateway de ser usado de fora; não impede o do Hub. Mitigação possível (decisão): conta 94/Hub com App-Token distinto não resolve; só tirar o Hub do IP/rede do GLPI ou aceitar o risco com o `user_token` confinado.
+
+## Perfil `ness.OS Integration` (id 12): resolver chamado
+
+O Hub resolve chamado (`ITILSolution` + status 5) com o usuário `svc_ness_os`. O GLPI só permite com `ticket` = **7** (ler + criar + atualizar) e matriz `ticket_status` com a transição para 5 liberada. Em 25/11 o perfil estava com `ticket` = 5 e a matriz zerada, e toda resolução automática voltava 400 ("sem permissão"). Corrigido para 7 e matriz liberada (exceto destino 6, fechado). Backup da matriz antiga: `/opt/n-infraops/change-backups/profile12-ticket_status-2026-11-25.json`. Teste: criar chamado sintético na entidade, resolver pela API e apagar pelo banco (o perfil não tem direito de exclusão, de propósito).
