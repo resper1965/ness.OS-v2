@@ -346,7 +346,8 @@ class GLPIClient:
                     # Página vazia só é legítima quando traz a faixa pedida (linhas de junção
                     # repetidas); sem isso, é coleção incompleta.
                     consumed = (
-                        first is not None
+                        path == "User"  # só a junção com perfis repete linhas
+                        and first is not None
                         and int(first) == start
                         and start <= int(last) <= start + 99
                         and int(last) < total
