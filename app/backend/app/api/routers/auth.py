@@ -434,7 +434,6 @@ async def create_identity(
     body: IdentityCreate,
     admin: User = Depends(require_platform_admin),
     db: AsyncSession = Depends(get_db),
-    commit: bool = True,
 ) -> IdentityOut:
     """
     Papel e tenant continuam no cadastro do User; aqui só se liga a identidade do IdP.
@@ -444,6 +443,13 @@ async def create_identity(
 
     O issuer deve ser idêntico ao ``iss`` do token (sem normalizar barra final nem caixa).
     """
+    return await _link_identity(body, admin, db, commit=True)
+
+
+async def _link_identity(
+    body: IdentityCreate, admin: User, db: AsyncSession, *, commit: bool
+) -> IdentityOut:
+    """Grava o vínculo; com commit=False o chamador fecha a transação."""
     issuer, subject = body.issuer.strip(), body.subject.strip()
     if not (0 < len(issuer) <= 512 and 0 < len(subject) <= 255):
         raise HTTPException(
@@ -530,7 +536,7 @@ async def link_pending_login(
     if pending is None:
         raise HTTPException(status_code=404, detail="Login pendente não encontrado")
     # Vínculo e saída da fila na mesma transação: ou os dois, ou nenhum.
-    out = await create_identity(
+    out = await _link_identity(
         IdentityCreate(
             user_id=body.user_id, issuer=pending.issuer, subject=pending.subject
         ),

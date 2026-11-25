@@ -367,3 +367,15 @@ async def test_link_failure_keeps_the_pending_entry_and_creates_no_identity(
     assert gone.status_code == 404
     assert await _count(maker, Identity) == 1
     assert len((await client.get("/api/auth/pending", headers=_bearer(pa))).json()) == 1
+
+
+async def test_identities_endpoint_does_not_expose_a_commit_switch(maker, client):
+    pa = await _user(maker, "pa@example.invalid", UserRole.platform_admin, None)
+    target = await _user(maker, "t@example.invalid")
+    r = await client.post(
+        "/api/auth/identities?commit=false",
+        headers=_bearer(pa),
+        json={"user_id": target.id, "issuer": ISS, "subject": "o-8"},
+    )
+    assert r.status_code == 201
+    assert await _count(maker, Identity) == 1
