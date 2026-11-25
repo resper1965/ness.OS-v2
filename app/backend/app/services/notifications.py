@@ -18,6 +18,7 @@ from typing import Any
 from sqlalchemy import DateTime, func, or_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
+from app.core.dependencies import NOC_ROLES
 from app.database import SessionLocal
 from app.integrations.email import ResendEmailClient
 from app.integrations.webpush import send_web_push
@@ -186,7 +187,7 @@ async def _recipients(session, inc: Incident, roles) -> list[User]:
             return 0
         if u.role in (UserRole.admin, UserRole.platform_admin):
             return 1 if u.is_oncall else 2
-        if u.is_oncall or (not configured and not u.tenant_id):
+        if u.is_oncall or (not configured and u.role in NOC_ROLES):
             return 1
         return None
 
