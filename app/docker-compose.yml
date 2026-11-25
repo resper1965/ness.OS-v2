@@ -75,7 +75,9 @@ services:
       --concurrency=2
       --loglevel=info
       --hostname=ml@%h
-    env_file: .env
+    env_file:
+      - .env
+      - /etc/ness-os/glpi-integration.env
     depends_on:
       - api
     networks:
