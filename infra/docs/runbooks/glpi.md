@@ -168,7 +168,7 @@ Categorias NOC/SOC/Serviço, grupo de plantão, perfil Técnico externo, desliga
 
 ### Usuário de sincronização do Hub (`infra/scripts/glpi-sync-user.php`)
 
-Cria o perfil `ness.OS Hub Sync` (usuários, grupos, regras, entidades; sem chamados) e o usuário `svc_ness_sync`; o token vai direto para `NINF_GLPI_TEAM_USER_TOKEN` em `/etc/ness-os/glpi-integration.env` e para o `.env` do Hub. O GLPI exige o direito `config` (leitura e escrita) para editar ações e critérios de regra: é o mais estreito que funciona; por isso a conta só existe no Hub e o token nunca é impresso. Rotação: apagar a linha do env, rodar de novo (sempre com `>/dev/null` no `tee`) e recriar `api` e `worker-ml`, que só leem o arquivo ao subir; até lá o token antigo, já revogado, faz a sincronização falhar.
+Cria o perfil `ness.OS Hub Sync` (usuários, grupos, regras, entidades; sem chamados) e o usuário `svc_ness_sync`; o token vai direto para `NINF_GLPI_TEAM_USER_TOKEN` em `/etc/ness-os/glpi-integration.env` e para o `.env` do Hub. O GLPI exige o direito `config` (leitura e escrita) para editar ações e critérios de regra: é o mais estreito que funciona; por isso a conta só existe no Hub e o token nunca é impresso. Rotação: apagar a linha do env, rodar de novo (sempre com `set -o pipefail` e `>/dev/null` no `tee`, e conferir que o env tem exatamente 1 linha `NINF_GLPI_TEAM_USER_TOKEN=`) e recriar `api` e `worker-ml`, que só leem o arquivo ao subir; até lá o token antigo, já revogado, faz a sincronização falhar.
 
 ## Rollback total (ordem)
 

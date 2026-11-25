@@ -2,7 +2,8 @@
 // Perfil "ness.OS Hub Sync" e usuário svc_ness_sync, usados por glpi_team_sync (Hub). Aplicado em produção em 25/11.
 // Imprime só a linha NINF_GLPI_TEAM_USER_TOKEN=... em stdout (redirecionar direto para o env, nunca para a tela).
 // Uso: sudo -n docker exec -i -u www-data ninf-glpi php -- < glpi-sync-user.php | sudo -n tee -a /etc/ness-os/glpi-integration.env >/dev/null
-// (o >/dev/null é obrigatório: sem ele o tee ecoa o token na tela.)
+// (o >/dev/null é obrigatório: sem ele o tee ecoa o token na tela. Rode com `set -o pipefail` e confira com
+// `sudo -n grep -c ^NINF_GLPI_TEAM_USER_TOKEN= /etc/ness-os/glpi-integration.env` = 1 antes de recriar os contêineres.)
 // Rotação: apagar a linha antiga do env, rodar de novo (o usuário existente só tem o token regenerado, o que
 // invalida o antigo) e recriar quem lê o arquivo: `docker compose ... up -d --no-deps --force-recreate api worker-ml`.
 // `config` é exigido pelo GLPI para ler/editar ações e critérios de regra (RuleAction/RuleCriteria herdam de Rule).
