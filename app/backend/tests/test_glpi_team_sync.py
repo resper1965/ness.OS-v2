@@ -578,3 +578,15 @@ async def test_no_team_registered_writes_nothing(people_maker):
     d.groups["ness · X"] = (8, False, set())
     out = await sync.reconcile(g, d, True)
     assert out[0].startswith("ERRO nenhuma equipe") and g.writes == 0
+
+
+async def test_emptied_team_after_first_sync_revokes_access(people_maker):
+    cav, _ = await _seed(people_maker)
+    g = FakeGlpi()
+    await _diff(people_maker, g)
+    async with people_maker() as s:
+        await s.execute(delete(TeamMember))
+        await s.commit()
+    diff = await _diff(people_maker, g)
+    assert any(x.startswith("REMOVE") for x in diff)
+    assert any(x.startswith("UNPROFILE") for x in diff)

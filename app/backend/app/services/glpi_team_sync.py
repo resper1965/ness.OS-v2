@@ -161,9 +161,16 @@ async def reconcile(glpi, d: Desired, apply: bool) -> list[str]:
         for _, _, ms in d.groups.values():
             ms.discard(login)
 
-    # ponytail: sem nenhuma equipe cadastrada nada é gravado (evita revogar o acesso GLPI
-    # existente numa instalação recém-migrada); upgrade path: backfill explícito se precisar.
-    if not any(ms for _, _, ms in d.groups.values()):
+    # Instalação recém-migrada: nenhuma equipe no Hub e nenhum vínculo gerido no GLPI.
+    # Reconciliar agora revogaria o acesso existente; recusa até o primeiro cadastro.
+    # Já sincronizada (há vínculo gerido) e esvaziada de propósito: segue e revoga.
+    managed_group_ids = {
+        int(g["id"]) for g in cur["groups"] if str(g["name"]).startswith(PREFIX)
+    }
+    ever_synced = any(
+        int(gu["groups_id"]) in managed_group_ids for gu in cur["group_users"]
+    )
+    if not ever_synced and not any(ms for _, _, ms in d.groups.values()):
         return ["ERRO nenhuma equipe cadastrada; nada é gravado"]
 
     async def do(desc: str, coro_fn):
