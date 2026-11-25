@@ -201,6 +201,58 @@ async def test_glpi_list_items_reads_all_pages_when_server_caps_page_size(monkey
 
 
 @pytest.mark.asyncio
+async def test_glpi_list_items_accepts_joined_rows_collapsed_into_distinct_items(
+    monkeypatch,
+):
+    # GLPI /User counts one row per profile: range 0-4/5 yields 3 distinct users.
+    def handler(_request):
+        return httpx.Response(
+            206,
+            json=[{"id": 1}, {"id": 2}, {"id": 1}, {"id": 3}],
+            headers={"Content-Range": "0-4/5"},
+        )
+
+    original = httpx.AsyncClient
+    monkeypatch.setattr(
+        httpx,
+        "AsyncClient",
+        lambda **kwargs: original(transport=httpx.MockTransport(handler), **kwargs),
+    )
+    client = GLPIClient(
+        base_url="http://glpi/apirest.php", app_token="app", user_token="user"
+    )
+    client.session_token = "session"
+
+    items = await client.list_items("User")
+
+    assert [i["id"] for i in items] == [1, 2, 3]
+
+
+@pytest.mark.asyncio
+async def test_glpi_list_items_rejects_range_beyond_total(monkeypatch):
+    def handler(_request):
+        return httpx.Response(
+            206,
+            json=[{"id": i} for i in range(10)],
+            headers={"Content-Range": "0-99/50"},
+        )
+
+    original = httpx.AsyncClient
+    monkeypatch.setattr(
+        httpx,
+        "AsyncClient",
+        lambda **kwargs: original(transport=httpx.MockTransport(handler), **kwargs),
+    )
+    client = GLPIClient(
+        base_url="http://glpi/apirest.php", app_token="app", user_token="user"
+    )
+    client.session_token = "session"
+
+    with pytest.raises(RuntimeError, match="pagination"):
+        await client.list_items("User")
+
+
+@pytest.mark.asyncio
 async def test_glpi_list_items_rejects_empty_page_before_reported_total(monkeypatch):
     requested = []
 
