@@ -61,7 +61,7 @@ O que **não** é cadastro: árvore de categorias, perfil Técnico externo, grup
 - [ ] **Step 4:** Com a frase do Esper: backup, depois `--apply` duas vezes. Esperado na 2ª rodada: só `OK`.
 - [ ] **Step 5:** Commit `feat: base fixa do GLPI (categorias, perfil externo, plantão)`.
 
-### Task 1b: Pessoas e equipes no Hub, refletidas no GLPI (G1, cadastro)
+### Task 1b: Pessoas e equipes no Hub, refletidas no GLPI (G1, cadastro) — **backend feito no #293; falta a tela `PeopleScreen`**
 
 O Hub é o único cadastro de pessoas e equipes **[Esper, 24/11]**. Ninguém mexe nisso à mão no GLPI. Hoje o Hub não tem tela nem API de usuários (eles nascem por seed ou SQL). Esta task cria as duas coisas.
 
@@ -130,14 +130,14 @@ O Hub é o único cadastro de pessoas e equipes **[Esper, 24/11]**. Ninguém mex
 
 **Interfaces:**
 - Consome: `GLPIClient.has_technician(ticket_id) -> bool` e `GLPIClient.solve_ticket(ticket_id, content) -> None` (`app/integrations/glpi.py:526,534`).
-- Produz: `select_candidates(rows: list[dict], cutoff: datetime) -> list[int]`. Função pura que recebe linhas `{id, date, has_tech, has_human_followup, hub_state}`.
+- Produz: `select_candidates(rows: list[dict], cutoff: datetime) -> list[int]`. Função pura que recebe linhas `{id, date, has_tech, has_human_followup, hub_state, is_noise}`; `is_noise` já vem calculado pelo script (título na lista de ruído), então o chamado novo cujo incidente é ruído só pelo título também entra.
 
 - [ ] **Step 1: Teste**
 
 ```python
 def test_select_candidates():
     cutoff = datetime(2026, 11, 23, 3, tzinfo=timezone.utc)
-    old = {"date": cutoff - timedelta(days=1), "has_tech": False, "has_human_followup": False, "hub_state": None}
+    old = {"date": cutoff - timedelta(days=1), "has_tech": False, "has_human_followup": False, "hub_state": None, "is_noise": False}
     rows = [
         {"id": 1, **old},
         {"id": 2, **old, "has_tech": True},
@@ -145,8 +145,9 @@ def test_select_candidates():
         {"id": 4, **old, "date": cutoff + timedelta(hours=1)},
         {"id": 5, **old, "date": cutoff + timedelta(hours=1), "hub_state": "panel"},
         {"id": 6, **old, "date": cutoff + timedelta(hours=1), "hub_state": "resolved"},
+        {"id": 7, **old, "date": cutoff + timedelta(hours=1), "is_noise": True},
     ]
-    assert select_candidates(rows, cutoff) == [1, 5, 6]
+    assert select_candidates(rows, cutoff) == [1, 5, 6, 7]
 ```
 
 - [ ] **Step 2:** Rodar e ver falhar: `pytest tests/test_glpi_backlog_bulk_solve.py -q`.
@@ -165,31 +166,15 @@ def test_select_candidates():
   Esperado: chamados com status 1 na casa das dezenas.
 - [ ] **Step 7:** Commit `feat: limpeza do acumulado do GLPI e fechamento automático`.
 
-### Task 3: Aviso pela equipe do cliente (A1)
+### Task 3: Aviso pela equipe do cliente (A1) — **feito no #293**
 
-Como o Hub é dono das equipes, o destinatário sai do banco do Hub. O aviso não lê o GLPI.
+O Hub é dono das equipes: o destinatário sai do banco do Hub, o aviso não lê o GLPI. Implementado em `services/notifications.py` (`_recipients`).
 
-**Files:**
-- Modify: `app/backend/app/services/notifications.py` (`_recipients`)
-- Test: `app/backend/tests/test_notifications.py`
-
-**Interfaces:**
-- Consome: `n_infraops_team_members` e `User.is_oncall` (Task 1b).
-- Produz: `_recipients(session, inc, step) -> list[User]`, que exclui sempre o papel `cliente` (o A2 cuida desse papel):
-  - passo 0: membros ativos da equipe do cliente do incidente; se não houver, o plantão;
-  - passo 1: plantão;
-  - passo 2+: `admin` e `platform_admin`.
-
-- [ ] **Step 1: Testes**
-  - `test_step0_goes_to_customer_team`;
-  - `test_no_team_falls_back_to_oncall` (Review Focus 2);
-  - `test_cliente_role_never_receives_technician_alert`;
-  - `test_other_customer_team_not_notified`;
-  - `test_step2_goes_to_management`.
-- [ ] **Step 2:** Rodar e ver falhar.
-- [ ] **Step 3:** Implementar. O cliente do incidente vem de `tags.ninf_customer_name` → `Customer.key` (como em `services/customers.py`).
-- [ ] **Step 4:** Rodar a suíte completa.
-- [ ] **Step 5:** PR e merge. A promoção junta esta task e o #290 e pede a frase do Esper.
+- Ordem: equipe do cliente do incidente (`n_infraops_team_members`), depois plantão (`User.is_oncall`, que é lido do próprio Hub, sem consulta ao GLPI), depois `admin`/`platform_admin`. Admin que está na equipe ou de plantão sobe para o degrau dele.
+- Técnico externo (papel `cliente`, membro da equipe do próprio cliente) **recebe** o aviso técnico; o papel `cliente` fora da equipe nunca recebe (o gestor do cliente é o A2).
+- Cliente sem equipe e sem plantão cadastrados mantém o comportamento anterior (papéis `NOC_ROLES`), por cliente, para migrar sem buraco.
+- Testes em `tests/test_notifications.py`.
+- A promoção junta esta task, a 1b e o #290 e pede a frase do Esper.
 
 ### Task 4: Conteúdo do chamado e ligação NOC↔SOC (G3)
 
