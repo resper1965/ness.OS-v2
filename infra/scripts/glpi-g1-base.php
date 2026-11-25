@@ -47,7 +47,7 @@ Session::callAsSystem(function () use ($apply, $out, $DB) {
     }
 
     // Grupos de área antigos e vazios deixam de ser atribuíveis (nunca apaga; grupo com membro fica).
-    foreach ($DB->request(['FROM' => 'glpi_groups', 'WHERE' => ['is_assign' => 1, 'NOT' => ['name' => ['LIKE', 'ness · %']]]]) as $g) {
+    foreach ($DB->request(['FROM' => 'glpi_groups', 'WHERE' => ['is_assign' => 1, 'id' => array_merge([5, 6], range(13, 28))]]) as $g) {
         if (iterator_count($DB->request(['FROM' => 'glpi_groups_users', 'WHERE' => ['groups_id' => $g['id']]])) > 0) {
             $out('OK', "grupo {$g['name']} tem membro, mantido");
             continue;
