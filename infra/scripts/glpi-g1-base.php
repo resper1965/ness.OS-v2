@@ -14,6 +14,8 @@ if ((int)($CFG_GLPI['use_notifications'] ?? 1) !== 0) {
 $out = fn(string $op, string $what) => print(json_encode(['op' => $op, 'item' => $what], JSON_UNESCAPED_UNICODE) . PHP_EOL);
 
 Session::callAsSystem(function () use ($apply, $out, $DB) {
+    $DB->beginTransaction();
+    try {
     // Categorias: renomeia/reparenta as existentes, sem migrar chamado (ids preservados;
     // o Hub usa glpi_infra_category_id=4 e glpi_security_category_id=24).
     $cats = [
@@ -100,8 +102,22 @@ Session::callAsSystem(function () use ($apply, $out, $DB) {
                       'ticketcost' => 0, 'budget' => 0, 'contract' => 0] as $k => $v) {
                 $rights[$k] = $v;
             }
+            // Lista fechada: só o trabalho com chamados escreve. O resto (ativos, ferramentas,
+            // projetos etc.) fica no máximo em leitura, qualquer que seja o direito do Technician.
+            $write = ['ticket', 'followup', 'task', 'ticketvalidation', 'knowbase', 'reminder_public',
+                      'rssfeed_public', 'reservation', 'personalization'];
+            foreach ($rights as $k => $v) {
+                if (!in_array($k, $write, true)) {
+                    $rights[$k] = $v & READ;
+                }
+            }
             ProfileRight::updateProfileRights($pid, $rights);
         }
+    }
+        $DB->commit();
+    } catch (Throwable $e) {
+        $DB->rollBack();
+        throw $e;
     }
 });
 echo json_encode(['mode' => $apply ? 'apply' : 'preview']) . PHP_EOL;
