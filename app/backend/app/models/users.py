@@ -12,6 +12,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Index,
+    Integer,
     String,
     UniqueConstraint,
     func,
@@ -110,5 +111,24 @@ class Identity(Base):
         BigInteger, ForeignKey("n_infraops_users.id"), nullable=True
     )
     created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class PendingLogin(Base):
+    """Identidade do IdP recusada por falta de vínculo; o admin escolhe a pessoa e vincula."""
+
+    __tablename__ = "n_infraops_pending_logins"
+
+    issuer: Mapped[str] = mapped_column(String(512), primary_key=True)
+    subject: Mapped[str] = mapped_column(String(255), primary_key=True)
+    email: Mapped[str | None] = mapped_column(String(320), nullable=True)
+    attempts: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=1, server_default="1"
+    )
+    first_seen: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    last_seen: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

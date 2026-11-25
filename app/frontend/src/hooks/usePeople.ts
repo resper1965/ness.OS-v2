@@ -7,6 +7,7 @@ export interface Person {
   id: number; email: string; full_name: string | null; kind: 'ness' | 'externo'; role: string;
   customer_ids: number[]; is_oncall: boolean; is_active: boolean;
 }
+export interface PendingLogin { issuer: string; subject: string; email: string | null; attempts: number; last_seen: string }
 export interface PersonForm { email: string; full_name: string; kind: 'ness' | 'externo'; customer_ids: number[]; is_oncall: boolean; is_active: boolean }
 
 export interface PeopleState {
@@ -18,11 +19,13 @@ export interface PeopleState {
   busy: boolean;
   actionError: string | null;
   notice: string | null;
+  pending: PendingLogin[];
+  canLink: boolean;
   diff: string[] | null; // simulação da reconciliação com o GLPI; null = ainda não verificada
 }
 
 const INITIAL: PeopleState = {
-  phase: 'loading', error: null, people: [], customers: [], editing: null, busy: false, actionError: null, notice: null, diff: null,
+  phase: 'loading', error: null, people: [], customers: [], editing: null, busy: false, actionError: null, notice: null, pending: [], canLink: false, diff: null,
 };
 
 export function createPeopleStore() {
@@ -32,7 +35,9 @@ export function createPeopleStore() {
     if (!silent) store.set({ phase: 'loading', error: null });
     try {
       const [people, customers] = await Promise.all([request<Person[]>('/api/people'), request<Customer[]>('/api/customers')]);
-      store.set({ phase: 'ready', error: null, people, customers });
+      // Só platform_admin lista e vincula; para os demais a fila fica vazia, sem erro.
+      const pending = await request<PendingLogin[]>('/api/auth/pending').then((p) => ({ p, ok: true }), () => ({ p: [] as PendingLogin[], ok: false }));
+      store.set({ phase: 'ready', error: null, people, customers, pending: pending.p, canLink: pending.ok });
     } catch (e) {
       store.set({ phase: 'error', error: asApiError(e) });
     }
@@ -82,6 +87,13 @@ export function createPeopleStore() {
     },
     async deactivate(id: number) {
       const ok = await act(async () => { await request(`/api/people/${id}`, { method: 'DELETE' }); }, 'Pessoa desativada.');
+      if (ok) await load(true);
+      return ok;
+    },
+    async link(p: PendingLogin, userId: number) {
+      const ok = await act(async () => {
+        await request('/api/auth/pending/link', { method: 'POST', body: { issuer: p.issuer, subject: p.subject, user_id: userId } });
+      }, 'Login vinculado. A pessoa já pode entrar.');
       if (ok) await load(true);
       return ok;
     },

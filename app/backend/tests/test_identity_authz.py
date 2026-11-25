@@ -18,7 +18,7 @@ from app.api.routers.auth import router as auth_router
 from app.api.routers.tenants import router as tenants_router
 from app.core.jwt import create_access_token, verify_token
 from app.database import Base, get_db
-from app.models.users import Identity, User, UserRole
+from app.models.users import Identity, PendingLogin, User, UserRole
 
 URL = os.environ.get("NINF_TEST_PG_URL")
 pytestmark = [
@@ -33,7 +33,7 @@ ISS = "https://idp.example.invalid/"
 @pytest_asyncio.fixture
 async def maker():
     engine = create_async_engine(URL)
-    tabs = [User.__table__, Identity.__table__]
+    tabs = [User.__table__, Identity.__table__, PendingLogin.__table__]
     async with engine.begin() as c:
         await c.run_sync(lambda sc: Base.metadata.drop_all(sc, tables=tabs))
         await c.run_sync(lambda sc: Base.metadata.create_all(sc, tables=tabs))
@@ -272,3 +272,61 @@ async def test_register_rejects_inactive_user(maker, client):
     )
     assert r.status_code == 409
     assert await _count(maker, Identity) == 0
+
+
+async def test_refused_login_is_listed_counted_and_never_linked_by_email(maker, client):
+    pa = await _user(maker, "pa@example.invalid", UserRole.platform_admin, None)
+    await _user(maker, "ana@ness.com.br", UserRole.noc, None)
+    for _ in range(2):
+        assert (
+            await _callback(client, oid="o-9", email="ana@ness.com.br")
+        ).status_code == 403
+    assert await _count(maker, Identity) == 0
+    r = await client.get("/api/auth/pending", headers=_bearer(pa))
+    assert r.status_code == 200
+    [row] = r.json()
+    assert (row["subject"], row["email"], row["attempts"]) == (
+        "o-9",
+        "ana@ness.com.br",
+        2,
+    )
+
+
+async def test_only_platform_admin_lists_pending(maker, client):
+    caller = await _user(maker, "adm@example.invalid", UserRole.admin, None)
+    assert (
+        await client.get("/api/auth/pending", headers=_bearer(caller))
+    ).status_code == 403
+
+
+async def test_admin_links_pending_to_chosen_person_then_login_works(maker, client):
+    pa = await _user(maker, "pa@example.invalid", UserRole.platform_admin, None)
+    target = await _user(maker, "ana@ness.com.br", UserRole.noc, None)
+    await _callback(client, oid="o-9", email="outra-pessoa@ness.com.br")
+    r = await client.post(
+        "/api/auth/pending/link",
+        headers=_bearer(pa),
+        json={"issuer": ISS, "subject": "o-9", "user_id": target.id},
+    )
+    assert r.status_code == 201
+    assert (await client.get("/api/auth/pending", headers=_bearer(pa))).json() == []
+    assert (await _callback(client, oid="o-9")).json()["id"] == target.id
+
+
+async def test_link_unknown_pending_is_404_and_inactive_person_keeps_it(maker, client):
+    pa = await _user(maker, "pa@example.invalid", UserRole.platform_admin, None)
+    gone = await client.post(
+        "/api/auth/pending/link",
+        headers=_bearer(pa),
+        json={"issuer": ISS, "subject": "nada", "user_id": 1},
+    )
+    assert gone.status_code == 404
+    off = await _user(maker, "off@ness.com.br", UserRole.noc, None, is_active=False)
+    await _callback(client, oid="o-7")
+    r = await client.post(
+        "/api/auth/pending/link",
+        headers=_bearer(pa),
+        json={"issuer": ISS, "subject": "o-7", "user_id": off.id},
+    )
+    assert r.status_code == 409
+    assert len((await client.get("/api/auth/pending", headers=_bearer(pa))).json()) == 1
