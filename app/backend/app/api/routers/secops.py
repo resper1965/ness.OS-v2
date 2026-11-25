@@ -959,33 +959,34 @@ async def _soc_incident(
         agent = alert_data.get("agent") or {}
         host = str(agent.get("name") or decision.agent_name or "unknown")
         now = datetime.now(UTC)
-        db.add(
-            Incident(
-                fingerprint=hashlib.sha256(f"soc:{decision.id}".encode()).hexdigest(),
-                title=str(rule.get("description") or f"Regra {decision.wazuh_rule_id}")[
-                    :500
-                ],
-                severity=5 if alert_data["level"] >= 15 else 4,
-                status="open",
-                host_id=str(decision.agent_id)[:64],
-                host_name=host[:255],
-                trigger_id=str(decision.wazuh_rule_id)[:64],
-                first_seen=now,
-                last_seen=now,
-                sanitized_description=str(triage_result.get("summary") or ""),
-                tags={
-                    "ninf_customer_name": customer.display_name,
-                    "ninf_entity_id": customer.glpi_entity_id,
-                    "ninf_dedup_key": ticket_dedup_key(
-                        customer.glpi_entity_id, host, str(decision.wazuh_rule_id)
-                    ),
-                    "ninf_zabbix_status": "problem",
-                    "ninf_ticket_state": "pending",
-                    "ninf_branch": "soc",
-                    "ninf_soc_decision_id": decision.id,
-                },
-            )
+        incident = Incident(
+            fingerprint=hashlib.sha256(f"soc:{decision.id}".encode()).hexdigest(),
+            title=str(rule.get("description") or f"Regra {decision.wazuh_rule_id}")[
+                :500
+            ],
+            severity=5 if alert_data["level"] >= 15 else 4,
+            status="open",
+            host_id=str(decision.agent_id)[:64],
+            host_name=host[:255],
+            trigger_id=str(decision.wazuh_rule_id)[:64],
+            first_seen=now,
+            last_seen=now,
+            sanitized_description=str(triage_result.get("summary") or ""),
+            tags={
+                "ninf_customer_name": customer.key,
+                "ninf_entity_id": customer.glpi_entity_id,
+                "ninf_dedup_key": ticket_dedup_key(
+                    customer.glpi_entity_id, host, str(decision.wazuh_rule_id)
+                ),
+                "ninf_zabbix_status": "problem",
+                "ninf_ticket_state": "pending",
+                "ninf_branch": "soc",
+                "ninf_soc_decision_id": decision.id,
+            },
         )
+        db.add(incident)
+        await db.flush()
+        decision.incident_id = incident.id
         await db.commit()
     except AmbiguousCustomer:
         await db.rollback()

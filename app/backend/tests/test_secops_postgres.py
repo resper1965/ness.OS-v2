@@ -437,6 +437,11 @@ async def test_wazuh_level12_creates_pending_soc_incident(sessions, monkeypatch)
     (inc,) = await _wazuh_level(sessions, monkeypatch, 12)
     assert inc.tags["ninf_ticket_state"] == "pending"
     assert inc.tags["ninf_branch"] == "soc" and inc.tags["ninf_entity_id"] == 8
+    assert (
+        inc.tags["ninf_customer_name"] == "cavan"
+    )  # chave: é o que a autorização compara
+    async with sessions() as s:
+        assert (await s.execute(select(SocDecision.incident_id))).scalar_one() == inc.id
 
 
 async def test_wazuh_level10_creates_no_incident(sessions, monkeypatch):
