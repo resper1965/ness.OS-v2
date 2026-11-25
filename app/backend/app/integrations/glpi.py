@@ -340,7 +340,7 @@ class GLPIClient:
                         or int(first) != start
                         or int(last) < start + len(page) - 1
                         or int(last) > start + 99
-                        or total < start + len(page)
+                        or int(last) >= total
                     ):
                         raise RuntimeError("GLPI returned inconsistent pagination")
                     if not page and start < total:

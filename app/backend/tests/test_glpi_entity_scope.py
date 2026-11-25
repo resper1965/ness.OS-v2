@@ -229,6 +229,30 @@ async def test_glpi_list_items_accepts_joined_rows_collapsed_into_distinct_items
 
 
 @pytest.mark.asyncio
+async def test_glpi_list_items_rejects_range_beyond_total(monkeypatch):
+    def handler(_request):
+        return httpx.Response(
+            206,
+            json=[{"id": i} for i in range(10)],
+            headers={"Content-Range": "0-99/50"},
+        )
+
+    original = httpx.AsyncClient
+    monkeypatch.setattr(
+        httpx,
+        "AsyncClient",
+        lambda **kwargs: original(transport=httpx.MockTransport(handler), **kwargs),
+    )
+    client = GLPIClient(
+        base_url="http://glpi/apirest.php", app_token="app", user_token="user"
+    )
+    client.session_token = "session"
+
+    with pytest.raises(RuntimeError, match="pagination"):
+        await client.list_items("User")
+
+
+@pytest.mark.asyncio
 async def test_glpi_list_items_rejects_empty_page_before_reported_total(monkeypatch):
     requested = []
 
