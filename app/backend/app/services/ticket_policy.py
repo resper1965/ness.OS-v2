@@ -18,6 +18,7 @@ TICKET_DEFAULTS = {
     "ticket_grace_minutes": 15,
     "ticket_reopen_hours": 24,
     "ticket_symptom_lead_minutes": 2,
+    "ticket_cross_link_minutes": 30,
 }
 
 

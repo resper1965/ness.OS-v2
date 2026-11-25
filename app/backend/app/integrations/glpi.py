@@ -612,6 +612,13 @@ class GLPIClient:
             "PUT", f"{itemtype}/{int(item_id)}", {**data, "id": int(item_id)}
         )
 
+    async def link_tickets(self, a: int, b: int) -> None:
+        """Chamados relacionados (Ticket_Ticket, link=1)."""
+        await self.create_item(
+            "Ticket_Ticket",
+            {"tickets_id_1": int(a), "tickets_id_2": int(b), "link": 1},
+        )
+
     async def delete_item(self, itemtype: str, item_id: int) -> None:
         await self._write("DELETE", f"{itemtype}/{int(item_id)}")
 

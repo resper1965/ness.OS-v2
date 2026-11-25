@@ -19,8 +19,10 @@ from app.database import Base, get_db
 from app.main import app
 from app.models.models import (
     AIDecision,
+    Asset,
     Customer,
     CustomerAlias,
+    Incident,
     PlatformParam,
     SocDecision,
     TenantMapping,
@@ -45,6 +47,8 @@ async def sessions():
             CustomerAlias.__table__,
             PlatformParam.__table__,
             AIDecision.__table__,
+            Asset.__table__,
+            Incident.__table__,
         ]
         await c.run_sync(lambda sc: Base.metadata.drop_all(sc, tables=tabs))
         await c.run_sync(lambda sc: Base.metadata.create_all(sc, tables=tabs))
@@ -408,3 +412,32 @@ async def test_disabled_customer_records_skip_without_divergence(sessions, monke
         row = (await s.execute(select(AIDecision))).scalar_one()
     assert row.outcome == "skipped_customer" and row.model_value is None
     assert row.divergent is False
+
+
+async def _wazuh_level(sessions, monkeypatch, level):
+    async with sessions() as s:
+        s.add(
+            Customer(key="cavan", display_name="Cavan", glpi_entity_id=8, active=True)
+        )
+        await s.commit()
+    await _map(sessions, [("cavan", "g-cavan")])
+    alert = {
+        "id": "1700000000.222",
+        "manager": {"name": "m1"},
+        "agent": {"id": "001", "name": "pc", "group": ["g-cavan"]},
+        "rule": {"id": "100100", "level": level, "description": "RDP"},
+        "timestamp": "2026-11-02T10:00:00Z",
+    }
+    await _triage_via_api(sessions, monkeypatch, [alert])
+    async with sessions() as s:
+        return (await s.execute(select(Incident))).scalars().all()
+
+
+async def test_wazuh_level12_creates_pending_soc_incident(sessions, monkeypatch):
+    (inc,) = await _wazuh_level(sessions, monkeypatch, 12)
+    assert inc.tags["ninf_ticket_state"] == "pending"
+    assert inc.tags["ninf_branch"] == "soc" and inc.tags["ninf_entity_id"] == 8
+
+
+async def test_wazuh_level10_creates_no_incident(sessions, monkeypatch):
+    assert await _wazuh_level(sessions, monkeypatch, 10) == []

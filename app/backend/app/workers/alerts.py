@@ -94,6 +94,8 @@ def resolve_glpi_category_id(alert_data: Dict[str, Any]) -> int:
     """
     trigger_name = alert_data.get("trigger_name", "").lower()
     tags = alert_data.get("tags", {})
+    if tags.get("ninf_branch") == "soc":
+        return settings.glpi_security_category_id
 
     # 1. Verificar se o assunto do gatilho contém termos de segurança
     security_keywords = [
@@ -533,6 +535,7 @@ async def _async_process_alert_v1(
                 "ninf_zabbix_event_id": event_id,
                 "ninf_zabbix_status": old.get("ninf_zabbix_status", "problem"),
                 "ninf_ticket_state": old.get("ninf_ticket_state", "pending"),
+                "ninf_branch": old.get("ninf_branch", "noc"),
                 **({"ninf_site": site} if site else {}),
             }
             await session.flush()

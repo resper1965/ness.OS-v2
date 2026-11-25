@@ -90,7 +90,9 @@ def glpi(monkeypatch):
     return g
 
 
-async def _inc(maker, n, title, *, minutes=16, entity=12, site=SITE, sev=3, **tags):
+async def _inc(
+    maker, n, title, *, minutes=16, entity=12, site=SITE, sev=3, host=None, **tags
+):
     async with maker() as s:
         s.add(
             Incident(
@@ -100,8 +102,9 @@ async def _inc(maker, n, title, *, minutes=16, entity=12, site=SITE, sev=3, **ta
                 severity=sev,
                 status="open",
                 host_id=f"h{n}",
-                host_name=f"host{n}",
+                host_name=host or f"host{n}",
                 trigger_id=f"t{n}",
+                deskmanager_ticket_id=tags.pop("ticket", None),
                 first_seen=NOW - timedelta(minutes=minutes),
                 last_seen=NOW,
                 tags={
@@ -460,3 +463,51 @@ async def test_tech_resolution_resolves_all_occurrences(maker, glpi, monkeypatch
         assert {(await s.get(Incident, n)).status for n in (1, 2)} == {"resolved"}
         link = (await s.execute(select(TicketLink))).scalar_one()
     assert link.state == "closed"
+
+
+@pytest.mark.asyncio
+async def test_ticket_body_has_summary_and_link(maker, glpi):
+    await _inc(maker, 1, DISK, site=None)
+    await ticket_decider.decide(NOW)
+    body = glpi.create_ticket.call_args.kwargs["content"]
+    assert "ver no ness.OS" in body and "/?view=incidents&amp;id=1" in body
+
+
+async def _opened(maker, n, minutes_ago, branch, host="srv1"):
+    await _inc(
+        maker,
+        n,
+        DISK,
+        site=None,
+        host=host,
+        ticket=str(900 + n),
+        ninf_ticket_state="opened",
+        ninf_ticket_opened_at=(NOW - timedelta(minutes=minutes_ago)).isoformat(),
+        ninf_branch=branch,
+    )
+
+
+@pytest.mark.asyncio
+async def test_cross_branch_linked_within_window(maker, glpi):
+    await _opened(maker, 1, 10, "noc")
+    await _inc(maker, 2, DISK, site=None, host="srv1", ninf_branch="soc")
+    await ticket_decider.decide(NOW)
+    glpi.link_tickets.assert_awaited_once_with(501, 901)
+    public = [c for c in glpi.add_comment.await_args_list if not c.kwargs["private"]]
+    assert {c.kwargs["ticket_id"] for c in public} == {501, 901}
+
+
+@pytest.mark.asyncio
+async def test_cross_branch_not_linked_outside_window(maker, glpi):
+    await _opened(maker, 1, 45, "noc")
+    await _inc(maker, 2, DISK, site=None, host="srv1", ninf_branch="soc")
+    await ticket_decider.decide(NOW)
+    glpi.link_tickets.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_same_branch_never_cross_linked(maker, glpi):
+    await _opened(maker, 1, 10, "noc")
+    await _inc(maker, 2, DISK, site=None, host="srv1", ninf_branch="noc")
+    await ticket_decider.decide(NOW)
+    glpi.link_tickets.assert_not_awaited()
