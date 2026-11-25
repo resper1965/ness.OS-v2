@@ -537,3 +537,26 @@ async def test_existing_privileged_glpi_account_is_not_adopted(people_maker):
     assert any(x.startswith("AVISO ana") for x in diff)
     assert not any("ana" in x and not x.startswith("AVISO") for x in diff)
     assert next(u for u in g.t["User"] if u["id"] == 500)["authtype"] == 1
+
+
+async def test_protected_account_keeps_group_membership(people_maker):
+    await _seed(people_maker)
+    g = FakeGlpi()
+    await _diff(people_maker, g)
+    g.t["User"].append(
+        {"id": 500, "name": "ana", "realname": "Root", "authtype": 1, "is_active": 1}
+    )
+    g.t["Profile_User"].append(
+        {
+            "id": 800,
+            "users_id": 500,
+            "profiles_id": 4,
+            "entities_id": 0,
+            "is_recursive": 1,
+        }
+    )
+    gr = next(x for x in g.t["Group"] if x["name"].startswith(sync.PREFIX))
+    g.t["Group_User"].append({"id": 900, "users_id": 500, "groups_id": gr["id"]})
+    diff = await _diff(people_maker, g)
+    assert not any(x.startswith("REMOVE") and "500" in x for x in diff)
+    assert any(r["id"] == 900 for r in g.t["Group_User"])

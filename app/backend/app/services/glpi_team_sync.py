@@ -144,6 +144,7 @@ async def reconcile(glpi, d: Desired, apply: bool) -> list[str]:
         for r in cur["profile_users"]
         if int(r["users_id"]) in by_id and int(r["profiles_id"]) not in managed_ids
     } & set(d.people)
+    protected = {int(cur["users"][lg]["id"]) for lg in manual}
     for login in sorted(manual):
         diff.append(f"AVISO {login}: conta GLPI com perfil próprio; mantida manual")
         d.people.pop(login)
@@ -257,15 +258,15 @@ async def reconcile(glpi, d: Desired, apply: bool) -> list[str]:
         for g in cur["groups"]
         if str(g["name"]).startswith(PREFIX)
     }
-    have: dict[tuple[str, int], dict[int, int]] = {}
+    have: dict[int, dict[int, int]] = {}  # id do grupo -> {usuário: vínculo}
     for gu in cur["group_users"]:
-        if int(gu["groups_id"]) in managed:
-            have.setdefault(managed[int(gu["groups_id"])], {})[int(gu["users_id"])] = (
-                int(gu["id"])
+        if int(gu["groups_id"]) in managed and int(gu["users_id"]) not in protected:
+            have.setdefault(int(gu["groups_id"]), {})[int(gu["users_id"])] = int(
+                gu["id"]
             )
     id_login = {v: k for k, v in uid.items() if v}
     for name, (eid, _, members) in d.groups.items():
-        cur_members = have.get((name, eid), {})
+        cur_members = have.get(gid[name] or -1, {})
         for login in sorted(members):
             if uid.get(login) is None or uid[login] not in cur_members:
                 await do(
@@ -281,15 +282,15 @@ async def reconcile(glpi, d: Desired, apply: bool) -> list[str]:
                     f"REMOVE {who}→{name}",
                     lambda link_id=link_id: glpi.delete_item("Group_User", link_id),
                 )
-    wanted = {(n, e) for n, (e, _, _) in d.groups.items()}
-    for (gname, geid), cur_members in have.items():
-        if (
-            gname,
-            geid,
-        ) not in wanted:  # grupo de cliente que saiu ou mudou de entidade
+    selected = {v for v in gid.values() if v}
+    for (
+        group_id,
+        cur_members,
+    ) in have.items():  # grupo que saiu, mudou de entidade ou é duplicata
+        if group_id not in selected:
             for user_id, link_id in cur_members.items():
                 await do(
-                    f"REMOVE #{user_id}→{gname}",
+                    f"REMOVE #{user_id}→{managed[group_id][0]}",
                     lambda link_id=link_id: glpi.delete_item("Group_User", link_id),
                 )
 
