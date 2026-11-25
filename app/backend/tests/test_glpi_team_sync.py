@@ -590,3 +590,15 @@ async def test_emptied_team_after_first_sync_revokes_access(people_maker):
     diff = await _diff(people_maker, g)
     assert any(x.startswith("REMOVE") for x in diff)
     assert any(x.startswith("UNPROFILE") for x in diff)
+
+
+async def test_stays_reconcilable_after_membership_rows_are_gone(people_maker):
+    await _seed(people_maker)
+    g = FakeGlpi()
+    await _diff(people_maker, g)
+    async with people_maker() as s:
+        await s.execute(delete(TeamMember))
+        await s.commit()
+    await _diff(people_maker, g)
+    diff = await _diff(people_maker, g)
+    assert not any(x.startswith("ERRO") for x in diff)
