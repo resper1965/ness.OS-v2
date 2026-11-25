@@ -76,3 +76,41 @@ describe('edição', () => {
     expect(bodies[0].customer_ids).toEqual([7]);
   });
 });
+
+describe('logins pendentes', () => {
+  const pend = { issuer: 'https://idp/', subject: 'o-9', email: 'nova@ness.com.br', attempts: 3, last_seen: '2026-11-25T15:00:00Z' };
+  it('aparecem só para quem pode vincular', () => {
+    expect(text(markup({ pending: [pend], canLink: true }))).toContain('nova@ness.com.br');
+    expect(text(markup({ pending: [pend], canLink: false }))).not.toContain('nova@ness.com.br');
+  });
+  it('carrega a fila e vincula pela pessoa escolhida', async () => {
+    const calls: string[] = [];
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+      calls.push(`${init?.method ?? 'GET'} ${url}`);
+      const body = url.includes('customers') ? customers : url === '/api/auth/pending' ? [pend] : url.includes('/pending/link') ? {} : [ana];
+      return new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } });
+    }));
+    const { store, actions } = createPeopleStore();
+    await actions.load();
+    expect(store.get().canLink).toBe(true);
+    expect(await actions.link(pend, 1)).toBe(true);
+    expect(calls).toContain('POST /api/auth/pending/link');
+  });
+  it('sem permissão a fila fica vazia e a tela não quebra', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => url === '/api/auth/pending'
+      ? new Response('{}', { status: 403, headers: { 'content-type': 'application/json' } })
+      : new Response(JSON.stringify(url.includes('customers') ? customers : [ana]), { status: 200, headers: { 'content-type': 'application/json' } })));
+    const { store, actions } = createPeopleStore();
+    await actions.load();
+    expect(store.get().phase).toBe('ready');
+    expect(store.get().canLink).toBe(false);
+  });
+  it('erro que não é 403 na fila aparece na tela', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => url === '/api/auth/pending'
+      ? new Response('{}', { status: 500, headers: { 'content-type': 'application/json' } })
+      : new Response(JSON.stringify(url.includes('customers') ? customers : [ana]), { status: 200, headers: { 'content-type': 'application/json' } })));
+    const { store, actions } = createPeopleStore();
+    await actions.load();
+    expect(store.get().phase).toBe('error');
+  });
+});
