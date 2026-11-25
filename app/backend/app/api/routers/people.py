@@ -131,9 +131,11 @@ async def create_person(
     admin: User = Depends(require_admin),
 ):
     external = body.kind == "externo"
+    email = body.email.lower()
+    if not external and not email.endswith("@ness.com.br"):
+        raise HTTPException(422, "Papel global só para e-mail @ness.com.br")
     customers = await _customers(db, body.customer_ids)
     _check(external, customers, body.is_oncall)
-    email = body.email.lower()
     taken = (
         await db.execute(
             select(User.id).where(

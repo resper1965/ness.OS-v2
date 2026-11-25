@@ -95,7 +95,7 @@ async def test_externo_gets_cliente_role_and_tenant(api, people_maker):
         assert r.json()["email"] == "elid@cavan.com" and r.json()["role"] == "cliente"
         dup = await c.post(
             "/api/people",
-            json={"email": "elid@cavan.com", "full_name": "E", "kind": "ness"},
+            json={"email": "elid@ness.com.br", "full_name": "E", "kind": "ness"},
         )
         assert dup.status_code == 409
     async with people_maker() as s:
@@ -146,7 +146,7 @@ async def test_same_local_part_is_rejected_because_glpi_login_would_collide(api)
         ).status_code == 201
         r = await c.post(
             "/api/people",
-            json={"email": "alex@cliente.com", "full_name": "B", "kind": "ness"},
+            json={"email": "alex@ness.com.br", "full_name": "B", "kind": "ness"},
         )
         assert r.status_code == 409
 
@@ -216,13 +216,13 @@ async def test_underscore_in_login_is_not_a_wildcard(api):
         assert (
             await c.post(
                 "/api/people",
-                json={"email": "anax1@a.com", "full_name": "A", "kind": "ness"},
+                json={"email": "anax1@ness.com.br", "full_name": "A", "kind": "ness"},
             )
         ).status_code == 201
         assert (
             await c.post(
                 "/api/people",
-                json={"email": "ana_1@b.com", "full_name": "B", "kind": "ness"},
+                json={"email": "ana_1@ness.com.br", "full_name": "B", "kind": "ness"},
             )
         ).status_code == 201
 
@@ -294,3 +294,12 @@ async def test_legacy_external_without_team_rows_can_be_renamed(api, people_make
         assert (
             await c.put(f"/api/people/{uid}", json={"full_name": "Novo"})
         ).status_code == 200
+
+
+async def test_ness_kind_rejects_external_domain(api):
+    async with api() as c:
+        r = await c.post(
+            "/api/people",
+            json={"email": "x@cliente.com", "full_name": "X", "kind": "ness"},
+        )
+        assert r.status_code == 422
