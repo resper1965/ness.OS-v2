@@ -61,9 +61,11 @@ Session::callAsSystem(function () use ($apply, $out, $DB) {
 
     // Regras antigas: rota por categoria para grupo fixo e SLA por prioridade sem SLM.
     // O grupo passa a vir da entidade e o prazo do contrato (Task 1b).
-    foreach ([142, 143, 144, 145, 146, 147] as $id) {
+    $legacy = [142 => 'Route to NOC (InfraOps)', 143 => 'Route to SOC (SecOps)', 144 => 'SLA - Assign Bronze',
+               145 => 'SLA - Assign Silver', 146 => 'SLA - Assign Gold', 147 => 'SLA - Assign Platinum'];
+    foreach ($legacy as $id => $name) {
         $rule = new Rule();
-        if (!$rule->getFromDB($id) || $rule->fields['sub_type'] !== 'RuleTicket') {
+        if (!$rule->getFromDB($id) || $rule->fields['sub_type'] !== 'RuleTicket' || $rule->fields['name'] !== $name) {
             throw new RuntimeException("Regra $id inesperada");
         }
         if (!(int)$rule->fields['is_active']) {
