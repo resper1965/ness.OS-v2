@@ -399,7 +399,7 @@ async def reconcile(glpi, d: Desired, apply: bool) -> list[str]:
                         "sub_type": "RuleTicket",
                         "match": "AND",
                         "condition": 1,
-                        "is_active": 1,
+                        "is_active": 0,
                         "entities_id": 0,
                         "is_recursive": 1,
                     },
@@ -422,6 +422,8 @@ async def reconcile(glpi, d: Desired, apply: bool) -> list[str]:
                         "value": gid[name],
                     },
                 )
+                # só liga com critério e ação gravados: regra pela metade nunca atua
+                await glpi.update_item("RuleTicket", rid, {"is_active": 1})
 
             await do(f"CREATE rule entidade {eid}→{name}", make)
             continue
