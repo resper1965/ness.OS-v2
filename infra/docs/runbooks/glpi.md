@@ -158,11 +158,13 @@ Salvar em `docs/execution/evidence/` (sem token): digest, hashes do override, sa
 
 Categorias NOC/SOC/Serviço, grupo de plantão, perfil Técnico externo, desliga regras 142–147, limpa grupo padrão das categorias, arquiva grupos de área vazios e SLAs soltos. Idempotente; pessoas e equipes vêm do Hub, não daqui. Aplicada em produção em 24/11 (a versão atual acrescenta categorias, grupos, SLAs e direitos do perfil).
 
-1. **Backup** (obrigatório): `sudo -n docker exec ninf-glpi-db sh -c 'mysqldump -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE"' | gzip > /opt/n-infraops/change-backups/glpi-$(date -u +%F)/glpi.sql.gz`.
+1. **Backup** (obrigatório), com `D=/opt/n-infraops/change-backups/glpi-$(date -u +%F)`:
+   `sudo -n install -d -m 700 $D && sudo -n bash -c "set -o pipefail; docker exec ninf-glpi-db sh -c 'mysqldump --single-transaction -u\"\$MYSQL_USER\" -p\"\$MYSQL_PASSWORD\" \"\$MYSQL_DATABASE\"' | gzip > $D/glpi.sql.gz" && sudo -n gzip -t $D/glpi.sql.gz && sudo -n ls -l $D/glpi.sql.gz`. Só seguir com `gzip -t` sem erro e tamanho coerente.
 2. **Prévia** (sem `--apply`): `sudo -n docker exec -i -u www-data ninf-glpi php -- < glpi-g1-base.php`. Só `OK`/`UPDATE`/`CREATE`; qualquer exceção, parar.
 3. **Aplicar** (frase do Esper): o mesmo comando com `-- --apply`. Roda numa transação; falha desfaz tudo.
 4. **Verificar**: repetir a prévia (só `OK`).
-5. **Rollback**: restaurar o dump (`gunzip -c glpi.sql.gz | mysql ...`) com o Hub parado para escrita no GLPI.
+5. **Rollback**: parar escrita do Hub no GLPI (`docker stop ninf-worker-ml`), restaurar e religar:
+   `sudo -n bash -c "gunzip -c $D/glpi.sql.gz | docker exec -i ninf-glpi-db sh -c 'mysql -u\"\$MYSQL_USER\" -p\"\$MYSQL_PASSWORD\" \"\$MYSQL_DATABASE\"'"` (com `$D` da data do backup), depois `docker start ninf-worker-ml`.
 
 ## Rollback total (ordem)
 
