@@ -46,6 +46,19 @@ Session::callAsSystem(function () use ($apply, $out, $DB) {
         }
     }
 
+    // Grupos de área antigos e vazios deixam de ser atribuíveis (nunca apaga; grupo com membro fica).
+    foreach ($DB->request(['FROM' => 'glpi_groups', 'WHERE' => ['is_assign' => 1, 'NOT' => ['name' => ['LIKE', 'ness · %']]]]) as $g) {
+        if (iterator_count($DB->request(['FROM' => 'glpi_groups_users', 'WHERE' => ['groups_id' => $g['id']]])) > 0) {
+            $out('OK', "grupo {$g['name']} tem membro, mantido");
+            continue;
+        }
+        $out('UPDATE', "arquivar grupo {$g['id']} {$g['name']} (is_assign=0)");
+        if ($apply && !(new Group())->update(['id' => $g['id'], 'is_assign' => 0,
+            'comment' => trim(($g['comment'] ?? '') . "\nArquivado em G1: grupos agora vêm do Hub (ness · <cliente>).")])) {
+            throw new RuntimeException("Falha ao arquivar grupo {$g['id']}");
+        }
+    }
+
     // Regras antigas: rota por categoria para grupo fixo e SLA por prioridade sem SLM.
     // O grupo passa a vir da entidade e o prazo do contrato (Task 1b).
     foreach ([142, 143, 144, 145, 146, 147] as $id) {
