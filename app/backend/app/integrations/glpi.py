@@ -348,7 +348,8 @@ class GLPIClient:
                     consumed = (
                         first is not None
                         and int(first) == start
-                        and start <= int(last) < total
+                        and start <= int(last) <= start + 99
+                        and int(last) < total
                     )
                     if not page and start < total and not consumed:
                         raise RuntimeError("GLPI returned incomplete collection")
