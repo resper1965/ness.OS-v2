@@ -188,3 +188,16 @@ Cria o perfil `ness.OS Hub Sync` (usuários, grupos, regras, entidades; sem cham
 ## Perfil `ness.OS Integration` (id 12): resolver chamado
 
 O Hub resolve chamado (`ITILSolution` + status 5) com o usuário `svc_ness_os`. O GLPI só permite com `ticket` = **7** (ler + criar + atualizar) e matriz `ticket_status` com a transição para 5 liberada. Em 25/11 o perfil estava com `ticket` = 5 e a matriz zerada, e toda resolução automática voltava 400 ("sem permissão"). Corrigido para 7 e matriz liberada (exceto destino 6, fechado). Backup da matriz antiga: `/opt/n-infraops/change-backups/profile12-ticket_status-2026-11-25.json`. Teste: criar chamado sintético na entidade, resolver pela API e apagar pelo banco (o perfil não tem direito de exclusão, de propósito).
+
+## Técnico externo: concedido por script, não pelo sync
+
+O token de sync (`ness.OS Hub Sync`, perfil 17) não tem direito sobre chamados, de propósito: o GLPI só deixa conceder um perfil a quem tem todos os direitos dele, e o perfil "Técnico externo" tem `ticket` com leitura, alteração e exclusão. Dar isso ao token de sync o faria alterar qualquer chamado de qualquer cliente.
+
+Por isso o sync cria usuário e grupo e, ao falhar no perfil externo, registra `AVISO <login>: perfil externo não concedido` com o comando exato. Rode uma vez por externo novo (sem `--apply` só mostra):
+
+```
+sudo -n docker exec -i -u www-data ninf-glpi php -- --user=<login> --entity=<id> --apply < infra/scripts/glpi-grant-external.php
+```
+
+A entidade é a do cliente, sem recursão. Usuário antigo com perfil Technician recursivo na entidade 0 vê todos os clientes: desative a conta (`is_active=0`) em vez de apagar. Feito em 26/11 com `fabrizio.vieira` (id 20), duplicata de `ffviera`.
+

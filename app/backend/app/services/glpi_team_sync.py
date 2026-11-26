@@ -354,18 +354,29 @@ async def reconcile(glpi, d: Desired, apply: bool) -> list[str]:
             if person_id and int(r["users_id"]) == person_id
         }
         if want not in have_rows:
-            await do(
-                f"PROFILE {login}→{'externo' if want[0] == ext_pid else 'técnico'}",
-                lambda person_id=person_id, want=want: glpi.create_item(
-                    "Profile_User",
-                    {
-                        "users_id": person_id,
-                        "profiles_id": want[0],
-                        "entities_id": want[1],
-                        "is_recursive": want[2],
-                    },
-                ),
-            )
+            try:
+                await do(
+                    f"PROFILE {login}→{'externo' if want[0] == ext_pid else 'técnico'}",
+                    lambda person_id=person_id, want=want: glpi.create_item(
+                        "Profile_User",
+                        {
+                            "users_id": person_id,
+                            "profiles_id": want[0],
+                            "entities_id": want[1],
+                            "is_recursive": want[2],
+                        },
+                    ),
+                )
+            except RuntimeError:
+                # O token de sync não tem os direitos do perfil (de propósito: sem chamados).
+                # Só o perfil fica de fora; o resto do ciclo segue e o passo manual é avisado.
+                if want[0] != ext_pid:
+                    raise
+                diff.append(
+                    f"AVISO {login}: perfil externo não concedido; "
+                    f"rode infra/scripts/glpi-grant-external.php --user={login} "
+                    f"--entity={want[1]} --apply"
+                )
 
     # --- regra: entidade -> grupo
     # Regra do Hub só vale com exatamente 1 critério de entidade e 1 ação de grupo;

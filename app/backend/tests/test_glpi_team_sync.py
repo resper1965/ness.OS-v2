@@ -43,6 +43,8 @@ class FakeGlpi:
         return list(self.t[path])
 
     async def create_item(self, itemtype, data):
+        if (itemtype, data.get("profiles_id")) in getattr(self, "deny", ()):
+            raise RuntimeError(f"GLPI escrita em {itemtype} indisponível")
         self.writes += 1
         row = {"id": next(self.n), "is_active": 1, **data}
         self.t[itemtype].append(row)
@@ -602,3 +604,16 @@ async def test_stays_reconcilable_after_membership_rows_are_gone(people_maker):
     await _diff(people_maker, g)
     diff = await _diff(people_maker, g)
     assert not any(x.startswith("ERRO") for x in diff)
+
+
+async def test_denied_external_profile_warns_and_does_not_break_the_cycle(
+    people_maker,
+):
+    await _seed(people_maker)
+    g = FakeGlpi()
+    g.deny = {("Profile_User", 14)}
+    diff = await _diff(people_maker, g)
+    warn = [x for x in diff if x.startswith("AVISO")]
+    assert len(warn) == 1 and "elid" in warn[0] and "glpi-grant-external" in warn[0]
+    assert not [x for x in diff if x.startswith("ERRO")]
+    assert any(u["name"] == "elid" for u in g.t["User"])  # o resto do ciclo foi gravado
