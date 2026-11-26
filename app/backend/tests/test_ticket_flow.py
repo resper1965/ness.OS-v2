@@ -522,3 +522,24 @@ async def test_failed_cross_link_is_retried_once(maker, glpi):
     assert glpi.link_tickets.await_count == 2
     await ticket_decider.decide(NOW)  # a marca foi consumida: não repete de novo
     assert glpi.link_tickets.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_resolved_other_branch_ticket_not_linked(maker, glpi):
+    await _opened(maker, 1, 10, "noc")
+    async with maker() as s:
+        (await s.get(Incident, 1)).status = "resolved"
+        await s.commit()
+    await _inc(maker, 2, DISK, site=None, host="srv1", ninf_branch="soc")
+    await ticket_decider.decide(NOW)
+    glpi.link_tickets.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_soc_ticket_skips_zabbix_asset_lookup(maker, glpi, monkeypatch):
+    lookup = AsyncMock(return_value={"itemtype": "Computer", "id": 1})
+    monkeypatch.setattr(alerts, "lookup_glpi_asset", lookup)
+    await _inc(maker, 1, DISK, site=None, ninf_branch="soc")
+    await ticket_decider.decide(NOW)
+    lookup.assert_not_awaited()
+    assert "linked_item" not in glpi.create_ticket.call_args.kwargs

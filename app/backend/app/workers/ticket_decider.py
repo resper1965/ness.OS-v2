@@ -131,6 +131,7 @@ async def _cross_link(
                 await session.execute(
                     select(Incident).where(
                         Incident.id != inc.id,
+                        Incident.status.not_in(("resolved", "closed")),
                         Incident.tags["ninf_ticket_state"].astext == "opened",
                         Incident.tags["ninf_entity_id"].astext == str(entity_id),
                         Incident.tags["ninf_ticket_opened_at"].astext >= since,
@@ -239,7 +240,10 @@ async def _open(
         category_id=alerts.resolve_glpi_category_id(data),
         title=f"[AIOps] {inc.title}",
         content=content,
-        linked_item=await alerts.lookup_glpi_asset(inc.host_id, customer),
+        # host_id do ramo SOC é id de agente Wazuh: não casa com ativo do Zabbix
+        linked_item=(
+            None if soc else await alerts.lookup_glpi_asset(inc.host_id, customer)
+        ),
         urgency=alerts.glpi_urgency(inc.severity),
         lookup_first=False,
     )
