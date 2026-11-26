@@ -27,7 +27,6 @@ from app.models.users import User
 
 router = APIRouter(prefix="/api/painel", tags=["painel"])
 
-TICKET_STATES = ("opened", "attached", "pending", "panel")
 SEV = ("Critical", "High", "Medium", "Low")
 
 
@@ -49,7 +48,12 @@ async def _names(db: AsyncSession, scope: str) -> set[str]:
     c = (await db.execute(stmt)).scalar_one_or_none()
     if c is None:
         raise HTTPException(status_code=404, detail="Cliente não encontrado")
-    return {scope, c.key.lower(), c.display_name.lower()}
+    aliases = (
+        await db.execute(
+            select(CustomerAlias.alias_norm).where(CustomerAlias.customer_id == c.id)
+        )
+    ).scalars()
+    return {scope, c.key.lower(), c.display_name.lower(), *aliases}
 
 
 async def _contar(db: AsyncSession, stmt: Select) -> dict[str, int]:
@@ -74,7 +78,7 @@ async def painel(
     opened = (
         Incident.status == "open",
         inc_name,
-        Incident.tags["ninf_ticket_state"].astext.in_(TICKET_STATES),
+        Incident.tags["ninf_ticket_state"].astext == "opened",
     )
 
     por_ramo = await _contar(

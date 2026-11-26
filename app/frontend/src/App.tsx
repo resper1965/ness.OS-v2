@@ -271,7 +271,7 @@ function AppShellBody({ AUTH, logout, user }: {
         </div>
 
         <div className="px-2">
-          {isOperator && currentView === 'incidents' ? (
+          {isOperator && (currentView === 'incidents' || currentView === 'painel') ? (
             <TenantSelector selectedTenant={selectedTenant} onSelect={setSelectedTenant} />
           ) : (
             <p className="text-xs text-white/60">{isOperator ? 'Operação global' : 'Minha empresa'}</p>

@@ -7,6 +7,7 @@ import httpx
 import pytest
 import pytest_asyncio
 from fastapi import FastAPI
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.api.routers.painel import router
@@ -61,6 +62,8 @@ async def maker(customers_maker):
                 ),
                 inc(3, "Cavan", 3, {}),
                 inc(4, "Alupar", 5, {"ninf_ticket_state": "opened"}),
+                inc(5, "Cavan", 5, {"ninf_ticket_state": "attached"}),
+                inc(6, "cavan matriz", 3, {"ninf_ticket_state": "opened"}),
             ]
         )
         s.add_all(
@@ -98,6 +101,12 @@ async def maker(customers_maker):
                     loaded_at=now,
                 )
             )
+        await s.execute(
+            text(
+                "INSERT INTO n_infraops_customer_aliases(alias_norm, customer_id) "
+                "SELECT 'cavan matriz', id FROM n_infraops_customers WHERE key='cavan'"
+            )
+        )
         s.add(
             Asset(
                 zabbix_host_id="z1",
@@ -135,7 +144,7 @@ async def test_operador_ve_o_cliente_pedido(maker):
         r = await c.get("/api/painel", params={"customer_id": "Cavan"})
     d = r.json()
     assert r.status_code == 200
-    assert d["agora"] == {"noc": 1, "soc": 1, "criticos": 1}
+    assert d["agora"] == {"noc": 2, "soc": 1, "criticos": 1}
     assert d["disponibilidade"]["fora_do_ar"] == 1
     assert d["seguranca"]["por_classe"] == {"HIGH": 1}
     assert d["seguranca"]["top_regras"] == [{"regra": "R", "total": 1}]
@@ -150,7 +159,7 @@ async def test_operador_ve_o_cliente_pedido(maker):
 async def test_cliente_fica_preso_ao_proprio_tenant(maker):
     cliente = SimpleNamespace(id=2, role=UserRole.cliente, tenant_id="cavan")
     async with _api(maker, cliente) as c:
-        assert (await c.get("/api/painel")).json()["agora"]["noc"] == 1
+        assert (await c.get("/api/painel")).json()["agora"]["noc"] == 2
         assert (
             await c.get("/api/painel", params={"customer_id": "alupar"})
         ).status_code == 403
