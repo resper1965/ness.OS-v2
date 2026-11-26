@@ -567,8 +567,41 @@ async def test_zabbix_reconcile_recovers_only_what_zabbix_no_longer_has(
         assert (await s.get(Incident, 2)).tags["ninf_zabbix_status"] == "problem"
         assert (await s.get(Incident, 3)).tags["ninf_zabbix_status"] == "problem"
 
-    # Resposta vazia não prova que nada está aberto: não fecha nada.
+    # Lista vazia vale quando há poucos a recuperar; com muitos, é suspeita (token sem permissão).
     zabbix._call.return_value = []
-    assert await zabbix_reconcile.reconcile(NOW) == {"skipped": 1}
+    out = await zabbix_reconcile.reconcile(NOW + timedelta(minutes=1))
+    assert out["recovered"] == 1  # o incidente 2
+    monkeypatch.setattr(zabbix_reconcile, "EMPTY_MAX", 0)
+    await _inc(maker, 4, TUNNEL, minutes=60)
+    assert await zabbix_reconcile.reconcile(NOW + timedelta(minutes=1)) == {
+        "skipped": 1
+    }
     async with maker() as s:
-        assert (await s.get(Incident, 2)).tags["ninf_zabbix_status"] == "problem"
+        assert (await s.get(Incident, 4)).tags["ninf_zabbix_status"] == "problem"
+
+
+@pytest.mark.asyncio
+async def test_zabbix_reconcile_retries_ticket_closure_after_glpi_failure(
+    maker, glpi, monkeypatch
+):
+    from app.workers import zabbix_reconcile
+
+    monkeypatch.setattr(zabbix_reconcile, "SessionLocal", maker)
+    await _inc(maker, 1, DISK, site=None, minutes=60)
+    await ticket_decider.decide(NOW)
+    zabbix = AsyncMock()
+    zabbix._call.return_value = [{"eventid": "999"}]
+    monkeypatch.setattr(zabbix_reconcile, "ZabbixClient", lambda: zabbix)
+
+    glpi.solve_ticket.side_effect = GLPITransientError("fora do ar")
+    out = await zabbix_reconcile.reconcile(NOW + timedelta(minutes=1))
+    assert out["failed"] == 1
+    async with maker() as s:
+        assert (await s.get(Incident, 1)).tags["ninf_zabbix_status"] == "resolved"
+        assert (await s.execute(select(TicketLink))).scalar_one().state == "open"
+
+    glpi.solve_ticket.side_effect = None
+    out = await zabbix_reconcile.reconcile(NOW + timedelta(minutes=2))
+    assert out["recovered"] == 1
+    async with maker() as s:
+        assert (await s.execute(select(TicketLink))).scalar_one().state == "auto_closed"

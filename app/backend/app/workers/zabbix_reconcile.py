@@ -11,11 +11,11 @@ import asyncio
 import logging
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import select
+from sqlalchemy import String, select
 
 from app.database import SessionLocal
 from app.integrations.zabbix import ZabbixClient
-from app.models import Incident
+from app.models import Incident, TicketLink
 from app.workers import alerts
 from app.workers.celery_app import celery_app
 
@@ -25,6 +25,11 @@ logger = logging.getLogger(__name__)
 MIN_AGE = timedelta(minutes=10)
 # ponytail: lote por ciclo; o resto sai nos próximos (15 min). Subir só se o atraso importar.
 BATCH = 200
+# Lista vazia é legítima (o último problema se recuperou), mas um token sem permissão
+# também devolve vazio: com muita coisa a recuperar, não confia.
+EMPTY_MAX = 20
+# Recuperação já gravada cujo chamado ficou aberto (GLPI fora do ar): tenta de novo por 24 h.
+RETRY_WINDOW = timedelta(hours=24)
 
 
 async def stale_incidents(now: datetime, open_ids: set[str]) -> list[Incident]:
@@ -44,14 +49,41 @@ async def stale_incidents(now: datetime, open_ids: set[str]) -> list[Incident]:
         ]
 
 
+async def unclosed_tickets(now: datetime) -> list[Incident]:
+    async with SessionLocal() as session:
+        rows = await session.execute(
+            select(Incident)
+            .join(
+                TicketLink,
+                (TicketLink.dedup_key == Incident.tags["ninf_dedup_key"].astext)
+                & (
+                    TicketLink.entity_id.cast(String)
+                    == Incident.tags["ninf_entity_id"].astext
+                ),
+            )
+            .where(
+                Incident.tags["ninf_zabbix_status"].astext == "resolved",
+                Incident.tags["ninf_zabbix_event_id"].astext.regexp_match("^[0-9]+$"),
+                Incident.last_seen > now - RETRY_WINDOW,
+                TicketLink.state == "open",
+                TicketLink.source_resolved_at.is_(None),
+            )
+            .order_by(Incident.last_seen)
+            .limit(BATCH)
+        )
+        return list(rows.scalars().unique())
+
+
 async def reconcile(now: datetime, apply: bool = True) -> dict[str, int]:
     problems = await ZabbixClient()._call(
         "problem.get", {"output": ["eventid"], "recent": False}
     )
-    # Resposta vazia ou inválida não prova que nada está aberto: não fecha nada.
-    if not isinstance(problems, list) or not problems:
+    if not isinstance(problems, list):
         return {"skipped": 1}
     stale = await stale_incidents(now, {str(p["eventid"]) for p in problems})
+    if not problems and len(stale) > EMPTY_MAX:
+        return {"skipped": 1}
+    stale += [i for i in await unclosed_tickets(now) if i not in stale]
     out = {
         "zabbix_open": len(problems),
         "stale": len(stale),
