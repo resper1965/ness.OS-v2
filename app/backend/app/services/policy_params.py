@@ -44,12 +44,19 @@ PLATFORM_DEFAULTS: dict[str, int] = {
     "worker_failure_window_seconds": 900,
     "probe_timeout_seconds": 20,
     "ai_monthly_budget_cents": 5000,
+    # decisor de chamados (espelha TICKET_DEFAULTS) e nível Wazuh do ramo SOC
+    "ticket_grace_minutes": 15,
+    "ticket_reopen_hours": 24,
+    "ticket_symptom_lead_minutes": 2,
+    "ticket_cross_link_minutes": 30,
+    "soc_ticket_min_level": 12,
 }
 # load_params (5 s) + probe + cobertura (5 s) precisam caber no monitor de 35 s: 5 + 22 + 5 = 32.
 PLATFORM_MAX: dict[str, int] = {
     **{k: 86400 for k in PLATFORM_DEFAULTS},
     "probe_timeout_seconds": 22,
     "ai_monthly_budget_cents": 1_000_000,
+    "soc_ticket_min_level": 15,  # níveis do Wazuh vão até 15
 }
 
 
