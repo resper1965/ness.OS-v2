@@ -47,6 +47,45 @@ async def _params(session) -> dict[str, int]:
     return {**TICKET_DEFAULTS, **dict(rows.all())}
 
 
+async def _set_tag(incident_id: int, **tags) -> None:
+    async with SessionLocal() as session:
+        async with session.begin():
+            inc = await session.get(Incident, incident_id, with_for_update=True)
+            if inc is not None:
+                inc.tags = {**(inc.tags or {}), **tags}
+
+
+async def _retry_cross_links(glpi: GLPIClient, now: datetime, window_min: int) -> None:
+    """Uma segunda tentativa da ligação NOC/SOC que falhou; depois disso desiste."""
+    async with SessionLocal() as session:
+        todo = (
+            (
+                await session.execute(
+                    select(Incident).where(
+                        Incident.tags["ninf_cross_link_retry"].astext == "true"
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+    if todo and not glpi.session_token:
+        await glpi.init_session()
+    for inc in todo:
+        await _set_tag(inc.id, ninf_cross_link_retry=False)
+        try:
+            await glpi.change_active_entity(int(_tag(inc, "ninf_entity_id")))
+            await _cross_link(
+                glpi, inc, int(inc.deskmanager_ticket_id or 0), now, window_min
+            )
+        except Exception as exc:
+            logger.error(
+                "Nova ligação NOC/SOC do incidente %s falhou: %s",
+                inc.id,
+                type(exc).__name__,
+            )
+
+
 async def _set_state(incident_id: int, state: str, **tags) -> None:
     async with SessionLocal() as session:
         async with session.begin():
@@ -266,6 +305,7 @@ async def _open(
         logger.error(
             "Ligação NOC/SOC do incidente %s falhou: %s", inc.id, type(exc).__name__
         )
+        await _set_tag(inc.id, ninf_cross_link_retry=True)
     if recovered:
         # A recuperação chegou durante a criação e não viu o vínculo: fecha agora.
         await alerts.close_ticket_if_recovered(entity_id, key, now)
@@ -430,6 +470,10 @@ async def decide(now: datetime) -> dict[str, int]:
                     "Chamado do incidente %s adiado: %s", inc.id, type(exc).__name__
                 )
                 stats["failed"] += 1
+        try:
+            await _retry_cross_links(glpi, now, params["ticket_cross_link_minutes"])
+        except Exception as exc:
+            logger.error("Reenvio de ligações falhou: %s", type(exc).__name__)
         if active_causes:
             try:
                 if not glpi.session_token:

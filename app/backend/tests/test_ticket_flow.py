@@ -511,3 +511,14 @@ async def test_same_branch_never_cross_linked(maker, glpi):
     await _inc(maker, 2, DISK, site=None, host="srv1", ninf_branch="noc")
     await ticket_decider.decide(NOW)
     glpi.link_tickets.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_failed_cross_link_is_retried_once(maker, glpi):
+    await _opened(maker, 1, 10, "noc")
+    await _inc(maker, 2, DISK, site=None, host="srv1", ninf_branch="soc")
+    glpi.link_tickets.side_effect = [RuntimeError("x"), None]
+    await ticket_decider.decide(NOW)  # falha ao abrir e repete no fim do mesmo ciclo
+    assert glpi.link_tickets.await_count == 2
+    await ticket_decider.decide(NOW)  # a marca foi consumida: não repete de novo
+    assert glpi.link_tickets.await_count == 2

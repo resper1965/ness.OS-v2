@@ -898,6 +898,10 @@ async def _triage(
         decision.dedup_key = dedup_key
         decision.freq_key = freq_key
         db.add(decision)
+        if tenant and must_attend and alert_data["level"] >= 12:
+            # Na mesma transação da decisão: se falhar, 503 e o Wazuh reenvia.
+            await db.flush()
+            await _soc_incident(db, tenant, decision, alert_data, triage_result)
         await db.commit()
     except IntegrityError:
         # Corrida: outro pedido gravou a mesma chave entre a consulta e o commit
@@ -929,9 +933,6 @@ async def _triage(
     triage_result["decision_id"] = decision.id
     triage_result["corrective_action_approved"] = False
 
-    if tenant and must_attend and alert_data["level"] >= await _soc_ticket_level(db):
-        await _soc_incident(db, tenant, decision, alert_data, triage_result)
-
     return triage_result
 
 
@@ -940,18 +941,14 @@ async def _soc_ticket_level(db: AsyncSession) -> int:
 
     Ajustável sem deploy em n_infraops_platform_params (`soc_ticket_min_level`); padrão 12.
     """
-    try:
-        value = (
-            await db.execute(
-                select(PlatformParam.value_int).where(
-                    PlatformParam.key == "soc_ticket_min_level"
-                )
+    value = (
+        await db.execute(
+            select(PlatformParam.value_int).where(
+                PlatformParam.key == "soc_ticket_min_level"
             )
-        ).scalar_one_or_none()
-    except Exception:
-        await db.rollback()
-        value = None
-    return value or 12
+        )
+    ).scalar_one_or_none()
+    return value if isinstance(value, int) and value > 0 else 12
 
 
 async def _soc_incident(
@@ -963,51 +960,47 @@ async def _soc_incident(
 ) -> None:
     """Incidente pendente do ramo SOC; o decisor de chamados cuida da carência e da dedup.
 
-    Cliente sem entidade no GLPI não abre chamado (só a decisão fica). Falha aqui nunca
-    muda a resposta da triagem: a decisão já está gravada.
+    Roda dentro da transação da decisão (quem chama faz o commit). Cliente sem entidade
+    no GLPI ou ambíguo não abre chamado: só a decisão fica.
     """
+    if alert_data["level"] < await _soc_ticket_level(db):
+        return
     try:
         customer = await resolve_customer(db, tenant)
-        if customer is None or not customer.active or customer.glpi_entity_id is None:
-            return
-        rule = alert_data.get("rule") or {}
-        agent = alert_data.get("agent") or {}
-        host = str(agent.get("name") or decision.agent_name or "unknown")
-        now = datetime.now(UTC)
-        incident = Incident(
-            fingerprint=hashlib.sha256(f"soc:{decision.id}".encode()).hexdigest(),
-            title=str(rule.get("description") or f"Regra {decision.wazuh_rule_id}")[
-                :500
-            ],
-            severity=5 if alert_data["level"] >= 15 else 4,
-            status="open",
-            host_id=str(decision.agent_id)[:64],
-            host_name=host[:255],
-            trigger_id=str(decision.wazuh_rule_id)[:64],
-            first_seen=now,
-            last_seen=now,
-            sanitized_description=str(triage_result.get("summary") or ""),
-            tags={
-                "ninf_customer_name": customer.key,
-                "ninf_entity_id": customer.glpi_entity_id,
-                "ninf_dedup_key": ticket_dedup_key(
-                    customer.glpi_entity_id, host, str(decision.wazuh_rule_id)
-                ),
-                "ninf_zabbix_status": "problem",
-                "ninf_ticket_state": "pending",
-                "ninf_branch": "soc",
-                "ninf_soc_decision_id": decision.id,
-            },
-        )
-        db.add(incident)
-        await db.flush()
-        decision.incident_id = incident.id
-        await db.commit()
     except AmbiguousCustomer:
-        await db.rollback()
-    except Exception as exc:
-        logger.error("Incidente SOC não criado: %s", type(exc).__name__)
-        await db.rollback()
+        return
+    if customer is None or not customer.active or customer.glpi_entity_id is None:
+        return
+    rule = alert_data.get("rule") or {}
+    agent = alert_data.get("agent") or {}
+    host = str(agent.get("name") or decision.agent_name or "unknown")
+    now = datetime.now(UTC)
+    incident = Incident(
+        fingerprint=hashlib.sha256(f"soc:{decision.id}".encode()).hexdigest(),
+        title=str(rule.get("description") or f"Regra {decision.wazuh_rule_id}")[:500],
+        severity=5 if alert_data["level"] >= 15 else 4,
+        status="open",
+        host_id=str(decision.agent_id)[:64],
+        host_name=host[:255],
+        trigger_id=str(decision.wazuh_rule_id)[:64],
+        first_seen=now,
+        last_seen=now,
+        sanitized_description=str(triage_result.get("summary") or ""),
+        tags={
+            "ninf_customer_name": customer.key,
+            "ninf_entity_id": customer.glpi_entity_id,
+            "ninf_dedup_key": ticket_dedup_key(
+                customer.glpi_entity_id, host, str(decision.wazuh_rule_id)
+            ),
+            "ninf_zabbix_status": "problem",
+            "ninf_ticket_state": "pending",
+            "ninf_branch": "soc",
+            "ninf_soc_decision_id": decision.id,
+        },
+    )
+    db.add(incident)
+    await db.flush()
+    decision.incident_id = incident.id
 
 
 def soc_divergent(engine_action: str, classification: str) -> bool:
