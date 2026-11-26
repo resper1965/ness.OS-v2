@@ -44,7 +44,9 @@ class FakeGlpi:
 
     async def create_item(self, itemtype, data):
         if (itemtype, data.get("profiles_id")) in getattr(self, "deny", ()):
-            raise RuntimeError(f"GLPI escrita em {itemtype} indisponível")
+            raise getattr(self, "deny_exc", RuntimeError)(
+                f"GLPI escrita em {itemtype} indisponível"
+            )
         self.writes += 1
         row = {"id": next(self.n), "is_active": 1, **data}
         self.t[itemtype].append(row)
@@ -612,8 +614,21 @@ async def test_denied_external_profile_warns_and_does_not_break_the_cycle(
     await _seed(people_maker)
     g = FakeGlpi()
     g.deny = {("Profile_User", 14)}
+    g.deny_exc = PermissionError  # GLPIPermanentError: 401/403 do GLPI
     diff = await _diff(people_maker, g)
     warn = [x for x in diff if x.startswith("AVISO")]
     assert len(warn) == 1 and "elid" in warn[0] and "glpi-grant-external" in warn[0]
     assert not [x for x in diff if x.startswith("ERRO")]
     assert any(u["name"] == "elid" for u in g.t["User"])  # o resto do ciclo foi gravado
+
+
+async def test_transient_glpi_failure_on_external_profile_is_not_a_warning(
+    people_maker,
+):
+    from app.integrations.glpi import GLPITransientError
+
+    await _seed(people_maker)
+    g = FakeGlpi()
+    g.deny, g.deny_exc = {("Profile_User", 14)}, GLPITransientError
+    with pytest.raises(GLPITransientError):
+        await _diff(people_maker, g)

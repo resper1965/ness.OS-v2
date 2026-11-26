@@ -8,10 +8,12 @@ existem no Hub. Nunca apaga usuário; usuário inativo no Hub é desativado no G
 from __future__ import annotations
 
 import logging
+import shlex
 from dataclasses import dataclass, field
 
 from sqlalchemy import select, text
 
+from app.integrations.glpi import GLPIPermanentError, GLPITransientError
 from app.models import Customer, TeamMember, User, UserRole
 
 logger = logging.getLogger("nessops.glpi_team_sync")
@@ -367,14 +369,14 @@ async def reconcile(glpi, d: Desired, apply: bool) -> list[str]:
                         },
                     ),
                 )
-            except RuntimeError:
+            except (GLPIPermanentError, RuntimeError) as exc:
                 # O token de sync não tem os direitos do perfil (de propósito: sem chamados).
                 # Só o perfil fica de fora; o resto do ciclo segue e o passo manual é avisado.
-                if want[0] != ext_pid:
-                    raise
+                if want[0] != ext_pid or isinstance(exc, GLPITransientError):
+                    raise  # queda ou limite do GLPI não é falta de direito: falha e tenta de novo
                 diff.append(
                     f"AVISO {login}: perfil externo não concedido; "
-                    f"rode infra/scripts/glpi-grant-external.php --user={login} "
+                    f"rode infra/scripts/glpi-grant-external.php --user={shlex.quote(login)} "
                     f"--entity={want[1]} --apply"
                 )
 
