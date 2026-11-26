@@ -29,7 +29,7 @@ export default function PainelView({ isOperator, refreshKey = 0 }: { isOperator:
 
   useEffect(() => {
     if (isOperator) request<{ key: string; nome: string }[]>('/api/painel/clientes').then(setClientes, e => setError(asApiError(e)));
-  }, [isOperator]);
+  }, [isOperator, tentativa]);
 
   // Resposta de um cliente já trocado não pode sobrescrever o atual.
   useEffect(() => {
@@ -51,7 +51,7 @@ export default function PainelView({ isOperator, refreshKey = 0 }: { isOperator:
     </label>
   );
 
-  if (needsPick) return <Screen>{seletor}{error ? <ErrorState error={error} onRetry={() => setError(null)} /> : <Empty title="Escolha um cliente." />}</Screen>;
+  if (needsPick) return <Screen>{seletor}{error ? <ErrorState error={error} onRetry={() => { setError(null); setTentativa(t => t + 1); }} /> : <Empty title="Escolha um cliente." />}</Screen>;
   if (error) return <Screen>{seletor}<ErrorState error={error} onRetry={() => setTentativa(t => t + 1)} /></Screen>;
   if (!data) return <Screen>{seletor}<Skeleton rows={6} /></Screen>;
 

@@ -201,6 +201,20 @@ async def test_lista_de_clientes_vem_do_cadastro_e_so_para_operador(maker):
         r = await c.get("/api/painel/clientes")
     chaves = [x["key"] for x in r.json()]
     assert "cavan" in chaves and "ness" not in chaves
+    async with maker() as s:
+        await s.execute(
+            text(
+                "INSERT INTO n_infraops_customers(key, display_name, active) "
+                "VALUES ('semglpi', 'Sem GLPI', true)"
+            )
+        )
+        await s.commit()
+    async with _api(
+        maker, SimpleNamespace(id=1, role=UserRole.noc, tenant_id=None)
+    ) as c:
+        assert "semglpi" in [
+            x["key"] for x in (await c.get("/api/painel/clientes")).json()
+        ]
     cliente = SimpleNamespace(id=2, role=UserRole.cliente, tenant_id="cavan")
     async with _api(maker, cliente) as c:
         assert (await c.get("/api/painel/clientes")).status_code == 403
