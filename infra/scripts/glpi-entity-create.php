@@ -10,7 +10,10 @@ global $DB;
 $name = trim($argv[1] ?? '');
 $apply = in_array('--apply', $argv, true);
 $parent = 0;
-foreach ($argv as $a) if (preg_match('/^--parent=(\d+)$/', $a, $m)) $parent = (int) $m[1];
+foreach (array_slice($argv, 2) as $a) {
+    if (preg_match('/^--parent=(\d+)$/', $a, $m)) $parent = (int) $m[1];
+    elseif ($a !== '--apply') { fwrite(STDERR, "unknown argument: $a\n"); exit(1); }
+}
 if (!preg_match('/^[\p{L}\p{N}][\p{L}\p{N} ._-]{0,63}$/u', $name) || strcasecmp($name, 'Root entity') === 0) {
     fwrite(STDERR, "invalid entity name\n");
     exit(1);
