@@ -359,7 +359,7 @@ describe('round 2 P2: refresh button reloads the new screens', () => {
   });
   it('App wires the header button to those screens', async () => {
     const src = (await import('./App.tsx?raw')).default;
-    expect(src).toMatch(/currentView === 'cloud' \|\| currentView === 'contracts' \|\| currentView === 'customers' \|\| currentView === 'people' \|\| currentView === 'secops' \|\| currentView === 'ai' \|\| currentView === 'vulns'\) setCadastrosTick/);
+    expect(src).toMatch(/currentView === 'cloud' \|\| currentView === 'contracts' \|\| currentView === 'customers' \|\| currentView === 'people' \|\| currentView === 'secops' \|\| currentView === 'ai' \|\| currentView === 'vulns' \|\| currentView === 'painel'\) setCadastrosTick/);
     expect(src).toMatch(/<AiView[^>]*refreshKey=\{cadastrosTick\}/);
     expect(src).toMatch(/<SocView[^>]*refreshKey=\{cadastrosTick\}/);
     expect(src).toMatch(/<ContractsScreen[^>]*refreshKey=\{cadastrosTick\}/);
