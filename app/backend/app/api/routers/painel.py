@@ -189,12 +189,12 @@ async def painel(
 
     ativo = (
         func.lower(Asset.customer_id).in_(names),
-        Asset.status == AssetStatus.ACTIVE,
+        # Em produção a coluna é varchar; o enum só existe no banco de teste.
+        cast(Asset.status, String) == AssetStatus.ACTIVE.value,
     )
-    tipos = await db.execute(
-        select(Asset.asset_type, func.count()).where(*ativo).group_by(Asset.asset_type)
-    )
-    por_tipo = {t.value: n for t, n in tipos.all()}
+    tipo = cast(Asset.asset_type, String)
+    tipos = await db.execute(select(tipo, func.count()).where(*ativo).group_by(tipo))
+    por_tipo = {t: n for t, n in tipos.all()}
 
     return {
         "customer": scope,
