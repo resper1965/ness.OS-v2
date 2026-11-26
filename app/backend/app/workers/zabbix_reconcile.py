@@ -52,7 +52,7 @@ async def stale_incidents(now: datetime, open_ids: set[str]) -> list[Incident]:
 async def unclosed_tickets(now: datetime) -> list[Incident]:
     async with SessionLocal() as session:
         rows = await session.execute(
-            select(Incident)
+            select(Incident, TicketLink.entity_id, TicketLink.dedup_key)
             .join(
                 TicketLink,
                 (TicketLink.dedup_key == Incident.tags["ninf_dedup_key"].astext)
@@ -69,9 +69,12 @@ async def unclosed_tickets(now: datetime) -> list[Incident]:
                 TicketLink.source_resolved_at.is_(None),
             )
             .order_by(Incident.last_seen)
-            .limit(BATCH)
         )
-        return list(rows.scalars().unique())
+        # Um incidente por vínculo: vários incidentes do mesmo vínculo não esgotam o lote.
+        seen: dict[tuple, Incident] = {}
+        for inc, entity_id, dedup in rows.all():
+            seen.setdefault((entity_id, dedup), inc)
+        return list(seen.values())[:BATCH]
 
 
 async def _recover(incidents: list[Incident], out: dict[str, int]) -> None:

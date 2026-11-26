@@ -618,6 +618,17 @@ async def test_zabbix_reconcile_retries_ticket_closure_after_glpi_failure(
         assert (await s.get(Incident, 1)).tags["ninf_zabbix_status"] == "resolved"
         assert (await s.execute(select(TicketLink))).scalar_one().state == "open"
 
+    # Outro incidente do mesmo vínculo não consome um segundo lugar no lote.
+    await _inc(maker, 8, DISK, site=None, minutes=60, ninf_zabbix_status="resolved")
+    async with maker() as s:
+        dup = await s.get(Incident, 8)
+        dup.tags = {
+            **dup.tags,
+            "ninf_dedup_key": (await s.get(Incident, 1)).tags["ninf_dedup_key"],
+        }
+        await s.commit()
+    assert len(await zabbix_reconcile.unclosed_tickets(NOW + timedelta(minutes=1))) == 1
+
     glpi.solve_ticket.side_effect = None
     # Zabbix fora do ar: o reenvio do fechamento ainda acontece.
     zabbix._call.side_effect = RuntimeError("Zabbix API indisponível")
