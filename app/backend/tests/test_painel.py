@@ -39,6 +39,13 @@ async def maker(customers_maker):
     async with engine.begin() as c:
         await c.run_sync(lambda sc: Base.metadata.drop_all(sc, tables=tabs))
         await c.run_sync(lambda sc: Base.metadata.create_all(sc, tables=tabs))
+        # Produção tem estas colunas como varchar, não como enum.
+        for col in ("status", "asset_type"):
+            await c.execute(
+                text(
+                    f"ALTER TABLE n_infraops_assets ALTER COLUMN {col} TYPE varchar USING {col}::text"
+                )
+            )
     m = async_sessionmaker(engine, expire_on_commit=False)
     now = datetime.now(timezone.utc)
     async with m() as s:
