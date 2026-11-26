@@ -13,7 +13,13 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from app.api.routers.painel import router
 from app.core.dependencies import get_current_user
 from app.database import Base, get_db
-from app.models.models import Asset, Incident, SocDecision, Vulnerability
+from app.models.models import (
+    Asset,
+    Incident,
+    SocDecision,
+    TicketLink,
+    Vulnerability,
+)
 from app.models.users import UserRole
 from tests.conftest import URL
 
@@ -24,6 +30,7 @@ pytestmark = pytest.mark.asyncio
 async def maker(customers_maker):
     engine = create_async_engine(URL)
     tabs = [
+        TicketLink.__table__,
         Asset.__table__,
         Incident.__table__,
         SocDecision.__table__,
@@ -36,11 +43,12 @@ async def maker(customers_maker):
     now = datetime.now(timezone.utc)
     async with m() as s:
 
-        def inc(n, cliente, sev, tags, title=None, status="open"):
+        def inc(n, cliente, sev, tags, title=None, status="open", ticket=None):
             return Incident(
                 id=n,
                 fingerprint=f"f{n}",
                 title=title or f"i{n}",
+                deskmanager_ticket_id=ticket or str(100 + n),
                 severity=sev,
                 status=status,
                 host_id="h",
@@ -68,6 +76,14 @@ async def maker(customers_maker):
                     3,
                     {"ninf_zabbix_status": "problem", "class": "os"},
                     title="Windows: High memory utilization",
+                ),
+                inc(
+                    9,
+                    "Cavan",
+                    5,
+                    {"ninf_ticket_state": "opened"},
+                    status="resolved",
+                    ticket="900",
                 ),
                 inc(
                     8,
@@ -120,6 +136,7 @@ async def maker(customers_maker):
                     loaded_at=now,
                 )
             )
+        s.add(TicketLink(entity_id=8, dedup_key="k", ticket_id=900, state="open"))
         await s.execute(
             text(
                 "INSERT INTO n_infraops_customer_aliases(alias_norm, customer_id) "
@@ -163,7 +180,7 @@ async def test_operador_ve_o_cliente_pedido(maker):
         r = await c.get("/api/painel", params={"customer_id": "Cavan"})
     d = r.json()
     assert r.status_code == 200
-    assert d["agora"] == {"noc": 3, "soc": 1, "criticos": 2}
+    assert d["agora"] == {"noc": 4, "soc": 1, "criticos": 3}
     assert d["disponibilidade"]["fora_do_ar"] == 1
     assert d["seguranca"]["por_classe"] == {"HIGH": 1}
     assert d["seguranca"]["top_regras"] == [{"regra": "R", "total": 1}]
@@ -178,7 +195,7 @@ async def test_operador_ve_o_cliente_pedido(maker):
 async def test_cliente_fica_preso_ao_proprio_tenant(maker):
     cliente = SimpleNamespace(id=2, role=UserRole.cliente, tenant_id="cavan")
     async with _api(maker, cliente) as c:
-        assert (await c.get("/api/painel")).json()["agora"]["noc"] == 3
+        assert (await c.get("/api/painel")).json()["agora"]["noc"] == 4
         assert (
             await c.get("/api/painel", params={"customer_id": "alupar"})
         ).status_code == 403

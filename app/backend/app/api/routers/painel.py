@@ -9,7 +9,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import Select, func, or_, select
+from sqlalchemy import Select, String, cast, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import (
@@ -25,6 +25,7 @@ from app.models.models import (
     CustomerAlias,
     Incident,
     SocDecision,
+    TicketLink,
     Vulnerability,
 )
 from app.models.users import User
@@ -93,17 +94,27 @@ async def painel(
 
     inc_name = func.lower(Incident.tags["ninf_customer_name"].astext).in_(names)
     branch = func.coalesce(Incident.tags["ninf_branch"].astext, "noc")
+    # Chamado aberto: incidente ativo ou, após a recuperação, vínculo ainda aberto (técnico atribuído).
+    vinculo_aberto = (
+        select(TicketLink.ticket_id)
+        .where(
+            TicketLink.state == "open",
+            cast(TicketLink.ticket_id, String) == Incident.deskmanager_ticket_id,
+        )
+        .exists()
+    )
     opened = (
-        Incident.status.in_(ATIVOS),
         inc_name,
         Incident.tags["ninf_ticket_state"].astext == "opened",
+        or_(Incident.status.in_(ATIVOS), vinculo_aberto),
     )
+    chamado = func.count(func.distinct(Incident.deskmanager_ticket_id))
 
     por_ramo = await _contar(
-        db, select(branch, func.count()).where(*opened).group_by(branch)
+        db, select(branch, chamado).where(*opened).group_by(branch)
     )
     sev45 = (
-        await db.execute(select(func.count()).where(*opened, Incident.severity >= 4))
+        await db.execute(select(chamado).where(*opened, Incident.severity >= 4))
     ).scalar_one()
 
     down_where = (
