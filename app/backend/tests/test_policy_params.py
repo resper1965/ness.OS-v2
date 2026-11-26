@@ -75,7 +75,15 @@ def test_defaults_equal_legacy_constants():
         "worker_failure_window_seconds": 900,
         "probe_timeout_seconds": 20,
         "ai_monthly_budget_cents": 5000,
+        "ticket_grace_minutes": 15,
+        "ticket_reopen_hours": 24,
+        "ticket_symptom_lead_minutes": 2,
+        "ticket_cross_link_minutes": 30,
+        "soc_ticket_min_level": 12,
     }
+    from app.services.ticket_policy import TICKET_DEFAULTS
+
+    assert TICKET_DEFAULTS.items() <= PLATFORM_DEFAULTS.items()  # sem segunda fonte
     assert (health.MAX_SOURCE_AGE_SECONDS, health.MAX_QUEUE_AGE_SECONDS) == (900, 300)
     assert (health.WORKER_FAILURE_WINDOW_SECONDS, health.PROBE_TIMEOUT_SECONDS) == (
         900,
