@@ -543,3 +543,111 @@ async def test_soc_ticket_skips_zabbix_asset_lookup(maker, glpi, monkeypatch):
     await ticket_decider.decide(NOW)
     lookup.assert_not_awaited()
     assert "linked_item" not in glpi.create_ticket.call_args.kwargs
+
+
+@pytest.mark.asyncio
+async def test_zabbix_reconcile_recovers_only_what_zabbix_no_longer_has(
+    maker, glpi, monkeypatch
+):
+    from app.workers import zabbix_reconcile
+
+    monkeypatch.setattr(zabbix_reconcile, "SessionLocal", maker)
+    await _inc(maker, 1, TUNNEL, minutes=60)  # sumiu do Zabbix: recupera
+    await _inc(maker, 2, TUNNEL, minutes=60)  # ainda aberto: fica
+    await _inc(maker, 3, TUNNEL, minutes=5)  # recente demais: fica
+    zabbix = AsyncMock()
+
+    async def call(method, params):
+        if method == "host.get":
+            return [{"hostid": h} for h in params["hostids"] if h != "h7"]
+        return [{"eventid": "2"}]
+
+    zabbix._call.side_effect = call
+    monkeypatch.setattr(zabbix_reconcile, "ZabbixClient", lambda: zabbix)
+    monkeypatch.setattr(zabbix_reconcile, "MIN_AGE", timedelta(minutes=10))
+    await _inc(maker, 7, TUNNEL, minutes=60)  # host invisível ao token: fica
+
+    out = await zabbix_reconcile.reconcile(NOW + timedelta(minutes=1))
+    assert out["recovered"] == 1 and out["failed"] == 0
+    async with maker() as s:
+        assert (await s.get(Incident, 1)).tags["ninf_zabbix_status"] == "resolved"
+        assert (await s.get(Incident, 2)).tags["ninf_zabbix_status"] == "problem"
+        assert (await s.get(Incident, 3)).tags["ninf_zabbix_status"] == "problem"
+        assert (await s.get(Incident, 7)).tags["ninf_zabbix_status"] == "problem"
+
+    # Lista vazia vale quando há poucos a recuperar; com muitos, é suspeita (token sem permissão).
+    async def vazio(method, params):
+        if method == "host.get":
+            return [{"hostid": h} for h in params["hostids"] if h != "h7"]
+        return []
+
+    zabbix._call.side_effect = vazio
+    out = await zabbix_reconcile.reconcile(NOW + timedelta(minutes=1))
+    assert out["recovered"] == 1  # o incidente 2
+    monkeypatch.setattr(zabbix_reconcile, "EMPTY_MAX", 0)
+    await _inc(maker, 4, TUNNEL, minutes=60)
+    out = await zabbix_reconcile.reconcile(NOW + timedelta(minutes=1))
+    assert out["recovered"] == 0 and out["stale"] == 0
+    async with maker() as s:
+        assert (await s.get(Incident, 4)).tags["ninf_zabbix_status"] == "problem"
+
+
+@pytest.mark.asyncio
+async def test_zabbix_reconcile_retries_ticket_closure_after_glpi_failure(
+    maker, glpi, monkeypatch
+):
+    from app.workers import zabbix_reconcile
+
+    monkeypatch.setattr(zabbix_reconcile, "SessionLocal", maker)
+    await _inc(maker, 1, DISK, site=None, minutes=60)
+    await ticket_decider.decide(NOW)
+    zabbix = AsyncMock()
+
+    async def call(method, params):
+        if method == "host.get":
+            return [{"hostid": h} for h in params["hostids"]]
+        return [{"eventid": "999"}]
+
+    zabbix._call.side_effect = call
+    monkeypatch.setattr(zabbix_reconcile, "ZabbixClient", lambda: zabbix)
+
+    glpi.solve_ticket.side_effect = GLPITransientError("fora do ar")
+    out = await zabbix_reconcile.reconcile(NOW + timedelta(minutes=1))
+    assert out["failed"] == 1
+    async with maker() as s:
+        assert (await s.get(Incident, 1)).tags["ninf_zabbix_status"] == "resolved"
+        assert (await s.execute(select(TicketLink))).scalar_one().state == "open"
+
+    # Outro incidente do mesmo vínculo não consome um segundo lugar no lote.
+    await _inc(maker, 8, DISK, site=None, minutes=60, ninf_zabbix_status="resolved")
+    async with maker() as s:
+        dup = await s.get(Incident, 8)
+        dup.tags = {
+            **dup.tags,
+            "ninf_dedup_key": (await s.get(Incident, 1)).tags["ninf_dedup_key"],
+        }
+        await s.commit()
+    assert len(await zabbix_reconcile.unclosed_tickets(NOW + timedelta(minutes=1))) == 1
+    # Vínculo com incidente ativo fica fora da lista de reenvio.
+    await _inc(maker, 9, DISK, site=None, minutes=60)
+    async with maker() as s:
+        act = await s.get(Incident, 9)
+        act.tags = {
+            **act.tags,
+            "ninf_dedup_key": (await s.get(Incident, 1)).tags["ninf_dedup_key"],
+        }
+        await s.commit()
+    assert await zabbix_reconcile.unclosed_tickets(NOW + timedelta(minutes=1)) == []
+    async with maker() as s:
+        act = await s.get(Incident, 9)
+        act.status = "resolved"
+        act.tags = {**act.tags, "ninf_zabbix_status": "resolved"}
+        await s.commit()
+
+    glpi.solve_ticket.side_effect = None
+    # Zabbix fora do ar: o reenvio do fechamento ainda acontece.
+    zabbix._call.side_effect = RuntimeError("Zabbix API indisponível")
+    with pytest.raises(RuntimeError):
+        await zabbix_reconcile.reconcile(NOW + timedelta(minutes=2))
+    async with maker() as s:
+        assert (await s.execute(select(TicketLink))).scalar_one().state == "auto_closed"
