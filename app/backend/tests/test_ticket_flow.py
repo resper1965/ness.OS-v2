@@ -586,9 +586,8 @@ async def test_zabbix_reconcile_recovers_only_what_zabbix_no_longer_has(
     assert out["recovered"] == 1  # o incidente 2
     monkeypatch.setattr(zabbix_reconcile, "EMPTY_MAX", 0)
     await _inc(maker, 4, TUNNEL, minutes=60)
-    assert await zabbix_reconcile.reconcile(NOW + timedelta(minutes=1)) == {
-        "skipped": 1
-    }
+    out = await zabbix_reconcile.reconcile(NOW + timedelta(minutes=1))
+    assert out["recovered"] == 0 and out["stale"] == 0
     async with maker() as s:
         assert (await s.get(Incident, 4)).tags["ninf_zabbix_status"] == "problem"
 
@@ -620,7 +619,9 @@ async def test_zabbix_reconcile_retries_ticket_closure_after_glpi_failure(
         assert (await s.execute(select(TicketLink))).scalar_one().state == "open"
 
     glpi.solve_ticket.side_effect = None
-    out = await zabbix_reconcile.reconcile(NOW + timedelta(minutes=2))
-    assert out["recovered"] == 1
+    # Zabbix fora do ar: o reenvio do fechamento ainda acontece.
+    zabbix._call.side_effect = RuntimeError("Zabbix API indisponível")
+    with pytest.raises(RuntimeError):
+        await zabbix_reconcile.reconcile(NOW + timedelta(minutes=2))
     async with maker() as s:
         assert (await s.execute(select(TicketLink))).scalar_one().state == "auto_closed"

@@ -74,15 +74,37 @@ async def unclosed_tickets(now: datetime) -> list[Incident]:
         return list(rows.scalars().unique())
 
 
+async def _recover(incidents: list[Incident], out: dict[str, int]) -> None:
+    for inc in incidents:
+        try:
+            await alerts._async_process_recovery(
+                {
+                    "event_id": inc.tags["ninf_zabbix_event_id"],
+                    "host_id": inc.host_id,
+                    "trigger_id": inc.trigger_id,
+                },
+                inc.fingerprint,
+            )
+            out["recovered"] += 1
+        except Exception as exc:
+            logger.warning("Reconciliação Zabbix falhou: %s", type(exc).__name__)
+            out["failed"] += 1
+
+
 async def reconcile(now: datetime, apply: bool = True) -> dict[str, int]:
+    out = {"retried": 0, "stale": 0, "recovered": 0, "failed": 0}
+    # Repetir fechamento de chamado não depende do Zabbix: roda antes e sozinho.
+    retry = await unclosed_tickets(now)
+    out["retried"] = len(retry)
+    if apply:
+        await _recover(retry, out)
+
     zabbix = ZabbixClient()
     problems = await zabbix._call(
         "problem.get", {"output": ["eventid"], "recent": False}
     )
     if not isinstance(problems, list):
-        return {"skipped": 1}
-    # Repetir fechamento de chamado não depende da leitura do Zabbix: roda sempre.
-    retry = await unclosed_tickets(now)
+        return out
     stale = await stale_incidents(now, {str(p["eventid"]) for p in problems})
     if not problems and len(stale) > EMPTY_MAX:
         stale = []
@@ -94,34 +116,10 @@ async def reconcile(now: datetime, apply: bool = True) -> dict[str, int]:
             {"output": ["hostid"], "hostids": sorted({i.host_id for i in stale})},
         )
         visible = {str(h["hostid"]) for h in hosts or []}
-        stale = [i for i in stale if i.host_id in visible]
-    stale = (retry + [i for i in stale if i not in retry])[:BATCH]
-    if not stale and not problems:
-        return {"skipped": 1}
-    out = {
-        "zabbix_open": len(problems),
-        "stale": len(stale),
-        "recovered": 0,
-        "failed": 0,
-    }
-    if not apply:
-        return out
-    for inc in stale:
-        t = inc.tags
-        try:
-            await alerts._async_process_recovery(
-                {
-                    "event_id": t["ninf_zabbix_event_id"],
-                    "host_id": inc.host_id,
-                    "trigger_id": inc.trigger_id,
-                },
-                inc.fingerprint,
-            )
-            out["recovered"] += 1
-        except Exception as exc:
-            # ponytail: falha do GLPI após marcar recuperado deixa o vínculo aberto; sem retry aqui.
-            logger.warning("Reconciliação Zabbix falhou: %s", type(exc).__name__)
-            out["failed"] += 1
+        stale = [i for i in stale if i.host_id in visible][:BATCH]
+    out["stale"] = len(stale)
+    if apply:
+        await _recover(stale, out)
     return out
 
 
@@ -134,7 +132,7 @@ async def reconcile(now: datetime, apply: bool = True) -> dict[str, int]:
 def reconcile_zabbix() -> dict[str, int]:
     redis = alerts._get_sync_redis()
     try:
-        if not redis.set("ninf:zabbix_reconcile", "1", ex=600, nx=True):
+        if not redis.set("ninf:zabbix_reconcile", "1", ex=700, nx=True):
             return {"skipped": 1}
         try:
             return asyncio.run(reconcile(datetime.now(timezone.utc)))
