@@ -36,13 +36,13 @@ async def maker(customers_maker):
     now = datetime.now(timezone.utc)
     async with m() as s:
 
-        def inc(n, cliente, sev, tags):
+        def inc(n, cliente, sev, tags, title=None, status="open"):
             return Incident(
                 id=n,
                 fingerprint=f"f{n}",
-                title=f"i{n}",
+                title=title or f"i{n}",
                 severity=sev,
-                status="open",
+                status=status,
                 host_id="h",
                 host_name=f"h{n}",
                 trigger_id="t",
@@ -55,7 +55,26 @@ async def maker(customers_maker):
                     1,
                     "Cavan",
                     5,
-                    {"ninf_ticket_state": "opened", "ninf_zabbix_status": "problem"},
+                    {
+                        "ninf_ticket_state": "opened",
+                        "ninf_zabbix_status": "problem",
+                        "class": "network",
+                    },
+                    title="FortiGate: VPN 1 X: Tunnel down",
+                ),
+                inc(
+                    7,
+                    "Cavan",
+                    3,
+                    {"ninf_zabbix_status": "problem", "class": "os"},
+                    title="Windows: High memory utilization",
+                ),
+                inc(
+                    8,
+                    "Cavan",
+                    5,
+                    {"ninf_ticket_state": "opened"},
+                    status="acknowledged",
                 ),
                 inc(
                     2, "Cavan", 3, {"ninf_ticket_state": "opened", "ninf_branch": "soc"}
@@ -144,7 +163,7 @@ async def test_operador_ve_o_cliente_pedido(maker):
         r = await c.get("/api/painel", params={"customer_id": "Cavan"})
     d = r.json()
     assert r.status_code == 200
-    assert d["agora"] == {"noc": 2, "soc": 1, "criticos": 1}
+    assert d["agora"] == {"noc": 3, "soc": 1, "criticos": 2}
     assert d["disponibilidade"]["fora_do_ar"] == 1
     assert d["seguranca"]["por_classe"] == {"HIGH": 1}
     assert d["seguranca"]["top_regras"] == [{"regra": "R", "total": 1}]
@@ -159,7 +178,7 @@ async def test_operador_ve_o_cliente_pedido(maker):
 async def test_cliente_fica_preso_ao_proprio_tenant(maker):
     cliente = SimpleNamespace(id=2, role=UserRole.cliente, tenant_id="cavan")
     async with _api(maker, cliente) as c:
-        assert (await c.get("/api/painel")).json()["agora"]["noc"] == 2
+        assert (await c.get("/api/painel")).json()["agora"]["noc"] == 3
         assert (
             await c.get("/api/painel", params={"customer_id": "alupar"})
         ).status_code == 403

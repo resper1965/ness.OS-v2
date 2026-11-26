@@ -27,6 +27,10 @@ from app.models.users import User
 
 router = APIRouter(prefix="/api/painel", tags=["painel"])
 
+# Status que ainda pedem ação: reconhecer o incidente não o tira da fila.
+ATIVOS = ("open", "acknowledged")
+# ponytail: o Zabbix não marca "queda"; vale rede com título de indisponibilidade. Upgrade: tag própria na trigger.
+QUEDA = ("%tunnel down%", "%unavailable by icmp%", "%link down%", "%is down%")
 SEV = ("Critical", "High", "Medium", "Low")
 
 
@@ -76,7 +80,7 @@ async def painel(
     inc_name = func.lower(Incident.tags["ninf_customer_name"].astext).in_(names)
     branch = func.coalesce(Incident.tags["ninf_branch"].astext, "noc")
     opened = (
-        Incident.status == "open",
+        Incident.status.in_(ATIVOS),
         inc_name,
         Incident.tags["ninf_ticket_state"].astext == "opened",
     )
@@ -89,9 +93,11 @@ async def painel(
     ).scalar_one()
 
     down_where = (
-        Incident.status == "open",
+        Incident.status.in_(ATIVOS),
         inc_name,
         Incident.tags["ninf_zabbix_status"].astext == "problem",
+        Incident.tags["class"].astext == "network",
+        or_(*(Incident.title.ilike(p) for p in QUEDA)),
     )
     down_total = (
         await db.execute(select(func.count()).where(*down_where))
