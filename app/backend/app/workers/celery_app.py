@@ -20,6 +20,7 @@ celery_app = Celery(
         "app.workers.postmortem",
         "app.workers.telemetry",
         "app.workers.ticket_decider",
+        "app.workers.zabbix_reconcile",
     ],
 )
 
@@ -46,6 +47,7 @@ celery_app.conf.update(
         "app.workers.alerts.process_alert_v1": {"queue": "alerts.primary"},
         "app.workers.alerts.sweep_notifications": {"queue": "alerts.primary"},
         "app.workers.ticket_decider.decide_tickets": {"queue": "alerts.primary"},
+        "app.workers.zabbix_reconcile.reconcile_zabbix": {"queue": "alerts.primary"},
         "app.workers.tasks.process_ticket_resolution": {"queue": "alerts.primary"},
         "app.workers.tasks.run_anomaly_check": {"queue": "ml"},
         "app.workers.tasks.sync_glpi_team": {"queue": "ml"},
@@ -59,6 +61,10 @@ celery_app.conf.update(
         },
         "sync-glpi-team": {
             "task": "app.workers.tasks.sync_glpi_team",
+            "schedule": 900.0,
+        },
+        "reconcile-zabbix": {
+            "task": "app.workers.zabbix_reconcile.reconcile_zabbix",
             "schedule": 900.0,
         },
         "decide-tickets": {

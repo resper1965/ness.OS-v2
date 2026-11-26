@@ -543,3 +543,32 @@ async def test_soc_ticket_skips_zabbix_asset_lookup(maker, glpi, monkeypatch):
     await ticket_decider.decide(NOW)
     lookup.assert_not_awaited()
     assert "linked_item" not in glpi.create_ticket.call_args.kwargs
+
+
+@pytest.mark.asyncio
+async def test_zabbix_reconcile_recovers_only_what_zabbix_no_longer_has(
+    maker, glpi, monkeypatch
+):
+    from app.workers import zabbix_reconcile
+
+    monkeypatch.setattr(zabbix_reconcile, "SessionLocal", maker)
+    await _inc(maker, 1, TUNNEL, minutes=60)  # sumiu do Zabbix: recupera
+    await _inc(maker, 2, TUNNEL, minutes=60)  # ainda aberto: fica
+    await _inc(maker, 3, TUNNEL, minutes=5)  # recente demais: fica
+    zabbix = AsyncMock()
+    zabbix._call.return_value = [{"eventid": "2"}]
+    monkeypatch.setattr(zabbix_reconcile, "ZabbixClient", lambda: zabbix)
+    monkeypatch.setattr(zabbix_reconcile, "MIN_AGE", timedelta(minutes=10))
+
+    out = await zabbix_reconcile.reconcile(NOW + timedelta(minutes=1))
+    assert out["recovered"] == 1 and out["failed"] == 0
+    async with maker() as s:
+        assert (await s.get(Incident, 1)).tags["ninf_zabbix_status"] == "resolved"
+        assert (await s.get(Incident, 2)).tags["ninf_zabbix_status"] == "problem"
+        assert (await s.get(Incident, 3)).tags["ninf_zabbix_status"] == "problem"
+
+    # Resposta vazia não prova que nada está aberto: não fecha nada.
+    zabbix._call.return_value = []
+    assert await zabbix_reconcile.reconcile(NOW) == {"skipped": 1}
+    async with maker() as s:
+        assert (await s.get(Incident, 2)).tags["ninf_zabbix_status"] == "problem"
