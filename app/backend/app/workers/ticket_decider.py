@@ -123,6 +123,8 @@ async def _cross_link(
     A máquina é `host_name`; sem ela, o site. Só olha chamados abertos há até
     `window_min` minutos. Mesmo ramo nunca liga: a dedup já cuida.
     """
+    # ponytail: só enxerga chamado aberto pelo decisor na janela (tag opened_at); chamado
+    # reaberto não entra. Upgrade path: derivar da TicketLink aberta + reopen time.
     entity_id, branch = _tag(inc, "ninf_entity_id"), _tag(inc, "ninf_branch") or "noc"
     since = (now - timedelta(minutes=window_min)).isoformat()
     async with SessionLocal() as session:

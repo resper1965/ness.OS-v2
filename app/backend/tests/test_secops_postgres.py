@@ -453,3 +453,21 @@ async def test_wazuh_ticket_level_is_configurable(sessions, monkeypatch):
         s.add(PlatformParam(key="soc_ticket_min_level", value_int=13))
         await s.commit()
     assert await _wazuh_level(sessions, monkeypatch, 12) == []
+
+
+async def test_soc_incident_honors_threshold_below_12(sessions):
+    async with sessions() as s:
+        s.add(
+            Customer(key="cavan", display_name="Cavan", glpi_entity_id=8, active=True)
+        )
+        s.add(PlatformParam(key="soc_ticket_min_level", value_int=10))
+        dec = SocDecision(
+            wazuh_rule_id="1", agent_id="001", agent_name="pc", customer_id="cavan",
+            classification="HIGH", confidence=0.9, summary="x", action_taken="x",
+            raw_alert={},
+        )  # fmt: skip
+        s.add(dec)
+        await s.flush()
+        await secops._soc_incident(s, "cavan", dec, {"level": 10, "rule": {}}, {})
+        await s.commit()
+        assert len((await s.execute(select(Incident))).scalars().all()) == 1

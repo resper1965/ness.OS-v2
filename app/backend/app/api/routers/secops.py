@@ -898,7 +898,7 @@ async def _triage(
         decision.dedup_key = dedup_key
         decision.freq_key = freq_key
         db.add(decision)
-        if tenant and must_attend and alert_data["level"] >= 12:
+        if tenant and must_attend:
             # Na mesma transação da decisão: se falhar, 503 e o Wazuh reenvia.
             await db.flush()
             await _soc_incident(db, tenant, decision, alert_data, triage_result)
@@ -991,7 +991,8 @@ async def _soc_incident(
             "ninf_entity_id": customer.glpi_entity_id,
             "ninf_dedup_key": ticket_dedup_key(
                 customer.glpi_entity_id,
-                f"wazuh:{host}",  # namespace próprio: nunca colide com host_id do Zabbix
+                # namespace próprio (nunca colide com Zabbix); agent_id é local ao manager
+                f"wazuh:{(alert_data.get('cluster') or {}).get('name') or (alert_data.get('manager') or {}).get('name') or ''}:{decision.agent_id}",
                 str(decision.wazuh_rule_id),
             ),
             "ninf_zabbix_status": "problem",
