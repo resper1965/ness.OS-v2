@@ -5,6 +5,7 @@ import itertools
 import pytest
 from sqlalchemy import delete, select, update
 
+from app.integrations.glpi import GLPIPermanentError
 from app.models import Customer, TeamMember, User, UserRole
 from app.services import glpi_team_sync as sync
 
@@ -614,7 +615,7 @@ async def test_denied_external_profile_warns_and_does_not_break_the_cycle(
     await _seed(people_maker)
     g = FakeGlpi()
     g.deny = {("Profile_User", 14)}
-    g.deny_exc = PermissionError  # GLPIPermanentError: 401/403 do GLPI
+    g.deny_exc = GLPIPermanentError  # 401/403 do GLPI
     diff = await _diff(people_maker, g)
     warn = [x for x in diff if x.startswith("AVISO")]
     assert len(warn) == 1 and "elid" in warn[0] and "glpi-grant-external" in warn[0]
