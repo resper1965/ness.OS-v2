@@ -44,6 +44,7 @@ from app.api.routers.customer_contacts import router as customer_contacts_router
 from app.api.routers.customers import router as customers_router
 from app.api.routers.dashboard import router as dashboard_router
 from app.api.routers.incidents import router as incidents_router
+from app.api.routers.painel import router as painel_router
 from app.api.routers.people import router as people_router
 from app.api.routers.pipeline import router as pipeline_router
 from app.api.routers.push import router as push_router
@@ -148,6 +149,7 @@ app.include_router(atera_router)  # prefix: /api/rmm/atera
 app.include_router(ai_router)  # prefix: /api/ai
 app.include_router(secops_router)  # prefix: /api/secops
 app.include_router(vulns_router)  # prefix: /api/secops/vulnerabilities
+app.include_router(painel_router)  # prefix: /api/painel
 
 # --- Auth (compartilhado) ---
 app.include_router(auth_router)  # prefix: /api/auth

@@ -1,5 +1,5 @@
 import { Activity, ShieldAlert, Cloud, RefreshCw, LayoutDashboard, Shield,
-         WifiOff, AlertTriangle, LogOut, FileText, Users, Menu, Bot, Bug, UserCog } from 'lucide-react';
+         WifiOff, AlertTriangle, LogOut, FileText, Users, Menu, Bot, Bug, UserCog, Gauge } from 'lucide-react';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import CloudManagement from './components/CloudManagement';
 import PipelineStrip from './components/PipelineStrip';
@@ -20,20 +20,21 @@ import BrandMark from './components/BrandMark';
 import ContractsScreen from './components/ContractsScreen';
 import CustomersScreen from './components/CustomersScreen';
 import PeopleScreen from './components/PeopleScreen';
+import PainelView from './components/PainelView';
 
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
 
-type View = 'overview' | 'monitoring' | 'cloud' | 'incidents' | 'secops' | 'contracts' | 'customers' | 'people' | 'ai' | 'vulns';
+type View = 'overview' | 'monitoring' | 'cloud' | 'incidents' | 'secops' | 'contracts' | 'customers' | 'people' | 'ai' | 'vulns' | 'painel';
 
 const TITLES: Record<View, string> = {
   overview: 'Visão geral', monitoring: 'NOC', cloud: 'Nuvem', incidents: 'Incidentes',
-  secops: 'SOC', contracts: 'Contratos', customers: 'Clientes', people: 'Pessoas', ai: 'IA', vulns: 'Vulnerabilidades',
+  secops: 'SOC', contracts: 'Contratos', customers: 'Clientes', people: 'Pessoas', ai: 'IA', vulns: 'Vulnerabilidades', painel: 'Painel do cliente',
 };
 
 // A tela vive na URL (?view=) para recarregar, voltar e compartilhar link; papel decide o que pode abrir.
 export function allowedView(v: string | null, isOperator: boolean, canCadastros: boolean, canPeople = false): View {
-  if (v === 'incidents' || v === 'vulns') return v;
+  if (v === 'incidents' || v === 'vulns' || v === 'painel') return v;
   if ((v === 'contracts' || v === 'customers') && canCadastros) return v;
   if (v === 'people' && canPeople) return v;
   if (isOperator && (v === 'overview' || v === 'monitoring' || v === 'cloud' || v === 'secops' || v === 'ai')) return v;
@@ -284,6 +285,7 @@ function AppShellBody({ AUTH, logout, user }: {
           <SidebarItem icon={ShieldAlert} label="Incidentes" active={currentView === 'incidents'} onClick={() => setCurrentView('incidents')} />
           {isOperator && <SidebarItem icon={Cloud} label="Nuvem" active={currentView === 'cloud'} onClick={() => setCurrentView('cloud')} />}
           {isOperator && <SidebarItem icon={Shield} label="SOC" active={currentView === 'secops'} onClick={() => setCurrentView('secops')} />}
+          <SidebarItem icon={Gauge} label="Painel" active={currentView === 'painel'} onClick={() => setCurrentView('painel')} />
           <SidebarItem icon={Bug} label="Vulnerabilidades" active={currentView === 'vulns'} onClick={() => setCurrentView('vulns')} />
           {isOperator && <SidebarItem icon={Bot} label="IA" active={currentView === 'ai'} onClick={() => setCurrentView('ai')} />}
           {canReadCadastros && <>
@@ -376,7 +378,7 @@ function AppShellBody({ AUTH, logout, user }: {
 
           <button
             onClick={() => {
-              if (currentView === 'cloud' || currentView === 'contracts' || currentView === 'customers' || currentView === 'people' || currentView === 'secops' || currentView === 'ai' || currentView === 'vulns') setCadastrosTick(t => t + 1);
+              if (currentView === 'cloud' || currentView === 'contracts' || currentView === 'customers' || currentView === 'people' || currentView === 'secops' || currentView === 'ai' || currentView === 'vulns' || currentView === 'painel') setCadastrosTick(t => t + 1);
               else if (currentView === 'incidents') void fetchIncidents();
               else void fetchData();
             }}
@@ -431,6 +433,7 @@ function AppShellBody({ AUTH, logout, user }: {
             <SocView refreshKey={cadastrosTick} />
           )}
           {currentView === 'ai' && <AiView refreshKey={cadastrosTick} />}
+          {currentView === 'painel' && <PainelView isOperator={isOperator} refreshKey={cadastrosTick} />}
           {currentView === 'vulns' && <VulnsView tenant={access.tenantScope(user?.role, selectedTenant)} isOperator={isOperator} refreshKey={cadastrosTick} />}
 
         </div>
