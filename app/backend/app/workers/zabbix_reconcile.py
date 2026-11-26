@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 # Alerta recém-chegado ainda pode não estar na leitura do Zabbix.
 MIN_AGE = timedelta(minutes=10)
 # ponytail: lote por ciclo; o resto sai nos próximos (15 min). Subir só se o atraso importar.
-BATCH = 200
+BATCH = 50
 # Lista vazia é legítima (o último problema se recuperou), mas um token sem permissão
 # também devolve vazio: com muita coisa a recuperar, não confia.
 EMPTY_MAX = 20
@@ -80,10 +80,14 @@ async def reconcile(now: datetime, apply: bool = True) -> dict[str, int]:
     )
     if not isinstance(problems, list):
         return {"skipped": 1}
+    # Repetir fechamento de chamado não depende da leitura do Zabbix: roda sempre.
+    retry = await unclosed_tickets(now)
     stale = await stale_incidents(now, {str(p["eventid"]) for p in problems})
     if not problems and len(stale) > EMPTY_MAX:
+        stale = []
+    stale = (retry + [i for i in stale if i not in retry])[:BATCH]
+    if not stale and not problems:
         return {"skipped": 1}
-    stale += [i for i in await unclosed_tickets(now) if i not in stale]
     out = {
         "zabbix_open": len(problems),
         "stale": len(stale),
@@ -92,7 +96,7 @@ async def reconcile(now: datetime, apply: bool = True) -> dict[str, int]:
     }
     if not apply:
         return out
-    for inc in stale[:BATCH]:
+    for inc in stale:
         t = inc.tags
         try:
             await alerts._async_process_recovery(
@@ -111,7 +115,12 @@ async def reconcile(now: datetime, apply: bool = True) -> dict[str, int]:
     return out
 
 
-@celery_app.task(name="app.workers.zabbix_reconcile.reconcile_zabbix")
+# Cada recuperação pode falar com o GLPI (timeout de 10 s): o lote de 50 cabe nestes limites.
+@celery_app.task(
+    name="app.workers.zabbix_reconcile.reconcile_zabbix",
+    soft_time_limit=600,
+    time_limit=660,
+)
 def reconcile_zabbix() -> dict[str, int]:
     redis = alerts._get_sync_redis()
     try:
