@@ -271,7 +271,7 @@ function AppShellBody({ AUTH, logout, user }: {
         </div>
 
         <div className="px-2">
-          {isOperator && (currentView === 'incidents' || currentView === 'painel') ? (
+          {isOperator && currentView === 'incidents' ? (
             <TenantSelector selectedTenant={selectedTenant} onSelect={setSelectedTenant} />
           ) : (
             <p className="text-xs text-white/60">{isOperator ? 'Operação global' : 'Minha empresa'}</p>
@@ -433,7 +433,7 @@ function AppShellBody({ AUTH, logout, user }: {
             <SocView refreshKey={cadastrosTick} />
           )}
           {currentView === 'ai' && <AiView refreshKey={cadastrosTick} />}
-          {currentView === 'painel' && <PainelView tenant={access.tenantScope(user?.role, selectedTenant)} isOperator={isOperator} refreshKey={cadastrosTick} />}
+          {currentView === 'painel' && <PainelView isOperator={isOperator} refreshKey={cadastrosTick} />}
           {currentView === 'vulns' && <VulnsView tenant={access.tenantScope(user?.role, selectedTenant)} isOperator={isOperator} refreshKey={cadastrosTick} />}
 
         </div>

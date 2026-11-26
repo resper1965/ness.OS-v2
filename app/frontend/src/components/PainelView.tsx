@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { asApiError, request, type ApiError } from '../http';
 import { timeAgo } from '../access';
 import { Badge, Empty, ErrorState, Panel, Screen, Skeleton } from './ui/kit';
@@ -16,28 +16,49 @@ const n = (v: number) => v.toLocaleString('pt-BR');
 const SEV: [string, string][] = [['Critical', 'Crítica'], ['High', 'Alta'], ['Medium', 'Média'], ['Low', 'Baixa']];
 const TIPO: Record<string, string> = { windows: 'Windows', linux: 'Linux', network_device: 'Rede', unknown: 'Outros' };
 
-// O escopo do cliente quem fixa é a API; operador escolhe no seletor do menu.
+// O escopo do cliente quem fixa é a API; o operador escolhe aqui, a partir do cadastro de clientes.
 export const painelQuery = (tenant: string | null) => (tenant ? `?customer_id=${encodeURIComponent(tenant)}` : '');
 
-export default function PainelView({ tenant, isOperator, refreshKey = 0 }: { tenant: string | null; isOperator: boolean; refreshKey?: number }) {
+export default function PainelView({ isOperator, refreshKey = 0 }: { isOperator: boolean; refreshKey?: number }) {
+  const [clientes, setClientes] = useState<{ key: string; nome: string }[]>([]);
+  const [tenant, setTenant] = useState<string | null>(null);
+  const [tentativa, setTentativa] = useState(0);
   const [data, setData] = useState<Painel | null>(null);
   const [error, setError] = useState<ApiError | null>(null);
   const needsPick = isOperator && !tenant;
 
-  const load = useCallback(async () => {
-    if (needsPick) return;
-    try { setData(await request<Painel>(`/api/painel${painelQuery(tenant)}`)); setError(null); }
-    catch (e) { setError(asApiError(e)); }
-  }, [tenant, needsPick, refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { setData(null); void load(); }, [load]);
+  useEffect(() => {
+    if (isOperator) request<{ key: string; nome: string }[]>('/api/painel/clientes').then(setClientes, e => setError(asApiError(e)));
+  }, [isOperator]);
 
-  if (needsPick) return <Screen><Empty title="Escolha um cliente." hint="Use o seletor de cliente no menu." /></Screen>;
-  if (error) return <Screen><ErrorState error={error} onRetry={() => void load()} /></Screen>;
-  if (!data) return <Screen><Skeleton rows={6} /></Screen>;
+  // Resposta de um cliente já trocado não pode sobrescrever o atual.
+  useEffect(() => {
+    if (needsPick) return;
+    let atual = true;
+    request<Painel>(`/api/painel${painelQuery(tenant)}`).then(
+      d => { if (atual) { setData(d); setError(null); } },
+      e => { if (atual) setError(asApiError(e)); },
+    );
+    return () => { atual = false; setData(null); };
+  }, [tenant, needsPick, refreshKey, tentativa]);
+
+  const seletor = isOperator && (
+    <label className="nx-field nx-inline">Cliente
+      <select value={tenant ?? ''} onChange={e => { setTenant(e.target.value || null); setError(null); }}>
+        <option value="">Escolha…</option>
+        {clientes.map(c => <option key={c.key} value={c.key}>{c.nome}</option>)}
+      </select>
+    </label>
+  );
+
+  if (needsPick) return <Screen>{seletor}{error ? <ErrorState error={error} onRetry={() => setError(null)} /> : <Empty title="Escolha um cliente." />}</Screen>;
+  if (error) return <Screen>{seletor}<ErrorState error={error} onRetry={() => setTentativa(t => t + 1)} /></Screen>;
+  if (!data) return <Screen>{seletor}<Skeleton rows={6} /></Screen>;
 
   const { agora, disponibilidade: disp, seguranca: seg, exposicao: exp, cobertura: cob } = data;
   return (
     <Screen>
+      {seletor}
       <Panel title="Agora" meta={<span className="nx-meta">atualizado {timeAgo(data.generated_at)}</span>}>
         <dl className="nx-kpis">
           <div><dt>Chamados NOC</dt><dd>{n(agora.noc)}</dd></div>

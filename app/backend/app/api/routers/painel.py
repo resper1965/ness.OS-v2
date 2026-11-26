@@ -12,7 +12,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import Select, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.dependencies import require_authenticated, resolve_tenant_scope
+from app.core.dependencies import (
+    require_authenticated,
+    require_noc,
+    resolve_tenant_scope,
+)
 from app.database import get_db
 from app.models.models import (
     Asset,
@@ -62,6 +66,16 @@ async def _names(db: AsyncSession, scope: str) -> set[str]:
 
 async def _contar(db: AsyncSession, stmt: Select) -> dict[str, int]:
     return {k: n for k, n in (await db.execute(stmt)).all()}
+
+
+@router.get("/clientes", dependencies=[Depends(require_noc)])
+async def clientes(db: AsyncSession = Depends(get_db)) -> list[dict]:
+    rows = await db.execute(
+        select(Customer.key, Customer.display_name)
+        .where(Customer.active.is_(True), Customer.glpi_entity_id != 0)
+        .order_by(func.lower(Customer.display_name))
+    )
+    return [{"key": k, "nome": n} for k, n in rows.all()]
 
 
 @router.get("")

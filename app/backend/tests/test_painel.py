@@ -192,3 +192,15 @@ async def test_operador_sem_cliente_e_cliente_inexistente(maker):
         assert (
             await c.get("/api/painel", params={"customer_id": "nada"})
         ).status_code == 404
+
+
+async def test_lista_de_clientes_vem_do_cadastro_e_so_para_operador(maker):
+    async with _api(
+        maker, SimpleNamespace(id=1, role=UserRole.noc, tenant_id=None)
+    ) as c:
+        r = await c.get("/api/painel/clientes")
+    chaves = [x["key"] for x in r.json()]
+    assert "cavan" in chaves and "ness" not in chaves
+    cliente = SimpleNamespace(id=2, role=UserRole.cliente, tenant_id="cavan")
+    async with _api(maker, cliente) as c:
+        assert (await c.get("/api/painel/clientes")).status_code == 403
