@@ -628,6 +628,21 @@ async def test_zabbix_reconcile_retries_ticket_closure_after_glpi_failure(
         }
         await s.commit()
     assert len(await zabbix_reconcile.unclosed_tickets(NOW + timedelta(minutes=1))) == 1
+    # Vínculo com incidente ativo fica fora da lista de reenvio.
+    await _inc(maker, 9, DISK, site=None, minutes=60)
+    async with maker() as s:
+        act = await s.get(Incident, 9)
+        act.tags = {
+            **act.tags,
+            "ninf_dedup_key": (await s.get(Incident, 1)).tags["ninf_dedup_key"],
+        }
+        await s.commit()
+    assert await zabbix_reconcile.unclosed_tickets(NOW + timedelta(minutes=1)) == []
+    async with maker() as s:
+        act = await s.get(Incident, 9)
+        act.status = "resolved"
+        act.tags = {**act.tags, "ninf_zabbix_status": "resolved"}
+        await s.commit()
 
     glpi.solve_ticket.side_effect = None
     # Zabbix fora do ar: o reenvio do fechamento ainda acontece.

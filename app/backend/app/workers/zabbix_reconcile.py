@@ -11,7 +11,8 @@ import asyncio
 import logging
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import String, select
+from sqlalchemy import String, exists, select
+from sqlalchemy.orm import aliased
 
 from app.database import SessionLocal
 from app.integrations.zabbix import ZabbixClient
@@ -50,6 +51,14 @@ async def stale_incidents(now: datetime, open_ids: set[str]) -> list[Incident]:
 
 
 async def unclosed_tickets(now: datetime) -> list[Incident]:
+    # Vínculo com incidente ainda ativo não fecha: fica fora antes do lote.
+    active = aliased(Incident)
+    still_active = exists().where(
+        active.tags["ninf_dedup_key"].astext == Incident.tags["ninf_dedup_key"].astext,
+        active.tags["ninf_entity_id"].astext == Incident.tags["ninf_entity_id"].astext,
+        active.tags["ninf_zabbix_status"].astext == "problem",
+        active.status.in_(("open", "acknowledged")),
+    )
     async with SessionLocal() as session:
         rows = await session.execute(
             select(Incident, TicketLink.entity_id, TicketLink.dedup_key)
@@ -67,6 +76,7 @@ async def unclosed_tickets(now: datetime) -> list[Incident]:
                 Incident.last_seen > now - RETRY_WINDOW,
                 TicketLink.state == "open",
                 TicketLink.source_resolved_at.is_(None),
+                ~still_active,
             )
             .order_by(Incident.last_seen)
         )
