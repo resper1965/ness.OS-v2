@@ -990,7 +990,9 @@ async def _soc_incident(
             "ninf_customer_name": customer.key,
             "ninf_entity_id": customer.glpi_entity_id,
             "ninf_dedup_key": ticket_dedup_key(
-                customer.glpi_entity_id, host, str(decision.wazuh_rule_id)
+                customer.glpi_entity_id,
+                f"wazuh:{host}",  # namespace próprio: nunca colide com host_id do Zabbix
+                str(decision.wazuh_rule_id),
             ),
             "ninf_zabbix_status": "problem",
             "ninf_ticket_state": "pending",
