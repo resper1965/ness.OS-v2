@@ -19,6 +19,10 @@ $svc = iterator_to_array($DB->request(['SELECT' => ['id', 'name', 'is_active'], 
 if (count($svc) !== 1 || reset($svc)['name'] !== 'svc_ness_os' || !(int) reset($svc)['is_active']) {
     throw new RuntimeException('Unexpected service identity');
 }
+if ($parent !== 0 && !count(iterator_to_array($DB->request(['FROM' => 'glpi_entities', 'WHERE' => ['id' => $parent]])))) {
+    fwrite(STDERR, "parent entity $parent not found\n");
+    exit(1);
+}
 $DB->beginTransaction();
 try {
 Session::callAsSystem(function () use ($DB, $name, $apply, $parent) {
