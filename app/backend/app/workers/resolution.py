@@ -148,11 +148,14 @@ async def resolve_ticket(ticket_id: str, redis) -> dict:
         await session.commit()
 
         event_id = tags.get("ninf_zabbix_event_id")
-        if not event_id:
+        if tags.get("ninf_branch") == "soc":
+            ack = "not_applicable"  # origem Wazuh: não há evento Zabbix a reconhecer
+        elif not event_id:
             raise ValueError("Incident has no original Zabbix event")
-        ack = await ZabbixClient().acknowledge_resolution_once(
-            event_id, ticket_id, solution
-        )
+        else:
+            ack = await ZabbixClient().acknowledge_resolution_once(
+                event_id, ticket_id, solution
+            )
         incident.tags = {
             **tags,
             "resolution_sync_status": "synced",
@@ -169,7 +172,7 @@ async def resolve_ticket(ticket_id: str, redis) -> dict:
                 "resolution_sync_status": "synced",
                 "resolution_synced_at": now,
             }
-        if not already_synced:
+        if not already_synced and tags.get("ninf_branch") != "soc":
             session.add(
                 IncidentAction(
                     incident_id=incident.id,

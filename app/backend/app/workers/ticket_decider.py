@@ -47,6 +47,45 @@ async def _params(session) -> dict[str, int]:
     return {**TICKET_DEFAULTS, **dict(rows.all())}
 
 
+async def _set_tag(incident_id: int, **tags) -> None:
+    async with SessionLocal() as session:
+        async with session.begin():
+            inc = await session.get(Incident, incident_id, with_for_update=True)
+            if inc is not None:
+                inc.tags = {**(inc.tags or {}), **tags}
+
+
+async def _retry_cross_links(glpi: GLPIClient, now: datetime, window_min: int) -> None:
+    """Uma segunda tentativa da ligação NOC/SOC que falhou; depois disso desiste."""
+    async with SessionLocal() as session:
+        todo = (
+            (
+                await session.execute(
+                    select(Incident).where(
+                        Incident.tags["ninf_cross_link_retry"].astext == "true"
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+    if todo and not glpi.session_token:
+        await glpi.init_session()
+    for inc in todo:
+        await _set_tag(inc.id, ninf_cross_link_retry=False)
+        try:
+            await glpi.change_active_entity(int(_tag(inc, "ninf_entity_id")))
+            await _cross_link(
+                glpi, inc, int(inc.deskmanager_ticket_id or 0), now, window_min
+            )
+        except Exception as exc:
+            logger.error(
+                "Nova ligação NOC/SOC do incidente %s falhou: %s",
+                inc.id,
+                type(exc).__name__,
+            )
+
+
 async def _set_state(incident_id: int, state: str, **tags) -> None:
     async with SessionLocal() as session:
         async with session.begin():
@@ -76,7 +115,64 @@ def _alert_data(inc: Incident) -> dict:
     }
 
 
-async def _open(glpi: GLPIClient, inc: Incident, now: datetime, reopen_h: int) -> str:
+async def _cross_link(
+    glpi: GLPIClient, inc: Incident, ticket_id: int, now: datetime, window_min: int
+) -> None:
+    """Liga o chamado novo ao do outro ramo (NOC/SOC) do mesmo cliente e máquina.
+
+    A máquina é `host_name`; sem ela, o site. Só olha chamados abertos há até
+    `window_min` minutos. Mesmo ramo nunca liga: a dedup já cuida.
+    """
+    # ponytail: só enxerga chamado aberto pelo decisor na janela (tag opened_at); chamado
+    # reaberto não entra. Upgrade path: derivar da TicketLink aberta + reopen time.
+    entity_id, branch = _tag(inc, "ninf_entity_id"), _tag(inc, "ninf_branch") or "noc"
+    since = (now - timedelta(minutes=window_min)).isoformat()
+    async with SessionLocal() as session:
+        others = (
+            (
+                await session.execute(
+                    select(Incident).where(
+                        Incident.id != inc.id,
+                        Incident.status.not_in(("resolved", "closed")),
+                        Incident.tags["ninf_ticket_state"].astext == "opened",
+                        Incident.tags["ninf_entity_id"].astext == str(entity_id),
+                        Incident.tags["ninf_ticket_opened_at"].astext >= since,
+                        Incident.deskmanager_ticket_id.isnot(None),
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+    same_machine = {
+        int(o.deskmanager_ticket_id or 0)
+        for o in others
+        if (_tag(o, "ninf_branch") or "noc") != branch
+        and (
+            o.host_name.lower() == inc.host_name.lower()
+            if inc.host_name
+            else _tag(o, "ninf_site") == _tag(inc, "ninf_site")
+        )
+        and o.deskmanager_ticket_id != str(ticket_id)
+    }
+    same_machine.discard(0)
+    for other in same_machine:
+        await glpi.link_tickets(ticket_id, other)
+        for a, b in ((ticket_id, other), (other, ticket_id)):
+            await glpi.add_comment(
+                ticket_id=a,
+                content=f"Chamado relacionado do outro ramo (NOC/SOC): #{b}.",
+                private=False,
+            )
+
+
+async def _open(
+    glpi: GLPIClient,
+    inc: Incident,
+    now: datetime,
+    reopen_h: int,
+    cross_min: int = TICKET_DEFAULTS["ticket_cross_link_minutes"],
+) -> str:
     entity_id = int(_tag(inc, "ninf_entity_id"))
     key = _tag(inc, "ninf_dedup_key")
     async with SessionLocal() as session:
@@ -117,14 +213,26 @@ async def _open(glpi: GLPIClient, inc: Incident, now: datetime, reopen_h: int) -
     previous = link.ticket_id if link else None
     data = _alert_data(inc)
     customer = _tag(inc, "ninf_customer_name") or ""
-    analysis = await analyze_incident(
-        incident_data=data,
-        customer_metadata={"customer_name": customer, "entity_id": entity_id},
-        skip=await alerts._ai_skip(customer) if settings.llm_api_key else None,
-    )
-    content = alerts.build_glpi_ticket_content(data, analysis)
+    soc = _tag(inc, "ninf_branch") == "soc"
+    if soc:
+        # Ramo SOC: a triagem já rodou na ingestão; sem segunda chamada ao modelo.
+        analysis = None
+        content = (
+            "<h2>Alerta de segurança</h2>"
+            f"<p><b>Host:</b> {escape(inc.host_name)}</p>"
+            f"<p><b>Resumo:</b> {escape(inc.sanitized_description or '')}</p>"
+        )
+    else:
+        analysis = await analyze_incident(
+            incident_data=data,
+            customer_metadata={"customer_name": customer, "entity_id": entity_id},
+            skip=await alerts._ai_skip(customer) if settings.llm_api_key else None,
+        )
+        content = alerts.build_glpi_ticket_content(data, analysis)
     if previous:
         content += f"<p><b>Chamado anterior:</b> #{int(previous)}</p>"
+    hub = f"{settings.dashboard_base_url}/?view=incidents&id={inc.id}"
+    content += f'<p><a href="{escape(hub)}">ver no ness.OS</a></p>'
     # Uma reserva por geração do chamado: depois de fechado, a mesma chave abre outro.
     reservation = sha256(f"{key}:{previous or 0}".encode()).hexdigest()
     ticket_id, created = await alerts.ensure_glpi_ticket_serialized(
@@ -134,7 +242,10 @@ async def _open(glpi: GLPIClient, inc: Incident, now: datetime, reopen_h: int) -
         category_id=alerts.resolve_glpi_category_id(data),
         title=f"[AIOps] {inc.title}",
         content=content,
-        linked_item=await alerts.lookup_glpi_asset(inc.host_id, customer),
+        # host_id do ramo SOC é id de agente Wazuh: não casa com ativo do Zabbix
+        linked_item=(
+            None if soc else await alerts.lookup_glpi_asset(inc.host_id, customer)
+        ),
         urgency=alerts.glpi_urgency(inc.severity),
         lookup_first=False,
     )
@@ -170,8 +281,8 @@ async def _open(glpi: GLPIClient, inc: Incident, now: datetime, reopen_h: int) -
                     note=f"ticket={ticket_id} entity={entity_id}",
                 )
             )
-            call = analysis._call
-            if call is not None:
+            call = analysis._call if analysis else None
+            if analysis is not None and call is not None:
                 await record_ai_decision(
                     session,
                     kind="incident_analysis",
@@ -194,6 +305,13 @@ async def _open(glpi: GLPIClient, inc: Incident, now: datetime, reopen_h: int) -
                     incident_id=inc.id,
                     ticket_id=str(ticket_id),
                 )
+    try:
+        await _cross_link(glpi, inc, ticket_id, now, cross_min)
+    except Exception as exc:  # o chamado já existe; a ligação não pode derrubá-lo
+        logger.error(
+            "Ligação NOC/SOC do incidente %s falhou: %s", inc.id, type(exc).__name__
+        )
+        await _set_tag(inc.id, ninf_cross_link_retry=True)
     if recovered:
         # A recuperação chegou durante a criação e não viu o vínculo: fecha agora.
         await alerts.close_ticket_if_recovered(entity_id, key, now)
@@ -208,8 +326,12 @@ async def _open(glpi: GLPIClient, inc: Incident, now: datetime, reopen_h: int) -
             await notify_tenant_stakeholders(
                 tenant_id=customer.lower().strip(),
                 title=f"Alerta Crítico: {inc.title}",
-                body=f"Host {inc.host_name} precisa de atenção. "
-                f"IA sugere: {analysis.executive_action_plan[:100]}...",
+                body=(
+                    f"Host {inc.host_name} precisa de atenção. "
+                    f"IA sugere: {analysis.executive_action_plan[:100]}..."
+                    if analysis
+                    else f"Host {inc.host_name} precisa de atenção."
+                ),
                 incident_id=str(inc.id),
                 fingerprint=inc.fingerprint,
                 severity=source_urgency(data).lower(),
@@ -340,12 +462,24 @@ async def decide(now: datetime) -> dict[str, int]:
             try:
                 if not glpi.session_token:
                     await glpi.init_session()
-                stats[await _open(glpi, inc, now, params["ticket_reopen_hours"])] += 1
+                stats[
+                    await _open(
+                        glpi,
+                        inc,
+                        now,
+                        params["ticket_reopen_hours"],
+                        params["ticket_cross_link_minutes"],
+                    )
+                ] += 1
             except Exception as exc:
                 logger.error(
                     "Chamado do incidente %s adiado: %s", inc.id, type(exc).__name__
                 )
                 stats["failed"] += 1
+        try:
+            await _retry_cross_links(glpi, now, params["ticket_cross_link_minutes"])
+        except Exception as exc:
+            logger.error("Reenvio de ligações falhou: %s", type(exc).__name__)
         if active_causes:
             try:
                 if not glpi.session_token:

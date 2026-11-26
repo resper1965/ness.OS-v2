@@ -73,7 +73,9 @@ def mapped_tenant(monkeypatch):
 
 
 @pytest.fixture
-def decision_database():
+def decision_database(monkeypatch):
+    # incidente do ramo SOC tem teste próprio contra Postgres (test_secops_postgres)
+    monkeypatch.setattr(_secops, "_soc_incident", AsyncMock())
     session = AsyncMock()
     session.add = MagicMock(side_effect=lambda decision: setattr(decision, "id", 19))
 

@@ -26,11 +26,13 @@ from app.core.triage_engine import FREQUENCY_WINDOW_SECONDS, TriageAction, Triag
 from app.core.webhook_auth import verify_key
 from app.database import get_db
 from app.integrations.zabbix import ZabbixClient
-from app.models.models import SocDecision, TenantMapping
+from app.models.models import Incident, PlatformParam, SocDecision, TenantMapping
 from app.models.users import User
 from app.services.ai_decisions import record_ai_decision
 from app.services.ai_gate import ai_gate
+from app.services.customers import AmbiguousCustomer, resolve_customer
 from app.services.policy_params import CONTRACT_DEFAULTS, get_params
+from app.services.ticket_policy import dedup_key as ticket_dedup_key
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/secops", tags=["secops"])
@@ -896,6 +898,10 @@ async def _triage(
         decision.dedup_key = dedup_key
         decision.freq_key = freq_key
         db.add(decision)
+        if tenant and must_attend:
+            # Na mesma transação da decisão: se falhar, 503 e o Wazuh reenvia.
+            await db.flush()
+            await _soc_incident(db, tenant, decision, alert_data, triage_result)
         await db.commit()
     except IntegrityError:
         # Corrida: outro pedido gravou a mesma chave entre a consulta e o commit
@@ -928,6 +934,76 @@ async def _triage(
     triage_result["corrective_action_approved"] = False
 
     return triage_result
+
+
+async def _soc_ticket_level(db: AsyncSession) -> int:
+    """Nível Wazuh a partir do qual o alerta vira incidente pendente (ramo SOC).
+
+    Ajustável sem deploy em n_infraops_platform_params (`soc_ticket_min_level`); padrão 12.
+    """
+    value = (
+        await db.execute(
+            select(PlatformParam.value_int).where(
+                PlatformParam.key == "soc_ticket_min_level"
+            )
+        )
+    ).scalar_one_or_none()
+    return value if isinstance(value, int) and value > 0 else 12
+
+
+async def _soc_incident(
+    db: AsyncSession,
+    tenant: str,
+    decision: SocDecision,
+    alert_data: dict[str, Any],
+    triage_result: dict[str, Any],
+) -> None:
+    """Incidente pendente do ramo SOC; o decisor de chamados cuida da carência e da dedup.
+
+    Roda dentro da transação da decisão (quem chama faz o commit). Cliente sem entidade
+    no GLPI ou ambíguo não abre chamado: só a decisão fica.
+    """
+    if alert_data["level"] < await _soc_ticket_level(db):
+        return
+    try:
+        customer = await resolve_customer(db, tenant)
+    except AmbiguousCustomer:
+        return
+    if customer is None or not customer.active or customer.glpi_entity_id is None:
+        return
+    rule = alert_data.get("rule") or {}
+    agent = alert_data.get("agent") or {}
+    host = str(agent.get("name") or decision.agent_name or "unknown")
+    now = datetime.now(UTC)
+    incident = Incident(
+        fingerprint=hashlib.sha256(f"soc:{decision.id}".encode()).hexdigest(),
+        title=str(rule.get("description") or f"Regra {decision.wazuh_rule_id}")[:500],
+        severity=5 if alert_data["level"] >= 15 else 4,
+        status="open",
+        host_id=str(decision.agent_id)[:64],
+        host_name=host[:255],
+        trigger_id=str(decision.wazuh_rule_id)[:64],
+        first_seen=now,
+        last_seen=now,
+        sanitized_description=str(triage_result.get("summary") or ""),
+        tags={
+            "ninf_customer_name": customer.key,
+            "ninf_entity_id": customer.glpi_entity_id,
+            "ninf_dedup_key": ticket_dedup_key(
+                customer.glpi_entity_id,
+                # namespace próprio (nunca colide com Zabbix); agent_id é local ao manager
+                f"wazuh:{(alert_data.get('cluster') or {}).get('name') or (alert_data.get('manager') or {}).get('name') or ''}:{decision.agent_id}",
+                str(decision.wazuh_rule_id),
+            ),
+            "ninf_zabbix_status": "problem",
+            "ninf_ticket_state": "pending",
+            "ninf_branch": "soc",
+            "ninf_soc_decision_id": decision.id,
+        },
+    )
+    db.add(incident)
+    await db.flush()
+    decision.incident_id = incident.id
 
 
 def soc_divergent(engine_action: str, classification: str) -> bool:
