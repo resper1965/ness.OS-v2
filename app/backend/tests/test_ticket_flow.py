@@ -556,9 +556,16 @@ async def test_zabbix_reconcile_recovers_only_what_zabbix_no_longer_has(
     await _inc(maker, 2, TUNNEL, minutes=60)  # ainda aberto: fica
     await _inc(maker, 3, TUNNEL, minutes=5)  # recente demais: fica
     zabbix = AsyncMock()
-    zabbix._call.return_value = [{"eventid": "2"}]
+
+    async def call(method, params):
+        if method == "host.get":
+            return [{"hostid": h} for h in params["hostids"] if h != "h7"]
+        return [{"eventid": "2"}]
+
+    zabbix._call.side_effect = call
     monkeypatch.setattr(zabbix_reconcile, "ZabbixClient", lambda: zabbix)
     monkeypatch.setattr(zabbix_reconcile, "MIN_AGE", timedelta(minutes=10))
+    await _inc(maker, 7, TUNNEL, minutes=60)  # host invisível ao token: fica
 
     out = await zabbix_reconcile.reconcile(NOW + timedelta(minutes=1))
     assert out["recovered"] == 1 and out["failed"] == 0
@@ -566,9 +573,15 @@ async def test_zabbix_reconcile_recovers_only_what_zabbix_no_longer_has(
         assert (await s.get(Incident, 1)).tags["ninf_zabbix_status"] == "resolved"
         assert (await s.get(Incident, 2)).tags["ninf_zabbix_status"] == "problem"
         assert (await s.get(Incident, 3)).tags["ninf_zabbix_status"] == "problem"
+        assert (await s.get(Incident, 7)).tags["ninf_zabbix_status"] == "problem"
 
     # Lista vazia vale quando há poucos a recuperar; com muitos, é suspeita (token sem permissão).
-    zabbix._call.return_value = []
+    async def vazio(method, params):
+        if method == "host.get":
+            return [{"hostid": h} for h in params["hostids"] if h != "h7"]
+        return []
+
+    zabbix._call.side_effect = vazio
     out = await zabbix_reconcile.reconcile(NOW + timedelta(minutes=1))
     assert out["recovered"] == 1  # o incidente 2
     monkeypatch.setattr(zabbix_reconcile, "EMPTY_MAX", 0)
@@ -590,7 +603,13 @@ async def test_zabbix_reconcile_retries_ticket_closure_after_glpi_failure(
     await _inc(maker, 1, DISK, site=None, minutes=60)
     await ticket_decider.decide(NOW)
     zabbix = AsyncMock()
-    zabbix._call.return_value = [{"eventid": "999"}]
+
+    async def call(method, params):
+        if method == "host.get":
+            return [{"hostid": h} for h in params["hostids"]]
+        return [{"eventid": "999"}]
+
+    zabbix._call.side_effect = call
     monkeypatch.setattr(zabbix_reconcile, "ZabbixClient", lambda: zabbix)
 
     glpi.solve_ticket.side_effect = GLPITransientError("fora do ar")

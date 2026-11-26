@@ -75,7 +75,8 @@ async def unclosed_tickets(now: datetime) -> list[Incident]:
 
 
 async def reconcile(now: datetime, apply: bool = True) -> dict[str, int]:
-    problems = await ZabbixClient()._call(
+    zabbix = ZabbixClient()
+    problems = await zabbix._call(
         "problem.get", {"output": ["eventid"], "recent": False}
     )
     if not isinstance(problems, list):
@@ -85,6 +86,15 @@ async def reconcile(now: datetime, apply: bool = True) -> dict[str, int]:
     stale = await stale_incidents(now, {str(p["eventid"]) for p in problems})
     if not problems and len(stale) > EMPTY_MAX:
         stale = []
+    if stale:
+        # Token com permissão por grupo de hosts devolve lista incompleta: só confia
+        # em quem tem o host visível. ponytail: host apagado no Zabbix fica de fora.
+        hosts = await zabbix._call(
+            "host.get",
+            {"output": ["hostid"], "hostids": sorted({i.host_id for i in stale})},
+        )
+        visible = {str(h["hostid"]) for h in hosts or []}
+        stale = [i for i in stale if i.host_id in visible]
     stale = (retry + [i for i in stale if i not in retry])[:BATCH]
     if not stale and not problems:
         return {"skipped": 1}
