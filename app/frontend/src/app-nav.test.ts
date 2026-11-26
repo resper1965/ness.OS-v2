@@ -18,4 +18,10 @@ describe('allowedView', () => {
     expect(allowedView('customers', false, true)).toBe('customers');
     expect(allowedView('vulns', false, false)).toBe('vulns');
   });
+  it('cliente abre no painel; os demais seguem o padrão', () => {
+    expect(allowedView(null, false, false, false, true)).toBe('painel');
+    expect(allowedView('overview', false, false, false, true)).toBe('painel');
+    expect(allowedView('vulns', false, false, false, true)).toBe('vulns');
+    expect(allowedView(null, false, false, false, false)).toBe('incidents');
+  });
 });

@@ -33,11 +33,13 @@ const TITLES: Record<View, string> = {
 };
 
 // A tela vive na URL (?view=) para recarregar, voltar e compartilhar link; papel decide o que pode abrir.
-export function allowedView(v: string | null, isOperator: boolean, canCadastros: boolean, canPeople = false): View {
+export function allowedView(v: string | null, isOperator: boolean, canCadastros: boolean, canPeople = false, isCliente = false): View {
   if (v === 'incidents' || v === 'vulns' || v === 'painel') return v;
   if ((v === 'contracts' || v === 'customers') && canCadastros) return v;
   if (v === 'people' && canPeople) return v;
   if (isOperator && (v === 'overview' || v === 'monitoring' || v === 'cloud' || v === 'secops' || v === 'ai')) return v;
+  // Cliente (técnico externo ou gestor) abre direto no painel do próprio cliente.
+  if (isCliente) return 'painel';
   return isOperator ? 'overview' : 'incidents';
 }
 
@@ -97,12 +99,13 @@ function AppShellBody({ AUTH, logout, user }: {
 }) {
   const isOperator = access.isOperator(user?.role);
   const canActOnIncidents = access.canActOnIncidents(user?.role);
+  const isCliente = user?.role === 'cliente';
   // Link da notificação push: /?view=incidents&id=N abre o caso (o backend revalida o acesso).
   const linkParams = new URLSearchParams(window.location.search);
   const linkedIncident = linkParams.get('view') === 'incidents' ? linkParams.get('id') : null;
   const canReadCadastros = access.canReadCadastros(user?.role);
   const canPeople = access.canManagePeople(user?.role);
-  const [currentView, setView] = useState<View>(() => allowedView(linkParams.get('view'), isOperator, canReadCadastros, canPeople));
+  const [currentView, setView] = useState<View>(() => allowedView(linkParams.get('view'), isOperator, canReadCadastros, canPeople, isCliente));
   const setCurrentView = useCallback((v: View) => {
     setView(v);
     const url = new URL(window.location.href);
@@ -111,10 +114,10 @@ function AppShellBody({ AUTH, logout, user }: {
     window.history.pushState(null, '', url);
   }, []);
   useEffect(() => {
-    const onPop = () => setView(allowedView(new URLSearchParams(window.location.search).get('view'), isOperator, canReadCadastros, canPeople));
+    const onPop = () => setView(allowedView(new URLSearchParams(window.location.search).get('view'), isOperator, canReadCadastros, canPeople, isCliente));
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
-  }, [isOperator, canReadCadastros, canPeople]);
+  }, [isOperator, canReadCadastros, canPeople, isCliente]);
   useEffect(() => { document.title = `${TITLES[currentView]} · ness.OS`; }, [currentView]);
   const [selectedTenant, setSelectedTenant] = useState<string | null>(null);
   const [incidentFilter, setIncidentFilter] = useState(() => readIncidentFilter(window.location.search));
