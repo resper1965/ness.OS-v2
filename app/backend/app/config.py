@@ -109,6 +109,11 @@ class Settings(BaseSettings):
 
     # OIDC removido — Authentik descontinuado (27/11/2026)
 
+    # --- Cloudflare Access (Zero Trust) ---
+    cf_access_enabled: bool = False
+    cf_access_aud: str = ""  # audience tag da aplicação Access
+    cf_access_team_domain: str = "ness.cloudflareaccess.com"  # team domain do Zero Trust
+
     @model_validator(mode="after")
     def load_vapid_keys(self) -> "Settings":
         if not self.vapid_public_key or not self.vapid_private_key:
