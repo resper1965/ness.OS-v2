@@ -4,7 +4,7 @@
 
 **Estágio:** em andamento
 
-**Próximo passo:** escrever a tela `PeopleScreen` (Administração) e, com a frase do Esper, criar o usuário/perfil GLPI do sync, rodar `GET /api/people/sync` (dry run) e promover #290 + #293.
+**Próximo passo:** promover o lote das tasks 0-5 (PRs #312–#317) e registrar `VM3DService` como ruído no Ajustes.
 
 ## Quadro (atualizado a cada task fechada)
 
@@ -13,7 +13,14 @@
 Tasks do [plano de execução](docs/superpowers/plans/2026-10-26-ness-os-execution-plan.md).
 
 ### Feito
-- Cadastro único de pessoas e equipes no Hub, reconciliado no GLPI (#293, 25/11, **ainda não promovida**): `/api/people`, migração `005`/`006`, tarefa `sync_glpi_team` (fila `ml`, inerte sem `NINF_GLPI_TEAM_USER_TOKEN`), alertas por equipe → plantão → gestão. Base G1 aplicada no GLPI em 24/11. Spec e plano em PR #292. Falta: tela `PeopleScreen`, usuário/perfil GLPI do sync, SLA por contrato, limpeza em massa (frase própria).
+- Task 0 (27/11): perfil externo do GLPI por script e aviso no sync (#312, **promovida**): sync nunca tenta gravar Profile_User para externos; emite AVISO com comando completo do `glpi-grant-external.php`.
+- Task 1 (27/11): tela Ajustes com tempos do decisor e regras de chamado editáveis (#313, **promovida**): NOC lê, `platform_admin` escreve; regex com timeout de 20 ms (fail open para ação).
+- Task 2 (27/11): resumo diário e semanal para o gestor do cliente (#315, aguardando CI/merge): worker `client_summary`, beat 08:00 BRT, envio via Resend.
+- Task 3 (27/11): script de promoção do frontend do Hub (#314, **promovida**): dry-run, rollback por sinal, conferência de imagem e HTTP 200.
+- Task 4 (27/11): alerta de volume de incidentes para o plantão (#316, aguardando CI/merge): 24h, dedup 6h via Redis, push.
+- Task 5 (27/11): minhas notificações e horas de silêncio (#317, aguardando CI/merge): endpoint `/me/notifications`, `/me/dnd`, coluna `dnd_until` no User, sweep respeita DND.
+- VM3DService registrado como ruído em produção (INSERT direto na tabela `n_infraops_ticket_rules`, id 157, enabled=true).
+- Cadastro único de pessoas e equipes no Hub, reconciliado no GLPI (#293, **promovida**): `/api/people`, migração `005`/`006`, tarefa `sync_glpi_team` (fila `ml`, inerte sem `NINF_GLPI_TEAM_USER_TOKEN`), alertas por equipe → plantão → gestão. Base G1 aplicada no GLPI em 24/11.
 - F2 da IA nos chamados (18/11, na branch `feat/ia-chamados-f2`, **promovida em 23/11 com `73adaa0`**; a flag de repetição saiu no merge com o #271, que leva o acompanhamento ao decisor): repetição do alerta Zabbix vira acompanhamento do chamado aberto (flag `NINF_ZABBIX_REPEAT_FOLLOWUP_ENABLED`, desligada), métrica sinais ÷ chamados na tela "IA" e consulta de tempestade — [aviso](docs/execution/ai-f2-aviso-operacao.md), [consulta](docs/execution/ai-f2-tempestade.sql)
 - F1 da IA nos chamados (17/11, na branch `feat/ia-chamados-f1`, **promovida em 23/11 com `73adaa0`**): registro de toda decisão de IA em `n_ai_decisions` (NOC e SOC, com divergência motor × modelo = E1 do Vigil), retorno do analista, métricas na tela "IA", opt-out por cliente e teto mensal com alerta. A IA do NOC não sobe mais urgência nem push — [spec](docs/superpowers/specs/2026-11-17-ia-tratamento-chamados-design.md), [aviso](docs/execution/ai-f1-aviso-operacao.md)
 - Dados por cliente editáveis fechados (plano #195): T1 clientes e apelidos (#199), T2 regras de grupo de hosts (#200), T3 modalidade efetiva, T4 parâmetros de atendimento, T5 contatos do cliente (#200), T6 documentação e fechamento. Spec final em [contratos-sla-editaveis.md](docs/specs/contratos-sla-editaveis.md) com modelo, chaves, checklist de promoção e o que continua fora.
