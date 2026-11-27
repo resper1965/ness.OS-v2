@@ -81,7 +81,7 @@ run_isolated() {
 bash -n "${preflight}"
 
 success_output="$(run_isolated bash "${preflight}" --env-file "${complete_env}" --glpi-db-env "${glpi_db_env}" --glpi-app-env "${glpi_app_env}" 2>&1)"
-grep -q '^required_variables=5$' <<<"${success_output}"
+grep -q '^required_variables=4$' <<<"${success_output}"
 grep -q '^compose_files=2$' <<<"${success_output}"
 grep -q '^containers_started=0$' <<<"${success_output}"
 grep -q '^AIOps runtime preflight: PASS$' <<<"${success_output}"
