@@ -354,7 +354,8 @@ async def run_migrations():
                 "ADD COLUMN IF NOT EXISTS dnd_until TIMESTAMPTZ;"
             )
         )
-        await conn.execute(text("""
+        await conn.execute(
+            text("""
                 CREATE TABLE IF NOT EXISTS n_infraops_client_summaries (
                     id BIGSERIAL PRIMARY KEY,
                     customer_id BIGINT NOT NULL REFERENCES n_infraops_customers(id),
@@ -364,7 +365,8 @@ async def run_migrations():
                     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                     CONSTRAINT uq_client_summaries_key UNIQUE (customer_id, key)
                 );
-                """))
+                """)
+        )
         await conn.execute(
             text(
                 "CREATE INDEX IF NOT EXISTS ix_n_infraops_client_summaries_customer_id "
