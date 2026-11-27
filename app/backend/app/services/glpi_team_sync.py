@@ -375,9 +375,10 @@ async def reconcile(glpi, d: Desired, apply: bool) -> list[str]:
                 if want[0] != ext_pid:
                     raise  # só o perfil externo é negado de propósito; o resto falha alto
                 diff.append(
-                    f"AVISO {login}: perfil externo não concedido; "
-                    f"rode infra/scripts/glpi-grant-external.php --user={shlex.quote(login)} "
-                    f"--entity={want[1]} --apply"
+                    f"AVISO {login}: perfil externo não concedido; rode no host: "
+                    "sudo -n docker exec -i -u www-data ninf-glpi php -- "
+                    f"--user={shlex.quote(login)} --entity={want[1]} --apply "
+                    "< infra/scripts/glpi-grant-external.php"
                 )
 
     # --- regra: entidade -> grupo

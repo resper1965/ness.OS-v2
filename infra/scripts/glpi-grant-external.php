@@ -21,7 +21,13 @@ global $DB;
 $out = fn(string $op, string $what) => print(json_encode(['op' => $op, 'item' => $what], JSON_UNESCAPED_UNICODE) . PHP_EOL);
 $one = fn(string $t, array $w) => $DB->request(['FROM' => $t, 'WHERE' => $w])->current();
 
-$user = $one('glpi_users', ['name' => $opt['user'], 'is_active' => 1]);
+$found = $DB->request(['FROM' => 'glpi_users', 'WHERE' => ['name' => $opt['user'], 'is_active' => 1]]);
+if (count($found) !== 1) {
+    // Login duplicado no GLPI daria o perfil à conta errada; o sync trata isso como erro.
+    fwrite(STDERR, "esperava 1 usuário ativo com login {$opt['user']}, achei " . count($found) . "\n");
+    exit(1);
+}
+$user = $found->current();
 $prof = $one('glpi_profiles', ['name' => 'Técnico externo']);
 $ent = $one('glpi_entities', ['id' => (int)$opt['entity']]);
 if (!$user || !$prof || !$ent) {
