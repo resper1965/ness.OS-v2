@@ -633,3 +633,15 @@ async def test_transient_glpi_failure_on_external_profile_is_not_a_warning(
     g.deny, g.deny_exc = {("Profile_User", 14)}, GLPITransientError
     with pytest.raises(GLPITransientError):
         await _diff(people_maker, g)
+
+
+async def test_plain_runtime_failure_on_external_profile_is_not_a_warning(
+    people_maker,
+):
+    await _seed(people_maker)
+    g = FakeGlpi()
+    g.deny = {
+        ("Profile_User", 14)
+    }  # RuntimeError simples: resposta malformada, 4xx comum
+    with pytest.raises(RuntimeError):
+        await _diff(people_maker, g)
