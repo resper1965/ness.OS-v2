@@ -53,6 +53,7 @@ from app.api.routers.tenants import router as tenants_router
 from app.api.routers.ticket_rules import router as ticket_rules_router
 from app.api.routers.vulns import router as vulns_router
 from app.config import get_settings
+from app.core.cf_access_middleware import CloudflareAccessMiddleware
 from app.database import SessionLocal
 
 settings = get_settings()
@@ -126,6 +127,9 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["X-Request-ID"],
 )
+
+# Cloudflare Access — valida JWT antes das rotas (exceto públicas)
+app.add_middleware(CloudflareAccessMiddleware)
 
 # --- ness.OS Core ---
 app.include_router(core_router)  # prefix: /api/core
