@@ -5,12 +5,12 @@ from __future__ import annotations
 
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import bcrypt as _bcrypt
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from sqlalchemy import delete, func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
@@ -27,6 +27,7 @@ from app.core.session import (
     set_session_cookie,
 )
 from app.database import get_db
+from app.models.models import Incident, Notification
 from app.models.users import Identity, PendingLogin, User, UserRole
 
 logger = logging.getLogger(__name__)
@@ -551,3 +552,97 @@ async def link_pending_login(
     )
     await db.commit()
     return out
+
+
+# ── Notificações do usuário ───────────────────────────────────────────────────
+
+
+class MyNotificationOut(BaseModel):
+    incident_id: int
+    incident_title: str
+    severity: int
+    channel: str
+    step: int
+    created_at: datetime
+    acknowledged_at: datetime | None
+    provider_result: str | None
+
+
+@router.get("/me/notifications", response_model=list[MyNotificationOut])
+async def my_notifications(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> list[dict]:
+    """Notificações pendentes do usuário logado (não resolvidas, mais recentes primeiro)."""
+    rows = (
+        await db.execute(
+            select(
+                Notification.incident_id,
+                Incident.title,
+                Incident.severity,
+                Notification.channel,
+                Notification.step,
+                Notification.created_at,
+                Notification.acknowledged_at,
+                Notification.provider_result,
+            )
+            .join(Incident, Notification.incident_id == Incident.id)
+            .where(
+                Notification.user_id == user.id,
+                Notification.resolved_at.is_(None),
+            )
+            .order_by(Notification.created_at.desc())
+            .limit(50)
+        )
+    ).all()
+    return [
+        {
+            "incident_id": r[0],
+            "incident_title": r[1],
+            "severity": r[2],
+            "channel": r[3],
+            "step": r[4],
+            "created_at": r[5],
+            "acknowledged_at": r[6],
+            "provider_result": r[7],
+        }
+        for r in rows
+    ]
+
+
+class DndRequest(BaseModel):
+    hours: int = 4  # default: 4 horas de silêncio
+
+    @field_validator("hours")
+    @classmethod
+    def _range(cls, v: int) -> int:
+        if not 1 <= v <= 24:
+            raise ValueError("horas deve ser entre 1 e 24")
+        return v
+
+
+@router.post("/me/dnd")
+async def set_dnd(
+    body: DndRequest,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, str]:
+    """Define horas de silêncio: nenhum aviso push/email chega até o prazo expirar."""
+    until = datetime.now(timezone.utc) + timedelta(hours=body.hours)
+    user.dnd_until = until
+    await db.commit()
+    return {
+        "dnd_until": until.isoformat(),
+        "message": f"Silêncio até {until.isoformat()}",
+    }
+
+
+@router.delete("/me/dnd")
+async def clear_dnd(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, str]:
+    """Cancela horas de silêncio."""
+    user.dnd_until = None
+    await db.commit()
+    return {"message": "Horas de silêncio canceladas"}

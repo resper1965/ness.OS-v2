@@ -88,6 +88,9 @@ class User(Base):
     last_login: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+    dnd_until: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )  # do-not-disturb (horas de silêncio)
 
     def __repr__(self) -> str:  # pragma: no cover
         return f"<User id={self.id} email={self.email!r} role={self.role}>"
