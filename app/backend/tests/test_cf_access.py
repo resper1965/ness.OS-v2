@@ -1,126 +1,145 @@
 """Testes do módulo cf_access — validação de JWT do Cloudflare Access."""
 
-from unittest.mock import AsyncMock, patch
+import time
+from types import SimpleNamespace
 
 import pytest
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
+from jose import jwk, jwt
 
+from app.core import cf_access
 from app.core.cf_access import validate_cf_access_token
 
+pytestmark = pytest.mark.asyncio
 
-def _fake_jwks_response():
-    return {
-        "keys": [
-            {
-                "kid": "test-key-1",
-                "kty": "RSA",
-                "alg": "RS256",
-                "n": "0vx7agoebGcQSuuPiLJXZptN9nndrQmbXEps2aiAFbWhM78LhWx4cbbfA"
-                "tVT86zwu1RK7aPECxKEDoEKkf6UqSk1JhFMnBhbW1sdLQBdkCnLQFQjY"
-                "m3aBxLJFqQFatg0QmDkHUzJFxyJyGIzRFTGJJRWBmTHGIzF0GJyyGIzNG"
-                "GJF0GIyFJTGIzJGGJFQGIzFGJyyGIzNGJFQGIyFGJyyGIzNGJFQGIyFGJ"
-                "yyGIzNGJFQGIyFGJyyGIzNGJFQGIyFGJyyGIzNGJFQGIyFGJyyGIzNGJF"
-                "QGIyFGJyyGIzDJTGIzHGJF0GIyFJTGIzJGGJFQGIzFGJyyGIzNGJFQGI"
-                "yFGJyyGIzNGJFQGIyFGJyyGIzNGJFQGIyFGJyyGIzNGJFQGIyFGJyyGI"
-                "zNGJFQGIyFGJyyGIzNGJFQGIyFGJyyGIzNGJFQGIyFGJyyGIzNGJFQGI"
-                "yFGJyyGIzNGw",
-                "e": "AQAB",
-            }
-        ]
+TEAM = "test.cloudflareaccess.com"
+AUD = "test-aud"
+
+
+def _keypair(kid):
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    pem = key.private_bytes(
+        serialization.Encoding.PEM,
+        serialization.PrivateFormat.PKCS8,
+        serialization.NoEncryption(),
+    ).decode()
+    public = jwk.construct(
+        key.public_key()
+        .public_bytes(
+            serialization.Encoding.PEM,
+            serialization.PublicFormat.SubjectPublicKeyInfo,
+        )
+        .decode(),
+        "RS256",
+    ).to_dict()
+    return pem, {**public, "kid": kid}
+
+
+def _token(pem, kid="k1", **overrides):
+    claims = {
+        "email": "ops@ness.com.br",
+        "iss": f"https://{TEAM}",
+        "aud": AUD,
+        "exp": int(time.time()) + 300,
+        **overrides,
     }
+    return jwt.encode(claims, pem, algorithm="RS256", headers={"kid": kid})
 
 
-class FakeJoseJwt:
-    """Finge que valida um token qualquer e retorna claims fixas."""
-
-    @staticmethod
-    def decode(token, key, algorithms, audience, issuer, options):
-        return {
-            "email": "ops@ness.com.br",
-            "iss": issuer,
-            "aud": audience,
-            "exp": 9999999999,
-        }
-
-    @staticmethod
-    def get_unverified_header(token):
-        return {"kid": "test-key-1"}
-
-
-async def test_validate_cf_access_token_success(monkeypatch):
+@pytest.fixture
+def setup(monkeypatch):
+    pem, public = _keypair("k1")
     monkeypatch.setattr(
-        "app.core.cf_access.get_settings",
-        lambda: type(
-            "S",
-            (),
-            {
-                "cf_access_aud": "test-aud",
-                "cf_access_team_domain": "test.cloudflareaccess.com",
-            },
-        )(),
+        cf_access,
+        "get_settings",
+        lambda: SimpleNamespace(cf_access_aud=AUD, cf_access_team_domain=TEAM),
     )
 
-    mock_client = AsyncMock()
-    mock_client.get.return_value.json.return_value = _fake_jwks_response()
-    mock_client.get.return_value.raise_for_status = lambda: None
+    async def fake_fetch(client, team_domain):
+        return [public]
 
-    with (
-        patch("app.core.cf_access.httpx.AsyncClient", return_value=mock_client),
-        patch("app.core.cf_access.jwt", FakeJoseJwt),
-    ):
-        claims = await validate_cf_access_token("fake-token")
+    monkeypatch.setattr(cf_access, "_fetch_jwks", fake_fetch)
+    return pem
 
+
+async def test_valid_token(setup):
+    claims = await validate_cf_access_token(_token(setup))
     assert claims["email"] == "ops@ness.com.br"
 
 
-async def test_validate_cf_access_token_no_aud(monkeypatch):
-    monkeypatch.setattr(
-        "app.core.cf_access.get_settings",
-        lambda: type(
-            "S",
-            (),
-            {"cf_access_aud": "", "cf_access_team_domain": "test.cloudflareaccess.com"},
-        )(),
-    )
-
-    with pytest.raises(ValueError, match="NINF_CF_ACCESS_AUD"):
-        await validate_cf_access_token("fake-token")
+async def test_wrong_audience_rejected(setup):
+    with pytest.raises(ValueError, match="claims inválidas"):
+        await validate_cf_access_token(_token(setup, aud="outra-app"))
 
 
-async def test_validate_cf_access_token_bad_jwt(monkeypatch):
-    monkeypatch.setattr(
-        "app.core.cf_access.get_settings",
-        lambda: type(
-            "S",
-            (),
-            {
-                "cf_access_aud": "test-aud",
-                "cf_access_team_domain": "test.cloudflareaccess.com",
-            },
-        )(),
-    )
-    monkeypatch.setattr(
-        "app.core.cf_access.jwt.get_unverified_header",
-        lambda t: (_ for _ in ()).throw(Exception("bad")),
-    )
+async def test_expired_rejected(setup):
+    with pytest.raises(ValueError, match="expirado"):
+        await validate_cf_access_token(_token(setup, exp=int(time.time()) - 10))
 
+
+async def test_token_signed_by_other_key_rejected(setup):
+    other_pem, _ = _keypair("k1")
+    with pytest.raises(ValueError, match="inválido"):
+        await validate_cf_access_token(_token(other_pem))
+
+
+async def test_unknown_kid_rejected(setup):
+    with pytest.raises(ValueError, match="não encontrada"):
+        await validate_cf_access_token(_token(setup, kid="desconhecido"))
+
+
+async def test_malformed_token_rejected(setup):
     with pytest.raises(ValueError, match="malformado"):
-        await validate_cf_access_token("bad-token")
+        await validate_cf_access_token("nao-e-jwt")
 
 
-async def test_middleware_skips_when_disabled():
-    from app.core.cf_access_middleware import CloudflareAccessMiddleware
-    from starlette.testclient import TestClient
+async def test_missing_aud_config_rejected(monkeypatch):
+    monkeypatch.setattr(
+        cf_access,
+        "get_settings",
+        lambda: SimpleNamespace(cf_access_aud="", cf_access_team_domain=TEAM),
+    )
+    with pytest.raises(ValueError, match="NINF_CF_ACCESS_AUD"):
+        await validate_cf_access_token("x")
+
+
+def _app():
     from fastapi import FastAPI
+
+    from app.core.cf_access_middleware import CloudflareAccessMiddleware
 
     app = FastAPI()
     app.add_middleware(CloudflareAccessMiddleware)
+    for path in ("/api/x", "/webhook/zabbix", "/v1/alerts", "/api/secops/ingest/wazuh"):
+        app.get(path)(lambda: {"ok": True})
+    return app
 
-    @app.get("/test")
-    async def test_route():
-        return {"ok": True}
 
-    # CF Access disabled by default (NINF_CF_ACCESS_ENABLED não setada)
-    client = TestClient(app)
-    r = client.get("/test")
-    assert r.status_code == 200
-    assert r.json() == {"ok": True}
+@pytest.mark.parametrize(
+    "path,status",
+    [
+        ("/api/x", 401),
+        ("/webhook/zabbix", 200),
+        ("/v1/alerts", 200),
+        ("/api/secops/ingest/wazuh", 200),
+    ],
+)
+def test_middleware_enabled_exige_jwt_so_em_rota_humana(monkeypatch, path, status):
+    from starlette.testclient import TestClient
+
+    monkeypatch.setattr(
+        "app.core.cf_access_middleware.get_settings",
+        lambda: SimpleNamespace(cf_access_enabled=True),
+    )
+    assert TestClient(_app()).get(path).status_code == status
+
+
+def test_middleware_desligado_nao_exige_nada(monkeypatch):
+    from starlette.testclient import TestClient
+
+    monkeypatch.setattr(
+        "app.core.cf_access_middleware.get_settings",
+        lambda: SimpleNamespace(cf_access_enabled=False),
+    )
+    assert TestClient(_app()).get("/api/x").status_code == 200

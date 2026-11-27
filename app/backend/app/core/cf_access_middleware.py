@@ -26,6 +26,11 @@ PUBLIC_PREFIXES = (
     "/api/v1/push/config",
     "/ready",
     "/health",
+    # Integrações de máquina: autenticam por chave de API própria, sem Access.
+    "/webhook/",
+    "/v1/",
+    "/api/v1/alerts",
+    "/api/secops/ingest/",
 )
 
 
