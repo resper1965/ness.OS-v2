@@ -619,6 +619,9 @@ async def test_denied_external_profile_warns_and_does_not_break_the_cycle(
     diff = await _diff(people_maker, g)
     warn = [x for x in diff if x.startswith("AVISO")]
     assert len(warn) == 1 and "elid" in warn[0] and "glpi-grant-external" in warn[0]
+    assert not [
+        x for x in diff if x.startswith("PROFILE elid")
+    ]  # negado não conta como feito
     assert not [x for x in diff if x.startswith("ERRO")]
     assert any(u["name"] == "elid" for u in g.t["User"])  # o resto do ciclo foi gravado
 

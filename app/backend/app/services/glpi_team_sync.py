@@ -356,6 +356,9 @@ async def reconcile(glpi, d: Desired, apply: bool) -> list[str]:
             if person_id and int(r["users_id"]) == person_id
         }
         if want not in have_rows:
+            mark = len(
+                diff
+            )  # do() registra antes de gravar; negado não conta como feito
             try:
                 await do(
                     f"PROFILE {login}→{'externo' if want[0] == ext_pid else 'técnico'}",
@@ -374,6 +377,7 @@ async def reconcile(glpi, d: Desired, apply: bool) -> list[str]:
                 # Só o perfil fica de fora; o resto do ciclo segue e o passo manual é avisado.
                 if want[0] != ext_pid:
                     raise  # só o perfil externo é negado de propósito; o resto falha alto
+                del diff[mark:]
                 diff.append(
                     f"AVISO {login}: perfil externo não concedido; rode no host: "
                     "sudo -n docker exec -i -u www-data ninf-glpi php -- "
