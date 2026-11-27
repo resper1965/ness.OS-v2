@@ -1,10 +1,10 @@
-# Cloudflare Access + Hub — Configuração
+# Cloudflare Access + ness.OS — Configuração
 
 ## Objetivo
 
-Autenticar usuários do Hub via Cloudflare Access (Zero Trust), eliminando
+Autenticar usuários do ness.OS via Cloudflare Access (Zero Trust), eliminando
 a necessidade de login local. O Access injeta o header `Cf-Access-Jwt-Assertion`
-em toda requisição; o Hub valida o JWT e extrai o e-mail.
+em toda requisição; o backend valida o JWT e extrai o e-mail.
 
 ## Pré-requisitos
 

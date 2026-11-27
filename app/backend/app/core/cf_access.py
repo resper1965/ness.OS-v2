@@ -15,7 +15,6 @@ Referência: https://developers.cloudflare.com/cloudflare-one/identity/authoriza
 
 from __future__ import annotations
 
-import json
 import logging
 import time
 from typing import Any
@@ -33,7 +32,9 @@ _jwks_cache: tuple[list[dict[str, Any]], float] | None = None
 _JWKS_URL = "https://{team_domain}/cdn-cgi/access/certs"
 
 
-async def _fetch_jwks(client: httpx.AsyncClient, team_domain: str) -> list[dict[str, Any]]:
+async def _fetch_jwks(
+    client: httpx.AsyncClient, team_domain: str
+) -> list[dict[str, Any]]:
     """Busca os JWKS do Cloudflare Access."""
     global _jwks_cache
 
