@@ -24,7 +24,6 @@ Nenhuma alteração na stack principal pode ser feita sem aprovação do comitê
 *   **Orquestração de Borda:** n8n (Self-hosted) para gerenciar fluxo de abertura de chamados e notificações.
 *   **Sistemas Externos:**
     *   DeskManager (API Rest para Ticketing).
-    *   Evolution API (Gateway de WhatsApp para alertas).
     *   Gemini API (Modelo `gemini-2.5-flash` para análise RAG e pós-incidente).
 *   **Automação / Remediação:** Drivers RMM (Datto, Atera) e SSH via Netmiko para ativos de rede sem agente.
 *   **Infraestrutura Core (Zabbix NOC):** Servidor dedicado na Contabo (Storage VPS 40: 8 vCPU, 30GB RAM, 1.2TB SSD) rodando Debian 12. **[STATUS: ONLINE / PRODUÇÃO]**
