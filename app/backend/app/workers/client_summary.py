@@ -115,9 +115,8 @@ async def run_summaries(
             )
         ).all()
 
-        emails: list[
-            tuple[str, str, str, str, str]
-        ] = []  # to, subject, html, key, idemp_key
+        # Cada item: (to, subject, html, key, idemp_key)
+        emails: list = []
 
         for cust, user in rows:
             for kind, window in kinds:
