@@ -108,3 +108,14 @@ async def test_rule_create_toggle_delete_and_duplicate_409(maker):
         assert r.status_code == 200 and r.json()["enabled"] is False
         assert (await c.delete(f"{BASE}/{rid}")).status_code == 204
         assert (await c.delete(f"{BASE}/{rid}")).status_code == 404
+
+
+async def test_rule_rejects_nested_quantifier(maker):
+    async with _api(maker, UserRole.platform_admin) as c:
+        for bad in ("(a+)+$", "(a*)*b", "(x{1,5})+", "((ab)+)*"):
+            assert (
+                await c.post(BASE, json={"kind": "noise", "pattern": bad})
+            ).status_code == 422
+        assert (
+            await c.post(BASE, json={"kind": "noise", "pattern": "VM3D(Service)?|a+b"})
+        ).status_code == 201

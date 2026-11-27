@@ -39,6 +39,11 @@ class RulePatch(BaseModel):
     enabled: bool
 
 
+# ponytail: heurística, não prova; o re do Python não tem timeout. Pega o caso clássico
+# (grupo com quantificador repetido por outro quantificador); upgrade path: o pacote `re2`.
+_NESTED = re.compile(r"[+*}]\)[+*{]")
+
+
 def _out(r: TicketRule) -> dict:
     return {
         "id": r.id,
@@ -81,6 +86,10 @@ async def create_rule(
         re.compile(body.pattern, re.I)
     except re.error as exc:
         raise HTTPException(422, f"Expressão inválida: {exc}") from exc
+    if _NESTED.search(body.pattern):
+        raise HTTPException(
+            422, "Expressão com repetição aninhada (ex.: (a+)+) trava o decisor"
+        )
     row = TicketRule(kind=body.kind, pattern=body.pattern, note=body.note or None)
     db.add(row)
     try:

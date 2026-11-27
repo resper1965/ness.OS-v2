@@ -33,14 +33,16 @@ export function createAjustesStore() {
     }
   }
 
-  async function act(fn: () => Promise<void>, notice: string) {
+  async function act(fn: () => Promise<void>, notice: string): Promise<boolean> {
     store.set({ busy: true, actionError: null, notice: null });
     try {
       await fn();
       store.set({ notice });
       await load(true);
+      return true;
     } catch (e) {
       store.set({ actionError: describeError(e) });
+      return false;
     } finally {
       store.set({ busy: false });
     }

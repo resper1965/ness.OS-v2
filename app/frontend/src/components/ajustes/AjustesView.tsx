@@ -14,7 +14,7 @@ export const PARAMS: { key: string; label: string; unit: string; hint: string }[
 
 const KINDS: { kind: RuleKind; title: string; hint: string }[] = [
   { kind: 'action', title: 'Exigem ação', hint: 'Título que casa abre chamado.' },
-  { kind: 'noise', title: 'Ruído', hint: 'Título que casa nunca abre chamado (vence a regra de ação).' },
+  { kind: 'noise', title: 'Ruído', hint: 'Título que casa não abre chamado (vence a regra de ação), exceto severidade 4 e 5, que sempre abre.' },
   { kind: 'cause', title: 'Causa', hint: 'Título que casa é a causa; os sintomas do site viram comentário.' },
 ];
 
@@ -58,12 +58,12 @@ function RuleTable({ rules, canEdit, busy, actions }: { rules: Rule[]; canEdit: 
   );
 }
 
-function NewRule({ busy, onAdd }: { busy: boolean; onAdd: (k: RuleKind, p: string, n: string) => void }) {
+function NewRule({ busy, onAdd }: { busy: boolean; onAdd: (k: RuleKind, p: string, n: string) => Promise<boolean> }) {
   const [kind, setKind] = useState<RuleKind>('noise');
   const [pattern, setPattern] = useState('');
   const [note, setNote] = useState('');
   return (
-    <form aria-label="Nova regra" className="nx-stack" onSubmit={(e) => { e.preventDefault(); onAdd(kind, pattern, note); setPattern(''); setNote(''); }}>
+    <form aria-label="Nova regra" className="nx-stack" onSubmit={(e) => { e.preventDefault(); void onAdd(kind, pattern, note).then((ok) => { if (ok) { setPattern(''); setNote(''); } }); }}>
       <div className="nx-grid">
         <SelectField label="Tipo" value={kind} onChange={(e) => setKind(e.target.value as RuleKind)}>
           {KINDS.map((k) => <option key={k.kind} value={k.kind}>{k.title}</option>)}
@@ -105,7 +105,7 @@ export default function AjustesView({ state, actions, canEdit }: { state: Ajuste
               </Panel>
             );
           })}
-          {canEdit && <Panel title="Nova regra"><NewRule busy={state.busy} onAdd={(k, p, n) => void actions.addRule(k, p, n)} /></Panel>}
+          {canEdit && <Panel title="Nova regra"><NewRule busy={state.busy} onAdd={(k, p, n) => actions.addRule(k, p, n)} /></Panel>}
         </>
       )}
     </>
