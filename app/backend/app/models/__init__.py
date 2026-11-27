@@ -32,7 +32,7 @@ from app.models.models import (
     TicketRule,
 )
 from app.models.push import PushSubscription
-from app.models.users import User, UserRole
+from app.models.users import ClientSummary, User, UserRole
 
 __all__ = [
     "TeamMember",
@@ -62,6 +62,7 @@ __all__ = [
     "ContractChange",
     "ContractPolicyParam",
     "PlatformParam",
+    "ClientSummary",
     "EscalationStep",
     "SlaCalendar",
     "SlaCalendarHours",

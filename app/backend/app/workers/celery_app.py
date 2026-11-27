@@ -4,6 +4,7 @@
 from time import time
 
 from celery import Celery
+from celery.schedules import crontab
 from celery.signals import before_task_publish, worker_process_init
 
 from app.config import get_settings
@@ -55,6 +56,10 @@ celery_app.conf.update(
     },
     # P3: exige beat (`celery worker -B` ou processo beat) para disparar
     beat_schedule={
+        "send-client-summaries": {
+            "task": "app.workers.client_summary.send_client_summaries",
+            "schedule": crontab(hour=11, minute=0),
+        },
         "sweep-notifications": {
             "task": "app.workers.alerts.sweep_notifications",
             "schedule": 60.0,
@@ -97,3 +102,18 @@ def configure_workers(sender, **kwargs):
         engine.sync_engine.dispose()
     except Exception:
         pass
+
+
+@celery_app.task(
+    name="app.workers.client_summary.send_client_summaries",
+    queue="ml",
+    bind=True,
+)
+def send_client_summaries(self):
+    """Task do beat: diário 08:00 BRT; semanal segunda-feira."""
+    import asyncio
+
+    from app.workers.client_summary import run_summaries
+
+    result = asyncio.run(run_summaries())
+    return result

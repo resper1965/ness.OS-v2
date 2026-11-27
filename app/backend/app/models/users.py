@@ -14,6 +14,7 @@ from sqlalchemy import (
     Index,
     Integer,
     String,
+    Text,
     UniqueConstraint,
     func,
     text,
@@ -133,5 +134,27 @@ class PendingLogin(Base):
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
     last_seen: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class ClientSummary(Base):
+    """Resumo diário/semanal entregue ao gestor de um cliente (idempotente por chave)."""
+
+    __tablename__ = "n_infraops_client_summaries"
+    __table_args__ = (
+        UniqueConstraint("customer_id", "key", name="uq_client_summaries_key"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    customer_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("n_infraops_customers.id"), nullable=False, index=True
+    )
+    key: Mapped[str] = mapped_column(
+        String(64), nullable=False
+    )  # ex.: "2026-11-27-daily"
+    kind: Mapped[str] = mapped_column(String(16), nullable=False)  # "daily" ou "weekly"
+    html: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
