@@ -8,6 +8,7 @@ existem no Hub. Nunca apaga usuário; usuário inativo no Hub é desativado no G
 from __future__ import annotations
 
 import logging
+import shlex
 from dataclasses import dataclass, field
 
 from sqlalchemy import select, text
@@ -354,8 +355,19 @@ async def reconcile(glpi, d: Desired, apply: bool) -> list[str]:
             if person_id and int(r["users_id"]) == person_id
         }
         if want not in have_rows:
+            if want[0] == ext_pid:
+                # O token de sync não tem os direitos do perfil externo, de propósito: são os
+                # de chamado. Nem tenta (o 400 do GLPI não diz o motivo); o passo manual fica
+                # explícito no aviso e o resto do ciclo segue.
+                diff.append(
+                    f"AVISO {login}: perfil externo não concedido; rode no host: "
+                    "sudo -n docker exec -i -u www-data ninf-glpi php -- "
+                    f"--user={shlex.quote(login)} --entity={want[1]} --apply "
+                    "< infra/scripts/glpi-grant-external.php"
+                )
+                continue
             await do(
-                f"PROFILE {login}→{'externo' if want[0] == ext_pid else 'técnico'}",
+                f"PROFILE {login}→técnico",
                 lambda person_id=person_id, want=want: glpi.create_item(
                     "Profile_User",
                     {
