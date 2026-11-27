@@ -6,9 +6,9 @@ O decisor lê a tabela a cada ciclo (60 s), então a mudança vale sem deploy.
 from __future__ import annotations
 
 import logging
-import re
 from typing import Annotated, Literal
 
+import regex
 from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel, StringConstraints
 from sqlalchemy import select
@@ -77,6 +77,10 @@ def _unsafe(pattern: str) -> bool:
             stack.append(i)
         elif ch == ")" and stack:
             body = masked[stack.pop() + 1 : i]
+            if body.startswith("?P<"):  # grupo nomeado: o prefixo não é quantificador
+                body = body.split(">", 1)[-1]
+            elif body.startswith("?:"):
+                body = body[2:]
             if masked[i + 1 : i + 2] in ("+", "*", "{") and any(
                 c in body for c in "+*{|?"
             ):
@@ -123,8 +127,8 @@ async def create_rule(
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     try:
-        re.compile(body.pattern, re.I)
-    except re.error as exc:
+        regex.compile(body.pattern, regex.I)
+    except regex.error as exc:
         raise HTTPException(422, f"Expressão inválida: {exc}") from exc
     if _unsafe(body.pattern):
         raise HTTPException(
