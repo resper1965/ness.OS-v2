@@ -176,9 +176,6 @@ volumes:
   redis-data:
   caddy-data:
   caddy-config:
-:
-:
-:
 
 networks:
   ninf-net:
