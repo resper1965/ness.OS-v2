@@ -14,6 +14,7 @@ from hashlib import sha256
 from html import escape
 
 from sqlalchemy import select
+from sqlalchemy.sql import func
 
 from app.config import get_settings
 from app.database import SessionLocal
@@ -490,7 +491,48 @@ async def decide(now: datetime) -> dict[str, int]:
     finally:
         if glpi.session_token:
             await glpi.kill_session()
+    try:
+        stats["volume_warn"] = await _check_volume(
+            now, params["incident_volume_warn_threshold"]
+        )
+    except Exception:
+        logger.exception("Checagem de volume falhou")
     return dict(stats)
+
+
+async def _check_volume(now: datetime, threshold: int) -> int:
+    """Notifica o plantão se o volume de incidentes em 24h passar do limiar.
+
+    Um aviso por cliente + global por ciclo de 6h (dedup simples via Redis).
+    """
+    from app.integrations.webpush import notify_tenant_stakeholders
+
+    redis = alerts._get_sync_redis()
+    try:
+        key = f"ninf:volume_warn:{now.strftime('%Y-%m-%d-%H')}"
+        if not redis.set(key, "1", ex=43200, nx=True):
+            return 0  # já avisou neste ciclo de 6h
+    finally:
+        redis.close()
+
+    async with SessionLocal() as session:
+        since = now - timedelta(hours=24)
+        # global
+        total = await session.scalar(
+            select(func.count(Incident.id)).where(Incident.first_seen >= since)
+        )
+        if total and total >= threshold:
+            try:
+                await notify_tenant_stakeholders(
+                    tenant_id="",
+                    title=f"Volume alto: {total} incidentes em 24h",
+                    body=f"Limiar: {threshold}. Verifique o painel.",
+                    severity="warning",
+                )
+            except Exception:
+                logger.exception("Push de volume global falhou")
+            return total or 0
+    return 0
 
 
 @celery_app.task(name="app.workers.ticket_decider.decide_tickets")

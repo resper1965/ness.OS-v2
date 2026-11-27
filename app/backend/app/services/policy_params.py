@@ -50,6 +50,7 @@ PLATFORM_DEFAULTS: dict[str, int] = {
     "ticket_symptom_lead_minutes": 2,
     "ticket_cross_link_minutes": 30,
     "soc_ticket_min_level": 12,
+    "incident_volume_warn_threshold": 200,
 }
 # load_params (5 s) + probe + cobertura (5 s) precisam caber no monitor de 35 s: 5 + 22 + 5 = 32.
 PLATFORM_MAX: dict[str, int] = {
@@ -57,6 +58,7 @@ PLATFORM_MAX: dict[str, int] = {
     "probe_timeout_seconds": 22,
     "ai_monthly_budget_cents": 1_000_000,
     "soc_ticket_min_level": 15,  # níveis do Wazuh vão até 15
+    "incident_volume_warn_threshold": 200,
 }
 
 
