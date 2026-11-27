@@ -9,6 +9,8 @@ export const canReadCadastros = (role: Role) => isOperator(role) || role === 'op
 export const canEditCadastros = (role: Role) => ['platform_admin', 'admin'].includes(role ?? '');
 // Pessoas e equipes: a API exige admin.
 export const canManagePeople = canEditCadastros;
+// Ajustes (tempos e regras de chamado): NOC lê; só platform_admin escreve, como a API.
+export const canEditAjustes = (role: Role) => role === 'platform_admin';
 // Contatos são dado pessoal: a API só lê para papéis NOC globais.
 export const canReadContacts = isOperator;
 
