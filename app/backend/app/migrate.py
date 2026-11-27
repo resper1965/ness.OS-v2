@@ -18,6 +18,7 @@ if str(backend_root) not in sys.path:
 from sqlalchemy import text
 
 from app.database import engine
+from app.models.users import ClientSummary
 
 # Importar os modelos para registro no Base
 
@@ -345,6 +346,17 @@ async def run_migrations():
                 "ALTER TABLE n_infraops_users "
                 "ADD COLUMN IF NOT EXISTS session_epoch BIGINT NOT NULL DEFAULT 0;"
             )
+        )
+
+        # Colunas/tabelas dos modelos que o login e o resumo consultam: sem elas a imagem nova derruba o login.
+        await conn.execute(
+            text(
+                "ALTER TABLE n_infraops_users "
+                "ADD COLUMN IF NOT EXISTS dnd_until TIMESTAMPTZ;"
+            )
+        )
+        await conn.run_sync(
+            lambda sync_conn: ClientSummary.__table__.create(sync_conn, checkfirst=True)
         )
 
         await conn.execute(
