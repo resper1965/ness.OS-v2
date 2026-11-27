@@ -645,3 +645,15 @@ async def test_plain_runtime_failure_on_external_profile_is_not_a_warning(
     }  # RuntimeError simples: resposta malformada, 4xx comum
     with pytest.raises(RuntimeError):
         await _diff(people_maker, g)
+
+
+def test_profile_user_400_is_a_permission_denial_but_other_400s_are_not():
+    import httpx
+
+    from app.integrations.glpi import GLPIPermanentError, _glpi_failure
+
+    res = httpx.Response(400, request=httpx.Request("POST", "http://g/Profile_User"))
+    err = httpx.HTTPStatusError("x", request=res.request, response=res)
+    assert isinstance(_glpi_failure("escrita em Profile_User", err), GLPIPermanentError)
+    other = _glpi_failure("escrita em User", err)
+    assert type(other) is RuntimeError

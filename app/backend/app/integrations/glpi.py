@@ -25,6 +25,9 @@ def _glpi_failure(operation: str, exc: Exception) -> Exception:
     if isinstance(exc, httpx.HTTPStatusError):
         if exc.response.status_code in (401, 403):
             return GLPIPermanentError(f"GLPI {operation} sem autorização")
+        if exc.response.status_code == 400 and operation.endswith("Profile_User"):
+            # Profile_User::canCreateItem negado: o GLPI responde 400 ERROR_GLPI_ADD.
+            return GLPIPermanentError(f"GLPI {operation} sem direito sobre o perfil")
         if exc.response.status_code == 429 or exc.response.status_code >= 500:
             return GLPITransientError(f"GLPI {operation} temporariamente indisponível")
     if isinstance(exc, httpx.TransportError):
