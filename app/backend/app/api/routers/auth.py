@@ -15,7 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
-from app.core.dependencies import get_current_user, require_platform_admin
+from app.core.dependencies import get_current_user
 from app.core.jwt import create_access_token
 from app.core.session import (
     SESSION_COOKIE_NAME,
