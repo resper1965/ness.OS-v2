@@ -4,7 +4,7 @@
 
 **Estágio:** em andamento
 
-**Próximo passo:** escrever a tela `PeopleScreen` (Administração) e, com a frase do Esper, criar o usuário/perfil GLPI do sync, rodar `GET /api/people/sync` (dry run) e promover #290 + #293.
+**Próximo passo:** liberar `/webhook/*`, `/v1/*` e `/api/secops/ingest/*` do Access (política Bypass, têm chave de API própria), fechar a 443 da VPS para IPs da Cloudflare e criar a política de Access para clientes externos.
 
 ## Quadro (atualizado a cada task fechada)
 
@@ -13,9 +13,17 @@
 Tasks do [plano de execução](docs/superpowers/plans/2026-10-26-ness-os-execution-plan.md).
 
 ### Feito
-- Cadastro único de pessoas e equipes no Hub, reconciliado no GLPI (#293, 25/11, **ainda não promovida**): `/api/people`, migração `005`/`006`, tarefa `sync_glpi_team` (fila `ml`, inerte sem `NINF_GLPI_TEAM_USER_TOKEN`), alertas por equipe → plantão → gestão. Base G1 aplicada no GLPI em 24/11. Spec e plano em PR #292. Falta: tela `PeopleScreen`, usuário/perfil GLPI do sync, SLA por contrato, limpeza em massa (frase própria).
+- SSO por Cloudflare Access (#320, #321, promovido em 27/11): Authentik, n8n e Evolution fora da produção; `hub.ness.com.br` com proxy Cloudflare; middleware valida o JWT do Access (desligado por padrão, `NINF_CF_ACCESS_ENABLED`) e `POST /api/auth/access-login` troca o e-mail do JWT por sessão local, com papel e tenant do banco; usuário não cadastrado vê o login local. Fallback: login por senha. Pendentes: Bypass dos webhooks, UFW só Cloudflare, política para externos, `app.migrate` no deploy (a falta de `dnd_until` derrubou o login por 20 min em 27/11, corrigido à mão). Runbook: `docs/runbooks/cloudflare-access-hub.md`.
+- Task 0 (27/11): perfil externo do GLPI por script e aviso no sync (#312, **promovida**): sync nunca tenta gravar Profile_User para externos; emite AVISO com comando completo do `glpi-grant-external.php`.
+- Task 1 (27/11): tela Ajustes com tempos do decisor e regras de chamado editáveis (#313, **promovida**): NOC lê, `platform_admin` escreve; regex com timeout de 20 ms (fail open para ação).
+- Task 2 (27/11): resumo diário e semanal para o gestor do cliente (#315, aguardando CI/merge): worker `client_summary`, beat 08:00 BRT, envio via Resend.
+- Task 3 (27/11): script de promoção do frontend do Hub (#314, **promovida**): dry-run, rollback por sinal, conferência de imagem e HTTP 200.
+- Task 4 (27/11): alerta de volume de incidentes para o plantão (#316, aguardando CI/merge): 24h, dedup 6h via Redis, push.
+- Task 5 (27/11): minhas notificações e horas de silêncio (#317, aguardando CI/merge): endpoint `/me/notifications`, `/me/dnd`, coluna `dnd_until` no User, sweep respeita DND.
+- VM3DService registrado como ruído em produção (INSERT direto na tabela `n_infraops_ticket_rules`, id 157, enabled=true).
+- Cadastro único de pessoas e equipes no Hub, reconciliado no GLPI (#293, **promovida**): `/api/people`, migração `005`/`006`, tarefa `sync_glpi_team` (fila `ml`, inerte sem `NINF_GLPI_TEAM_USER_TOKEN`), alertas por equipe → plantão → gestão. Base G1 aplicada no GLPI em 24/11.
 - F2 da IA nos chamados (18/11, na branch `feat/ia-chamados-f2`, **promovida em 23/11 com `73adaa0`**; a flag de repetição saiu no merge com o #271, que leva o acompanhamento ao decisor): repetição do alerta Zabbix vira acompanhamento do chamado aberto (flag `NINF_ZABBIX_REPEAT_FOLLOWUP_ENABLED`, desligada), métrica sinais ÷ chamados na tela "IA" e consulta de tempestade — [aviso](docs/execution/ai-f2-aviso-operacao.md), [consulta](docs/execution/ai-f2-tempestade.sql)
-- F1 da IA nos chamados (17/11, na branch `feat/ia-chamados-f1`, **promovida em 23/11 com `73adaa0`**): registro de toda decisão de IA em `n_ai_decisions` (NOC e SOC, com divergência motor × modelo), retorno do analista, métricas na tela "IA", opt-out por cliente e teto mensal com alerta. A IA do NOC não sobe mais urgência nem push — [spec](docs/superpowers/specs/2026-11-17-ia-tratamento-chamados-design.md), [aviso](docs/execution/ai-f1-aviso-operacao.md)
+- F1 da IA nos chamados (17/11, na branch `feat/ia-chamados-f1`, **promovida em 23/11 com `73adaa0`**): registro de toda decisão de IA em `n_ai_decisions` (NOC e SOC, com divergência motor × modelo = E1 do Vigil), retorno do analista, métricas na tela "IA", opt-out por cliente e teto mensal com alerta. A IA do NOC não sobe mais urgência nem push — [spec](docs/superpowers/specs/2026-11-17-ia-tratamento-chamados-design.md), [aviso](docs/execution/ai-f1-aviso-operacao.md)
 - Dados por cliente editáveis fechados (plano #195): T1 clientes e apelidos (#199), T2 regras de grupo de hosts (#200), T3 modalidade efetiva, T4 parâmetros de atendimento, T5 contatos do cliente (#200), T6 documentação e fechamento. Spec final em [contratos-sla-editaveis.md](docs/specs/contratos-sla-editaveis.md) com modelo, chaves, checklist de promoção e o que continua fora.
 - Promoção `1346b06` (06/11, OK do Ricardo): contratos/SLA/calendário editáveis (#198), clientes e apelidos (#199), regras de grupo de hosts e contatos (#200); `promotion=PASS`, seeds conferidos (13 clientes, 22 apelidos, 3 políticas, 4 passos). Calendário comercial padrão 08–20; "sem cliente" = 720 min. Rollback: release `1175954`.
 - Frontend com as telas Contratos e Clientes (#202) publicado em 06/11 (`ninf-frontend@sha256:c2c0953f…`); rollback pelos `.env` de `/opt/n-infraops/change-backups/frontend-20261106T135437/` (imagem anterior `f4afa04a…`).
@@ -32,7 +40,7 @@ Tasks do [plano de execução](docs/superpowers/plans/2026-10-26-ness-os-executi
 - 2.2 ADR 0020 aceito em 27/10 — #96, #110
 - 2.3 GLPI T03 em produção em 28/10: gateway por digest, cliente API 1 desativado, 106 ativa com `[13, 1, 0]`, caminho direto Hub+106 **não** bloqueado — risco aceito no ADR 0020; plano: steps 3 e 4 ficam abertos — [evidência](docs/execution/evidence/glpi-t03-prod-2026-10-28.md)
 - 2.4 GLPI T04: um ticket por alerta; 403 libera a reserva — #93
-- 3.1 SSO do Authentik **desligado** em 11/11; **Authentik removido do stack em 27/11/2026** — [evidência](docs/execution/evidence/hub-oidc-off-2026-11-11.md)
+- 3.1 SSO: Authentik removido em 27/11; entrada por Cloudflare Access com login local de emergência (ver o item de SSO acima).
 - 3.1 Frontend em `82ea3432` (#235: recargas do dashboard em rajada SSE viram uma só) desde 10/11, junto da API em `4a72949`.
 - 3.1 Hub API + workers em `4a72949` desde 10/11 (#232: fecha a transação do SELECT de usuário, causa da queda de 24 min por `TooManyConnections`, #231; antes `69daf30` e `3b7e7cb` desde 05/11, com vínculo SOC #164, frescor #166, modalidade #167/#168; antes `9992bf7`: urgência/impacto #158, fila/timeline #161; antes `56c4659`, `521247b` em 30/10 e `7e7dfc6` em 28/10): monitor #111, alerta por e-mail #114, Unimed #115, LLM via OpenRouter #117, fundação SOC #122, idempotência do triage #125 — [evidência](docs/execution/evidence/hub-release-2026-10-26.md); promoção de 26/10 revertida (regressão GLPI, corrigida no #95); canário de alertas no script — #86
 - 6.1 + 6.3 Testes do frontend (vitest) e isolamento do SSE — #90
@@ -55,7 +63,7 @@ Tasks do [plano de execução](docs/superpowers/plans/2026-10-26-ness-os-executi
 ### Em andamento
 - Padrões operacionais aceitos em 09/11 (7 itens, internos, `contractual=false`; [folha](docs/specs/padroes-operacionais-propostos.md)). Já cadastrados: calendários e escalonamento `soc`→`noc`→`operator`→`admin` (4 passos, contrato 1). Revisor/dia da amostra e pausa do SLA não ganham campo agora (nada os consome; a pausa vive no GLPI). Faltam a escala de plantão real (fonte a definir) e feriados; fechamento automático no GLPI só com frase própria.
 - Cutover do Zabbix (sábado 14/11 23h, #208 a #225): script de backup final (#219), ProxyOfflineBuffer (#221), SAML do Entra (#223, #224), roteiro final com pré-checagens de sexta (#225). Web pública desligada; restauração testada em 58 min (#222). Sem rollback possível após restaurar o banco no novo IP: o backup tem 23h59min59s de idade.
-- ~~Identidade~~: Authentik removido do stack em 27/11/2026. Login local apenas; sem IdP externo.
+- Identidade: concluída em 27/11 com Cloudflare Access (#320, #321); Authentik removido. Entra ID não é mais necessário para o Hub.
 - P3 backend (#210): caixa de avisos no frontend, ack e link da notificação abre o caso. Falta UI/PWA e escala de plantão real. **Teste de push pendente (10/11):** `n_infraops_push_subscriptions` = 0; o Edge do Ricardo falha no registro (`NotAllowedError: Registration failed - permission denied`) mesmo com a permissão do site em Permitir; o `GET /api/v1/push/config` responde 200 e o `POST …/subscribe` nunca chega. Retomar no Chrome/Firefox ou no celular; depois, frase "envia 1 push de teste". O e-mail de alerta segue ativo.
 - Higienização de 11/11: 133 branches já mergeadas apagadas (lista com SHAs em `/tmp/opencode/branches-apagadas-20261111.tsv`, recuperáveis pelo SHA); 6 issues obsoletas fechadas (#47, #51, #59, #63, #66, #75; ADR 0015 e e-mail Resend já feito). Restam 16 branches e 22 issues antigas para decisão.
 - Wazuh R3a: IaC mergeado (#204), `terraform apply` espera OK do Ricardo.
