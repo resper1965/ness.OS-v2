@@ -39,6 +39,29 @@ class RulePatch(BaseModel):
     enabled: bool
 
 
+def _mask(pattern: str) -> str:
+    """Troca escapes e conteúdo de classe de caracteres por `x`, mantendo as posições.
+
+    Assim `(\\+)+` e `([+])+` repetem só um literal e não contam como repetição aninhada.
+    """
+    out = list(pattern)
+    i = 0
+    while i < len(pattern):
+        if pattern[i] == "\\" and i + 1 < len(pattern):
+            out[i] = out[i + 1] = "x"
+            i += 2
+        elif pattern[i] == "[":
+            j = i + 1
+            while j < len(pattern) and pattern[j] != "]":
+                j += 2 if pattern[j] == "\\" else 1
+            for k in range(i, min(j + 1, len(pattern))):
+                out[k] = "x"
+            i = j + 1
+        else:
+            i += 1
+    return "".join(out)
+
+
 def _unsafe(pattern: str) -> bool:
     """Grupo que já repete ou alterna, repetido de novo (`(a+)+`, `(a|aa)+`), trava o `re`.
 
@@ -47,22 +70,17 @@ def _unsafe(pattern: str) -> bool:
     escrita com checagem estrutural; não é prova de linearidade, mas pega o caso real.
     ponytail: heurística; upgrade path: `re2` quando houver wheel na imagem.
     """
+    masked = _mask(pattern)
     stack: list[int] = []
-    i = 0
-    while i < len(pattern):
-        ch = pattern[i]
-        if ch == "\\":
-            i += 2
-            continue
+    for i, ch in enumerate(masked):
         if ch == "(":
             stack.append(i)
         elif ch == ")" and stack:
-            body = pattern[stack.pop() + 1 : i]
-            if pattern[i + 1 : i + 2] in ("+", "*", "{") and any(
+            body = masked[stack.pop() + 1 : i]
+            if masked[i + 1 : i + 2] in ("+", "*", "{") and any(
                 c in body for c in "+*{|?"
             ):
                 return True
-        i += 1
     return False
 
 
