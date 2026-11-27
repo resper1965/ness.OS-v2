@@ -11,10 +11,11 @@ import bcrypt as _bcrypt
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, field_validator
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
+from app.core.cf_access import validate_cf_access_token
 from app.core.dependencies import get_current_user
 from app.core.jwt import create_access_token
 from app.core.session import (
@@ -138,6 +139,55 @@ async def login(
         email=user.email,
         role=user.role.value,
         full_name=user.full_name,
+    )
+
+
+@router.post(
+    "/access-login",
+    response_model=MeResponse,
+    summary="Sessão do Hub a partir do Cloudflare Access",
+)
+async def access_login(
+    request: Request,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+) -> MeResponse:
+    """Troca o JWT do Cloudflare Access por sessão local. O papel vem do banco."""
+    require_trusted_origin(request)
+    if not get_settings().cf_access_enabled:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Cloudflare Access desativado")
+    token = request.headers.get("Cf-Access-Jwt-Assertion")
+    if not token:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Sem sessão do Access")
+    try:
+        claims = await validate_cf_access_token(token)
+    except ValueError as e:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, str(e))
+    result = await db.execute(
+        select(User).where(func.lower(User.email) == claims["email"].lower())
+    )
+    user: User | None = result.scalar_one_or_none()
+    if not user or not user.is_active:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            "Usuário sem acesso ao ness.OS. Fale com o admin.",
+        )
+    user.last_login = datetime.now(tz=timezone.utc)
+    await db.commit()
+    set_session_cookie(
+        response,
+        create_access_token(
+            user_id=user.id,
+            role=user.role.value,
+            extra_claims={
+                "tenant_id": user.tenant_id,
+                "session_epoch": getattr(user, "session_epoch", 0),
+            },
+        ),
+    )
+    logger.info("Access login: user_id=%s email=%s", user.id, user.email)
+    return MeResponse(
+        id=user.id, email=user.email, role=user.role.value, full_name=user.full_name
     )
 
 

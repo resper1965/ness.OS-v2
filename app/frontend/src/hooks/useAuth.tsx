@@ -34,12 +34,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loading: true,
   });
 
-  // Recuperar a sessão existente sem expor o token ao JavaScript.
+  // Sessão existente; sem ela, tenta o SSO do Cloudflare Access (404/401 = login local).
   useEffect(() => {
-    fetch(`${API_BASE}/api/auth/me`, {
-      credentials: 'include',
-    })
-      .then((r) => (r.ok ? r.json() : Promise.reject()))
+    const get = (path: string, method = 'GET') =>
+      fetch(`${API_BASE}${path}`, { method, credentials: 'include' }).then((r) =>
+        r.ok ? r.json() : Promise.reject(),
+      );
+    get('/api/auth/me')
+      .catch(() => get('/api/auth/access-login', 'POST'))
       .then((user: User) => setState({ user, loading: false }))
       .catch(() => setState({ user: null, loading: false }));
   }, []);

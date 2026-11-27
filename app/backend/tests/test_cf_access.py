@@ -143,3 +143,59 @@ def test_middleware_desligado_nao_exige_nada(monkeypatch):
         lambda: SimpleNamespace(cf_access_enabled=False),
     )
     assert TestClient(_app()).get("/api/x").status_code == 200
+
+
+async def test_access_login_cria_sessao_com_papel_do_banco(monkeypatch):
+    from unittest.mock import AsyncMock, MagicMock
+
+    from app.api.routers import auth
+    from app.models.users import UserRole
+
+    user = SimpleNamespace(
+        id=7,
+        email="Ops@ness.com.br",
+        full_name="Ops",
+        is_active=True,
+        role=UserRole.cliente,
+        tenant_id="t1",
+        session_epoch=0,
+        last_login=None,
+    )
+    db = AsyncMock()
+    db.execute.return_value.scalar_one_or_none = lambda: user
+    monkeypatch.setattr(auth, "require_trusted_origin", lambda r: None)
+    monkeypatch.setattr(
+        auth, "get_settings", lambda: SimpleNamespace(cf_access_enabled=True)
+    )
+    monkeypatch.setattr(
+        auth,
+        "validate_cf_access_token",
+        AsyncMock(return_value={"email": "ops@ness.com.br"}),
+    )
+    monkeypatch.setattr(auth, "create_access_token", lambda **k: "tok")
+    monkeypatch.setattr(auth, "set_session_cookie", MagicMock())
+    req = SimpleNamespace(headers={"Cf-Access-Jwt-Assertion": "jwt"})
+    out = await auth.access_login(req, MagicMock(), db)
+    assert out.role == "cliente" and out.email == "Ops@ness.com.br"
+
+
+async def test_access_login_usuario_desconhecido_403(monkeypatch):
+    from unittest.mock import AsyncMock, MagicMock
+
+    from fastapi import HTTPException
+
+    from app.api.routers import auth
+
+    db = AsyncMock()
+    db.execute.return_value.scalar_one_or_none = lambda: None
+    monkeypatch.setattr(auth, "require_trusted_origin", lambda r: None)
+    monkeypatch.setattr(
+        auth, "get_settings", lambda: SimpleNamespace(cf_access_enabled=True)
+    )
+    monkeypatch.setattr(
+        auth, "validate_cf_access_token", AsyncMock(return_value={"email": "x@y.com"})
+    )
+    req = SimpleNamespace(headers={"Cf-Access-Jwt-Assertion": "jwt"})
+    with pytest.raises(HTTPException) as e:
+        await auth.access_login(req, MagicMock(), db)
+    assert e.value.status_code == 403

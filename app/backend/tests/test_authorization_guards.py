@@ -56,6 +56,7 @@ def test_operator_guard_allows_scoped_operator_but_not_viewer():
 
 def test_every_non_public_api_route_has_recognized_authorization():
     public = {
+        ("POST", "/api/auth/access-login"),
         ("POST", "/api/auth/login"),
         ("POST", "/api/auth/logout"),
         ("POST", "/api/auth/seed"),
