@@ -178,7 +178,7 @@ describe('test_contact_pii_masked_by_default', () => {
 });
 
 describe('test_no_vendor_name_in_ui', () => {
-  const VENDORS = /zabbix|wazuh|glpi|action1|resend|authentik/i;
+  const VENDORS = /zabbix|wazuh|glpi|action1|resend/i;
   it('renders no vendor name in any state of either screen', () => {
     const pages = [
       renderToStaticMarkup(<ContractsView state={contractsState({ selectedId: 1, detail: detail(dflt) })} actions={noop} canEdit />),

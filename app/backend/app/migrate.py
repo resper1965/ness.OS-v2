@@ -310,7 +310,7 @@ async def run_migrations():
     logger.info("Iniciando migração de banco de dados no Postgres...")
 
     async with engine.begin() as conn:
-        # 1. Garantir o papel global aprovado antes de sincronizar usuários OIDC.
+        # 1. Garantir o papel global aprovado antes de sincronizar usuários.
         logger.info("Verificando role platform_admin...")
         await conn.execute(
             text("ALTER TYPE userrole ADD VALUE IF NOT EXISTS 'platform_admin';")

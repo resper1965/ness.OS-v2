@@ -356,7 +356,7 @@ Preflight T07 em 13/10 06:18 UTC: inventário nativo GLPI está desativado
 (`enabled_inventory=0`). Os sete registros de agente tiveram último contato
 em julho; seis têm padrão de varredura e nenhum desses seis vínculo a ativo.
 GET interno da rota de inventário retornou 403; GET público sem sessão
-redirecionou ao Authentik. Isso não é teste de POST de agente. Não contar os
+redirecionou ao IdP (Authentik, descontinuado em 27/11/2026). Isso não é teste de POST de agente. Não contar os
 sete como frota operacional nem abrir exceção pública sem testar autenticação,
 origem e rejeição; plano de cinco ativos internos permanece pendente.
 
@@ -386,7 +386,7 @@ verificações sem mudança relevante.
 | Recuperação e release | `docs/execution/gates/phase-0-recovery-release.md` |
 | Evidência da promoção Hub/AIOps | `docs/execution/evidence/hub-immutable-release-2026-10-12.md` |
 | Recuperação externa atual do Hub/AIOps | `docs/execution/evidence/hub-aiops-recovery-2026-10-12.md` |
-| Inventário de identidade atual | `docs/execution/evidence/authentik-g2-readonly-inventory-2026-10-12.md` |
+| Inventário de identidade (obsoleto) | Authentik descontinuado em 27/11/2026 |
 | Recuperação atual do Psono | `docs/execution/evidence/psono-recovery-2026-10-12.md` |
 | Plano de execução atual | `docs/execution/dynamic-delivery-track-2026-10-12.md` |
 
@@ -406,9 +406,9 @@ não suportados históricos. Evidências: `hub-isolated-flow-2026-10-12.md` e
 | Repositório e release | branch de entrega sincronizada; Hub/AIOps anterior promovido com imagens GHCR por digest e rollback ensaiado; PR #65 integrado, novo push GHCR bloqueado | liberar escrita segura nos pacotes privados, obter digests do PR #64, revisar pacote e comprovar correspondência runtime antes de aprovar G0 global |
 | Zabbix | destino permanente restaurado em UAT isolada; origem é rollback | revalidar estado atual, UAT de identidade e piloto Cavan antes de corte |
 | Object Storage/Restic | conjunto AIOps de 12/10/2026 08:55 BRT copiado, verificado e restaurado externamente | repetir a evidência atual para os demais produtores e revisar 3-2-1 |
-| Hub | runtime real promovido, `/ready` aprovado, workers saudáveis e rollback/re-promoção ensaiados | recuperação atual e MVP Authentik + Zabbix + GLPI reais |
+| Hub | runtime real promovido, `/ready` aprovado, workers saudáveis e rollback/re-promoção ensaiados | recuperação atual e MVP Zabbix + GLPI reais (Authentik descontinuado) |
 | GLPI | fundação, catálogo e reconciliação parcial prontos | API de máquina e jornada de ticket ponta a ponta |
-| Authentik | runtime saudável; `platform_admin` contém Ismael, Rogerio e Ricardo; MFA ainda não comprovado | MFA, recuperação, revogação e teste por aplicação/tenant |
+| ~~Authentik~~ | Descontinuado em 27/11/2026 | removido do stack |
 | Psono Community | recuperação externa atual aprovada na AIOps | dois custodians, MFA, SMTP/recovery e promoção dedicada |
 | AIOps | backup/restore comprovados; operação ainda não homologada | contratos, fluxos de incidente e observabilidade |
 | Wazuh | planejado | capacidade, arquitetura hub-spoke e piloto isolado |

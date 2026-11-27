@@ -172,7 +172,7 @@ Raiz do backend: `app/backend/`. Os caminhos abaixo partem dela, exceto onde com
 
 ---
 
-### Task 4: SOC — porta, registro e divergência motor × modelo (E1 do plano Vigil)
+### Task 4: SOC — porta, registro e divergência motor × modelo (E1, Vigil descontinuado)
 
 **Files:**
 - Modify: `app/api/routers/secops.py` (`triage_alert`, l.712–888)
@@ -277,7 +277,6 @@ Raiz do backend: `app/backend/`. Os caminhos abaixo partem dela, exceto onde com
 
 **Files:**
 - Modify: `docs/superpowers/specs/2026-11-17-ia-tratamento-chamados-design.md` (F1 marcada como entregue, com o PR)
-- Modify: `docs/superpowers/plans/2026-11-11-vigil-investigacao-l2.md` (E1 coberta por esta F1)
 - Modify: `STATE.md` (Próximo passo: promover a F1 depois do aviso à operação; em seguida, F2)
 - Create: `docs/execution/ai-f1-aviso-operacao.md`: aviso curto à equipe. A partir da promoção, o push de alerta só sai pela severidade do Zabbix (≥ 4); a IA não escala mais. Divergências aparecem na tela "IA".
 
@@ -296,6 +295,6 @@ Raiz do backend: `app/backend/`. Os caminhos abaixo partem dela, exceto onde com
 
 ## Fora deste plano
 
-- **F2 a F6** (correlação, Wazuh até o GLPI, Action1, ferramenta de cliente, Vigil): um plano por fase, depois da F1 em produção.
+- **F2 a F6** (correlação, Wazuh até o GLPI, Action1, ferramenta de cliente): um plano por fase, depois da F1 em produção.
 - **Acerto da IA do NOC pela categoria:** hoje a IA do NOC não sugere categoria (ela vem de palavra-chave). A F1 grava `final_label` para a comparação começar quando a IA sugerir categoria. Até lá, o acerto do NOC é medido pelo retorno "útil" e pela divergência.
 - **Botão de retorno dentro do GLPI:** a F1 tem o retorno só no Hub; o GLPI fica para depois.
