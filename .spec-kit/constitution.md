@@ -33,7 +33,7 @@ Nenhuma alteração na stack principal pode ser feita sem aprovação do comitê
 ---
 
 ## 3. Diretrizes de Segurança (CISO-Mindset)
-*   **Sanitização de Dados:** Antes de salvar qualquer log/alerta no banco de dados, enviá-lo ao Gemini API, ou exibi-lo no Slack/WhatsApp, os dados **devem** ser limpos contra vazamentos de PII ou credenciais:
+*   **Sanitização de Dados:** Antes de salvar qualquer log/alerta no banco de dados, enviá-lo ao Gemini API, ou exibi-lo no Slack ou no push da PWA, os dados **devem** ser limpos contra vazamentos de PII ou credenciais:
     *   Substituir IPv4 por `[IP_REDACTED]`.
     *   Remover senhas, API keys, Connection strings e Bearer tokens.
 *   **Controle de Credenciais:** As credenciais locais de produção devem residir estritamente em um arquivo `.env` protegido com permissões restritas de leitura (`chmod 600` ou equivalente).
@@ -48,7 +48,7 @@ Estas decisões foram acordadas com o operador e devem ser seguidas estritamente
 *   **Filtro de Incidentes:** Apenas alertas de severidade **HIGH** e **DISASTER** (severidades 4 e 5 no Zabbix) acionam a geração de relatórios post-mortem e abertura automática de chamados de alta prioridade.
 *   **Fluxo de Aprovação de Playbooks:**
     *   **Human-in-the-loop (Slack):** Playbooks destrutivos exigem aprovação manual via Slack (botões interativos).
-    *   **Timeout & Escalação:** Se um playbook aguardar aprovação por mais de **15 minutos**, a execução é cancelada na fila atual e o incidente é escalado automaticamente para o gestor via WhatsApp.
+    *   **Timeout & Escalação:** Se um playbook aguardar aprovação por mais de **15 minutos**, a execução é cancelada na fila atual e o incidente é escalado automaticamente para o gestor via push da PWA.
 *   **Retenção de Dados:**
     *   Dados de incidentes no PostgreSQL: **90 dias**.
     *   Relatórios de post-mortem (Incident Reports): **365 dias** para garantir uma base histórica rica para o RAG.
