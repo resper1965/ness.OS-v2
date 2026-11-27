@@ -18,7 +18,6 @@ if str(backend_root) not in sys.path:
 from sqlalchemy import text
 
 from app.database import engine
-from app.models.users import ClientSummary
 
 # Importar os modelos para registro no Base
 
@@ -355,8 +354,22 @@ async def run_migrations():
                 "ADD COLUMN IF NOT EXISTS dnd_until TIMESTAMPTZ;"
             )
         )
-        await conn.run_sync(
-            lambda sync_conn: ClientSummary.__table__.create(sync_conn, checkfirst=True)
+        await conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS n_infraops_client_summaries (
+                    id BIGSERIAL PRIMARY KEY,
+                    customer_id BIGINT NOT NULL REFERENCES n_infraops_customers(id),
+                    key VARCHAR(64) NOT NULL,
+                    kind VARCHAR(16) NOT NULL,
+                    html TEXT NOT NULL,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    CONSTRAINT uq_client_summaries_key UNIQUE (customer_id, key)
+                );
+                """))
+        await conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_n_infraops_client_summaries_customer_id "
+                "ON n_infraops_client_summaries (customer_id);"
+            )
         )
 
         await conn.execute(
