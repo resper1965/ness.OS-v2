@@ -25,7 +25,7 @@ Procedimento completo de release e rollback: [release-and-rollback.md](release-a
 ## O que o script não cobre
 
 - **O canário não exercita a entrega de ticket.** Em 26/10 o `/ready` passou e 3.675 alertas falharam em 9 h. Por isso o script observa as tarefas reais por 5 min; **depois da promoção, confira `process_alert_v1` e os incidentes novos com ticket**.
-- **Frontend, bancos, GLPI, Authentik e Caddy nunca são recriados** pelo script. O frontend tem script próprio: `infra/scripts/aiops-promote-hub-frontend.sh <ninf-frontend@sha256> [--dry-run]` (como root no host). Ele troca `NINF_FRONTEND_IMAGE` na pasta da release **em uso** (a promoção da API move essa pasta; `/opt/n-infraops/app` não vale), recria só o frontend, confere imagem e HTTP 200, e restaura o `.env` se falhar.
+- **Frontend, bancos, GLPI, Authentik e Caddy nunca são recriados** pelo script. O frontend tem script próprio: `bash infra/scripts/aiops-promote-hub-frontend.sh <ninf-frontend@sha256> [--dry-run]` (como root no host; o arquivo não tem bit de execução, igual aos outros scripts). Ele troca `NINF_FRONTEND_IMAGE` na pasta da release **em uso** (a promoção da API move essa pasta; `/opt/n-infraops/app` não vale), recria só o frontend, confere imagem e HTTP 200, e restaura o `.env` se falhar.
 - **Mudança só de `.env` ou de imagem sem código novo** não precisa de promoção: edita-se o `.env` da release atual e de `/opt/n-infraops/app`, com backup, e recria-se só o serviço afetado.
 
 ## Rollback
