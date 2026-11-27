@@ -1,5 +1,5 @@
 import { Activity, ShieldAlert, Cloud, RefreshCw, LayoutDashboard, Shield,
-         WifiOff, AlertTriangle, LogOut, FileText, Users, Menu, Bot, Bug, UserCog, Gauge } from 'lucide-react';
+         WifiOff, AlertTriangle, LogOut, FileText, Users, Menu, Bot, Bug, UserCog, Gauge, SlidersHorizontal } from 'lucide-react';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import CloudManagement from './components/CloudManagement';
 import PipelineStrip from './components/PipelineStrip';
@@ -21,15 +21,16 @@ import ContractsScreen from './components/ContractsScreen';
 import CustomersScreen from './components/CustomersScreen';
 import PeopleScreen from './components/PeopleScreen';
 import PainelView from './components/PainelView';
+import AjustesScreen from './components/AjustesScreen';
 
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
 
-type View = 'overview' | 'monitoring' | 'cloud' | 'incidents' | 'secops' | 'contracts' | 'customers' | 'people' | 'ai' | 'vulns' | 'painel';
+type View = 'overview' | 'monitoring' | 'cloud' | 'incidents' | 'secops' | 'contracts' | 'customers' | 'people' | 'ai' | 'vulns' | 'painel' | 'ajustes';
 
 const TITLES: Record<View, string> = {
   overview: 'Visão geral', monitoring: 'NOC', cloud: 'Nuvem', incidents: 'Incidentes',
-  secops: 'SOC', contracts: 'Contratos', customers: 'Clientes', people: 'Pessoas', ai: 'IA', vulns: 'Vulnerabilidades', painel: 'Painel do cliente',
+  secops: 'SOC', contracts: 'Contratos', customers: 'Clientes', people: 'Pessoas', ai: 'IA', vulns: 'Vulnerabilidades', painel: 'Painel do cliente', ajustes: 'Ajustes',
 };
 
 // A tela vive na URL (?view=) para recarregar, voltar e compartilhar link; papel decide o que pode abrir.
@@ -37,7 +38,7 @@ export function allowedView(v: string | null, isOperator: boolean, canCadastros:
   if (v === 'incidents' || v === 'vulns' || v === 'painel') return v;
   if ((v === 'contracts' || v === 'customers') && canCadastros) return v;
   if (v === 'people' && canPeople) return v;
-  if (isOperator && (v === 'overview' || v === 'monitoring' || v === 'cloud' || v === 'secops' || v === 'ai')) return v;
+  if (isOperator && (v === 'overview' || v === 'monitoring' || v === 'cloud' || v === 'secops' || v === 'ai' || v === 'ajustes')) return v;
   // Cliente (técnico externo ou gestor) abre direto no painel do próprio cliente.
   if (isCliente) return 'painel';
   return isOperator ? 'overview' : 'incidents';
@@ -296,6 +297,7 @@ function AppShellBody({ AUTH, logout, user }: {
           <SidebarItem icon={FileText} label="Contratos" active={currentView === 'contracts'} onClick={() => setCurrentView('contracts')} />
           <SidebarItem icon={Users} label="Clientes" active={currentView === 'customers'} onClick={() => setCurrentView('customers')} />
           {canPeople && <SidebarItem icon={UserCog} label="Pessoas" active={currentView === 'people'} onClick={() => setCurrentView('people')} />}
+          {isOperator && <SidebarItem icon={SlidersHorizontal} label="Ajustes" active={currentView === 'ajustes'} onClick={() => setCurrentView('ajustes')} />}
           </>}
         </nav>
 
@@ -381,7 +383,7 @@ function AppShellBody({ AUTH, logout, user }: {
 
           <button
             onClick={() => {
-              if (currentView === 'cloud' || currentView === 'contracts' || currentView === 'customers' || currentView === 'people' || currentView === 'secops' || currentView === 'ai' || currentView === 'vulns' || currentView === 'painel') setCadastrosTick(t => t + 1);
+              if (currentView === 'cloud' || currentView === 'contracts' || currentView === 'customers' || currentView === 'people' || currentView === 'secops' || currentView === 'ai' || currentView === 'vulns' || currentView === 'painel' || currentView === 'ajustes') setCadastrosTick(t => t + 1);
               else if (currentView === 'incidents') void fetchIncidents();
               else void fetchData();
             }}
@@ -430,6 +432,7 @@ function AppShellBody({ AUTH, logout, user }: {
           {currentView === 'contracts' && <ContractsScreen role={user?.role} refreshKey={cadastrosTick} />}
           {currentView === 'customers' && <CustomersScreen role={user?.role} refreshKey={cadastrosTick} />}
           {currentView === 'people' && <PeopleScreen role={user?.role} refreshKey={cadastrosTick} />}
+          {currentView === 'ajustes' && <AjustesScreen role={user?.role} refreshKey={cadastrosTick} />}
 
           {/* ── n.secops ── */}
           {currentView === 'secops' && (

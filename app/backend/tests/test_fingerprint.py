@@ -2,6 +2,7 @@
 # n.infraops — Testes unitários do Fingerprint
 # -------------------------------------------------------
 from datetime import UTC, datetime
+
 from app.core.fingerprint import generate_fingerprint
 from app.models.schemas import ZabbixAlertPayload, ZabbixSeverity
 
