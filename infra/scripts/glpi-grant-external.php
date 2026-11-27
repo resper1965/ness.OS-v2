@@ -41,8 +41,9 @@ if ($one('glpi_profiles_users', $row)) {
 }
 $out('CREATE', "{$opt['user']} → Técnico externo em {$ent['name']}");
 if ($apply) {
-    $pu = new Profile_User();
-    if (!$pu->add($row + ['is_dynamic' => 0])) {
+    // Sem sessão, Profile_User::canCreateItem() recusa: o script roda sem usuário logado.
+    $ok = Session::callAsSystem(fn() => (new Profile_User())->add($row + ['is_dynamic' => 0]));
+    if (!$ok) {
         fwrite(STDERR, "GLPI recusou o vínculo\n");
         exit(1);
     }
