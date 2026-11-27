@@ -347,6 +347,25 @@ async def run_migrations():
             )
         )
 
+        # Colunas/tabelas dos modelos que o login e o resumo consultam: sem elas a imagem nova derruba o login.
+        await conn.execute(
+            text(
+                "ALTER TABLE n_infraops_users "
+                "ADD COLUMN IF NOT EXISTS dnd_until TIMESTAMPTZ;"
+            )
+        )
+        for ddl in (
+            "CREATE TABLE IF NOT EXISTS n_infraops_client_summaries ("
+            "id BIGSERIAL PRIMARY KEY, "
+            "customer_id BIGINT NOT NULL REFERENCES n_infraops_customers(id), "
+            "key VARCHAR(64) NOT NULL, kind VARCHAR(16) NOT NULL, html TEXT NOT NULL, "
+            "created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), "
+            "CONSTRAINT uq_client_summaries_key UNIQUE (customer_id, key));",
+            "CREATE INDEX IF NOT EXISTS ix_n_infraops_client_summaries_customer_id "
+            "ON n_infraops_client_summaries (customer_id);",
+        ):
+            await conn.execute(text(ddl))
+
         await conn.execute(
             text(
                 "ALTER TABLE n_infraops_incidents "
