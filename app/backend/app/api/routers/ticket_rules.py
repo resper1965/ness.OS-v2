@@ -39,9 +39,31 @@ class RulePatch(BaseModel):
     enabled: bool
 
 
-# ponytail: heurística, não prova; o re do Python não tem timeout. Pega o caso clássico
-# (grupo com quantificador repetido por outro quantificador); upgrade path: o pacote `re2`.
-_NESTED = re.compile(r"[+*}]\)[+*{]")
+def _unsafe(pattern: str) -> bool:
+    """Grupo que já repete ou alterna, repetido de novo (`(a+)+`, `(a|aa)+`), trava o `re`.
+
+    O `re` do Python não tem timeout e `_hit()` roda em todo incidente do decisor: uma
+    expressão assim pararia a abertura de chamados de todos os clientes. Bloqueia na
+    escrita com checagem estrutural; não é prova de linearidade, mas pega o caso real.
+    ponytail: heurística; upgrade path: `re2` quando houver wheel na imagem.
+    """
+    stack: list[int] = []
+    i = 0
+    while i < len(pattern):
+        ch = pattern[i]
+        if ch == "\\":
+            i += 2
+            continue
+        if ch == "(":
+            stack.append(i)
+        elif ch == ")" and stack:
+            body = pattern[stack.pop() + 1 : i]
+            if pattern[i + 1 : i + 2] in ("+", "*", "{") and any(
+                c in body for c in "+*{|?"
+            ):
+                return True
+        i += 1
+    return False
 
 
 def _out(r: TicketRule) -> dict:
@@ -86,7 +108,7 @@ async def create_rule(
         re.compile(body.pattern, re.I)
     except re.error as exc:
         raise HTTPException(422, f"Expressão inválida: {exc}") from exc
-    if _NESTED.search(body.pattern):
+    if _unsafe(body.pattern):
         raise HTTPException(
             422, "Expressão com repetição aninhada (ex.: (a+)+) trava o decisor"
         )

@@ -112,7 +112,13 @@ async def test_rule_create_toggle_delete_and_duplicate_409(maker):
 
 async def test_rule_rejects_nested_quantifier(maker):
     async with _api(maker, UserRole.platform_admin) as c:
-        for bad in ("(a+)+$", "(a*)*b", "(x{1,5})+", "((ab)+)*"):
+        for bad in (
+            "(a+)+$",
+            "(a*)*b",
+            "(x{1,5})+",
+            "((ab)+)*",
+            "(a|aa)+",
+        ):
             assert (
                 await c.post(BASE, json={"kind": "noise", "pattern": bad})
             ).status_code == 422
