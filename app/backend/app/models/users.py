@@ -12,7 +12,6 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Index,
-    Integer,
     String,
     Text,
     UniqueConstraint,
@@ -95,47 +94,6 @@ class User(Base):
 
     def __repr__(self) -> str:  # pragma: no cover
         return f"<User id={self.id} email={self.email!r} role={self.role}>"
-
-
-class Identity(Base):
-    """Vínculo (issuer, subject) do IdP -> User local (ADR 0015). Nunca por e-mail."""
-
-    __tablename__ = "n_infraops_identities"
-    __table_args__ = (
-        UniqueConstraint("issuer", "subject", name="uq_identities_iss_sub"),
-    )
-
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
-    issuer: Mapped[str] = mapped_column(String(512), nullable=False)
-    subject: Mapped[str] = mapped_column(String(255), nullable=False)
-    user_id: Mapped[int] = mapped_column(
-        BigInteger, ForeignKey("n_infraops_users.id"), nullable=False, index=True
-    )
-    created_by_user_id: Mapped[int | None] = mapped_column(
-        BigInteger, ForeignKey("n_infraops_users.id"), nullable=True
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=func.now()
-    )
-
-
-class PendingLogin(Base):
-    """Identidade do IdP recusada por falta de vínculo; o admin escolhe a pessoa e vincula."""
-
-    __tablename__ = "n_infraops_pending_logins"
-
-    issuer: Mapped[str] = mapped_column(String(512), primary_key=True)
-    subject: Mapped[str] = mapped_column(String(255), primary_key=True)
-    email: Mapped[str | None] = mapped_column(String(320), nullable=True)
-    attempts: Mapped[int] = mapped_column(
-        Integer, nullable=False, default=1, server_default="1"
-    )
-    first_seen: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=func.now()
-    )
-    last_seen: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=func.now()
-    )
 
 
 class ClientSummary(Base):

@@ -11,14 +11,11 @@ rollback_dir="/opt/n-infraops/change-backups/aiops-secret-rotation-${stamp}"
 
 [[ -f "${env_file}" && -f "${live_compose}" && -f "${staged_compose}" ]]
 grep -Fq 'NINF_DB_PASSWORD:?NINF_DB_PASSWORD is required' "${staged_compose}"
-grep -Fq 'NINF_AUTHENTIK_SECRET_KEY:?NINF_AUTHENTIK_SECRET_KEY is required' "${staged_compose}"
 
 old_db_password="$(docker exec ninf-postgres sh -lc 'printf "%s" "$POSTGRES_PASSWORD"')"
-old_authentik_secret="$(docker exec ninf-authentik-server sh -lc 'printf "%s" "$AUTHENTIK_SECRET_KEY"')"
-[[ -n "${old_db_password}" && -n "${old_authentik_secret}" ]]
+[[ -n "${old_db_password}" ]]
 
 new_db_password="$(openssl rand -hex 32)"
-new_authentik_secret="$(openssl rand -hex 48)"
 
 install -d -o root -g root -m 0700 "${rollback_dir}"
 install -o root -g root -m 0600 "${env_file}" "${rollback_dir}/env"
@@ -39,7 +36,7 @@ SQL' \
     install -o root -g root -m 0600 "${rollback_dir}/docker-compose.yml" "${live_compose}"
     cd "${app_dir}"
     docker compose -f docker-compose.yml -f docker-compose.tickets.yml up -d --force-recreate \
-      postgres api worker-alerts worker-ml authentik-server authentik-worker >/dev/null 2>&1 || true
+      postgres api worker-alerts worker-ml >/dev/null 2>&1 || true
   fi
   exit "${exit_code}"
 }
@@ -52,9 +49,8 @@ SQL' \
   >/dev/null
 
 env_tmp="$(mktemp "${app_dir}/.env.rotation.XXXXXX")"
-grep -Ev '^(NINF_DB_PASSWORD|NINF_AUTHENTIK_SECRET_KEY|NINF_DATABASE_URL)=' "${env_file}" > "${env_tmp}"
+grep -Ev '^(NINF_DB_PASSWORD|NINF_DATABASE_URL)=' "${env_file}" > "${env_tmp}"
 printf 'NINF_DB_PASSWORD=%s\n' "${new_db_password}" >> "${env_tmp}"
-printf 'NINF_AUTHENTIK_SECRET_KEY=%s\n' "${new_authentik_secret}" >> "${env_tmp}"
 printf 'NINF_DATABASE_URL=postgresql+asyncpg://nessops:%s@postgres:5432/nessops\n' "${new_db_password}" >> "${env_tmp}"
 install -o root -g root -m 0600 "${env_tmp}" "${env_file}"
 rm -f -- "${env_tmp}"
@@ -71,13 +67,13 @@ done
 [[ "${postgres_health}" == healthy ]]
 
 docker compose -f docker-compose.yml -f docker-compose.tickets.yml up -d --force-recreate \
-  api worker-alerts worker-ml authentik-server authentik-worker
+  api worker-alerts worker-ml
 
 for _ in $(seq 1 90); do
   running="$(docker ps --format '{{.Names}}' | wc -l)"
   unhealthy="$(docker ps --filter health=unhealthy --format '{{.Names}}' | wc -l)"
   starting="$(docker ps --filter health=starting --format '{{.Names}}' | wc -l)"
-  [[ "${running}" -eq 15 && "${unhealthy}" -eq 0 && "${starting}" -eq 0 ]] && break
+  [[ "${running}" -eq 12 && "${unhealthy}" -eq 0 && "${starting}" -eq 0 ]] && break
   sleep 2
 done
 [[ "${running}" -eq 15 && "${unhealthy}" -eq 0 && "${starting}" -eq 0 ]]
@@ -99,20 +95,16 @@ asyncio.run(check())
 PY'
 
 hub_status="$(curl -ksS -o /dev/null -w '%{http_code}' --resolve hub.ness.com.br:443:127.0.0.1 https://hub.ness.com.br/)"
-sso_status="$(curl -ksS -o /dev/null -w '%{http_code}' --resolve sso.ness.com.br:443:127.0.0.1 https://sso.ness.com.br/)"
+sso_status="$(curl -ksS -o /dev/null -w '%{http_code}' --resolve sso.ness.com.br:443:127.0.0.1 https://sso.ness.com.br/)" || true
 [[ "${hub_status}" =~ ^(200|301|302|303)$ ]]
-[[ "${sso_status}" =~ ^(200|301|302|303)$ ]]
 
 report="$(/usr/local/sbin/ness-aiops-secret-consumer-report)"
 grep -Fqx 'shared_database_password_consistent=yes' <<<"${report}"
 grep -Fqx 'database_password_uses_known_default=no' <<<"${report}"
-grep -Fqx 'authentik_secret_uses_compose_default=no' <<<"${report}"
 
 rollback_required=false
 trap - ERR
 printf 'postgres_password_rotated=PASS\n'
-printf 'authentik_secret_rotated=PASS\n'
 printf 'running_containers=%s\n' "${running}"
 printf 'hub_http=%s\n' "${hub_status}"
-printf 'sso_http=%s\n' "${sso_status}"
 printf 'rollback_material=%s\n' "${rollback_dir}"

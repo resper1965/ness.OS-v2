@@ -15,7 +15,7 @@ const KNOWN: Record<string, string> = {
   'Entidade GLPI já em uso': 'Entidade de atendimento já em uso por outro cliente ativo',
   'Entidade GLPI ou nome já em uso': 'Entidade de atendimento ou nome já em uso por outro cliente',
 };
-const VENDOR = /\b(zabbix|wazuh|glpi|action1|resend|authentik)\b/gi;
+const VENDOR = /\b(zabbix|wazuh|glpi|action1|resend)\b/gi;
 const GENERIC = 'Não foi possível concluir. Nada foi gravado.';
 const MAX_DETAIL = 200;
 // Detalhe longo pode carregar eco de dado enviado: acima do teto, só a mensagem genérica.

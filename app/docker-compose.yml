@@ -139,8 +139,6 @@ services:
       resources:
         limits:
           memory: 300M
-
-
   # --- Frontend (React/Vite, API same-origin via Caddy) ---
   frontend:
     image: ${NINF_FRONTEND_IMAGE:?NINF_FRONTEND_IMAGE is required}
@@ -173,89 +171,11 @@ services:
     depends_on:
       - api
       - frontend
-
-  # --- Authentik SSO Server ---
-  authentik-server:
-    image: ghcr.io/goauthentik/server:2026.5.6@sha256:ed120caf710ccf82ef0026f0bc74e51615bc95ebff228a7a2d6fc60c441c3868
-    container_name: ninf-authentik-server
-    restart: unless-stopped
-    command: server
-    environment:
-      AUTHENTIK_REDIS__HOST: redis
-      AUTHENTIK_POSTGRESQL__HOST: postgres
-      AUTHENTIK_POSTGRESQL__USER: nessops
-      AUTHENTIK_POSTGRESQL__NAME: authentik
-      AUTHENTIK_POSTGRESQL__PASSWORD: ${NINF_DB_PASSWORD:?NINF_DB_PASSWORD is required}
-      AUTHENTIK_SECRET_KEY: ${NINF_AUTHENTIK_SECRET_KEY:?NINF_AUTHENTIK_SECRET_KEY is required}
-      AUTHENTIK_EMAIL__HOST: ${NINF_SMTP_HOST:-smtp.resend.com}
-      AUTHENTIK_EMAIL__PORT: ${NINF_SMTP_PORT:-587}
-      AUTHENTIK_EMAIL__USERNAME: ${NINF_SMTP_USERNAME:-resend}
-      AUTHENTIK_EMAIL__PASSWORD: ${NINF_RESEND_API_KEY:?NINF_RESEND_API_KEY is required}
-      AUTHENTIK_EMAIL__USE_TLS: ${NINF_SMTP_USE_TLS:-true}
-      AUTHENTIK_EMAIL__USE_SSL: ${NINF_SMTP_USE_SSL:-false}
-      AUTHENTIK_EMAIL__TIMEOUT: 10
-      AUTHENTIK_EMAIL__FROM: "${NINF_AUTHENTIK_EMAIL_FROM:-ness. identidade <identidade@ness.com.br>}"
-    volumes:
-      - authentik-media:/media
-      - authentik-certs:/certs
-      - authentik-templates:/templates
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    networks:
-      - ninf-net
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-
-  # --- Authentik SSO Worker ---
-  authentik-worker:
-    image: ghcr.io/goauthentik/server:2026.5.6@sha256:ed120caf710ccf82ef0026f0bc74e51615bc95ebff228a7a2d6fc60c441c3868
-    container_name: ninf-authentik-worker
-    restart: unless-stopped
-    command: worker
-    environment:
-      AUTHENTIK_REDIS__HOST: redis
-      AUTHENTIK_POSTGRESQL__HOST: postgres
-      AUTHENTIK_POSTGRESQL__USER: nessops
-      AUTHENTIK_POSTGRESQL__NAME: authentik
-      AUTHENTIK_POSTGRESQL__PASSWORD: ${NINF_DB_PASSWORD:?NINF_DB_PASSWORD is required}
-      AUTHENTIK_SECRET_KEY: ${NINF_AUTHENTIK_SECRET_KEY:?NINF_AUTHENTIK_SECRET_KEY is required}
-      AUTHENTIK_EMAIL__HOST: ${NINF_SMTP_HOST:-smtp.resend.com}
-      AUTHENTIK_EMAIL__PORT: ${NINF_SMTP_PORT:-587}
-      AUTHENTIK_EMAIL__USERNAME: ${NINF_SMTP_USERNAME:-resend}
-      AUTHENTIK_EMAIL__PASSWORD: ${NINF_RESEND_API_KEY:?NINF_RESEND_API_KEY is required}
-      AUTHENTIK_EMAIL__USE_TLS: ${NINF_SMTP_USE_TLS:-true}
-      AUTHENTIK_EMAIL__USE_SSL: ${NINF_SMTP_USE_SSL:-false}
-      AUTHENTIK_EMAIL__TIMEOUT: 10
-      AUTHENTIK_EMAIL__FROM: "${NINF_AUTHENTIK_EMAIL_FROM:-ness. identidade <identidade@ness.com.br>}"
-    volumes:
-      - authentik-media:/media
-      - authentik-certs:/certs
-      - authentik-templates:/templates
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    networks:
-      - ninf-net
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-
 volumes:
   pg-data:
   redis-data:
   caddy-data:
   caddy-config:
-  authentik-media:
-  authentik-certs:
-  authentik-templates:
 
 networks:
   ninf-net:

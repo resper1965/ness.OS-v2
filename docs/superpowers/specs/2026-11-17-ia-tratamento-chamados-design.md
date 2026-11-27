@@ -203,9 +203,9 @@ Cada fase vale sozinha e tem gate de promoção normal do Hub.
 
 | Fase | Entrega | Pronto quando |
 |---|---|---|
-| F1 | Registro de decisão de IA, retorno do analista e métricas (inclui a E1 do plano Vigil). **Entregue (#280).** | Toda análise do NOC está no banco; a tela mostra as métricas. |
+| F1 | Registro de decisão de IA, retorno do analista e métricas (E1 entregue). **Entregue (#280).** | Toda análise do NOC está no banco; a tela mostra as métricas. |
 | F2 | Repetição do mesmo trigger no mesmo host vira acompanhamento; medição de tempestade (sinais ÷ chamados e consulta histórica). | Repetição testada; relatório de tempestade com dado real. |
-| F3 | Investigador N1 para o NOC, com ferramentas de leitura (Zabbix, chamados e inventário do GLPI). Avaliado pela F1. O Vigil (ADR 0022) concorre a esta peça. | Metade das análises marcada como útil em 30 dias, sem dado cruzado entre clientes. |
+| F3 | Investigador N1 para o NOC, com ferramentas de leitura (Zabbix, chamados e inventário do GLPI). Avaliado pela F1. | Metade das análises marcada como útil em 30 dias, sem dado cruzado entre clientes. |
 | F4 | Sinal v1 como entrada comum (Zabbix e Wazuh; o tipo de sinal define o perfil). Wazuh no mesmo laço até o GLPI, com a triagem da política SOC na frente do chamado; o investigador ganha as ferramentas do SOC. | Um alerta real do tenant `ness` gera chamado com investigação e decisão registrada. |
 | F5 | Action1: contexto → sinais de pendência → executor N3 com lista de ações proibidas. `remediators/*` aposentado. | Homologação do ADR 0021 (itens 1 a 3, credencial só de leitura, licença acima de 200 aprovada); uma ação aprovada roda e a verificação volta ao chamado. |
 | F6 | Primeira ferramenta de cliente pela seção 9. Inventário do GLPI como eixo comum (spec própria). | Integrada sem mudar o núcleo. |

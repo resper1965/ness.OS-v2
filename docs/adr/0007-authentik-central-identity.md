@@ -1,6 +1,6 @@
 # ADR 0007 — Authentik como identidade central
 
-- Status: substituída pelo [ADR 0015](0015-entra-id-identity-local-authorization.md) em 05/11/2026; vigente até o desligamento do Authentik, previsto para depois do D+2 do corte do Zabbix (17/11/2026)
+- Status: substituída — Authentik descontinuado em 27/11/2026
 - Data: 20/08/2026
 - Decisor: Ricardo Esper
 
