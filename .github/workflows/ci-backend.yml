@@ -145,7 +145,6 @@ jobs:
       run: |
         env_file="$(mktemp)"
         printf '%s\n' \
-          'NINF_AUTHENTIK_SECRET_KEY=ci-placeholder' \
           'NINF_DB_PASSWORD=ci-placeholder' \
           'NINF_JWT_SECRET=ci-placeholder' \
           'NINF_API_IMAGE=registry.example/ness/api@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' \

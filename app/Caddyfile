@@ -25,11 +25,6 @@ hub.ness.com.br {
     }
 }
 
-# Authentik SSO Identity Provider
-sso.ness.com.br {
-    reverse_proxy authentik-server:9000
-}
-
 api.ness.com.br {
     basicauth {
         admin $2b$14$aADfhsw7v4QDBbqbTUZTbOVtl4mxRAfgENJ/DenyfJHr1g8oz5G2C
@@ -37,7 +32,6 @@ api.ness.com.br {
     reverse_proxy api:8000
 }
 
-# GLPI Service Desk with Authentik Forward Auth SSO
 # Psono Community — temporary AIOps placement; application authentication is native.
 cofre.ness.com.br {
     encode zstd gzip
