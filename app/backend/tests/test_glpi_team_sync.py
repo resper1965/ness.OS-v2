@@ -5,7 +5,7 @@ import itertools
 import pytest
 from sqlalchemy import delete, select, update
 
-from app.integrations.glpi import GLPIPermanentError
+from app.integrations.glpi import GLPIProfileDeniedError
 from app.models import Customer, TeamMember, User, UserRole
 from app.services import glpi_team_sync as sync
 
@@ -615,7 +615,7 @@ async def test_denied_external_profile_warns_and_does_not_break_the_cycle(
     await _seed(people_maker)
     g = FakeGlpi()
     g.deny = {("Profile_User", 14)}
-    g.deny_exc = GLPIPermanentError  # 401/403 do GLPI
+    g.deny_exc = GLPIProfileDeniedError  # 400 do GLPI em Profile_User
     diff = await _diff(people_maker, g)
     warn = [x for x in diff if x.startswith("AVISO")]
     assert len(warn) == 1 and "elid" in warn[0] and "glpi-grant-external" in warn[0]
@@ -650,10 +650,20 @@ async def test_plain_runtime_failure_on_external_profile_is_not_a_warning(
 def test_profile_user_400_is_a_permission_denial_but_other_400s_are_not():
     import httpx
 
-    from app.integrations.glpi import GLPIPermanentError, _glpi_failure
+    from app.integrations.glpi import (
+        GLPIProfileDeniedError,
+        _glpi_failure,
+    )
 
     res = httpx.Response(400, request=httpx.Request("POST", "http://g/Profile_User"))
     err = httpx.HTTPStatusError("x", request=res.request, response=res)
-    assert isinstance(_glpi_failure("escrita em Profile_User", err), GLPIPermanentError)
+    assert isinstance(
+        _glpi_failure("escrita em Profile_User", err), GLPIProfileDeniedError
+    )
+    denied = httpx.Response(403, request=httpx.Request("POST", "http://g/Profile_User"))
+    err403 = httpx.HTTPStatusError("x", request=denied.request, response=denied)
+    assert not isinstance(
+        _glpi_failure("escrita em Profile_User", err403), GLPIProfileDeniedError
+    )  # 401/403 não vira remediação manual
     other = _glpi_failure("escrita em User", err)
     assert type(other) is RuntimeError

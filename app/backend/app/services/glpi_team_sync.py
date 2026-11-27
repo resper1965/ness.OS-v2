@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 
 from sqlalchemy import select, text
 
-from app.integrations.glpi import GLPIPermanentError
+from app.integrations.glpi import GLPIProfileDeniedError
 from app.models import Customer, TeamMember, User, UserRole
 
 logger = logging.getLogger("nessops.glpi_team_sync")
@@ -369,7 +369,7 @@ async def reconcile(glpi, d: Desired, apply: bool) -> list[str]:
                         },
                     ),
                 )
-            except GLPIPermanentError:
+            except GLPIProfileDeniedError:
                 # O token de sync não tem os direitos do perfil (de propósito: sem chamados).
                 # Só o perfil fica de fora; o resto do ciclo segue e o passo manual é avisado.
                 if want[0] != ext_pid:
