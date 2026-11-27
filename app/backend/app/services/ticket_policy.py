@@ -46,11 +46,11 @@ async def load_rules(session) -> Rules:
 MATCH_TIMEOUT = 0.02  # segundos por padrão; o decisor roda a cada 60 s
 
 
-def _hit(patterns: list[regex.Pattern], title: str) -> bool:
+def _hit(patterns: list[regex.Pattern], title: str, fail_open: bool = False) -> bool:
     """`regex` aceita timeout; o `re` da stdlib não, e uma regra patológica pararia o decisor.
 
-    Estouro conta como "não casou" e fica no log: o pior caso é um chamado a mais, nunca
-    o worker preso.
+    Estouro no ruído conta como "não casou" (nunca suprime chamado); nas regras de ação,
+    `fail_open` conta como "casou", para o chamado sair mesmo assim. O worker não trava.
     """
     for pattern in patterns:
         try:
@@ -58,6 +58,8 @@ def _hit(patterns: list[regex.Pattern], title: str) -> bool:
                 return True
         except TimeoutError:
             logger.warning("Regra de chamado estourou o tempo: %s", pattern.pattern)
+            if fail_open:
+                return True
     return False
 
 
@@ -67,7 +69,7 @@ def classify(title: str, severity: int, rules: Rules) -> Literal["action", "pane
         return "action"
     if _hit(rules.noise, title):
         return "panel"
-    return "action" if _hit(rules.action, title) else "panel"
+    return "action" if _hit(rules.action, title, fail_open=True) else "panel"
 
 
 def is_cause(title: str, rules: Rules) -> bool:

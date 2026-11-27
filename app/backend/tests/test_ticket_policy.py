@@ -115,5 +115,6 @@ def test_hit_never_stalls_on_a_pathological_rule():
     bad = regex.compile(r"(a|a)*$", regex.I)
     title = "a" * 200 + "b"
     start = time.monotonic()
-    assert _hit([bad], title) is False
+    assert _hit([bad], title) is False  # ruído: estouro não suprime
+    assert _hit([bad], title, fail_open=True) is True  # ação: estouro abre chamado
     assert time.monotonic() - start < 1.0
