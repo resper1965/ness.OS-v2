@@ -702,7 +702,7 @@
     ">
       <img
         src="platform.png"
-        alt="Diagrama da arquitetura ness.OS: Endpoints com Wazuh Agent → Spokes → Hub SOC Wazuh → AI Agent Gemini → Ações (ticket, WhatsApp, resposta ativa)"
+        alt="Diagrama da arquitetura ness.OS: Endpoints com Wazuh Agent → Spokes → Hub SOC Wazuh → AI Agent Gemini → Ações (ticket, push, resposta ativa)"
         width="1600" height="900"
         loading="lazy"
         style="width:100%;height:auto;display:block"
@@ -828,7 +828,6 @@
           <div class="svc"><span class="svc-bullet" style="background:var(--infra)"></span>React PWA (frontend)</div>
           <div class="svc"><span class="svc-bullet" style="background:#F97316"></span>TimescaleDB + pgvector</div>
           <div class="svc"><span class="svc-bullet" style="background:#EF4444"></span>Redis 7 + Celery Workers</div>
-          <div class="svc"><span class="svc-bullet" style="background:var(--green)"></span>WhatsApp (Evolution API)</div>
           <div class="svc"><span class="svc-bullet" style="background:var(--core)"></span>Caddy (TLS automático)</div>
         </div>
       </article>
@@ -1052,14 +1051,14 @@
       <div class="outcome" role="listitem">
         <div class="outcome-icon" aria-hidden="true">📲</div>
         <span class="outcome-level lvl-high">HIGH</span>
-        <div class="outcome-action">Ticket + WhatsApp</div>
+        <div class="outcome-action">Ticket + push no celular</div>
         <div class="outcome-detail">Paging do analista on-call</div>
       </div>
       <div class="outcome" role="listitem">
         <div class="outcome-icon" aria-hidden="true">🚨</div>
         <span class="outcome-level lvl-crit">CRIT</span>
         <div class="outcome-action">Resposta Ativa</div>
-        <div class="outcome-detail">Bloquear IP · isolar host + ticket urgente + WhatsApp</div>
+        <div class="outcome-detail">Bloquear IP · isolar host + ticket urgente + push no celular</div>
       </div>
     </div>
   </div>
@@ -1173,7 +1172,7 @@
       <div class="doc-img-wrap">
         <img
           src="diagram-dataflow.png"
-          alt="Diagrama de fluxo agêntico: Wazuh Alert → Shuffle SOAR → Enriquecimento → AI Agent Gemini → Decisão (FP auto-silence, LOW log, MED ticket, HIGH WhatsApp, CRIT resposta ativa)"
+          alt="Diagrama de fluxo agêntico: Wazuh Alert → Shuffle SOAR → Enriquecimento → AI Agent Gemini → Decisão (FP auto-silence, LOW log, MED ticket, HIGH push, CRIT resposta ativa)"
           loading="lazy"
         />
         <div class="doc-meta">
@@ -1250,7 +1249,6 @@
           <div class="sc-item"><span class="sc-bullet" style="background:var(--gold)"></span>Zabbix (JSONRPC)</div>
           <div class="sc-item"><span class="sc-bullet" style="background:var(--green)"></span>Atera PSA (REST)</div>
           <div class="sc-item"><span class="sc-bullet" style="background:#60A5FA"></span>Microsoft Graph API</div>
-          <div class="sc-item"><span class="sc-bullet" style="background:var(--green)"></span>WhatsApp (Evolution API)</div>
           <div class="sc-item"><span class="sc-bullet" style="background:var(--text-lo)"></span>Contabo API</div>
         </div>
       </div>
