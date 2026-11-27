@@ -13,7 +13,6 @@ from dataclasses import dataclass, field
 
 from sqlalchemy import select, text
 
-from app.integrations.glpi import GLPIProfileDeniedError
 from app.models import Customer, TeamMember, User, UserRole
 
 logger = logging.getLogger("nessops.glpi_team_sync")
@@ -356,34 +355,29 @@ async def reconcile(glpi, d: Desired, apply: bool) -> list[str]:
             if person_id and int(r["users_id"]) == person_id
         }
         if want not in have_rows:
-            mark = len(
-                diff
-            )  # do() registra antes de gravar; negado não conta como feito
-            try:
-                await do(
-                    f"PROFILE {login}→{'externo' if want[0] == ext_pid else 'técnico'}",
-                    lambda person_id=person_id, want=want: glpi.create_item(
-                        "Profile_User",
-                        {
-                            "users_id": person_id,
-                            "profiles_id": want[0],
-                            "entities_id": want[1],
-                            "is_recursive": want[2],
-                        },
-                    ),
-                )
-            except GLPIProfileDeniedError:
-                # O token de sync não tem os direitos do perfil (de propósito: sem chamados).
-                # Só o perfil fica de fora; o resto do ciclo segue e o passo manual é avisado.
-                if want[0] != ext_pid:
-                    raise  # só o perfil externo é negado de propósito; o resto falha alto
-                del diff[mark:]
+            if want[0] == ext_pid:
+                # O token de sync não tem os direitos do perfil externo, de propósito: são os
+                # de chamado. Nem tenta (o 400 do GLPI não diz o motivo); o passo manual fica
+                # explícito no aviso e o resto do ciclo segue.
                 diff.append(
                     f"AVISO {login}: perfil externo não concedido; rode no host: "
                     "sudo -n docker exec -i -u www-data ninf-glpi php -- "
                     f"--user={shlex.quote(login)} --entity={want[1]} --apply "
                     "< infra/scripts/glpi-grant-external.php"
                 )
+                continue
+            await do(
+                f"PROFILE {login}→técnico",
+                lambda person_id=person_id, want=want: glpi.create_item(
+                    "Profile_User",
+                    {
+                        "users_id": person_id,
+                        "profiles_id": want[0],
+                        "entities_id": want[1],
+                        "is_recursive": want[2],
+                    },
+                ),
+            )
 
     # --- regra: entidade -> grupo
     # Regra do Hub só vale com exatamente 1 critério de entidade e 1 ação de grupo;

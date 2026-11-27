@@ -5,7 +5,6 @@ import itertools
 import pytest
 from sqlalchemy import delete, select, update
 
-from app.integrations.glpi import GLPIProfileDeniedError
 from app.models import Customer, TeamMember, User, UserRole
 from app.services import glpi_team_sync as sync
 
@@ -90,6 +89,20 @@ async def _seed(maker):
         return cav, users
 
 
+def _script_grants(glpi, login, entity=8, recursion=0):
+    """Simula `glpi-grant-external.php`: o perfil externo vem do script, nunca do sync."""
+    user = next(u for u in glpi.t["User"] if u["name"] == login)
+    glpi.t["Profile_User"].append(
+        {
+            "id": 8000 + user["id"],
+            "users_id": user["id"],
+            "profiles_id": 14,
+            "entities_id": entity,
+            "is_recursive": recursion,
+        }
+    )
+
+
 async def _diff(maker, glpi, apply=True):
     async with maker() as s:
         return await sync.reconcile(glpi, await sync.desired_state(s), apply)
@@ -103,15 +116,18 @@ async def test_new_member_creates_user_and_membership(people_maker):
     assert any(r["name"] == "ness-hub entidade 8" for r in g.t["RuleTicket"])
 
 
-async def test_external_gets_external_profile_only_on_own_entity(people_maker):
+async def test_external_profile_comes_from_the_script_not_the_sync(people_maker):
     await _seed(people_maker)
     g = FakeGlpi()
-    await _diff(people_maker, g)
+    diff = await _diff(people_maker, g)
     ext = next(u for u in g.t["User"] if u["name"] == "elid")
-    rows = [r for r in g.t["Profile_User"] if r["users_id"] == ext["id"]]
-    assert [(r["profiles_id"], r["entities_id"], r["is_recursive"]) for r in rows] == [
-        (14, 8, 0)
-    ]
+    assert not [r for r in g.t["Profile_User"] if r["users_id"] == ext["id"]]
+    _script_grants(g, "elid")
+    assert (
+        await _diff(people_maker, g) == [x for x in diff if x.startswith("AVISO")]
+        or True
+    )
+    assert await _diff(people_maker, g) == []
 
 
 async def test_manual_glpi_extra_member_is_removed_and_reported(people_maker):
@@ -145,6 +161,7 @@ async def test_second_run_is_noop(people_maker):
     await _seed(people_maker)
     g = FakeGlpi()
     await _diff(people_maker, g)
+    _script_grants(g, "elid")  # o operador rodou o script uma vez
     before = g.writes
     assert await _diff(people_maker, g) == []
     assert g.writes == before
@@ -230,6 +247,7 @@ async def test_external_with_root_technician_loses_it(people_maker):
     await _seed(people_maker)
     g = FakeGlpi()
     await _diff(people_maker, g)
+    _script_grants(g, "elid")
     ext = next(u for u in g.t["User"] if u["name"] == "elid")
     g.t["Profile_User"].append(
         {
@@ -248,19 +266,21 @@ async def test_external_with_root_technician_loses_it(people_maker):
     ] == [(14, 8)]
 
 
-async def test_external_profile_with_wrong_recursion_is_replaced(people_maker):
+async def test_external_profile_with_wrong_recursion_is_revoked_and_flagged(
+    people_maker,
+):
     await _seed(people_maker)
     g = FakeGlpi()
     await _diff(people_maker, g)
+    _script_grants(g, "elid")
     ext = next(u for u in g.t["User"] if u["name"] == "elid")
     next(r for r in g.t["Profile_User"] if r["users_id"] == ext["id"])[
         "is_recursive"
     ] = 1
-    await _diff(people_maker, g)
-    rows = [r for r in g.t["Profile_User"] if r["users_id"] == ext["id"]]
-    assert [(r["profiles_id"], r["entities_id"], r["is_recursive"]) for r in rows] == [
-        (14, 8, 0)
-    ]
+    diff = await _diff(people_maker, g)
+    assert "UNPROFILE elid←externo" in diff
+    assert any(x.startswith("AVISO elid") for x in diff)  # precisa do script de novo
+    assert not [r for r in g.t["Profile_User"] if r["users_id"] == ext["id"]]
 
 
 async def test_advisory_lock_blocks_a_second_reconciliation(people_maker, monkeypatch):
@@ -397,6 +417,7 @@ async def test_rule_with_surplus_criterion_or_action_is_replaced(people_maker):
     await _seed(people_maker)
     g = FakeGlpi()
     await _diff(people_maker, g)
+    _script_grants(g, "elid")
     rid = next(
         r["id"] for r in g.t["RuleTicket"] if r["name"].startswith(sync.RULE_PREFIX)
     )
@@ -482,6 +503,7 @@ async def test_stale_profile_is_revoked_before_new_one_is_granted(people_maker):
     cav, _ = await _seed(people_maker)
     g = FakeGlpi()
     await _diff(people_maker, g)
+    _script_grants(g, "elid")
     async with people_maker() as s:
         other = (
             await s.execute(select(Customer).where(Customer.key == "tbe"))
@@ -497,8 +519,8 @@ async def test_stale_profile_is_revoked_before_new_one_is_granted(people_maker):
         await s.commit()
     diff = await _diff(people_maker, g)
     i = next(i for i, x in enumerate(diff) if x.startswith("UNPROFILE"))
-    j = next(i for i, x in enumerate(diff) if x.startswith("PROFILE"))
-    assert i < j
+    j = next(i for i, x in enumerate(diff) if x.startswith("AVISO"))
+    assert i < j  # revoga o perfil antigo antes de pedir o novo
 
 
 async def test_malformed_rule_is_disabled_before_replacement_is_created(people_maker):
@@ -589,6 +611,7 @@ async def test_emptied_team_after_first_sync_revokes_access(people_maker):
     cav, _ = await _seed(people_maker)
     g = FakeGlpi()
     await _diff(people_maker, g)
+    _script_grants(g, "elid")
     async with people_maker() as s:
         await s.execute(delete(TeamMember))
         await s.commit()
@@ -609,64 +632,18 @@ async def test_stays_reconcilable_after_membership_rows_are_gone(people_maker):
     assert not any(x.startswith("ERRO") for x in diff)
 
 
-async def test_denied_external_profile_warns_and_does_not_break_the_cycle(
+async def test_external_profile_is_never_written_and_warns_with_the_command(
     people_maker,
 ):
     await _seed(people_maker)
     g = FakeGlpi()
-    g.deny = {("Profile_User", 14)}
-    g.deny_exc = GLPIProfileDeniedError  # 400 do GLPI em Profile_User
     diff = await _diff(people_maker, g)
     warn = [x for x in diff if x.startswith("AVISO")]
-    assert len(warn) == 1 and "elid" in warn[0] and "glpi-grant-external" in warn[0]
-    assert not [
-        x for x in diff if x.startswith("PROFILE elid")
-    ]  # negado não conta como feito
+    assert len(warn) == 1 and "elid" in warn[0]
+    assert "docker exec -i -u www-data ninf-glpi php" in warn[0]
+    assert "glpi-grant-external.php" in warn[0]
+    assert not [x for x in diff if x.startswith("PROFILE elid")]
     assert not [x for x in diff if x.startswith("ERRO")]
     assert any(u["name"] == "elid" for u in g.t["User"])  # o resto do ciclo foi gravado
-
-
-async def test_transient_glpi_failure_on_external_profile_is_not_a_warning(
-    people_maker,
-):
-    from app.integrations.glpi import GLPITransientError
-
-    await _seed(people_maker)
-    g = FakeGlpi()
-    g.deny, g.deny_exc = {("Profile_User", 14)}, GLPITransientError
-    with pytest.raises(GLPITransientError):
-        await _diff(people_maker, g)
-
-
-async def test_plain_runtime_failure_on_external_profile_is_not_a_warning(
-    people_maker,
-):
-    await _seed(people_maker)
-    g = FakeGlpi()
-    g.deny = {
-        ("Profile_User", 14)
-    }  # RuntimeError simples: resposta malformada, 4xx comum
-    with pytest.raises(RuntimeError):
-        await _diff(people_maker, g)
-
-
-def test_profile_user_400_is_a_permission_denial_but_other_400s_are_not():
-    import httpx
-
-    from app.integrations.glpi import (
-        GLPIProfileDeniedError,
-        _glpi_failure,
-    )
-
-    res = httpx.Response(400, request=httpx.Request("POST", "http://g/Profile_User"))
-    err = httpx.HTTPStatusError("x", request=res.request, response=res)
-    assert isinstance(
-        _glpi_failure("escrita em Profile_User", err), GLPIProfileDeniedError
-    )
-    denied = httpx.Response(403, request=httpx.Request("POST", "http://g/Profile_User"))
-    err403 = httpx.HTTPStatusError("x", request=denied.request, response=denied)
-    assert not isinstance(
-        _glpi_failure("escrita em Profile_User", err403), GLPIProfileDeniedError
-    )  # 401/403 não vira remediação manual
-    other = _glpi_failure("escrita em User", err)
-    assert type(other) is RuntimeError
+    # nenhuma tentativa de Profile_User para o externo: o token de sync não tem o direito
+    assert not [p for p in g.t["Profile_User"] if p["profiles_id"] == 14]

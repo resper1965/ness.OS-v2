@@ -16,14 +16,6 @@ class GLPIPermanentError(PermissionError):
     """GLPI denied the configured identity; retries cannot repair its grants."""
 
 
-class GLPIProfileDeniedError(GLPIPermanentError):
-    """O perfil de sync não pode conceder este perfil (GLPI: 400 ERROR_GLPI_ADD).
-
-    Só este caso tem remediação manual (`glpi-grant-external.php`); 401/403 é sessão ou
-    identidade quebrada e precisa falhar alto.
-    """
-
-
 class GLPITransientError(RuntimeError):
     """A GLPI transport or capacity failure may recover on a later attempt."""
 
@@ -33,11 +25,6 @@ def _glpi_failure(operation: str, exc: Exception) -> Exception:
     if isinstance(exc, httpx.HTTPStatusError):
         if exc.response.status_code in (401, 403):
             return GLPIPermanentError(f"GLPI {operation} sem autorização")
-        if exc.response.status_code == 400 and operation.endswith("Profile_User"):
-            # Profile_User::canCreateItem negado: o GLPI responde 400 ERROR_GLPI_ADD.
-            return GLPIProfileDeniedError(
-                f"GLPI {operation} sem direito sobre o perfil"
-            )
         if exc.response.status_code == 429 or exc.response.status_code >= 500:
             return GLPITransientError(f"GLPI {operation} temporariamente indisponível")
     if isinstance(exc, httpx.TransportError):
