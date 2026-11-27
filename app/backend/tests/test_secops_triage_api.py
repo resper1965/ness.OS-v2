@@ -198,7 +198,7 @@ def _spy_triage(monkeypatch):
 def test_attendance_floor_is_independent_of_score_and_model(
     decision_database, monkeypatch, level, attended
 ):
-    calls = _spy_triage(monkeypatch)
+    _spy_triage(monkeypatch)
     payload = {
         "rule": {"id": "1", "level": level},
         "agent": {"id": "1", "name": "workstation-10", "group": ["g"]},
@@ -284,7 +284,7 @@ async def test_resolve_tenant(agent, rows, expected):
 
 @pytest.mark.parametrize("level", [None, "abc", "NaN", [], {}])
 def test_invalid_level_never_500_and_is_attended(decision_database, monkeypatch, level):
-    calls = _spy_triage(monkeypatch)
+    _spy_triage(monkeypatch)
     payload = {
         "rule": {"id": "1", "level": level},
         "agent": {"id": "1", "group": ["g"]},
@@ -366,7 +366,7 @@ def test_first_delivery_stores_dedup_key(decision_database, monkeypatch):
 def test_race_on_unique_key_returns_winner(decision_database, monkeypatch):
     from sqlalchemy.exc import IntegrityError
 
-    calls = _spy_triage(monkeypatch)
+    _spy_triage(monkeypatch)
     winner = SimpleNamespace(
         id=8,
         classification="HIGH",

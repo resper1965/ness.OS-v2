@@ -80,6 +80,7 @@ def test_defaults_equal_legacy_constants():
         "ticket_symptom_lead_minutes": 2,
         "ticket_cross_link_minutes": 30,
         "soc_ticket_min_level": 12,
+        "incident_volume_warn_threshold": 200,
     }
     from app.services.ticket_policy import TICKET_DEFAULTS
 
