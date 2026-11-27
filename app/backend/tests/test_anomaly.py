@@ -3,7 +3,8 @@
 # -------------------------------------------------------
 import numpy as np
 import pytest
-from app.ml.anomaly import robust_zscore, detect_anomalies, detect_single
+
+from app.ml.anomaly import detect_anomalies, detect_single, robust_zscore
 
 
 def test_robust_zscore_basic():

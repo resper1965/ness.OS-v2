@@ -1,10 +1,12 @@
 # -------------------------------------------------------
 # n.infraops — Testes unitários do RMMFactory
 # -------------------------------------------------------
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from app.remediators.factory import RMMFactory
+
+import pytest
+
 from app.models import CustomerCredentials
+from app.remediators.factory import RMMFactory
 
 
 @pytest.mark.asyncio

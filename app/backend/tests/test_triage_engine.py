@@ -1,4 +1,4 @@
-from app.core.triage_engine import TriageEngine, TriageAction
+from app.core.triage_engine import TriageAction, TriageEngine
 
 
 def test_triage_low_risk_archived():

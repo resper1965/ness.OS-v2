@@ -21,6 +21,7 @@ alembic==1.15.*
 
 # --- ML ---
 numpy==2.2.*
+regex==2026.11.*  # timeout por busca nas regras de chamado (re não tem)
 
 # --- HTTP Client ---
 httpx==0.28.*

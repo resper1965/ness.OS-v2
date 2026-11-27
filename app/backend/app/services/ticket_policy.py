@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from hashlib import sha256
 from typing import Literal
 
+import regex
 from sqlalchemy import select
 
 from app.models import TicketRule
@@ -24,9 +25,9 @@ TICKET_DEFAULTS = {
 
 @dataclass(frozen=True)
 class Rules:
-    action: list[re.Pattern] = field(default_factory=list)
-    noise: list[re.Pattern] = field(default_factory=list)
-    cause: list[re.Pattern] = field(default_factory=list)
+    action: list[regex.Pattern] = field(default_factory=list)
+    noise: list[regex.Pattern] = field(default_factory=list)
+    cause: list[regex.Pattern] = field(default_factory=list)
 
 
 async def load_rules(session) -> Rules:
@@ -36,14 +37,30 @@ async def load_rules(session) -> Rules:
     )
     for kind, pattern in rows:
         try:
-            getattr(rules, kind).append(re.compile(pattern, re.I))
-        except (re.error, AttributeError):
+            getattr(rules, kind).append(regex.compile(pattern, regex.I))
+        except (regex.error, AttributeError):
             logger.warning("Regra de chamado inválida ignorada: %s", kind)
     return rules
 
 
-def _hit(patterns: list[re.Pattern], title: str) -> bool:
-    return any(p.search(title) for p in patterns)
+MATCH_TIMEOUT = 0.02  # segundos por padrão; o decisor roda a cada 60 s
+
+
+def _hit(patterns: list[regex.Pattern], title: str, fail_open: bool = False) -> bool:
+    """`regex` aceita timeout; o `re` da stdlib não, e uma regra patológica pararia o decisor.
+
+    Estouro no ruído conta como "não casou" (nunca suprime chamado); nas regras de ação,
+    `fail_open` conta como "casou", para o chamado sair mesmo assim. O worker não trava.
+    """
+    for pattern in patterns:
+        try:
+            if pattern.search(title, timeout=MATCH_TIMEOUT):
+                return True
+        except TimeoutError:
+            logger.warning("Regra de chamado estourou o tempo: %s", pattern.pattern)
+            if fail_open:
+                return True
+    return False
 
 
 def classify(title: str, severity: int, rules: Rules) -> Literal["action", "panel"]:
@@ -52,7 +69,7 @@ def classify(title: str, severity: int, rules: Rules) -> Literal["action", "pane
         return "action"
     if _hit(rules.noise, title):
         return "panel"
-    return "action" if _hit(rules.action, title) else "panel"
+    return "action" if _hit(rules.action, title, fail_open=True) else "panel"
 
 
 def is_cause(title: str, rules: Rules) -> bool:

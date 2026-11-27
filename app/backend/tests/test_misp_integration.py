@@ -1,7 +1,8 @@
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from app.core.triage_engine import TriageEngine, TriageAction
+import pytest
+
+from app.core.triage_engine import TriageAction, TriageEngine
 from app.integrations.misp import search_misp_ioc
 
 

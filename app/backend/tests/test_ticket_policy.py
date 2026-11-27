@@ -103,3 +103,18 @@ def test_site_and_dedup_key():
     assert site_from_hostgroups(["Templates", "[ Unimed ]"]) is None
     assert dedup_key(12, "1", "2") != dedup_key(13, "1", "2")
     assert re.fullmatch(r"[0-9a-f]{64}", dedup_key(12, "1", "2"))
+
+
+def test_hit_never_stalls_on_a_pathological_rule():
+    import time
+
+    import regex
+
+    from app.services.ticket_policy import _hit
+
+    bad = regex.compile(r"(a|a)*$", regex.I)
+    title = "a" * 200 + "b"
+    start = time.monotonic()
+    assert _hit([bad], title) is False  # ruído: estouro não suprime
+    assert _hit([bad], title, fail_open=True) is True  # ação: estouro abre chamado
+    assert time.monotonic() - start < 1.0
