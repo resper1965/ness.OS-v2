@@ -1,0 +1,3 @@
+-- Resumos diários e semanais para o gestor do cliente (Task 2, 27/11/2026).
+-- A tabela é criada pelo SQLAlchemy via app.migrate; aqui só seeds e índices.
+-- O índice de idempotência (customer_id, key) é unique constraint no modelo.
