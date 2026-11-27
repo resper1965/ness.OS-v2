@@ -33,7 +33,8 @@ restore() {
   "${compose[@]}" up -d --no-deps frontend >/dev/null 2>&1 || true
   echo "rollback: frontend restaurado de .env.bak-fe-${stamp}" >&2
 }
-trap 'restore' ERR
+trap restore ERR
+trap 'restore; exit 1' INT TERM HUP  # sinal no meio da troca também volta atrás
 
 # 2. Swap the image reference (add the line when the env never had it).
 for d in "${dirs[@]}"; do
@@ -52,6 +53,6 @@ sleep 8
 docker exec ninf-caddy wget -q --spider http://ninf-frontend:3000/
 code="$(curl -ksS -o /dev/null -m 15 -w '%{http_code}' --resolve hub.ness.com.br:443:127.0.0.1 https://hub.ness.com.br/)"
 [[ "${code}" == 200 ]]
-trap - ERR
+trap - ERR INT TERM HUP
 echo "frontend_image=${ref}"
 echo "hub_http=${code}"
