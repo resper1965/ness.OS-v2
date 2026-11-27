@@ -633,7 +633,8 @@ VALUES
     ('ticket_reopen_hours', 24),
     ('ticket_symptom_lead_minutes', 2),
     ('ticket_cross_link_minutes', 30),
-    ('soc_ticket_min_level', 12)
+    ('soc_ticket_min_level', 12),
+    ('incident_volume_warn_threshold', 200)
 ON CONFLICT (key) DO NOTHING;
 -- params:end
 -- ai:begin
