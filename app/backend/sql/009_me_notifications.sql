@@ -1,0 +1,2 @@
+-- Horas de silêncio (do-not-disturb) para sweep de notificações (Task 5, 27/11/2026).
+-- A coluna dnd_until é gerenciada pelo SQLAlchemy (model User); este arquivo só documenta.

@@ -183,6 +183,8 @@ async def _recipients(session, inc: Incident, roles) -> list[User]:
     ext_team = any(u.role == UserRole.cliente and u.id in team for u in users)
 
     def tier(u: User) -> int | None:
+        if u.dnd_until and u.dnd_until > datetime.now(timezone.utc):
+            return None  # em horas de silêncio
         if u.role == UserRole.cliente and ext_team and u.id not in team:
             return None
         if tenant and u.role not in NOC_ROLES and (u.tenant_id or "").lower() == tenant:

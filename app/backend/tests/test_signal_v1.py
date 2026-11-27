@@ -66,7 +66,10 @@ def test_collected_at_required_and_zone_checked():
     for bad in (None, datetime(2026, 1, 1)):
         with pytest.raises(SignalRejected) as e:
             wazuh_alert_to_signal_v1(
-                _alert(), source_id="s", collected_at=bad, received_at=RECV  # type: ignore[arg-type]
+                _alert(),
+                source_id="s",
+                collected_at=bad,
+                received_at=RECV,  # type: ignore[arg-type]
             )
         assert e.value.field == "collected_at"
 
